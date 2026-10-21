@@ -61,7 +61,7 @@ class USessionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             config = Config(api_key='dummy', problem_dir=root/'problem', output=root/'run',
-                            u_model='u', u_thinking='high', t_model='t', max_u_turns=2, test_timeout_seconds=2,
+                            u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2,
                             u_advice_max_chars=100)
             with patch('surprisals_experiment.sdk.utils.u_session.open_u_session.Botbox', Box):
                 with self.assertRaisesRegex(RuntimeError, 'test failure'):

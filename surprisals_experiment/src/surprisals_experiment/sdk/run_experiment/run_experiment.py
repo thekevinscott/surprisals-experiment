@@ -25,6 +25,7 @@ def run_experiment(
             or not inputs or len(inputs) != len(outputs)
             or not all(isinstance(value, str) for value in inputs + outputs)):
         raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
+    config.save_settings()
     with open_u_session(config) as u_session:
         for attempt in range(config.max_u_turns):
             for candidate in range(config.u_advice_retries + 1):
@@ -46,7 +47,7 @@ def run_experiment(
                 config, attempt=attempt, advice=advice, test_suite=test_suite,
                 snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
             )
-            if results.all_passed:
+            if all(result.all_passed for result in results):
                 break
             if attempt + 1 < config.max_u_turns:
                 prompt = prepare_feedback(config, attempt, results)

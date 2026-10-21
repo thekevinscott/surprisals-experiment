@@ -24,7 +24,7 @@ class AdviceLimitTest(unittest.TestCase):
                 output = root/'run'
                 output.mkdir()
                 config = Config(api_key='dummy', problem_dir=root, output=output, u_model='u',
-                                t_model='t', u_thinking='high', max_u_turns=2, test_timeout_seconds=1,
+                                t_model='t', t_samples=1, u_thinking='high', max_u_turns=2, test_timeout_seconds=1,
                                 u_advice_max_chars=limit, u_advice_retries=retries)
                 session = SimpleNamespace(prompt=Mock(side_effect=replies), solutions=root/'solutions')
 
@@ -32,8 +32,8 @@ class AdviceLimitTest(unittest.TestCase):
                 def open_session(config):
                     yield session
 
-                attempt = Mock(side_effect=[(root/'first', SimpleNamespace(all_passed=False)),
-                                            (root/'second', SimpleNamespace(all_passed=True))])
+                attempt = Mock(side_effect=[(root/'first', [SimpleNamespace(all_passed=False)]),
+                                            (root/'second', [SimpleNamespace(all_passed=True)])])
                 module = 'surprisals_experiment.sdk.run_experiment.run_experiment'
                 with patch(module+'.open_u_session', open_session), \
                      patch(module+'.run_attempt', attempt), \

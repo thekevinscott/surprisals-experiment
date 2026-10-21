@@ -25,7 +25,7 @@ class AuditTest(unittest.TestCase):
         self.root = Path(temporary.name)
         (self.root/'question.txt').write_text('Print 7.')
         self.config = Config(api_key='dummy', problem_dir=self.root, output=self.root/'run',
-                             u_model='u', u_thinking='high', t_model='t', max_u_turns=2, test_timeout_seconds=2)
+                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2)
 
     def test_invalid_suites_fail_before_starting_u(self):
         invalid = [None, {}, {'inputs': [], 'outputs': []},
@@ -59,15 +59,15 @@ class AuditTest(unittest.TestCase):
 
     def test_nonzero_t_exit_can_produce_valid_solution(self):
         output, results = self.attempt(1)
-        self.assertEqual(output, self.config.attempt_dir(0)/'src')
-        self.assertTrue(results.all_passed)
+        self.assertEqual(output, self.config.t_dir(0, 0)/'src')
+        self.assertTrue(all(result.all_passed for result in results))
 
     def test_daemon_failure_aborts_and_preserves_diagnostics(self):
         with self.assertRaisesRegex(RuntimeError, 'infrastructure'):
             self.attempt(-1)
         self.assertIn('infrastructure', (self.config.attempt_dir(0)/'error.txt').read_text())
-        self.assertEqual(json.loads((self.config.attempt_dir(0)/'run.json').read_text())['exit_code'], -1)
-        self.assertFalse((self.config.attempt_dir(0)/'tests.json').exists())
+        self.assertEqual(json.loads((self.config.t_dir(0, 0)/'run.json').read_text())['exit_code'], -1)
+        self.assertFalse((self.config.t_dir(0, 0)/'tests.json').exists())
 
     def test_orchestration_errors_propagate_and_preserve_traceback(self):
         with patch(ATTEMPT+'prompt_t', side_effect=OSError('disk failure')):

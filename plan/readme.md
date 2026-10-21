@@ -32,13 +32,13 @@ Integration tests now cover both loops, including their interaction, with global
 
 ## Phase 3: n-of-T evaluation
 
-**Next: evaluate each advice with n independent T instances.**
+**Implemented: evaluate each advice with n independent T instances. Live validation pending.**
 
-Make n configurable, initially five as proposed. Freeze the advice and give the same message to n fresh T sessions. Do not revise it between evaluations or share T histories. Each solution must pass the full stored test suite; advice qualifies only when **n out of n** solutions pass.
+Set n with `--t-samples` (default 5; use 1 for the original single-T behavior). Freeze the advice and give the same message to n fresh T sessions. Do not revise it between evaluations or share T histories. Each solution must pass the full stored test suite; advice qualifies only when **n out of n** solutions pass.
 
-Preserve each T's code, transcript, and test results, plus the aggregate outcome. Return all individual outcomes and source access to U after the batch. An incomplete batch caused by infrastructure errors cannot establish n/n success; its retry policy remains to be specified.
+Preserve each T's code, transcript, and test results, plus the aggregate outcome. Return all individual outcomes and source access to U after the batch. An incomplete batch caused by infrastructure errors cannot establish n/n success; the current policy is to stop on infrastructure errors, preserve completed evaluations, and leave the batch incomplete. Automatic resumption is not implemented.
 
-Keep n separate from U's turn budget and advice-rewrite retries. Initially retain fixed-cap mode to validate this change; n=1 should preserve current behavior. Add integration tests for all-pass, mixed-pass, all-fail, and interrupted batches, identical advice, independent sessions, and separate artifacts.
+Keep n separate from U's turn budget and advice-rewrite retries. Initially retain fixed-cap mode to validate this change; n=1 should preserve current behavior. Integration tests cover all-pass, mixed-pass, all-fail, and interrupted batches, identical advice, independent sessions, separate artifacts, and rewrites followed by a successful revised batch. Samples run sequentially and the full batch is evaluated even when an earlier sample fails.
 
 ## Phase 4: Minimize advice without a preset cap
 
