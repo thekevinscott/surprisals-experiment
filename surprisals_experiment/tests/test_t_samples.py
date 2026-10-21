@@ -37,6 +37,7 @@ def describe_n_of_t():
         assert not (config.attempt_dir(0) / 'batch.json').exists()
         for i, source in enumerate(sources):
             directory = config.t_dir(0, i)
+            assert directory == config.attempt_dir(0) / 't_samples' / str(i)
             assert (directory / 'src/main.py').read_text() == source
             assert (directory / 't_transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)

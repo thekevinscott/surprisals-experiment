@@ -32,8 +32,8 @@ class AdviceLimitTest(unittest.TestCase):
                 def open_session(config):
                     yield session
 
-                attempt = Mock(side_effect=[(root/'first', SimpleNamespace(all_passed=False)),
-                                            (root/'second', SimpleNamespace(all_passed=True))])
+                attempt = Mock(side_effect=[(root/'first', [SimpleNamespace(all_passed=False)]),
+                                            (root/'second', [SimpleNamespace(all_passed=True)])])
                 module = 'surprisals_experiment.sdk.run_experiment.run_experiment'
                 with patch(module+'.open_u_session', open_session), \
                      patch(module+'.run_attempt', attempt), \

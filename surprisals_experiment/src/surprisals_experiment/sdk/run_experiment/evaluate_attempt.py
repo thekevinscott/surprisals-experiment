@@ -13,7 +13,7 @@ from ..run_test_suite import TestSuiteResult, run_test_suite
 
 
 def evaluate_attempt(config: Config, *, attempt: int, sample: int, advice: str, test_suite: dict, snapshot: Path,
-                on_delta: Callable[[str, str], None] | None = None) -> tuple[Path, TestSuiteResult]:
+                on_delta: Callable[[str, str], None] | None = None) -> TestSuiteResult:
     sample_dir = config.t_dir(attempt, sample)
     sample_dir.mkdir(parents=True, exist_ok=True)
     output = sample_dir / "src"
@@ -32,4 +32,4 @@ def evaluate_attempt(config: Config, *, attempt: int, sample: int, advice: str, 
         "all_passed": results.all_passed,
         "cases": [asdict(case) for case in results.cases],
     }, indent=2) + "\n")
-    return output, results
+    return results

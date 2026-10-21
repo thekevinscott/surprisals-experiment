@@ -61,8 +61,7 @@ class Config(BaseModel):
         return self.output / "attempts" / str(attempt)
 
     def t_dir(self, attempt: int, sample: int) -> Path:
-        directory = self.attempt_dir(attempt)
-        return directory if self.t_samples == 1 else directory / "t_samples" / str(sample)
+        return self.attempt_dir(attempt) / "t_samples" / str(sample)
 
     def advice_dir(self, attempt: int, candidate: int) -> Path:
         return self.attempt_dir(attempt) / "advices" / str(candidate)

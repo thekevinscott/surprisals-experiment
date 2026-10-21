@@ -27,7 +27,7 @@ def describe_advice_cap_loop():
         botbox_script.advice.extend([advice, 'ok'] if rejected else [advice])
         botbox_script.solutions.append(PASS)
 
-        assert run_experiment(config, on_delta=None) == config.attempt_dir(0) / 'src'
+        assert run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
         candidates = saved_candidates(config, 0)
         assert candidates[0] == (advice, {'measurement': len(advice), 'rejected': rejected})
         assert len(candidates) == 1 + rejected
@@ -71,7 +71,7 @@ def describe_u_to_t_loop():
         botbox_script.solutions.extend([FAIL] * failures + [PASS, PASS])
         result = run_experiment(config, on_delta=None)
         count = min(failures + 1, 5)
-        expected = config.attempt_dir(count - 1) / 'src' if failures < 5 else None
+        expected = config.t_dir(count - 1, 0) / 'src' if failures < 5 else None
         assert result == expected
         assert json.loads(config.result_file.read_text()) == {
             'success': failures < 5, 'attempts': count,
@@ -82,15 +82,15 @@ def describe_u_to_t_loop():
         assert [s.messages for s in botbox_script.t_sessions] == [[f'advice {i}'] for i in range(count)]
         for i in range(count):
             attempt = config.attempt_dir(i)
-            tests = json.loads((attempt / 'tests.json').read_text())
+            tests = json.loads((config.t_dir(i, 0) / 'tests.json').read_text())
             assert tests['passed'] == (2 if i == failures else 0)
-            assert (attempt / 't_transcripts/session.jsonl').exists()
+            assert (config.t_dir(i, 0) / 't_transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = (attempt / 'feedback.txt').read_text()
                 assert 'passed 0 of 2 tests' in feedback
                 assert f'/solutions/{i}' in feedback
                 assert botbox_script.u_sessions[0].messages[i + 1] == feedback
-                assert botbox_script.snapshots[i + 1][f'{i}/main.py'] == FAIL
+                assert botbox_script.snapshots[i + 1][f'{i}/0/main.py'] == FAIL
         assert config.error_file.exists() == (failures == 5)
         assert not (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
@@ -102,7 +102,7 @@ def describe_combined_loops():
         config.u_advice_max_chars = 5
         botbox_script.advice.extend(['12345'] * 10 + ['one'] + ['123456'] * 10 + ['two'])
         botbox_script.solutions.extend([FAIL, PASS])
-        assert run_experiment(config, on_delta=None) == config.attempt_dir(1) / 'src'
+        assert run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
         assert [s.messages for s in botbox_script.t_sessions] == [['one'], ['two']]
         for attempt in range(2):
             candidates = saved_candidates(config, attempt)
@@ -121,7 +121,7 @@ def describe_combined_loops():
         with pytest.raises(RuntimeError, match='provider unavailable'):
             run_experiment(config, on_delta=None)
         assert not config.result_file.exists()
-        assert not (config.attempt_dir(0) / 'tests.json').exists()
+        assert not (config.t_dir(0, 0) / 'tests.json').exists()
         assert (config.u_transcripts / 'session.jsonl').exists()
         assert all(session.closed for session in botbox_script.sessions)
         if actor == 'T':

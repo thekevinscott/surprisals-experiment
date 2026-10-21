@@ -47,7 +47,7 @@ def run_experiment(
                 config, attempt=attempt, advice=advice, test_suite=test_suite,
                 snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
             )
-            if results.all_passed:
+            if all(result.all_passed for result in results):
                 break
             if attempt + 1 < config.max_u_turns:
                 prompt = prepare_feedback(config, attempt, results)

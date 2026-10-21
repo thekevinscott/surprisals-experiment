@@ -59,15 +59,15 @@ class AuditTest(unittest.TestCase):
 
     def test_nonzero_t_exit_can_produce_valid_solution(self):
         output, results = self.attempt(1)
-        self.assertEqual(output, self.config.attempt_dir(0)/'src')
-        self.assertTrue(results.all_passed)
+        self.assertEqual(output, self.config.t_dir(0, 0)/'src')
+        self.assertTrue(all(result.all_passed for result in results))
 
     def test_daemon_failure_aborts_and_preserves_diagnostics(self):
         with self.assertRaisesRegex(RuntimeError, 'infrastructure'):
             self.attempt(-1)
         self.assertIn('infrastructure', (self.config.attempt_dir(0)/'error.txt').read_text())
-        self.assertEqual(json.loads((self.config.attempt_dir(0)/'run.json').read_text())['exit_code'], -1)
-        self.assertFalse((self.config.attempt_dir(0)/'tests.json').exists())
+        self.assertEqual(json.loads((self.config.t_dir(0, 0)/'run.json').read_text())['exit_code'], -1)
+        self.assertFalse((self.config.t_dir(0, 0)/'tests.json').exists())
 
     def test_orchestration_errors_propagate_and_preserve_traceback(self):
         with patch(ATTEMPT+'prompt_t', side_effect=OSError('disk failure')):

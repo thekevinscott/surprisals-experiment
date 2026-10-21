@@ -74,7 +74,7 @@ class FeedbackTest(unittest.TestCase):
                      patch('surprisals_experiment.sdk.run_experiment.evaluate_attempt.prompt_t', side_effect=t):
                     result = run_experiment(config, on_delta=lambda kind, text: deltas.append((kind, text)),
                                             on_t_delta=lambda kind, text: t_deltas.append((kind, text)))
-                snapshot = root / "shared/0"
+                snapshot = root / "shared/0/0"
                 self.assertEqual({p.name for p in snapshot.iterdir()}, {'main.py', 'helpers.py'})
                 self.assertEqual((snapshot/'main.py').read_text(), first_source)
                 self.assertEqual((snapshot/'helpers.py').read_text(), 'VALUE = 42')
@@ -82,21 +82,21 @@ class FeedbackTest(unittest.TestCase):
                 self.assertEqual(t_deltas, [("thinking", "T thinking")] * turns)
                 self.assertFalse((config.output/'u_solutions').exists())
                 self.assertEqual(json.loads(config.result_file.read_text())['attempts'], turns)
-                self.assertEqual(json.loads((config.attempt_dir(0)/'run.json').read_text())['proxy'], 'proxy')
-                self.assertEqual((config.attempt_dir(0)/'t_transcripts/same.jsonl').read_text(), 'First advice')
+                self.assertEqual(json.loads((config.t_dir(0, 0)/'run.json').read_text())['proxy'], 'proxy')
+                self.assertEqual((config.t_dir(0, 0)/'t_transcripts/same.jsonl').read_text(), 'First advice')
                 if turns == 1:
                     self.assertIsNone(result)
                     self.assertFalse((config.attempt_dir(0)/'feedback.txt').exists())
                     self.assertFalse(json.loads(config.result_file.read_text())['success'])
                 else:
-                    self.assertEqual(result, config.attempt_dir(1)/'src')
+                    self.assertEqual(result, config.t_dir(1, 0)/'src')
                     self.assertEqual(received, ['First advice', 'Revised advice'])
                     feedback = pi.commands[1]
                     self.assertIn('/solutions/0', feedback)
                     self.assertIn('passed 0 of 1 tests', feedback)
                     self.assertNotIn('19381', feedback)
                     self.assertEqual((config.attempt_dir(0)/'feedback.txt').read_text(), feedback)
-                    self.assertEqual((config.attempt_dir(1)/'t_transcripts/same.jsonl').read_text(), 'Revised advice')
+                    self.assertEqual((config.t_dir(1, 0)/'t_transcripts/same.jsonl').read_text(), 'Revised advice')
                     self.assertIn(('thinking', 'Thinking'), deltas)
 
     def test_first_agent_end_provider_failure_aborts(self):
