@@ -1,5 +1,6 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -23,6 +24,14 @@ class Config(BaseModel):
     u_advice_retries: int = Field(default=10, ge=0)
     max_u_turns: int = Field(ge=1)
     test_timeout_seconds: float = Field(gt=0)
+
+    def save_settings(self) -> None:
+        """Save only the fields needed by run summaries."""
+        self.output.mkdir(parents=True, exist_ok=True)
+        (self.output / "settings.json").write_text(json.dumps({
+            "u_advice_max_chars": self.u_advice_max_chars,
+            "t_samples": self.t_samples,
+        }, indent=2) + "\n")
 
     @property
     def question_file(self) -> Path:
