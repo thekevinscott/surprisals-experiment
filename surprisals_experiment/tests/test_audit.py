@@ -15,7 +15,7 @@ from surprisals_experiment.sdk.run_experiment.run_attempt import run_attempt
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 
-ATTEMPT = 'surprisals_experiment.sdk.run_experiment.run_attempt.'
+ATTEMPT = 'surprisals_experiment.sdk.run_experiment.evaluate_attempt.'
 
 
 class AuditTest(unittest.TestCase):
