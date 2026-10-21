@@ -18,23 +18,15 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 
 U keeps its conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes.
 
-### Phase one: uncapped advice
+## Plan
 
-The first phase established the loop without limiting advice length. The initial three problems passed on their first attempt. A subsequent ten-problem batch produced six more first-attempt successes; four runs stopped on infrastructure errors before reaching T. These runs did not demonstrate recovery through test feedback.
+See the [five-phase experiment plan](plan/readme.md):
 
-### Phase two: character caps
-
-U receives a character limit in its system prompt. Advice must be **strictly shorter** than the configured cap, including whitespace. Overlong advice is rejected before T sees it, and U is asked to rewrite it. Each T attempt allows ten rewrite retries in addition to the initial candidate. Rewrites do not consume T attempts.
-
-On APPS problem `2286`, preliminary runs showed:
-
-| Character cap | Outcome |
-| --- | --- |
-| 100 | Passed all five stored tests on the first T attempt with 98-character advice. |
-| 50 | Exhausted five T attempts without passing the tests. |
-| 90 | Passed all five stored tests on the third T attempt. |
-
-The 90-character run demonstrated feedback recovery involving input parsing and output formatting, not an established algorithmic correction. The evaluator compares stripped output text exactly. Infrastructure failures are separate from failed solutions, and passing a small set of stored tests does not establish general correctness. These observations do not yet test the surprisal/readability hypothesis.
+1. Uncapped advice — complete.
+2. Capped advice — complete; demonstrated success after multiple attempts.
+3. n-of-T evaluation — next.
+4. Minimize advice without a preset cap — search policy to be decided.
+5. Surprisal scoring and optimization — planned.
 
 ## Run an experiment
 
@@ -56,7 +48,7 @@ uv run surprisals_experiment \
 
 Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
-The current [experiment.toml](experiment.toml) defines a labnotes grid for problem `2286` with caps of 70 and 80. Its command assumes the parent labnotes workspace; the direct CLI example above works from this standalone repository.
+The current [experiment.toml](experiment.toml) defines a labnotes grid for problem `2286` with caps of 70 and 80. Standalone labnotes configuration is being migrated; use the direct CLI example above in the meantime.
 
 Tests execute generated Python on the host, outside the agent containers. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.
 
@@ -85,6 +77,4 @@ The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surpris
 
 ## Next steps
 
-Move from fixed caps to progressively shortening successful advice. Evaluate each candidate with multiple independent T instances, retain the lowest-cost reliable candidate, and compare character-optimized and surprisal-optimized messages on the same problems at comparable effectiveness.
-
-The surprisal model and scoring context, optimization budget, and readability evaluation remain to be chosen. Full-problem baselines and fresh validation runs will help distinguish communication failures from T's underlying ability to solve a task.
+Implement [Phase 3: n-of-T evaluation](plan/readme.md#phase-3-n-of-t-evaluation), then settle the advice-minimization policy before adding surprisal scoring.
