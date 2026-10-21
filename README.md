@@ -63,6 +63,8 @@ Run artifacts belong in `runs/`, which is ignored by Git. The dataset destinatio
 - `attempts/<attempt>/t_transcripts/`: T's conversation.
 - `attempts/<attempt>/src/` and `tests.json`: generated source and test outcomes.
 
+Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
+
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 
 ## Tests

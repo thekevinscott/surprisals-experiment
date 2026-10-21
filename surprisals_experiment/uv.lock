@@ -27,6 +27,12 @@ wheels = [
 ]
 
 [[package]]
+name = "bin-shim"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c0937834fc3f2bacde597f6e25499b0bf4b3d71292b7dbf822/bin_shim-0.1.1.tar.gz", hash = "sha256:9972911c22754a5370f666245cbe5d9d9aa04d9f7289d166142c9c3c6ee3b8c3", size = 10431, upload-time = "2026-08-20T21:45:24.392Z" }
+
+[[package]]
 name = "botbox"
 version = "0.0.15"
 source = { registry = "https://pypi.org/simple" }
@@ -45,6 +51,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697, upload-time = "2022-10-25T02:36:22.414Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
+]
+
+[[package]]
+name = "dirsql"
+version = "0.4.119"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bin-shim" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/23/ad705ee57be42b53f8ca7e1f15c180ad8bc6fb161a26d386f0b26b480ca5/dirsql-0.4.119.tar.gz", hash = "sha256:4ece5f042621a8da94c3dea3099a03774b8b5d25711cce185cb81919acf20c10", size = 709029, upload-time = "2026-10-20T13:03:55.696Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/4c/de2540daaf759895f34cbe385ac5bd02cd74baf5734c839e1d6f123d380f/dirsql-0.4.119-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:5ad9e850f9bedf3c3dbb8c342616933a4b55a09618a2b24cb385c793c973786b", size = 3542936, upload-time = "2026-10-20T13:03:47.045Z" },
+    { url = "https://files.pythonhosted.org/packages/98/e1/54e6802353326a005e73897ea4eafded5f247ff006cd0baf5b48fc97bcde/dirsql-0.4.119-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:d96993f2fb3e0e6e0dfe3de5322460f34bd3c43921fb6058bc404e873e7b87ab", size = 3344283, upload-time = "2026-10-20T13:03:49.418Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/e7/35be60725d1ad0545a0508f022cd83fb52fe491b4771e0829d73e307f9a1/dirsql-0.4.119-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:5259a03c7775dee072acb5733c7908f1f4067938a0650d9f85941c73dce62a98", size = 3580755, upload-time = "2026-10-20T13:03:50.924Z" },
+    { url = "https://files.pythonhosted.org/packages/91/42/67a69673a9fc060d4aee083a54792667e73824b01c43b6cf5c6d3ed5ad9a/dirsql-0.4.119-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:065df7dd298315f4a750997342bfcca1aa1c4a22778b72d887bd1da194f15015", size = 3776316, upload-time = "2026-10-20T13:03:52.497Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/d8/437998e53857915357a2e76431443fa1bf1bafd96ef76f5ea260da1671d5/dirsql-0.4.119-cp310-abi3-win_amd64.whl", hash = "sha256:d3d5daf4b4ee8af1ebbf9f3d04d980a7506d8163e826771dd87478372dc17ef1", size = 3759771, upload-time = "2026-10-20T13:03:54.157Z" },
 ]
 
 [[package]]
@@ -232,6 +254,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "dirsql" },
     { name = "pytest" },
     { name = "pytest-describe" },
 ]
@@ -245,6 +268,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "dirsql", specifier = ">=0.4.119" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-describe", specifier = ">=3.2.0" },
 ]
