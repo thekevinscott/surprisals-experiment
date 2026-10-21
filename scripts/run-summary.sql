@@ -14,27 +14,28 @@ advice AS (
     FROM candidates
     GROUP BY attempt_path
 ),
-batches AS (
-    SELECT substr(path, 1, length(path) - length('/batch.json')) AS attempt_path,
-           content ->> 'expected' AS expected,
-           content ->> 'completed' AS completed,
-           content ->> 'passed' AS passing_ts,
-           content ->> 'tests_passed' AS tests_passed,
-           content ->> 'tests_total' AS tests_total,
-           CASE WHEN content ->> 'completed' = content ->> 'expected'
-                THEN content ->> 'all_passed' END AS all_passed
-    FROM './attempts/*/batch.json'
+sample_results AS (
+    SELECT substr(path, 1, length(path) - length('/tests.json')) AS attempt_path,
+           content ->> 'passed' AS tests_passed,
+           content ->> 'total' AS tests_total,
+           content ->> 'all_passed' AS all_passed
+    FROM './attempts/*/tests.json'
+    UNION ALL
+    SELECT substr(path, 1, instr(path, '/t_samples/') - 1),
+           content ->> 'passed', content ->> 'total', content ->> 'all_passed'
+    FROM './attempts/*/t_samples/*/tests.json'
 ),
 evaluations AS (
-    SELECT attempt_path, expected, completed, passing_ts, all_passed,
-           tests_passed, tests_total
-    FROM batches
-    UNION ALL
-    SELECT substr(path, 1, length(path) - length('/tests.json')) AS attempt_path,
-           1, 1, content ->> 'all_passed', content ->> 'all_passed',
-           content ->> 'passed', content ->> 'total'
-    FROM './attempts/*/tests.json'
-    WHERE attempt_path NOT IN (SELECT attempt_path FROM batches)
+    SELECT attempt_path,
+           coalesce((SELECT content ->> 't_samples' FROM settings), 1) AS expected,
+           count(*) AS completed,
+           sum(all_passed) AS passing_ts,
+           CASE WHEN count(*) = coalesce((SELECT content ->> 't_samples' FROM settings), 1)
+                THEN min(all_passed) END AS all_passed,
+           sum(tests_passed) AS tests_passed,
+           sum(tests_total) AS tests_total
+    FROM sample_results
+    GROUP BY attempt_path
 ),
 paths AS (
     SELECT attempt_path FROM advice
@@ -99,7 +100,8 @@ SELECT
         SELECT 1 FROM run_metadata, json_each(content, '$.params')
         WHERE key = 'u-advice-max-chars'
     ) THEN 'recorded' ELSE 'unknown' END AS cap_status,
-    (SELECT max(expected) FROM evaluations) AS ts_per_advice,
+    coalesce((SELECT content ->> 't_samples' FROM settings),
+             (SELECT max(expected) FROM evaluations)) AS ts_per_advice,
     CASE WHEN EXISTS (SELECT 1 FROM evaluations WHERE all_passed = 1)
          THEN (SELECT count(*) FROM attempts WHERE completed_evaluation_attempts = 1
                AND attempt_index <= (SELECT min(attempt_index) FROM attempts WHERE all_passed = 1))

@@ -61,12 +61,11 @@ Run artifacts belong in `runs/`, which is ignored by Git. The dataset destinatio
 - `u_transcripts/`: U's persistent Pi conversation.
 - `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
 - Adjacent `metadata.json`: rejection status and measured character count.
-- `settings.json`: only the advice cap, explicitly selected by `Config.save_settings()`.
-- `attempts/<attempt>/batch.json`: expected/completed T counts, passing T count, and aggregate test outcome; updated after every evaluation.
+- `settings.json`: only the advice cap and requested T count, explicitly selected by `Config.save_settings()`.
 - With one T, `attempts/<attempt>/t_transcripts/`, `src/`, and `tests.json` retain the original layout.
 - With multiple Ts, each has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`.
 
-`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the successful batch. The batch manifest and sibling sample folders retain the evidence that every T passed.
+`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the successful batch. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
 Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 

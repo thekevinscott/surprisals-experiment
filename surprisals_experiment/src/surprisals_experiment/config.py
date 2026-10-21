@@ -30,6 +30,7 @@ class Config(BaseModel):
         self.output.mkdir(parents=True, exist_ok=True)
         (self.output / "settings.json").write_text(json.dumps({
             "u_advice_max_chars": self.u_advice_max_chars,
+            "t_samples": self.t_samples,
         }, indent=2) + "\n")
 
     @property

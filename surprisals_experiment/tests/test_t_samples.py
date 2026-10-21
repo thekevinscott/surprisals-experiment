@@ -34,17 +34,14 @@ def describe_n_of_t():
         assert [s.messages for s in botbox_script.t_sessions] == [['double it']] * n
         assert len({id(s.agent) for s in botbox_script.t_sessions}) == n
         assert len(botbox_script.u_sessions[0].messages) == 1
-        batch = json.loads((config.attempt_dir(0) / 'batch.json').read_text())
-        assert batch == {'expected': n, 'completed': n, 'passed': sources.count(PASS),
-                         'tests_passed': sources.count(PASS) * 2, 'tests_total': n * 2,
-                         'all_passed': outcome == 'all_pass'}
+        assert not (config.attempt_dir(0) / 'batch.json').exists()
         for i, source in enumerate(sources):
             directory = config.t_dir(0, i)
             assert (directory / 'src/main.py').read_text() == source
             assert (directory / 't_transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
-        assert settings == {'u_advice_max_chars': None}
+        assert settings == {'u_advice_max_chars': None, 't_samples': n}
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n
@@ -86,10 +83,7 @@ def describe_n_of_t():
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         assert (config.t_dir(0, 0) / 'tests.json').exists()
         assert 'provider unavailable' in (config.attempt_dir(0) / 'error.txt').read_text()
-        assert json.loads((config.attempt_dir(0) / 'batch.json').read_text()) == {
-            'expected': 3, 'completed': 1, 'passed': 1, 'all_passed': False,
-            'tests_passed': 2, 'tests_total': 2,
-        }
+        assert not (config.attempt_dir(0) / 'batch.json').exists()
         summary, attempt = report(config.output)
         assert summary['completed_evaluation_attempts'] == 0
         assert summary['completed_t_evaluations'] == 1
