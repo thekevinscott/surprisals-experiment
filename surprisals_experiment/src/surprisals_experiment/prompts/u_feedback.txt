@@ -1,0 +1,9 @@
+T produced a solution in {solution}. Use your read and ls tools to inspect its files.
+
+The solution passed {passed} of {total} tests.
+
+Review the solution against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
+
+T will see only your new instructions—not this feedback, its previous solution, or your earlier advice.
+
+Return only the revised instructions.

@@ -1,0 +1,22 @@
+# Credentials (at any depth)
+.env
+.env.*
+credentials.json
+*.pem
+*.key
+
+# Python environments and generated files
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Local datasets, run artifacts, and notes
+outputs/
+runs/
+data
+notes

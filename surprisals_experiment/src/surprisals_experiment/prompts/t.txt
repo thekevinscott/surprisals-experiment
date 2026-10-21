@@ -1,0 +1,4 @@
+Implement the programming problem described in the following message.
+Write a complete Python 3 solution to /solution/main.py using only the standard library.
+Read standard input and write only the required answer to standard output.
+You may use tools to write and check your code. Hidden tests are not available to you. Finish once your solution file is ready.

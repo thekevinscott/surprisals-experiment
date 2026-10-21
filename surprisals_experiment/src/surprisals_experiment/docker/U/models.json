@@ -1,0 +1,18 @@
+{
+  "providers": {
+    "openrouter": {
+      "models": [
+        {
+          "id": "xiaomi/mimo-v2.6-pro",
+          "name": "MiMo v2.6 Pro",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 1048576,
+          "maxTokens": 131072
+        }
+      ]
+    }
+  }
+}
