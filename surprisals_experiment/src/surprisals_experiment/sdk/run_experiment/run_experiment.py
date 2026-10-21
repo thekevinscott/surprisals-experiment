@@ -25,6 +25,10 @@ def run_experiment(
             or not inputs or len(inputs) != len(outputs)
             or not all(isinstance(value, str) for value in inputs + outputs)):
         raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
+    config.output.mkdir(parents=True, exist_ok=True)
+    (config.output / "settings.json").write_text(json.dumps(
+        config.model_dump(mode="json", exclude={"api_key"}), indent=2,
+    ) + "\n")
     with open_u_session(config) as u_session:
         for attempt in range(config.max_u_turns):
             for candidate in range(config.u_advice_retries + 1):

@@ -18,6 +18,7 @@ class Config(BaseModel):
     u_model: str
     u_thinking: ThinkingLevel
     t_model: str
+    t_samples: int = Field(default=1, ge=1)
     u_advice_max_chars: int | None = Field(default=None, gt=0)
     u_advice_retries: int = Field(default=10, ge=0)
     max_u_turns: int = Field(ge=1)
@@ -49,6 +50,10 @@ class Config(BaseModel):
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.output / "attempts" / str(attempt)
+
+    def t_dir(self, attempt: int, sample: int) -> Path:
+        directory = self.attempt_dir(attempt)
+        return directory if self.t_samples == 1 else directory / "t_samples" / str(sample)
 
     def advice_dir(self, attempt: int, candidate: int) -> Path:
         return self.attempt_dir(attempt) / "advices" / str(candidate)

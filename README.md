@@ -12,9 +12,9 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
-3. A fresh T writes `main.py`. The evaluator runs it against `input_output.json`.
-4. If tests fail, U receives the number of passing tests and can inspect a read-only copy of T's source. It then advises a fresh T.
-5. The run stops when all stored tests pass or the attempt budget is exhausted, currently five attempts.
+3. Give that same advice to `--t-samples` fresh T sessions (default 1). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Samples run sequentially.
+4. After the full batch, if any solution fails, U receives each T's passing-test count and can inspect read-only copies of all their source files. It then writes new advice for a fresh batch.
+5. The run stops when every T in a batch passes every stored test, or the advice-attempt budget is exhausted, currently five batches. An infrastructure error aborts the run while preserving completed evaluations; it is not treated as a failed solution.
 
 U keeps its conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes.
 
@@ -24,7 +24,7 @@ See the [five-phase experiment plan](plan/readme.md):
 
 1. Uncapped advice — complete.
 2. Capped advice — complete; demonstrated success after multiple attempts.
-3. n-of-T evaluation — next.
+3. n-of-T evaluation — implemented; live evaluation pending.
 4. Minimize advice without a preset cap — search policy to be decided.
 5. Surprisal scoring and optimization — planned.
 
@@ -41,12 +41,13 @@ uv run surprisals_experiment \
   -T openai/gpt-oss-120b \
   --u-thinking high \
   --max-u-turns 5 \
+  --t-samples 5 \
   --output ../runs/example-100 \
   problem ../data/APPS/test/2286 \
   --u-advice-max-chars 100
 ```
 
-Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. The default of 1 preserves existing behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
 The current [experiment.toml](experiment.toml) defines a labnotes grid for problem `2286` with caps of 70 and 80. Standalone labnotes configuration is being migrated; use the direct CLI example above in the meantime.
 
@@ -60,8 +61,12 @@ Run artifacts belong in `runs/`, which is ignored by Git. The dataset destinatio
 - `u_transcripts/`: U's persistent Pi conversation.
 - `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
 - Adjacent `metadata.json`: rejection status and measured character count.
-- `attempts/<attempt>/t_transcripts/`: T's conversation.
-- `attempts/<attempt>/src/` and `tests.json`: generated source and test outcomes.
+- `settings.json`: configuration including cap and T sample count, without the API key.
+- `attempts/<attempt>/batch.json`: expected/completed T counts, passing T count, and aggregate test outcome; updated after every evaluation.
+- With one T, `attempts/<attempt>/t_transcripts/`, `src/`, and `tests.json` retain the original layout.
+- With multiple Ts, each has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`.
+
+`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the successful batch. The batch manifest and sibling sample folders retain the evidence that every T passed.
 
 Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 
@@ -79,4 +84,4 @@ The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surpris
 
 ## Next steps
 
-Implement [Phase 3: n-of-T evaluation](plan/readme.md#phase-3-n-of-t-evaluation), then settle the advice-minimization policy before adding surprisal scoring.
+Validate [Phase 3: n-of-T evaluation](plan/readme.md#phase-3-n-of-t-evaluation) in live runs, then settle the advice-minimization policy before adding surprisal scoring.

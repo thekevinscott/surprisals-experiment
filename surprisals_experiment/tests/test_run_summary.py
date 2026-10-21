@@ -56,10 +56,10 @@ def describe_run_summary():
         assert summary['completed_t_evaluations'] == 0
         assert summary['evaluation_attempts_to_success'] is None
         assert summary['outcome'] == 'no_final_result'
-        assert summary['cap_status'] == 'unknown'
+        assert summary['cap_status'] == 'recorded'
         assert summary['advice_rewrites'] == (2 if failure == 'rewrite_exhaustion' else 0)
         assert attempt['outcome'] == 'not_evaluated'
-        assert attempt['passing_ts'] is None
+        assert attempt['passing_ts'] == (0 if failure == 't_infrastructure' else None)
 
     def it_handles_a_run_without_saved_advice(config):
         config.output.mkdir()

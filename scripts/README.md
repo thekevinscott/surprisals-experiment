@@ -56,8 +56,8 @@ uvx dirsql --no-ignore --format json -- "$(cat /path/to/repo/scripts/run-summary
 
 - `advice_candidates` includes the initial response; `advice_rewrites` counts subsequent saved responses per attempt. Infrastructure retries are excluded.
 - `rejected_candidates` counts responses rejected for length. This differs from rewrites when the rewrite allowance is exhausted: one initial response plus ten rejected rewrites means eleven rejected candidates.
-- `completed_t_evaluations` counts attempts with saved test results. `evaluation_attempts_to_success` is null until an evaluation passes; it does not treat an interrupted run as a failed solution.
+- `completed_t_evaluations` counts individual T solutions with saved test results; `completed_evaluation_attempts` counts completed advice batches. `evaluation_attempts_to_success` is null until an evaluation passes; it does not treat an interrupted run as a failed solution.
 - Per-attempt rows include accepted advice length, tests passed/total, and outcome. Attempt indices are zero-based.
-- The cap comes from labnotes `run.json` parameters. Missing cap metadata is reported as unknown, not inferred to mean uncapped. Missing advice metadata yields null counts; counts reflect only recorded artifacts.
+- The cap and sample count come from `settings.json` for new runs; the query falls back to labnotes `run.json` cap parameters for older runs. Missing cap metadata is reported as unknown, not inferred to mean uncapped. Missing advice metadata yields null counts; counts reflect only recorded artifacts.
 
-The current format has one T per advice and no ratcheting. `ts_per_advice` is therefore 1. Phase 3 must add per-T evaluation records, and Phase 4 must record the cap level for each candidate, before this query can group by changing cap or report n/n success. The SQL does not invent those measurements for existing runs.
+New runs include `batch.json` per advice attempt, allowing the query to distinguish n/n success from individual passing Ts and incomplete batches. Older runs without batch metadata are treated as one T per advice. Per-attempt test counts sum the tests from all completed samples. Ratcheting remains future work: Phase 4 must record each candidate's cap level before the query can group by a changing cap.

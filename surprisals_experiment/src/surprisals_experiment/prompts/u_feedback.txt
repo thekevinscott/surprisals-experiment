@@ -1,8 +1,11 @@
-T produced a solution in {solution}. Use your read and ls tools to inspect its files.
+The same advice was given to {total} independent instances of T.
+{passed} of {total} solutions passed every test; all must pass.
 
-The solution passed {passed} of {total} tests.
+{evaluations}
 
-Review the solution against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
+Use your read and ls tools to inspect their source files.
+
+Review the solutions against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
 
 T will see only your new instructions—not this feedback, its previous solution, or your earlier advice.
 

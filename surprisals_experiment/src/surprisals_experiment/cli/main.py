@@ -21,6 +21,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
+    parser.add_argument("--t-samples", type=int, default=1,
+                        help="Independent T solutions per advice; all must pass (default: 1)")
     parser.add_argument(
         "--max-u-turns", type=int, default=5, help="Maximum U attempts (default: 5)",
     )
@@ -65,6 +67,7 @@ def main(argv: list[str] | None = None) -> None:
             u_advice_max_chars=args.u_advice_max_chars,
             u_advice_retries=args.u_advice_retries,
             t_model=args.T,
+            t_samples=args.t_samples,
             max_u_turns=args.max_u_turns,
             test_timeout_seconds=args.test_timeout_seconds,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
