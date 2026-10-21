@@ -1,8 +1,2 @@
-[experiments]
-path = "{experiment}"
-
 [files]
-path = "{experiment}/notes/"
-
-[runs]
-path = "{experiment}/runs/{run}"
+path = "notes/"

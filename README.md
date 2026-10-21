@@ -49,7 +49,11 @@ uv run surprisals_experiment \
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
-The current [experiment.toml](experiment.toml) defines a labnotes grid for problem `2286` with caps of 70 and 80. Standalone labnotes configuration is being migrated; use the direct CLI example above in the meantime.
+The current [experiment.toml](experiment.toml) selects problem `2286` with a cap of 100. With labnotes 0.0.101 or later, run it from this repository root:
+
+```bash
+uvx --no-config --from 'labnotes==0.0.101' labnotes experiments surprisals-experiment run
+```
 
 Tests execute generated Python on the host, outside the agent containers. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.
 
