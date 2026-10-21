@@ -99,8 +99,7 @@ SELECT
         SELECT 1 FROM run_metadata, json_each(content, '$.params')
         WHERE key = 'u-advice-max-chars'
     ) THEN 'recorded' ELSE 'unknown' END AS cap_status,
-    coalesce((SELECT content ->> 't_samples' FROM settings),
-             (SELECT max(expected) FROM evaluations), 1) AS ts_per_advice,
+    (SELECT max(expected) FROM evaluations) AS ts_per_advice,
     CASE WHEN EXISTS (SELECT 1 FROM evaluations WHERE all_passed = 1)
          THEN (SELECT count(*) FROM attempts WHERE completed_evaluation_attempts = 1
                AND attempt_index <= (SELECT min(attempt_index) FROM attempts WHERE all_passed = 1))

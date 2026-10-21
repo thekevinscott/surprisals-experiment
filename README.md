@@ -61,7 +61,7 @@ Run artifacts belong in `runs/`, which is ignored by Git. The dataset destinatio
 - `u_transcripts/`: U's persistent Pi conversation.
 - `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
 - Adjacent `metadata.json`: rejection status and measured character count.
-- `settings.json`: only the advice cap and T sample count, explicitly selected by `Config.save_settings()`.
+- `settings.json`: only the advice cap, explicitly selected by `Config.save_settings()`.
 - `attempts/<attempt>/batch.json`: expected/completed T counts, passing T count, and aggregate test outcome; updated after every evaluation.
 - With one T, `attempts/<attempt>/t_transcripts/`, `src/`, and `tests.json` retain the original layout.
 - With multiple Ts, each has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`.
