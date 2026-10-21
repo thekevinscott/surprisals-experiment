@@ -73,6 +73,16 @@ Run artifacts belong in `runs/`, which is ignored by Git. The dataset destinatio
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 
+## Tests
+
+From the repository root:
+
+```bash
+uv run --directory surprisals_experiment pytest
+```
+
+The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/conftest.py` replaces Botbox with scripted sessions. Loop integration tests exercise real advice validation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. They cover character-cap rewrites, retry exhaustion, recovery across T attempts, and the interaction between both loops.
+
 ## Next steps
 
 Move from fixed caps to progressively shortening successful advice. Evaluate each candidate with multiple independent T instances, retain the lowest-cost reliable candidate, and compare character-optimized and surprisal-optimized messages on the same problems at comparable effectiveness.

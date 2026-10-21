@@ -23,3 +23,9 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "0 seconds"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-describe>=3.2.0",
+]
