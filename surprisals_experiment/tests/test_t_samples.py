@@ -102,11 +102,17 @@ def describe_n_of_t():
         with pytest.raises(ValidationError):
             Config(**(config.model_dump() | {'t_samples': n}))
 
-    def it_accepts_the_cli_flag(config, monkeypatch):
+    def it_defaults_to_five_samples_in_the_sdk(config):
+        values = config.model_dump()
+        del values['t_samples']
+        assert Config(**values).t_samples == 5
+
+    @pytest.mark.parametrize('args,expected', [([], 5), (['--t-samples', '1'], 1), (['--t-samples', '3'], 3)])
+    def it_accepts_the_cli_flag(config, monkeypatch, args, expected):
         cli = importlib.import_module('surprisals_experiment.cli.main')
         received = []
         monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: 'unused')
         monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
         monkeypatch.setattr(cli, 'run_experiment', lambda config, **kwargs: received.append(config))
-        cli.main(['--output', str(config.output), '--t-samples', '5', 'problem', str(config.problem_dir)])
-        assert received[0].t_samples == 5
+        cli.main(['--output', str(config.output), *args, 'problem', str(config.problem_dir)])
+        assert received[0].t_samples == expected

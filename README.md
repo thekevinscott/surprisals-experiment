@@ -12,7 +12,7 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
-3. Give that same advice to `--t-samples` fresh T sessions (default 1). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Samples run sequentially.
+3. Give that same advice to `--t-samples` fresh T sessions (default 5). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Samples run sequentially.
 4. After the full batch, if any solution fails, U receives each T's passing-test count and can inspect read-only copies of all their source files. It then writes new advice for a fresh batch.
 5. The run stops when every T in a batch passes every stored test, or the advice-attempt budget is exhausted, currently five batches. An infrastructure error aborts the run while preserving completed evaluations; it is not treated as a failed solution.
 
@@ -47,7 +47,7 @@ uv run surprisals_experiment \
   --u-advice-max-chars 100
 ```
 
-Use `--t-samples 5` to require five independently generated solutions to pass. The default of 1 preserves existing behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
 The current [experiment.toml](experiment.toml) defines a labnotes grid for problem `2286` with caps of 70 and 80. Standalone labnotes configuration is being migrated; use the direct CLI example above in the meantime.
 

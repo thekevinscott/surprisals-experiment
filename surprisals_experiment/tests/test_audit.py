@@ -25,7 +25,7 @@ class AuditTest(unittest.TestCase):
         self.root = Path(temporary.name)
         (self.root/'question.txt').write_text('Print 7.')
         self.config = Config(api_key='dummy', problem_dir=self.root, output=self.root/'run',
-                             u_model='u', u_thinking='high', t_model='t', max_u_turns=2, test_timeout_seconds=2)
+                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2)
 
     def test_invalid_suites_fail_before_starting_u(self):
         invalid = [None, {}, {'inputs': [], 'outputs': []},

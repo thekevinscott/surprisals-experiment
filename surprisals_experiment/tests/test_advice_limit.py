@@ -24,7 +24,7 @@ class AdviceLimitTest(unittest.TestCase):
                 output = root/'run'
                 output.mkdir()
                 config = Config(api_key='dummy', problem_dir=root, output=output, u_model='u',
-                                t_model='t', u_thinking='high', max_u_turns=2, test_timeout_seconds=1,
+                                t_model='t', t_samples=1, u_thinking='high', max_u_turns=2, test_timeout_seconds=1,
                                 u_advice_max_chars=limit, u_advice_retries=retries)
                 session = SimpleNamespace(prompt=Mock(side_effect=replies), solutions=root/'solutions')
 

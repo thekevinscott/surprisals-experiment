@@ -21,8 +21,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
-    parser.add_argument("--t-samples", type=int, default=1,
-                        help="Independent T solutions per advice; all must pass (default: 1)")
+    parser.add_argument("--t-samples", type=int, default=5,
+                        help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument(
         "--max-u-turns", type=int, default=5, help="Maximum U attempts (default: 5)",
     )

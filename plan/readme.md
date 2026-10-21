@@ -34,7 +34,7 @@ Integration tests now cover both loops, including their interaction, with global
 
 **Implemented: evaluate each advice with n independent T instances. Live validation pending.**
 
-Set n with `--t-samples` (default 1 for compatibility; use 5 for the proposed experiment). Freeze the advice and give the same message to n fresh T sessions. Do not revise it between evaluations or share T histories. Each solution must pass the full stored test suite; advice qualifies only when **n out of n** solutions pass.
+Set n with `--t-samples` (default 5; use 1 for the original single-T behavior). Freeze the advice and give the same message to n fresh T sessions. Do not revise it between evaluations or share T histories. Each solution must pass the full stored test suite; advice qualifies only when **n out of n** solutions pass.
 
 Preserve each T's code, transcript, and test results, plus the aggregate outcome. Return all individual outcomes and source access to U after the batch. An incomplete batch caused by infrastructure errors cannot establish n/n success; the current policy is to stop on infrastructure errors, preserve completed evaluations, and leave the batch incomplete. Automatic resumption is not implemented.
 

@@ -37,7 +37,7 @@ Botbox 0.0.15 returns each session turn as a buffered list; U and T forward even
 
 ## Multiple T samples
 
-Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). The default is 1 and preserves the single-T artifact layout described above. For N > 1, one accepted advice is sent unchanged to N fresh, sequential T sessions; every solution must pass the entire suite. A failed sample does not skip the rest of the batch. `--max-u-turns` counts advice batches, not individual T sessions.
+Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). The default is 5. Use `--t-samples 1` to retain the original single-T behavior and artifact layout described above. For N > 1, one accepted advice is sent unchanged to N fresh, sequential T sessions; every solution must pass the entire suite. A failed sample does not skip the rest of the batch. `--max-u-turns` counts advice batches, not individual T sessions.
 
 Each sample stores its source, transcripts, diagnostics, and tests under `attempts/<attempt>/t_samples/<index>/`. `batch.json` at the attempt root records progress and n/n success. U receives all per-sample test counts and source paths after a completed failing batch. Temporary snapshots are `/solutions/<attempt>/<sample>` for multiple Ts; tests and expected outputs remain hidden.
 

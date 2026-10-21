@@ -18,7 +18,7 @@ class Config(BaseModel):
     u_model: str
     u_thinking: ThinkingLevel
     t_model: str
-    t_samples: int = Field(default=1, ge=1)
+    t_samples: int = Field(default=5, ge=1)
     u_advice_max_chars: int | None = Field(default=None, gt=0)
     u_advice_retries: int = Field(default=10, ge=0)
     max_u_turns: int = Field(ge=1)
