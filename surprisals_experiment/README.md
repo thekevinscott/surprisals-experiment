@@ -21,13 +21,13 @@ The CLI sends the question and system prompt to U with `--u-thinking` (default `
 
 Upon exit, the code is run with the inputs and is assessed against the defined outputs; total number of passing tests is shown to `U`. `U` is prompted to try again, until all tests pass (at which point `U` is no longer prompted.) We can give a maximum turn budget to avoid infinite loops.
 
-Run the configured problems through labnotes from `experiments/` (the parent labnotes workspace):
+Run the configured problem through labnotes from the repository root (one directory above this Python project):
 
 ```bash
-uvx --no-config --from 'labnotes@latest' labnotes experiments surprisals-experiment run
+uvx --no-config --from 'labnotes==0.0.101' labnotes experiments surprisals-experiment run
 ```
 
-`../experiment.toml` selects APPS problem `2286` with an exclusive advice cap of 90 characters, one run, up to five T attempts and ten length-rewrite retries per attempt. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `surprisals-experiment/runs/<run>/` relative to that root; Each attempt stores U's advice candidates in `attempts/<i>/advices/` and T's files in `attempts/<i>/t_samples/<j>/src/`. Attempts are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
+`../experiment.toml` selects APPS problem `2286` with an exclusive advice cap of 100 characters, one run, up to five T attempts and ten length-rewrite retries per attempt. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `runs/<run>/` relative to the repository root; Each attempt stores U's advice candidates in `attempts/<i>/advices/` and T's files in `attempts/<i>/t_samples/<j>/src/`. Attempts are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
 
 U’s native Pi session files are retained in `u_transcripts/` and process diagnostics in `u_run.json`. Compaction appends a summary without deleting earlier session messages. T’s session transcripts are saved under `attempts/0/t_samples/0/t_transcripts/`, preserving Pi’s relative filenames, including on nonzero exits.
 
