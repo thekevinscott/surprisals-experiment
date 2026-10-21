@@ -3,11 +3,7 @@
 From `experiments/surprisals-experiment/`, download the original archive linked by the [APPS authors](https://github.com/hendrycks/apps):
 
 ```bash
-mkdir -p data
-curl --fail --location --retry 3 \
-  https://people.eecs.berkeley.edu/~hendrycks/APPS.tar.gz \
-  --output data/APPS.tar.gz
-tar -xzf data/APPS.tar.gz -C data
+./scripts/download-apps.sh
 ```
 
 The archive contains its own `APPS/` directory. After extraction, the layout is:
