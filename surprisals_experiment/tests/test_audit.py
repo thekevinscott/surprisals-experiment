@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import get_args
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from botbox import RunResult
 from pydantic import ValidationError
@@ -52,7 +52,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         def t(config, advice, *, output, on_delta=None):
             output.mkdir()
             (output/'main.py').write_text('print(7)')
-            return RunResult('', '', exit_code, {}, 'proxy', 'container', 'image')
+            return RunResult('', '', exit_code, {}, 'proxy', 'image')
         with patch(ATTEMPT+'prompt_t', side_effect=t):
             return await run_attempt(self.config, attempt=0, advice='Print 7',
                                test_suite={'inputs': [''], 'outputs': ['7']}, snapshot=self.root/'snapshot')
@@ -86,9 +86,12 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(args[args.index('--thinking') + 1], level)
 
     async def test_prompt_t_has_no_sibling_artifact_writes(self):
-        result = RunResult('', '', 1, {'same.jsonl': 'transcript'}, 'proxy', 'container', 'image')
+        result = RunResult('', '', 1, {'same.jsonl': 'transcript'}, 'proxy', 'image')
         with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox') as box:
-            box.return_value.__enter__.return_value.session.return_value.__enter__.return_value.close.return_value = result
+            live = MagicMock(result=result)
+            box.return_value.__aenter__.return_value.session = MagicMock()
+            box.return_value.__aenter__.return_value.session.return_value.__aenter__.return_value = live
+            live.message = AsyncMock()
             for name in ['first', 'second']:
                 self.assertIs(await prompt_t(self.config, 'advice', output=self.root/name), result)
                 self.assertTrue((self.root/name).is_dir())

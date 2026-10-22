@@ -10,7 +10,6 @@ from tempfile import TemporaryDirectory
 
 from ..u_agent import UAgent
 from ..botbox_session import botbox_session
-from ..run_sync import run_sync
 from ..transcripts import save_transcripts
 from .u_session import USession
 
@@ -29,15 +28,17 @@ async def open_u_session(config) -> AsyncGenerator[USession]:
         ))
         solutions = workspace / "solutions"
         solutions.mkdir()
-        async with botbox_session(
-            agent, dockerfile=RESOURCES / "docker/U/Dockerfile",
-            mounts=[(system_prompt, "/u-config/u.txt", "ro"), (solutions, "/solutions", "ro")],
-            workdir="/solutions",
-        ) as pi_session:
-            try:
+        pi_session = None
+        try:
+            async with botbox_session(
+                agent, dockerfile=RESOURCES / "docker/U/Dockerfile",
+                mounts=[(system_prompt, "/u-config/u.txt", "ro"), (solutions, "/solutions", "ro")],
+                workdir="/solutions",
+            ) as pi_session:
                 yield USession(pi_session, solutions)
-            finally:
-                result = await run_sync(pi_session.close)
+        finally:
+            if pi_session is not None and pi_session.result is not None:
+                result = pi_session.result
                 print(result.stderr, file=sys.stderr, end="", flush=True)
                 save_transcripts(result.transcript, config.u_transcripts)
                 config.u_proxy_log.parent.mkdir(parents=True, exist_ok=True)

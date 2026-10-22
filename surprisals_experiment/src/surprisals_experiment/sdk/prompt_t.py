@@ -9,7 +9,6 @@ from botbox import RunResult
 from surprisals_experiment.config import Config
 from .utils.t_agent import TAgent
 from .utils.botbox_session import botbox_session
-from .utils.run_sync import run_sync
 
 
 RESOURCES = files("surprisals_experiment")
@@ -28,5 +27,5 @@ async def prompt_t(config: Config, advice: str, *, output: Path,
         agent, dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),
         mounts=[(output, "/solution", "rw")], workdir="/solution",
     ) as t_session:
-        await run_sync(t_session.message, advice)
-        return await run_sync(t_session.close)
+        await t_session.message(advice)
+    return t_session.result

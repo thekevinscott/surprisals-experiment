@@ -18,7 +18,7 @@ class FakePi:
         self.commands = []
         self.agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
-    def message(self, text):
+    async def message(self, text):
         self.commands.append(text)
         advice = 'First advice' if len(self.commands) == 1 else 'Revised advice'
         events = [
@@ -68,7 +68,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                     source = first_source if len(received) == 1 else 'print(sum(map(int,input().split())))'
                     (output/'main.py').write_text(source)
                     (output/'helpers.py').write_text('VALUE = 42')
-                    return RunResult('', '', 0, {'same.jsonl': advice}, 'proxy', 'container', 'image')
+                    return RunResult('', '', 0, {'same.jsonl': advice}, 'proxy', 'image')
 
                 with patch('surprisals_experiment.sdk.run_experiment.run_experiment.open_u_session', side_effect=start), \
                      patch('surprisals_experiment.sdk.run_experiment.evaluate_attempt.prompt_t', side_effect=t):
@@ -103,7 +103,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
         class FailedPi:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
-            def message(self, text):
+            async def message(self, text):
                 events = [{'type': 'agent_end', 'messages': [
                     {'role': 'assistant', 'stopReason': 'error', 'content': [], 'errorMessage': 'rate limit'},
                 ]}]

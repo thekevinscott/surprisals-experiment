@@ -20,7 +20,7 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
         class ListSession:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
-            def message(self, text):
+            async def message(self, text):
                 for event in events:
                     self.agent.turn_ended(event)
                 return events
@@ -33,7 +33,7 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
         class PartialSession:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
-            def message(self, text):
+            async def message(self, text):
                 events = [{'type':'message_end', 'message':{'role':'assistant','content':[{'type':'text','text':'partial'}]}}]
                 for event in events:
                     self.agent.turn_ended(event)
@@ -44,23 +44,23 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
     async def test_session_mounts_and_failure_diagnostics(self):
         opened = []
         class Session:
-            def __enter__(self):
+            async def __aenter__(self):
                 return self
 
-            def __exit__(self, *args):
-                self.close()
+            async def __aexit__(self, *args):
+                self.result = self.close()
 
             def close(self):
                 assert opened[-1][0][-1][0].exists(), "Remove snapshots only after Pi closes"
-                return RunResult(exit_code=1, stdout='', stderr='failure', image='test-image', proxy='proxy-log', container='test-container',
+                return RunResult(exit_code=1, stdout='', stderr='failure', image='test-image', proxy='proxy-log',
                                               transcript={'.pi/agent/sessions/test.jsonl':'session-history\n'})
         class Box:
             def __init__(self, agent, *, dockerfile):
                 self.agent = agent
                 self.dockerfile = dockerfile
-            def __enter__(self):
+            async def __aenter__(self):
                 return self
-            def __exit__(self, *exc):
+            async def __aexit__(self, *exc):
                 pass
             def session(self, *, mounts, workdir):
                 opened.append((mounts, workdir))
