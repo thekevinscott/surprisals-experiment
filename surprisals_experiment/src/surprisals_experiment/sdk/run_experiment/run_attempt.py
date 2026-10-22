@@ -16,13 +16,14 @@ async def run_attempt(config: Config, *, attempt: int, advice: str, test_suite: 
     attempt_dir.mkdir(parents=True, exist_ok=True)
     try:
         pool = asyncio.Semaphore(config.t_pool_size)
-        tasks = [
-            asyncio.create_task(evaluate_attempt(
-                config, pool=pool, attempt=attempt, sample=sample, advice=advice,
-                test_suite=test_suite, snapshot=snapshot / str(sample), on_delta=on_delta,
-            ))
-            for sample in range(config.t_samples)
-        ]
+        async def evaluate(sample: int) -> TestSuiteResult:
+            async with pool:
+                return await evaluate_attempt(
+                    config, attempt=attempt, sample=sample, advice=advice,
+                    test_suite=test_suite, snapshot=snapshot / str(sample), on_delta=on_delta,
+                )
+
+        tasks = [asyncio.create_task(evaluate(sample)) for sample in range(config.t_samples)]
         try:
             results = await asyncio.gather(*tasks)
         finally:
