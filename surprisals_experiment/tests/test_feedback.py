@@ -1,7 +1,7 @@
 import json
 import tempfile
 import unittest
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,8 +38,8 @@ class FakePi:
         return events
 
 
-class FeedbackTest(unittest.TestCase):
-    def test_failed_candidates_get_clean_feedback_or_exhaust_normally(self):
+class FeedbackTest(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_candidates_get_clean_feedback_or_exhaust_normally(self):
         cases = [
             ('logs_and_mutation', "import sys\nfrom pathlib import Path\nPath('debug.txt').write_text(sys.stdin.read())\nPath('helpers.py').write_text('MUTATED')\nprint(0)", 2),
             ('binary_stdout', "import os\nos.write(1, b'\\xff')", 2),
@@ -55,8 +55,8 @@ class FeedbackTest(unittest.TestCase):
                                 u_thinking='high', t_model='t', t_samples=1, max_u_turns=turns, test_timeout_seconds=2)
                 pi, deltas, received, t_deltas = FakePi(), [], [], []
 
-                @contextmanager
-                def start(config):
+                @asynccontextmanager
+                async def start(config):
                     solutions = root / "shared"
                     solutions.mkdir()
                     yield USession(pi, solutions)
@@ -72,7 +72,7 @@ class FeedbackTest(unittest.TestCase):
 
                 with patch('surprisals_experiment.sdk.run_experiment.run_experiment.open_u_session', side_effect=start), \
                      patch('surprisals_experiment.sdk.run_experiment.evaluate_attempt.prompt_t', side_effect=t):
-                    result = run_experiment(config, on_delta=lambda kind, text: deltas.append((kind, text)),
+                    result = await run_experiment(config, on_delta=lambda kind, text: deltas.append((kind, text)),
                                             on_t_delta=lambda kind, text: t_deltas.append((kind, text)))
                 snapshot = root / "shared/0/0"
                 self.assertEqual({p.name for p in snapshot.iterdir()}, {'main.py', 'helpers.py'})
@@ -99,7 +99,7 @@ class FeedbackTest(unittest.TestCase):
                     self.assertEqual((config.t_dir(1, 0)/'t_transcripts/same.jsonl').read_text(), 'Revised advice')
                     self.assertIn(('thinking', 'Thinking'), deltas)
 
-    def test_first_agent_end_provider_failure_aborts(self):
+    async def test_first_agent_end_provider_failure_aborts(self):
         class FailedPi:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
@@ -111,7 +111,7 @@ class FeedbackTest(unittest.TestCase):
                     self.agent.turn_ended(event)
                 return events
         with self.assertRaisesRegex(USessionError, 'rate limit'):
-            USession(FailedPi(), Path()).prompt('question')
+            await USession(FailedPi(), Path()).prompt('question')
 
 
 if __name__ == '__main__':

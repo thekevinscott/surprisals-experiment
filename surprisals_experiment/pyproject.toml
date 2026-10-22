@@ -28,5 +28,9 @@ exclude-newer = "0 seconds"
 dev = [
     "dirsql>=0.4.119",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "pytest-describe>=3.2.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

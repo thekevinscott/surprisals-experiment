@@ -11,8 +11,8 @@ from surprisals_experiment.sdk.utils.u_session import USession, USessionError, o
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 
 
-class USessionTest(unittest.TestCase):
-    def test_failure_clears_event_callback(self):
+class USessionTest(unittest.IsolatedAsyncioTestCase):
+    async def test_failure_clears_event_callback(self):
         events = [
             {"type": "response", "success": False, "error": "provider failed"},
             {"type": "agent_end"},
@@ -26,10 +26,10 @@ class USessionTest(unittest.TestCase):
                 return events
         u_session = USession(ListSession(), Path())
         with self.assertRaisesRegex(USessionError, "provider failed"):
-            u_session.prompt("question")
+            await u_session.prompt("question")
         self.assertIsNone(u_session.pi_session.agent.on_event)
 
-    def test_partial_eof_is_not_a_completed_reply(self):
+    async def test_partial_eof_is_not_a_completed_reply(self):
         class PartialSession:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
@@ -39,11 +39,17 @@ class USessionTest(unittest.TestCase):
                     self.agent.turn_ended(event)
                 return events
         with self.assertRaisesRegex(USessionError, 'before completing'):
-            USession(PartialSession(), Path()).prompt('question')
+            await USession(PartialSession(), Path()).prompt('question')
 
-    def test_session_mounts_and_failure_diagnostics(self):
+    async def test_session_mounts_and_failure_diagnostics(self):
         opened = []
         class Session:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.close()
+
             def close(self):
                 assert opened[-1][0][-1][0].exists(), "Remove snapshots only after Pi closes"
                 return RunResult(exit_code=1, stdout='', stderr='failure', image='test-image', proxy='proxy-log', container='test-container',
@@ -65,9 +71,9 @@ class USessionTest(unittest.TestCase):
                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2,
                             u_advice_max_chars=100)
             stderr = io.StringIO()
-            with redirect_stderr(stderr), patch('surprisals_experiment.sdk.utils.u_session.open_u_session.Botbox', Box):
+            with redirect_stderr(stderr), patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
                 with self.assertRaisesRegex(RuntimeError, 'test failure'):
-                    with open_u_session(config) as u_session:
+                    async with open_u_session(config) as u_session:
                         mounts, workdir = opened[0]
                         self.assertIn('fewer than 100 characters', mounts[0][0].read_text())
                         self.assertEqual(workdir, '/solutions')
@@ -84,8 +90,8 @@ class USessionTest(unittest.TestCase):
             self.assertFalse(opened[0][0][0][0].exists())
             self.assertFalse(opened[0][0][-1][0].exists())
             self.assertFalse((config.output/'u_solutions').exists())
-            with patch('surprisals_experiment.sdk.utils.u_session.open_u_session.Botbox', Box):
-                with open_u_session(config) as u_session:
+            with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
+                async with open_u_session(config) as u_session:
                     temporary_solutions = u_session.solutions
                     self.assertTrue(temporary_solutions.exists())
                 self.assertFalse(temporary_solutions.exists())

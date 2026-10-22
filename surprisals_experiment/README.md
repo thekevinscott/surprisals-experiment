@@ -35,6 +35,22 @@ Tests execute generated Python on the host, as requested. Agent container isolat
 
 Botbox 0.0.15 returns each session turn as a buffered list; U and T forward events as they arrive through the existing agent `turn_ended` hook, preserving botbox’s completion decision. It provides no turn/close timeout. U waits past transient-error `agent_end` events for Pi’s automatic retries. Pi retries a failed model response up to 10 times in the same conversation without resending the user prompt; successful responses reset that budget. These retries are separate from advice rewrites and T attempts. Exponential delays run from 100 ms to 51.2 seconds, staying below 60 seconds, and `[U retry]` output reports each delay and error. Exhaustion stops the run as an infrastructure error and retains diagnostics. The adapter mirrors the installed Pi transient-error and context-overflow classification, so this policy needs checking when upgrading Pi. T still uses Botbox’s default completion rule; equivalent recovery for T remains outstanding. Partial replies without a completed turn are rejected.
 
+## Async SDK
+
+`run_experiment`, `prompt_t`, and `run_test_suite` are coroutines. With an existing `Config`, call them from async code:
+
+```python
+from surprisals_experiment.sdk import run_experiment
+
+solution = await run_experiment(config, on_delta=None)
+```
+
+A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI does this internally; its commands are unchanged. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
+
+Advice attempts, T samples, and test cases still run sequentially. Botbox 0.0.15 remains synchronous: `sdk/utils/botbox_session.py` owns its session lifecycle, and `sdk/utils/run_sync.py` runs blocking calls in worker threads. Test subprocess calls use the same thread bridge. Small filesystem operations remain synchronous. Streaming callbacks are synchronous and run on the Botbox worker thread; callbacks that interact with an event loop should use `loop.call_soon_threadsafe`.
+
+Cancellation waits for the in-flight blocking call before closing sessions and deleting temporary files. It cannot interrupt a blocked Botbox call; Botbox's current lack of turn/close timeouts still applies. When native async Botbox is released, replace the session lifecycle bridge and the `run_sync` calls around `message`/`close` with its async operations. The advice and evaluation loops already await those boundaries.
+
 ## Multiple T samples
 
 Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). The default is 5. Use `--t-samples 1` for one T per advice; all new runs use the same per-sample layout. One accepted advice is sent unchanged to N fresh, sequential T sessions; every solution must pass the entire suite. A failed sample does not skip the rest of the batch. `--max-u-turns` counts advice batches, not individual T sessions.

@@ -35,7 +35,7 @@ print(json.dumps({'type':'agent_end', 'messages':[{'role':'assistant', 'stopReas
 sys.stdin.read()
 """
 
-def experiment(config, *, on_delta, on_t_delta):
+async def experiment(config, *, on_delta, on_t_delta):
     if sys.argv[2] == 'T':
         class Box:
             def __init__(self, agent, **kwargs):
@@ -54,8 +54,8 @@ def experiment(config, *, on_delta, on_t_delta):
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 return Session(self.agent, process, 'test-container', 'test-image',
                                lambda: ({'session.jsonl': 'saved transcript'}, 'proxy log'))
-        with patch('surprisals_experiment.sdk.prompt_t.Botbox', Box):
-            result = prompt_t(config, 'question', output=root/'solution', on_delta=on_t_delta)
+        with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
+            result = await prompt_t(config, 'question', output=root/'solution', on_delta=on_t_delta)
         assert result.exit_code == 0
         assert result.transcript == {'session.jsonl': 'saved transcript'}
         assert result.proxy == 'proxy log'
@@ -64,7 +64,7 @@ def experiment(config, *, on_delta, on_t_delta):
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     agent = UAgent('openrouter', 'unused', api_key='dummy', thinking='high')
     with Session(agent, process, 'test-container', 'test-image', lambda: ({}, '')) as pi_session:
-        advice = USession(pi_session, root).prompt('question', on_delta=on_delta)
+        advice = await USession(pi_session, root).prompt('question', on_delta=on_delta)
         assert advice == 'TEXT_BEFORE_END'
         assert agent.on_event is None
     assert pi_session.result.exit_code == 0

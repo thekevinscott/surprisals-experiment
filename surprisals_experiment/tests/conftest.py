@@ -90,9 +90,8 @@ def botbox_script(monkeypatch):
         def session(self, *, mounts, workdir):
             return FakeSession(self.agent, mounts, script)
 
-    for module in ['botbox', 'surprisals_experiment.sdk.prompt_t',
-                   'surprisals_experiment.sdk.utils.u_session.open_u_session']:
-        monkeypatch.setattr(importlib.import_module(module), 'Botbox', FakeBotbox)
+    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_session'),
+                        'Botbox', FakeBotbox)
     return script
 
 
