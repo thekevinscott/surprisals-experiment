@@ -8,19 +8,19 @@ from .save_advice import save_advice
 
 
 async def prepare_advice(
-    config: Config, u_session: USession, prompt: str, *, attempt: int,
+    config: Config, u_session: USession, prompt: str, *, attempt: int, max_chars: int | None,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
     for candidate in range(config.u_advice_retries + 1):
         advice = await u_session.prompt(prompt, on_delta=on_delta)
         measurement = len(advice)
-        rejected = config.u_advice_max_chars is not None and measurement >= config.u_advice_max_chars
+        rejected = max_chars is not None and measurement >= max_chars
         save_advice(config.advice_dir(attempt, candidate), advice,
                     rejected=rejected, measurement=measurement)
         if not rejected:
             return advice
         prompt = (f"Your advice was {measurement} characters. It must be fewer than "
-                  f"{config.u_advice_max_chars} characters, including spaces and newlines. "
+                  f"{max_chars} characters, including spaces and newlines. "
                   "Rewrite it to meet that limit. Return only the instructions to T.")
     raise RuntimeError(
         f"U advice exceeded the character limit after {config.u_advice_retries} retries"

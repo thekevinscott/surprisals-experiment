@@ -51,7 +51,7 @@ class FakeSession:
         if self.is_u:
             self.script.snapshots.append({
                 str(path.relative_to(self.mounts['/solutions'])): path.read_text()
-                for path in self.mounts['/solutions'].rglob('main.py')
+                for path in self.mounts['/solutions'].rglob('*') if path.is_file()
             })
             reply = self.script.advice.popleft()
         else:
@@ -105,5 +105,5 @@ def config(tmp_path):
         'inputs': ['3\n', '7\n'], 'outputs': ['6\n', '14\n'],
     }))
     return Config(api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
-                  u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=5,
+                  u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1,
                   test_timeout_seconds=2)

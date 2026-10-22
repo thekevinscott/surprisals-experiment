@@ -1,4 +1,4 @@
-"""Generate, preserve, and evaluate one T sample."""
+"""Generate one T solution and preserve its diagnostics."""
 
 import asyncio
 import json
@@ -10,11 +10,12 @@ from pathlib import Path
 from surprisals_experiment.config import Config
 from ..utils.transcripts import save_transcripts
 from ..prompt_t import prompt_t
-from ..run_test_suite import TestSuiteResult, run_test_suite
 
 
-async def evaluate_attempt(config: Config, *, pool: asyncio.Semaphore, attempt: int, sample: int, advice: str, test_suite: dict, snapshot: Path,
-                on_delta: Callable[[str, str], None] | None = None) -> TestSuiteResult:
+async def produce_code(
+    config: Config, *, pool: asyncio.Semaphore, attempt: int, sample: int, advice: str, snapshot: Path,
+    on_delta: Callable[[str, str], None] | None = None,
+) -> Path:
     async with pool:
         sample_dir = config.t_dir(attempt, sample)
         sample_dir.mkdir(parents=True, exist_ok=True)
@@ -26,12 +27,4 @@ async def evaluate_attempt(config: Config, *, pool: asyncio.Semaphore, attempt: 
         if t_run.exit_code == -1:
             raise RuntimeError("T infrastructure failed: botbox could not obtain an exit code")
         shutil.copytree(output, snapshot, symlinks=True)
-        results = await run_test_suite(test_suite, output, timeout_seconds=config.test_timeout_seconds)
-        (sample_dir / "tests.json").write_text(json.dumps({
-            "passed": results.passed,
-            "failed": results.failed,
-            "total": results.total,
-            "all_passed": results.all_passed,
-            "cases": [asdict(case) for case in results.cases],
-        }, indent=2) + "\n")
-        return results
+        return output

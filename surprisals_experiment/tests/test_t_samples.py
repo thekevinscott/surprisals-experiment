@@ -52,6 +52,7 @@ def describe_n_of_t():
 
     async def it_returns_all_outcomes_before_revising_advice(config, botbox_script):
         config.t_samples = 3
+        config.max_u_turns = 2
         config.u_advice_max_chars = 5
         config.u_advice_retries = 1
         botbox_script.advice.extend(['too long', 'one', 'too long again', 'two'])
@@ -64,9 +65,10 @@ def describe_n_of_t():
         for i, passed in enumerate([2, 0, 2]):
             assert f'T {i}: solution in /solutions/0/{i}; passed {passed} of 2 tests.' in feedback
         assert botbox_script.snapshots[2] == {
+            '0/advice.txt': 'one',
             '0/0/main.py': PASS, '0/1/main.py': FAIL, '0/2/main.py': PASS,
         }
-        assert not (config.attempt_dir(1) / 'feedback.txt').exists()
+        assert (config.attempt_dir(1) / 'feedback.txt').exists()
         assert json.loads(config.result_file.read_text())['attempts'] == 2
         summary, *_ = report(config.output)
         assert summary['advice_rewrites'] == 2
@@ -83,14 +85,16 @@ def describe_n_of_t():
         assert len(botbox_script.t_sessions) >= 2
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
-        assert (config.t_dir(0, 0) / 'tests.json').exists()
+        assert (config.t_dir(0, 0) / 'src/main.py').exists()
+        assert (config.t_dir(0, 0) / 't_transcripts/session.jsonl').exists()
+        assert not (config.t_dir(0, 0) / 'tests.json').exists()
         assert 'provider unavailable' in (config.attempt_dir(0) / 'error.txt').read_text()
         assert not (config.attempt_dir(0) / 'batch.json').exists()
         summary, attempt = report(config.output)
         assert summary['completed_evaluation_attempts'] == 0
-        assert summary['completed_t_evaluations'] == 1
+        assert summary['completed_t_evaluations'] == 0
         assert summary['evaluation_attempts_to_success'] is None
-        assert attempt['outcome'] == 'incomplete_batch'
+        assert attempt['outcome'] == 'not_evaluated'
 
     @pytest.mark.parametrize('n', [0, -1])
     def it_rejects_nonpositive_sample_counts(config, n):
