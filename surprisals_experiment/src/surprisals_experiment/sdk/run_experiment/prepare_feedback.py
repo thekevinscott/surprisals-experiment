@@ -19,15 +19,9 @@ def prepare_feedback(
     )
     feedback = TEMPLATE.format(
         evaluations=evaluations, passed=sum(result.all_passed for result in results), total=len(results),
-    )
-    best = (f"Shortest successful advice so far: {best_length} characters."
-            if best_length is not None else "No advice has passed all tests for all Ts yet.")
-    feedback += (
-        f"\nYour advice was {advice_length} characters. {best} "
-        f"Turns without improvement: {turns_without_improvement} of "
-        f"{config.max_turns_without_improvement}. "
-        "Your goal is the shortest possible advice that passes every test for every T. "
-        "Only strictly shorter, all-pass advice resets the counter."
+        advice_length=advice_length, best_length=best_length,
+        turns_without_improvement=turns_without_improvement,
+        max_turns_without_improvement=config.max_turns_without_improvement,
     )
     (config.attempt_dir(attempt) / "feedback.txt").write_text(feedback)
     return feedback
