@@ -10,7 +10,7 @@ from conftest import FakeSession
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.prompt_t_to_produce_code import prompt_t_to_produce_code
-from surprisals_experiment.sdk.run_experiment.test_code import test_code as evaluate_code
+from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 
 
 def describe_t_pool():
@@ -58,7 +58,7 @@ def describe_t_pool():
                     event.set()
                 solutions = await task
             assert not list(config.output.glob("attempts/*/t_samples/*/tests.json"))
-            results = await evaluate_code(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
+            results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
             assert peak == capacity
             assert completion[:capacity] == list(reversed(range(capacity)))
             assert [result.all_passed for result in results] == [True, False, True, False, True]

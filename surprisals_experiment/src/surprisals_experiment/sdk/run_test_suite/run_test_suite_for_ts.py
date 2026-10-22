@@ -5,10 +5,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ..run_test_suite import TestSuiteResult, run_test_suite
+from .results import TestSuiteResult
+from .run_test_suite import run_test_suite
 
 
-async def test_code(
+async def run_test_suite_for_ts(
     config: Config, solutions: list[Path], test_suite: dict,
 ) -> list[TestSuiteResult]:
     results = []

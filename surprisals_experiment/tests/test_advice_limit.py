@@ -37,7 +37,7 @@ class AdviceLimitTest(unittest.IsolatedAsyncioTestCase):
                 module = 'surprisals_experiment.sdk.run_experiment.run_experiment'
                 with patch(module+'.open_u_session', open_session), \
                      patch(module+'.prompt_t_to_produce_code', AsyncMock(side_effect=[[root/'first'], [root/'second']])), \
-                     patch(module+'.test_code', attempt), \
+                     patch(module+'.run_test_suite_for_ts', attempt), \
                      patch(module+'.prepare_feedback', return_value='Test feedback'):
                     if exhausted:
                         with self.assertRaisesRegex(RuntimeError, 'after 2 retries'):
