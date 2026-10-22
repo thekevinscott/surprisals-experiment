@@ -1,6 +1,9 @@
 """Prepare feedback for the next U turn from the preserved submission."""
 
 from importlib.resources import files
+from pathlib import Path
+
+from .read_implementations import read_implementations
 
 from surprisals_experiment.config import Config
 from ..run_test_suite import TestSuiteResult
@@ -10,7 +13,7 @@ TEMPLATE = files("surprisals_experiment").joinpath("prompts/u_feedback.txt").rea
 
 def prepare_feedback(
     config: Config, attempt: int, results: list[TestSuiteResult], *,
-    advice_length: int, best_length: int | None, turns_without_improvement: int,
+    snapshot: Path, advice_length: int, best_length: int | None, turns_without_improvement: int,
 ) -> str:
     evaluations = "\n".join(
         f"T {index}: solution in /solutions/{attempt}/{index}; "
@@ -18,6 +21,10 @@ def prepare_feedback(
         for index, sample in enumerate(results)
     )
     feedback = TEMPLATE.format(
+        implementation_access=files("surprisals_experiment").joinpath(
+            f"prompts/u_context_{config.u_mode}.txt",
+        ).read_text(),
+        implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations=evaluations, passed=sum(result.all_passed for result in results), total=len(results),
         advice_length=advice_length, best_length=best_length,
         turns_without_improvement=turns_without_improvement,

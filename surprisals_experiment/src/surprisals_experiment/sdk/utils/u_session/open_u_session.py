@@ -1,4 +1,4 @@
-"""Open U's isolated Pi session and retain its transcripts and proxy log."""
+"""Open a persistent chat or agent U session with temporary source snapshots."""
 
 import sys
 
@@ -8,7 +8,10 @@ from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from openai import AsyncOpenAI
+
 from ..u_agent import UAgent
+from ..u_chat import ChatSession
 from ..botbox_session import botbox_session
 from ..transcripts import save_transcripts
 from .u_session import USession
@@ -17,19 +20,33 @@ RESOURCES = Path(str(files("surprisals_experiment")))
 
 
 @asynccontextmanager
-async def open_u_session(config) -> AsyncGenerator[USession]:
-    agent = UAgent(provider="openrouter", model=config.u_model,
-                   api_key=config.api_key.get_secret_value(), thinking=config.u_thinking)
+async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
     with TemporaryDirectory(prefix="surprisals-u-solutions-") as temporary:
         workspace = Path(temporary)
-        system_prompt = workspace / "u.txt"
-        system_prompt.write_text((RESOURCES / "prompts/u.txt").read_text().format(
+        prompt = (RESOURCES / "prompts/u.txt").read_text().format(
+            implementation_access=(RESOURCES / f"prompts/u_context_{config.u_mode}.txt").read_text(),
             max_chars=config.u_advice_max_chars or "Infinity",
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,
-        ))
+        )
         solutions = workspace / "solutions"
         solutions.mkdir()
+        if config.u_mode == "chat":
+            async with AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
+            ) as client:
+                config.u_transcripts.mkdir(parents=True, exist_ok=True)
+                u_session = ChatSession(
+                    client, config.u_model, config.u_thinking, solutions,
+                    config.u_transcripts / "messages.jsonl",
+                )
+                u_session.record({"role": "system", "content": prompt})
+                yield u_session
+            return
+        system_prompt = workspace / "u.txt"
+        system_prompt.write_text(prompt)
+        agent = UAgent(provider="openrouter", model=config.u_model,
+                       api_key=config.api_key.get_secret_value(), thinking=config.u_thinking)
         pi_session = None
         try:
             async with botbox_session(

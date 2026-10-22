@@ -55,7 +55,8 @@ async def run_experiment(
             else:
                 turns_without_improvement += 1
             prompt = prepare_feedback(
-                config, attempt, results, advice_length=len(advice),
+                config, attempt, results, snapshot=u_session.solutions / str(attempt),
+                advice_length=len(advice),
                 best_length=best_length, turns_without_improvement=turns_without_improvement,
             )
             config.result_file.write_text(json.dumps({

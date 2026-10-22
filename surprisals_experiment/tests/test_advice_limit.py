@@ -23,7 +23,7 @@ class AdviceLimitTest(unittest.IsolatedAsyncioTestCase):
                 (root/'input_output.json').write_text(json.dumps({'inputs': ['1'], 'outputs': ['2']}))
                 output = root/'run'
                 output.mkdir()
-                config = Config(api_key='dummy', problem_dir=root, output=output, u_model='u',
+                config = Config(u_mode='agent', api_key='dummy', problem_dir=root, output=output, u_model='u',
                                 t_model='t', t_samples=1, u_thinking='high', max_u_turns=2, test_timeout_seconds=1,
                                 u_advice_max_chars=limit, u_advice_retries=retries)
                 session = SimpleNamespace(prompt=AsyncMock(side_effect=replies), solutions=root/'solutions')

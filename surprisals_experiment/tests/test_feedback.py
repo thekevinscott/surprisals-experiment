@@ -51,7 +51,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                 root = Path(directory)
                 (root/'question.txt').write_text('Read two integers and print their sum.')
                 (root/'input_output.json').write_text(json.dumps({'inputs': ['19381 27493\n'], 'outputs': ['46874\n']}))
-                config = Config(api_key='dummy', problem_dir=root, output=root/'run', u_model='u',
+                config = Config(u_mode='agent', api_key='dummy', problem_dir=root, output=root/'run', u_model='u',
                                 u_thinking='high', t_model='t', t_samples=1, max_u_turns=turns, test_timeout_seconds=2)
                 pi, deltas, received, t_deltas = FakePi(), [], [], []
 

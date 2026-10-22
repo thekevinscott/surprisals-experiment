@@ -67,7 +67,7 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
                 return Session()
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            config = Config(api_key='dummy', problem_dir=root/'problem', output=root/'run',
+            config = Config(u_mode='agent', api_key='dummy', problem_dir=root/'problem', output=root/'run',
                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2,
                             u_advice_max_chars=100, max_turns_without_improvement=7)
             stderr = io.StringIO()

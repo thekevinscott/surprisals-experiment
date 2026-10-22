@@ -1,0 +1,3 @@
+Use your read and ls tools to inspect T implementations. All earlier attempts remain available
+under /solutions/<attempt>/, with the advice in advice.txt and each T implementation in its
+numbered subfolder.

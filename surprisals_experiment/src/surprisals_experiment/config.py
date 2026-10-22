@@ -16,6 +16,7 @@ class Config(BaseModel):
     api_key: SecretStr
     problem_dir: Path
     output: Path
+    u_mode: Literal["chat", "agent"] = "chat"
     u_model: str
     u_thinking: ThinkingLevel
     t_model: str
@@ -28,9 +29,10 @@ class Config(BaseModel):
     test_timeout_seconds: float = Field(gt=0)
 
     def save_settings(self) -> None:
-        """Save only the fields needed by run summaries."""
+        """Save the U mode and fields needed by run summaries."""
         self.output.mkdir(parents=True, exist_ok=True)
         (self.output / "settings.json").write_text(json.dumps({
+            "u_mode": self.u_mode,
             "u_advice_max_chars": self.u_advice_max_chars,
             "t_samples": self.t_samples,
         }, indent=2) + "\n")

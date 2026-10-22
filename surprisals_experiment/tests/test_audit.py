@@ -24,7 +24,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         (self.root/'question.txt').write_text('Print 7.')
-        self.config = Config(api_key='dummy', problem_dir=self.root, output=self.root/'run',
+        self.config = Config(u_mode='agent', api_key='dummy', problem_dir=self.root, output=self.root/'run',
                              u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=1, test_timeout_seconds=2)
 
     async def test_invalid_suites_fail_before_starting_u(self):
