@@ -12,7 +12,7 @@ from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
 
-def main(argv: list[str] | None = None) -> None:
+async def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> None:
         key = dotenv_values(env_file, interpolate=False).get("OPENROUTER_API_KEY")
         if not key or not key.strip():
             raise ValueError("Set OPENROUTER_API_KEY in your .env file")
-        run_experiment(Config(
+        await run_experiment(Config(
             api_key=key,
             problem_dir=args.problem_dir or args.problem_dir_option,
             output=args.output,

@@ -10,19 +10,22 @@ from pathlib import Path
 
 
 RUNNER = r'''
+import asyncio
 import importlib
 import json
-import subprocess
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-from botbox import Session
+from botbox import Session, RunResult
+from botbox.docker.Capture import Capture
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.u_session import USession
 from surprisals_experiment.sdk import prompt_t
 
 root = Path(sys.argv[1])
+actor = sys.argv[2]
 child = r"""
 import json, sys, time
 from pathlib import Path
@@ -35,14 +38,35 @@ print(json.dumps({'type':'agent_end', 'messages':[{'role':'assistant', 'stopReas
 sys.stdin.read()
 """
 
-def experiment(config, *, on_delta, on_t_delta):
-    if sys.argv[2] == 'T':
+@asynccontextmanager
+async def session(agent):
+    async with Capture(bytearray()) as stdout, Capture(bytearray()) as stderr:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, '-c', child, str(root/'release'),
+            stdin=asyncio.subprocess.PIPE, stdout=stdout.write, stderr=stderr.write,
+        )
+        stdout.release()
+        stderr.release()
+        client = asyncio.create_task(process.wait())
+        live = Session(agent, process.stdin, stdout, stderr.into, client)
+        try:
+            yield live
+        finally:
+            process.stdin.close()
+            code = await client
+            await stdout.eof
+            await stderr.eof
+        live.result = RunResult(stdout.into.decode(), stderr.into.decode(), code,
+                                {'session.jsonl': 'saved transcript'}, 'proxy log', 'image')
+
+async def experiment(config, *, on_delta, on_t_delta):
+    if actor == 'T':
         class Box:
             def __init__(self, agent, **kwargs):
                 self.agent = agent
-            def __enter__(self):
+            async def __aenter__(self):
                 return self
-            def __exit__(self, *args):
+            async def __aexit__(self, *args):
                 pass
             def session(self, *, mounts, workdir):
                 import shlex
@@ -50,21 +74,16 @@ def experiment(config, *, on_delta, on_t_delta):
                 assert args[args.index('--mode') + 1] == 'rpc'
                 assert '--append-system-prompt' in args
                 assert workdir == '/solution'
-                process = subprocess.Popen([sys.executable, '-c', child, str(root/'release')],
-                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                return Session(self.agent, process, 'test-container', 'test-image',
-                               lambda: ({'session.jsonl': 'saved transcript'}, 'proxy log'))
-        with patch('surprisals_experiment.sdk.prompt_t.Botbox', Box):
-            result = prompt_t(config, 'question', output=root/'solution', on_delta=on_t_delta)
+                return session(self.agent)
+        with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
+            result = await prompt_t(config, 'question', output=root/'solution', on_delta=on_t_delta)
         assert result.exit_code == 0
         assert result.transcript == {'session.jsonl': 'saved transcript'}
         assert result.proxy == 'proxy log'
         return
-    process = subprocess.Popen([sys.executable, '-c', child, str(root/'release')],
-                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     agent = UAgent('openrouter', 'unused', api_key='dummy', thinking='high')
-    with Session(agent, process, 'test-container', 'test-image', lambda: ({}, '')) as pi_session:
-        advice = USession(pi_session, root).prompt('question', on_delta=on_delta)
+    async with session(agent) as pi_session:
+        advice = await USession(pi_session, root).prompt('question', on_delta=on_delta)
         assert advice == 'TEXT_BEFORE_END'
         assert agent.on_event is None
     assert pi_session.result.exit_code == 0
@@ -73,7 +92,9 @@ cli = importlib.import_module('surprisals_experiment.cli.main')
 with patch.object(cli, 'find_dotenv', return_value='unused'), \
      patch.object(cli, 'dotenv_values', return_value={'OPENROUTER_API_KEY':'dummy'}), \
      patch.object(cli, 'run_experiment', side_effect=experiment):
-    cli.main(['--output', str(root/'run'), 'problem', str(root)])
+    import runpy
+    sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'), 'problem', str(root)]
+    runpy.run_module('surprisals_experiment.cli.run', run_name='__main__')
 '''
 
 

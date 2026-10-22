@@ -5,7 +5,7 @@ Download the dataset using the [APPS setup instructions](../scripts/README.md).
 The U integration uses botbox 0.0.15 or newer and its released `box.session()` API ([issue #48](https://github.com/thekevinscott/botbox/issues/48)). The experiment does not implement its own pipe transport. `uv` uses a zero-second release cutoff so freshly published versions can be installed.
 
 ```bash
-uv run surprisals_experiment \
+uv run python -m surprisals_experiment.cli.run \
   --output runs/example \
   -U xiaomi/mimo-v2.6-pro \
   --u-thinking high \
@@ -33,7 +33,23 @@ U’s native Pi session files are retained in `u_transcripts/` and its proxy log
 
 Tests execute generated Python on the host, as requested. Agent container isolation does not isolate that evaluation step; generated code can access host files available to the current user.
 
-Botbox 0.0.15 returns each session turn as a buffered list; U and T forward events as they arrive through the existing agent `turn_ended` hook, preserving botbox’s completion decision. It provides no turn/close timeout. U waits past transient-error `agent_end` events for Pi’s automatic retries. Pi retries a failed model response up to 10 times in the same conversation without resending the user prompt; successful responses reset that budget. These retries are separate from advice rewrites and T attempts. Exponential delays run from 100 ms to 51.2 seconds, staying below 60 seconds, and `[U retry]` output reports each delay and error. Exhaustion stops the run as an infrastructure error and retains diagnostics. The adapter mirrors the installed Pi transient-error and context-overflow classification, so this policy needs checking when upgrading Pi. T still uses Botbox’s default completion rule; equivalent recovery for T remains outstanding. Partial replies without a completed turn are rejected.
+Botbox returns each session turn as a buffered list; U and T forward events as they arrive through the existing agent `turn_ended` hook, preserving botbox’s completion decision. It provides no turn/close timeout. U waits past transient-error `agent_end` events for Pi’s automatic retries. Pi retries a failed model response up to 10 times in the same conversation without resending the user prompt; successful responses reset that budget. These retries are separate from advice rewrites and T attempts. Exponential delays run from 100 ms to 51.2 seconds, staying below 60 seconds, and `[U retry]` output reports each delay and error. Exhaustion stops the run as an infrastructure error and retains diagnostics. The adapter mirrors the installed Pi transient-error and context-overflow classification, so this policy needs checking when upgrading Pi. T still uses Botbox’s default completion rule; equivalent recovery for T remains outstanding. Partial replies without a completed turn are rejected.
+
+## Async SDK
+
+`run_experiment`, `prompt_t`, and `run_test_suite` are coroutines. With an existing `Config`, call them from async code:
+
+```python
+from surprisals_experiment.sdk import run_experiment
+
+solution = await run_experiment(config, on_delta=None)
+```
+
+A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Launch with `python -m surprisals_experiment.cli.run`; `cli/run.py` calls `asyncio.run(main())` under its module guard. There are no installed console commands or synchronous wrapper functions. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
+
+Advice attempts, T samples, and test cases still run sequentially. Botbox sessions and messages use its native async API; streaming callbacks run synchronously on the event-loop thread. Testcases use native async subprocesses. Timeout or cancellation kills and reaps the current testcase before session cleanup. Small filesystem operations remain synchronous.
+
+Cancelling a model call unwinds Botbox's session and preserves U's available transcripts and proxy log before removing temporary files. The lockfile temporarily pins the fix in [Botbox PR #108](https://github.com/thekevinscott/botbox/pull/108), because released 0.1.1 discards session artifacts on failure. Replace the Git source pin with a registry release once that fix ships.
 
 ## Multiple T samples
 
