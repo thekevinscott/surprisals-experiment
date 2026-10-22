@@ -47,7 +47,7 @@ solution = await run_experiment(config, on_delta=None)
 
 A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Installed commands use a synchronous `cli.run:run` wrapper, and `python -m surprisals_experiment.cli` starts it from `cli/__main__.py`. Both entry points use `asyncio.run(main())`. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
 
-Advice attempts, T samples, and test cases still run sequentially. Botbox sessions and messages use its native async API; streaming callbacks run synchronously on the event-loop thread. Test subprocess calls use `sdk/utils/run_sync.py` to keep the loop responsive, waiting for the current test before cancellation cleanup. Small filesystem operations remain synchronous.
+Advice attempts, T samples, and test cases still run sequentially. Botbox sessions and messages use its native async API; streaming callbacks run synchronously on the event-loop thread. Testcases use native async subprocesses. Timeout or cancellation kills and reaps the current testcase before session cleanup. Small filesystem operations remain synchronous.
 
 Cancelling a model call unwinds Botbox's session and preserves U's available transcripts and proxy log before removing temporary files. The lockfile temporarily pins the fix in [Botbox PR #108](https://github.com/thekevinscott/botbox/pull/108), because released 0.1.1 discards session artifacts on failure. Replace the Git source pin with a registry release once that fix ships.
 
