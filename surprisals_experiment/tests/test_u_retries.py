@@ -1,10 +1,12 @@
+import asyncio
 import io
 import json
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 from botbox import Session
+from botbox.docker.Capture import Capture
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.u_session import USession, USessionError
 
@@ -17,15 +19,19 @@ def end(error=None, reason='error'):
     return {'type': 'agent_end', 'messages': [message]}
 
 
-class RetryTest(unittest.TestCase):
+class RetryTest(unittest.IsolatedAsyncioTestCase):
     def session(self, events):
-        process = Mock(stdin=io.StringIO(), stdout=io.StringIO(
-            ''.join(json.dumps(e) + '\n' for e in events)), stderr=io.StringIO())
+        data = bytearray(''.join(json.dumps(e) + '\n' for e in events).encode())
+        output = Capture(data)
+        written = io.BytesIO()
+        writer = Mock(drain=AsyncMock())
+        writer.write.side_effect = written.write
         agent = UAgent('openrouter', 'test', api_key='dummy', thinking='high')
-        session = Session(agent, process, 'container', 'image', lambda: ({}, ''))
-        return USession(session, Path()), process
+        client = asyncio.get_running_loop().create_future()
+        session = Session(agent, writer, output, bytearray(), client)
+        return USession(session, Path()), written
 
-    def test_recovery_sends_prompt_once_and_next_turn_stays_separate(self):
+    async def test_recovery_sends_prompt_once_and_next_turn_stays_separate(self):
         events = []
         for i in range(1, 11):
             events += [end('terminated'), {'type': 'auto_retry_start', 'attempt': i,
@@ -33,33 +39,33 @@ class RetryTest(unittest.TestCase):
         events += [{'type': 'auto_retry_end', 'success': True, 'attempt': 10}, end(), end()]
         session, process = self.session(events)
         deltas = []
-        self.assertEqual(session.prompt('original', on_delta=lambda *x: deltas.append(x)), 'advice')
-        self.assertEqual(len(process.stdin.getvalue().splitlines()), 1)
+        self.assertEqual(await session.prompt('original', on_delta=lambda *x: deltas.append(x)), 'advice')
+        self.assertEqual(len(process.getvalue().splitlines()), 1)
         self.assertEqual(len(deltas), 10)
         self.assertIn('10/10 in 51.2s', deltas[-1][1])
-        self.assertEqual(session.prompt('feedback'), 'advice')
-        self.assertEqual(len(process.stdin.getvalue().splitlines()), 2)
+        self.assertEqual(await session.prompt('feedback'), 'advice')
+        self.assertEqual(len(process.getvalue().splitlines()), 2)
         self.assertIsNone(session.pi_session.agent.on_event)
-        self.assertIn('terminated', ''.join(session.pi_session._stdout))
+        self.assertIn('terminated', session.pi_session.stdout.into.decode())
 
-    def test_exhaustion_and_cancellation_stop(self):
+    async def test_exhaustion_and_cancellation_stop(self):
         for error in ('terminated', 'Retry cancelled'):
             with self.subTest(error=error):
                 session, process = self.session([end('terminated'),
                     {'type': 'auto_retry_end', 'success': False, 'attempt': 10, 'finalError': error}])
                 with self.assertRaisesRegex(USessionError, error):
-                    session.prompt('original')
-                self.assertEqual(len(process.stdin.getvalue().splitlines()), 1)
+                    await session.prompt('original')
+                self.assertEqual(len(process.getvalue().splitlines()), 1)
                 self.assertIsNone(session.pi_session.agent.on_event)
 
-    def test_permanent_error_and_abort_do_not_wait_for_retry(self):
+    async def test_permanent_error_and_abort_do_not_wait_for_retry(self):
         for error, reason in [('401 invalid API key', 'error'), ('cancelled', 'aborted'),
                               ('Provider returned error: maximum context length is 500 tokens', 'error')]:
             with self.subTest(error=error):
                 session, process = self.session([end(error, reason), end()])
                 with self.assertRaisesRegex(USessionError, error):
-                    session.prompt('original')
-                self.assertNotEqual(process.stdout.read(), '')
+                    await session.prompt('original')
+                self.assertLess(session.pi_session.read, len(session.pi_session.stdout.into))
 
     def test_retry_settings(self):
         from importlib.resources import files

@@ -34,15 +34,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.0.15"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "python-on-whales" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/d9/02dd773b63753c6f73b5b78e8b202fba72945f0b0821ade2e53e106240a9/botbox-0.0.15.tar.gz", hash = "sha256:a4f2cc8b2fd672a2be3d0d7a252022b7964bd30a30f9e42c918f36d4a9267f08", size = 42842, upload-time = "2026-10-20T03:04:10.782Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/58/62a49af37354e326482f762c752aac57052cb402284c4b8168401d022d90/botbox-0.0.15-py3-none-any.whl", hash = "sha256:d3bfaec4fef026c233133fe755a9e37af2d3ff7859be77026faa97cc485b310d", size = 16596, upload-time = "2026-10-20T03:04:09.484Z" },
-]
+version = "0.1.2.dev5+ged3536e0e"
+source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=ed3536e#ed3536e0ef1cd2ea20347fb1e0bfbcb31f6c51eb" }
 
 [[package]]
 name = "colorama"
@@ -209,6 +202,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-asyncio"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/7c/d36d04db312ecf4298932ef77e6e4a9e8ad017906e24e34f0b0c361a2473/pytest_asyncio-1.4.0.tar.gz", hash = "sha256:c6c0d2259945122819f171a32ecea2c349ead889ee28176caaf492143424be42", size = 58514, upload-time = "2026-05-26T09:56:04.083Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/e2/08a497ef684b88559c9cc5f4ad53a37e7b99e727094a86d6ea32536d5d3c/pytest_asyncio-1.4.0-py3-none-any.whl", hash = "sha256:933ca923a23075a87fb7070c0ec272a6848489824d887c85c812670932835aa1", size = 16930, upload-time = "2026-05-26T09:56:02.576Z" },
+]
+
+[[package]]
 name = "pytest-describe"
 version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -230,19 +235,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-on-whales"
-version = "0.81.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/81/4b545de811e41ff90762a1c7045fcae215f20f4114eebddedab8eab6f63e/python_on_whales-0.81.0.tar.gz", hash = "sha256:bb6172014e3fe949f908092748bddf34df758cb92c2c3d0536b75bf236abce1b", size = 115066, upload-time = "2026-03-09T14:17:43.534Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/cb/5049e041a1d0e6f6cb6ac8737a8215fb4e67cb147f140ef31e67361dc61a/python_on_whales-0.81.0-py3-none-any.whl", hash = "sha256:6d5f81f56d0f95fd311a7cce29a01a1a60841074e4936000dc5f2dc9a7ffafac", size = 119240, upload-time = "2026-03-09T14:17:42.195Z" },
-]
-
-[[package]]
 name = "surprisals-experiment"
 version = "0.1.0"
 source = { editable = "." }
@@ -256,12 +248,13 @@ dependencies = [
 dev = [
     { name = "dirsql" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-describe" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", specifier = ">=0.0.15" },
+    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=ed3536e" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
 ]
@@ -270,6 +263,7 @@ requires-dist = [
 dev = [
     { name = "dirsql", specifier = ">=0.4.119" },
     { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-describe", specifier = ">=3.2.0" },
 ]
 
