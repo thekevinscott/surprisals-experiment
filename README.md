@@ -86,6 +86,17 @@ uv run --directory surprisals_experiment pytest
 
 The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/conftest.py` replaces Botbox with scripted sessions. Loop integration tests exercise real advice validation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. They cover character-cap rewrites, retry exhaustion, recovery across T attempts, and the interaction between both loops.
 
+Real Docker/Pi startup tests are separate and opt-in:
+
+```bash
+uv run --directory surprisals_experiment pytest e2e
+```
+
+These use the actual U launcher and T session, verify Pi RPC startup and host-owned
+file writes, and require Docker but no API key or model calls. They are excluded
+from default test discovery and skipped in CI. They test startup and mounts, not
+live model generation. Containers run with the invoking host process's UID/GID.
+
 ## Next steps
 
 Review the advice-minimization behavior, then evaluate it in live runs before adding surprisal scoring.

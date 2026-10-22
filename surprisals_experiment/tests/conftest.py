@@ -2,12 +2,13 @@
 
 import importlib
 import json
+from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-from botbox import RunResult
+from botbox import Botbox, RunResult
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk.utils.u_agent import UAgent
@@ -15,6 +16,7 @@ from surprisals_experiment.sdk.utils.u_agent import UAgent
 
 @dataclass
 class Script:
+    boxes: list = field(default_factory=list)
     advice: deque = field(default_factory=deque)
     solutions: deque = field(default_factory=deque)
     sessions: list = field(default_factory=list)
@@ -79,8 +81,12 @@ def botbox_script(monkeypatch):
     script = Script()
 
     class FakeBotbox:
-        def __init__(self, agent, **kwargs):
+        def __init__(self, agent, *, dockerfile, user):
+            signature(Botbox).bind(agent, dockerfile=dockerfile, user=user)
             self.agent = agent
+            self.dockerfile = dockerfile
+            self.user = user
+            script.boxes.append(self)
 
         async def __aenter__(self):
             return self

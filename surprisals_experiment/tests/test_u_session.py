@@ -55,7 +55,7 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
                 return RunResult(exit_code=1, stdout='', stderr='failure', image='test-image', proxy='proxy-log',
                                               transcript={'.pi/agent/sessions/test.jsonl':'session-history\n'})
         class Box:
-            def __init__(self, agent, *, dockerfile):
+            def __init__(self, agent, *, dockerfile, user):
                 self.agent = agent
                 self.dockerfile = dockerfile
             async def __aenter__(self):
