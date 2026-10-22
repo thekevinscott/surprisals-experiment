@@ -4,4 +4,6 @@ Write self-contained instructions that let T implement a correct Python solution
 Preserve the required input and output formats, constraints, and relevant edge cases.
 The problem uses standard input and standard output; preserve that interface.
 Your final response must be fewer than {max_chars} characters, including spaces and newlines.
+Previous advice and T implementations are available under /solutions/<attempt>/:
+advice.txt contains the advice and numbered subfolders contain each T implementation.
 Your final response must contain only the instructions to T.

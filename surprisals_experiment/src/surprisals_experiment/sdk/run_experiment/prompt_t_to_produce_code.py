@@ -12,6 +12,8 @@ async def prompt_t_to_produce_code(
     config: Config, *, attempt: int, advice: str, snapshot: Path,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> list[Path]:
+    snapshot.mkdir(parents=True)
+    (snapshot / "advice.txt").write_text(advice)
     pool = asyncio.Semaphore(config.t_pool_size)
     async def generate(sample: int) -> Path:
         async with pool:
