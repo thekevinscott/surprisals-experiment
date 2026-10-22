@@ -1,4 +1,5 @@
-import json
+import io
+from contextlib import redirect_stderr
 import tempfile
 import unittest
 from pathlib import Path
@@ -63,7 +64,8 @@ class USessionTest(unittest.TestCase):
             config = Config(api_key='dummy', problem_dir=root/'problem', output=root/'run',
                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2,
                             u_advice_max_chars=100)
-            with patch('surprisals_experiment.sdk.utils.u_session.open_u_session.Botbox', Box):
+            stderr = io.StringIO()
+            with redirect_stderr(stderr), patch('surprisals_experiment.sdk.utils.u_session.open_u_session.Botbox', Box):
                 with self.assertRaisesRegex(RuntimeError, 'test failure'):
                     with open_u_session(config) as u_session:
                         mounts, workdir = opened[0]
@@ -75,7 +77,9 @@ class USessionTest(unittest.TestCase):
                         self.assertEqual([(target, mode) for _, target, mode in mounts], [('/u-config/u.txt','ro'),('/solutions','ro')])
                         self.assertFalse(any(source == config.problem_dir for source, _, _ in mounts))
                         raise RuntimeError('test failure')
-            self.assertEqual(json.loads((config.output/'u_run.json').read_text())['exit_code'], 1)
+            self.assertFalse((config.output/'u_run.json').exists())
+            self.assertEqual(stderr.getvalue(), 'failure')
+            self.assertEqual((config.output/'proxy_logs/u.log').read_text(), 'proxy-log')
             self.assertEqual((config.output/'u_transcripts/.pi/agent/sessions/test.jsonl').read_text(), 'session-history\n')
             self.assertFalse(opened[0][0][0][0].exists())
             self.assertFalse(opened[0][0][-1][0].exists())

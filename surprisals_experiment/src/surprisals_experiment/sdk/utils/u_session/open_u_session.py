@@ -1,4 +1,6 @@
-"""Open U's isolated Pi session and retain its diagnostics."""
+"""Open U's isolated Pi session and retain its transcripts and proxy log."""
+
+import sys
 
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -9,7 +11,7 @@ from tempfile import TemporaryDirectory
 from botbox import Botbox
 
 from ..u_agent import UAgent
-from .save_result import save_result
+from ..transcripts import save_transcripts
 from .u_session import USession
 
 RESOURCES = Path(str(files("surprisals_experiment")))
@@ -35,4 +37,8 @@ def open_u_session(config) -> Generator[USession]:
         try:
             yield USession(pi_session, solutions)
         finally:
-            save_result(pi_session.close(), config)
+            result = pi_session.close()
+            print(result.stderr, file=sys.stderr, end="", flush=True)
+            save_transcripts(result.transcript, config.u_transcripts)
+            config.u_proxy_log.parent.mkdir(parents=True, exist_ok=True)
+            config.u_proxy_log.write_text(result.proxy)
