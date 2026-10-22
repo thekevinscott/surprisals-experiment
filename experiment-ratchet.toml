@@ -1,0 +1,17 @@
+name = "Character ratchet pilot: 10 problems, uncapped start"
+command = '''
+uv run \
+  --directory surprisals_experiment \
+  python -m surprisals_experiment.cli.run \
+  -U xiaomi/mimo-v2.6-pro \
+  -T openai/gpt-oss-120b \
+  --u-thinking high \
+  --max-consecutive-failures 30 \
+  --output "{run_dir}" \
+  problem'''
+repeats = 1
+mode = "adhoc"
+concurrency = 1
+
+[params]
+problem-dir = ["../data/APPS/test/0154", "../data/APPS/test/2333", "../data/APPS/test/2286", "../data/APPS/test/3784", "../data/APPS/test/3858", "../data/APPS/test/1370", "../data/APPS/test/4394", "../data/APPS/test/2229", "../data/APPS/test/2324", "../data/APPS/test/3540"]

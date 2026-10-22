@@ -32,7 +32,9 @@ Integration tests now cover both loops, including their interaction, with global
 
 ## Phase 3: n-of-T evaluation
 
-**Implemented: evaluate each advice with n independent T instances. Live validation pending.**
+**Complete: evaluate each advice with n independent T instances, validated locally and on Linode.**
+
+With APPS problem `2286`, a 100-character cap, and five T samples, the local run reached 5/5 on its fifth advice attempt. The remote run exhausted five attempts, reaching 4/5 on both its fourth and fifth attempts. This validates successful qualification and budget exhaustion, not reliability across problems.
 
 Set n with `--t-samples` (default 5; use 1 for the original single-T behavior). Freeze the advice and give the same message to n fresh T sessions. Do not revise it between evaluations or share T histories. Each solution must pass the full stored test suite; advice qualifies only when **n out of n** solutions pass.
 
@@ -42,7 +44,7 @@ Keep n separate from U's turn budget and advice-rewrite retries. Initially retai
 
 ## Phase 4: Minimize advice without a preset cap
 
-**Planned; search policy still open.**
+**Implemented: strict character ratchet. Live search validation and the final research policy remain open.**
 
 Start uncapped and obtain advice that qualifies under n-of-T evaluation. Then ask U to make it as small as possible while preserving effectiveness. Measure each candidate and retain the shortest qualifying advice, even if later candidates fail.
 
@@ -50,14 +52,11 @@ A starting prompt to discuss:
 
 > Your best successful advice was {characters} characters and passed all tests in {n} of {n} independent evaluations. Write the shortest self-contained advice you can that still lets T solve the problem. Return only the advice.
 
-We still need to choose how to drive this search:
+The merged implementation requires advice strictly shorter than the last successful advice. It saves and rejects equal-or-longer candidates before T runs, allowing ten rewrites per batch. Failed batches retain the bound; all-pass batches lower it and reset the failure streak. Twenty consecutive failed batches stop the run by default, with an optional total-batch limit. The best successful result is preserved through later failures and interruption.
 
-- Ask for shorter advice and evaluate candidates using length and effectiveness feedback. This permits temporary length increases while repairing failures.
-- Enforce a decreasing bound based on the best qualifying advice, rejecting equal-or-longer candidates before T runs. This avoids a preset cap but still imposes a dynamic hard threshold.
+The research policy remains open for discussion with Caleb: alternatively, tell U it is judged on shortness without enforcing a cap, and re-present all prior advice lengths and test outcomes every turn. This would allow temporary length increases. That alternative is documented locally, not implemented. Hidden test contents remain excluded from U's context.
 
-Neither policy is decided. Also choose the optimization budget and whether to stop on the first failed shorter candidate, allow recovery, or stop after a period without improvement. One failed candidate does not prove further compression is impossible.
-
-Preserve all candidates and the best qualifying advice. Add tests for shorter successes, shorter failures, equal/longer candidates, budget exhaustion, and retention of the best result.
+Integration tests cover strict shortening, equal-or-longer rejection, failure-streak reset, and preservation of the best result. A live ratchet search remains to be run. The optional `experiment-ratchet.toml` pilot uses ten problems, starts uncapped and permits 30 consecutive failed batches; this is a configurable pilot, not a new default or a proven convergence criterion.
 
 ## Phase 5: Surprisal
 
