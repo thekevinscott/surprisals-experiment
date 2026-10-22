@@ -40,3 +40,12 @@
 - Write corrections as observable actions and completion checks, not adjectives
   such as "be proactive." Check the proposed rule against the failure that
   prompted it, and keep advancing the original task while making the improvement.
+
+## Pull request targets
+
+- Every PR must target `main`. Never target another feature branch or PR branch,
+  and never create a stacked PR chain.
+- Before creating or retargeting a PR, verify its base is `main`. After creating
+  it, verify the base again with `gh pr view --json baseRefName`.
+- If a change depends on an unmerged PR, wait for that dependency to merge into
+  `main`, then rebase onto `main`. Do not merge work into the dependency branch.
