@@ -12,11 +12,12 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
-3. Give that same advice to `--t-samples` fresh T sessions (default 5). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Samples run sequentially.
-4. After the full batch, if any solution fails, U receives each T's passing-test count and can inspect read-only copies of all their source files. It then writes new advice for a fresh batch.
-5. The run stops when every T in a batch passes every stored test, or the advice-attempt budget is exhausted, currently five batches. An infrastructure error aborts the run while preserving completed evaluations; it is not treated as a failed solution.
+3. Give that same advice to `--t-samples` fresh T sessions (default 5), with up to `--t-pool-size` generating code concurrently (default 3).
+4. Once generation finishes, test every T solution against every case in `input_output.json`. U can inspect every attempt's advice and pre-test source snapshots, and receives passing-test counts after a failed batch.
+5. When all Ts pass, ask U for advice strictly shorter than that successful advice. Equal or longer candidates are saved and rejected, with up to ten rewrites per batch. A failed batch keeps the current character bound.
+6. Continue until 20 consecutive batches fail, Ctrl-C, or an explicit `--max-u-turns` limit. Success resets the failure streak. Infrastructure errors abort rather than counting as test failures.
 
-U keeps its conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes.
+U keeps its conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `prompt_t_to_produce_code`, and `test_code` in that order for each batch.
 
 ## Plan
 
@@ -24,8 +25,8 @@ See the [five-phase experiment plan](plan/readme.md):
 
 1. Uncapped advice — complete.
 2. Capped advice — complete; demonstrated success after multiple attempts.
-3. n-of-T evaluation — implemented; live evaluation pending.
-4. Minimize advice without a preset cap — search policy to be decided.
+3. n-of-T evaluation — complete.
+4. Minimize advice without a preset cap — character ratchet implemented.
 5. Surprisal scoring and optimization — planned.
 
 ## Run an experiment
@@ -40,16 +41,15 @@ uv run python -m surprisals_experiment.cli.run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \
-  --max-u-turns 5 \
   --t-samples 5 \
   --output ../runs/example-100 \
   problem ../data/APPS/test/2286 \
   --u-advice-max-chars 100
 ```
 
-Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` to start uncapped; successful advice establishes the next bound. Use `--max-consecutive-failures` to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
-Control concurrent T evaluations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential evaluation.
+Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially.
 
 The current [experiment.toml](experiment.toml) selects problem `2286` with a cap of 100. With labnotes 0.0.101 or later, run it from this repository root:
 
@@ -63,14 +63,14 @@ Tests execute generated Python on the host, outside the agent containers. The ev
 
 Run artifacts belong in `runs/`, which is ignored by Git. The dataset destination is [surprisals-experiment-runs on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs).
 
-- `result.json`: final success status and attempt count.
+- `result.json`: best-so-far success status, completed attempt count, and solution path, updated after every evaluated batch.
 - `u_transcripts/`: U's persistent Pi conversation.
 - `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
 - Adjacent `metadata.json`: rejection status and measured character count.
 - `settings.json`: only the advice cap and requested T count, explicitly selected by `Config.save_settings()`.
 - Each T has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 
-`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the successful batch. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
+`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
 Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 
@@ -88,4 +88,4 @@ The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surpris
 
 ## Next steps
 
-Validate [Phase 3: n-of-T evaluation](plan/readme.md#phase-3-n-of-t-evaluation) in live runs, then settle the advice-minimization policy before adding surprisal scoring.
+Review the character-ratchet behavior, then evaluate it in live runs before adding surprisal scoring.

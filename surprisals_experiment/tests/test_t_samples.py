@@ -68,7 +68,7 @@ def describe_n_of_t():
             '0/advice.txt': 'one',
             '0/0/main.py': PASS, '0/1/main.py': FAIL, '0/2/main.py': PASS,
         }
-        assert not (config.attempt_dir(1) / 'feedback.txt').exists()
+        assert (config.attempt_dir(1) / 'feedback.txt').exists()
         assert json.loads(config.result_file.read_text())['attempts'] == 2
         summary, *_ = report(config.output)
         assert summary['advice_rewrites'] == 2
