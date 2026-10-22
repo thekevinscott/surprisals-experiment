@@ -2,12 +2,13 @@
 
 import importlib
 import json
+from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-from botbox import RunResult
+from botbox import Botbox, RunResult
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk.utils.u_agent import UAgent
@@ -79,7 +80,8 @@ def botbox_script(monkeypatch):
     script = Script()
 
     class FakeBotbox:
-        def __init__(self, agent, **kwargs):
+        def __init__(self, agent, *, dockerfile):
+            signature(Botbox).bind(agent, dockerfile=dockerfile)
             self.agent = agent
 
         async def __aenter__(self):
