@@ -36,7 +36,7 @@ Create a `.env` file in this repository with your `OPENROUTER_API_KEY`. It is ig
 
 ```bash
 cd surprisals_experiment
-uv run surprisals_experiment \
+uv run python -m surprisals_experiment.cli.run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \

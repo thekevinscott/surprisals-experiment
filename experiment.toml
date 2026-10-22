@@ -2,7 +2,7 @@ name = "Surprisal experiment: U to T"
 command = '''
 uv run \
   --directory surprisals_experiment \
-  surprisals_experiment \
+  python -m surprisals_experiment.cli.run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \

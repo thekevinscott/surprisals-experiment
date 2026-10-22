@@ -11,7 +11,7 @@ from .prepare_feedback import prepare_feedback
 from ..utils.u_session import open_u_session
 
 
-def run_experiment(
+async def run_experiment(
     config: Config, *, on_delta: Callable[[str, str], None] | None,
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
@@ -26,10 +26,10 @@ def run_experiment(
             or not all(isinstance(value, str) for value in inputs + outputs)):
         raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
     config.save_settings()
-    with open_u_session(config) as u_session:
+    async with open_u_session(config) as u_session:
         for attempt in range(config.max_u_turns):
             for candidate in range(config.u_advice_retries + 1):
-                advice = u_session.prompt(prompt, on_delta=on_delta)
+                advice = await u_session.prompt(prompt, on_delta=on_delta)
                 measurement = len(advice)
                 rejected = config.u_advice_max_chars is not None and measurement >= config.u_advice_max_chars
                 save_advice(config.advice_dir(attempt, candidate), advice,
@@ -43,7 +43,7 @@ def run_experiment(
                 raise RuntimeError(
                     f"U advice exceeded the character limit after {config.u_advice_retries} retries"
                 )
-            output, results = run_attempt(
+            output, results = await run_attempt(
                 config, attempt=attempt, advice=advice, test_suite=test_suite,
                 snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
             )

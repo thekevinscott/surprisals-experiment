@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import get_args
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from botbox import RunResult
 from pydantic import ValidationError
@@ -18,7 +18,7 @@ from surprisals_experiment.sdk.utils.u_agent import UAgent
 ATTEMPT = 'surprisals_experiment.sdk.run_experiment.evaluate_attempt.'
 
 
-class AuditTest(unittest.TestCase):
+class AuditTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -27,7 +27,7 @@ class AuditTest(unittest.TestCase):
         self.config = Config(api_key='dummy', problem_dir=self.root, output=self.root/'run',
                              u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2)
 
-    def test_invalid_suites_fail_before_starting_u(self):
+    async def test_invalid_suites_fail_before_starting_u(self):
         invalid = [None, {}, {'inputs': [], 'outputs': []},
                    {'inputs': ['x', 'y'], 'outputs': ['x']},
                    {'inputs': [[1]], 'outputs': ['1']},
@@ -37,42 +37,42 @@ class AuditTest(unittest.TestCase):
                 with self.subTest(suite=suite):
                     self.config.test_suite_file.write_text(json.dumps(suite))
                     with self.assertRaises(ValueError):
-                        run_experiment(self.config, on_delta=None)
+                        await run_experiment(self.config, on_delta=None)
             self.config.test_suite_file.write_text('{')
             with self.assertRaises(ValueError):
-                run_experiment(self.config, on_delta=None)
+                await run_experiment(self.config, on_delta=None)
             start.assert_not_called()
 
-    def test_evaluator_cannot_drop_unmatched_cases(self):
+    async def test_evaluator_cannot_drop_unmatched_cases(self):
         (self.root/'main.py').write_text('print(7)')
         with self.assertRaises(ValueError):
-            run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, self.root, timeout_seconds=2)
+            await run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, self.root, timeout_seconds=2)
 
-    def attempt(self, exit_code):
+    async def attempt(self, exit_code):
         def t(config, advice, *, output, on_delta=None):
             output.mkdir()
             (output/'main.py').write_text('print(7)')
-            return RunResult('', '', exit_code, {}, 'proxy', 'container', 'image')
+            return RunResult('', '', exit_code, {}, 'proxy', 'image')
         with patch(ATTEMPT+'prompt_t', side_effect=t):
-            return run_attempt(self.config, attempt=0, advice='Print 7',
+            return await run_attempt(self.config, attempt=0, advice='Print 7',
                                test_suite={'inputs': [''], 'outputs': ['7']}, snapshot=self.root/'snapshot')
 
-    def test_nonzero_t_exit_can_produce_valid_solution(self):
-        output, results = self.attempt(1)
+    async def test_nonzero_t_exit_can_produce_valid_solution(self):
+        output, results = await self.attempt(1)
         self.assertEqual(output, self.config.t_dir(0, 0)/'src')
         self.assertTrue(all(result.all_passed for result in results))
 
-    def test_daemon_failure_aborts_and_preserves_diagnostics(self):
+    async def test_daemon_failure_aborts_and_preserves_diagnostics(self):
         with self.assertRaisesRegex(RuntimeError, 'infrastructure'):
-            self.attempt(-1)
+            await self.attempt(-1)
         self.assertIn('infrastructure', (self.config.attempt_dir(0)/'error.txt').read_text())
         self.assertEqual(json.loads((self.config.t_dir(0, 0)/'run.json').read_text())['exit_code'], -1)
         self.assertFalse((self.config.t_dir(0, 0)/'tests.json').exists())
 
-    def test_orchestration_errors_propagate_and_preserve_traceback(self):
+    async def test_orchestration_errors_propagate_and_preserve_traceback(self):
         with patch(ATTEMPT+'prompt_t', side_effect=OSError('disk failure')):
             with self.assertRaisesRegex(OSError, 'disk failure'):
-                run_attempt(self.config, attempt=0, advice='question', test_suite={'inputs': [''], 'outputs': ['7']}, snapshot=self.root/'snapshot')
+                await run_attempt(self.config, attempt=0, advice='question', test_suite={'inputs': [''], 'outputs': ['7']}, snapshot=self.root/'snapshot')
         self.assertIn('disk failure', (self.config.attempt_dir(0)/'error.txt').read_text())
 
     def test_sdk_thinking_values(self):
@@ -85,27 +85,30 @@ class AuditTest(unittest.TestCase):
             args = shlex.split(UAgent('openrouter', 'u', api_key='dummy', thinking=config.u_thinking).session_command())
             self.assertEqual(args[args.index('--thinking') + 1], level)
 
-    def test_prompt_t_has_no_sibling_artifact_writes(self):
-        result = RunResult('', '', 1, {'same.jsonl': 'transcript'}, 'proxy', 'container', 'image')
-        with patch('surprisals_experiment.sdk.prompt_t.Botbox') as box:
-            box.return_value.__enter__.return_value.session.return_value.__enter__.return_value.close.return_value = result
+    async def test_prompt_t_has_no_sibling_artifact_writes(self):
+        result = RunResult('', '', 1, {'same.jsonl': 'transcript'}, 'proxy', 'image')
+        with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox') as box:
+            live = MagicMock(result=result)
+            box.return_value.__aenter__.return_value.session = MagicMock()
+            box.return_value.__aenter__.return_value.session.return_value.__aenter__.return_value = live
+            live.message = AsyncMock()
             for name in ['first', 'second']:
-                self.assertIs(prompt_t(self.config, 'advice', output=self.root/name), result)
+                self.assertIs(await prompt_t(self.config, 'advice', output=self.root/name), result)
                 self.assertTrue((self.root/name).is_dir())
         self.assertFalse((self.root/'run.json').exists())
         self.assertFalse((self.root/'t_transcripts').exists())
 
-    def test_candidate_outcomes_and_evaluator_errors(self):
+    async def test_candidate_outcomes_and_evaluator_errors(self):
         cases = [('print(7)', True), ('print(8)', False), ('raise RuntimeError("bad code")', False),
                  ('import time; time.sleep(2)', False), ("import os; os.write(1,b'\\xff')", False),
                  ("import os; os.write(2,b'\\xff'); print(7)", False)]
         for source, passed in cases:
             with self.subTest(source=source):
                 (self.root/'main.py').write_text(source)
-                results = run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root, timeout_seconds=.2)
+                results = await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root, timeout_seconds=.2)
                 self.assertEqual(results.all_passed, passed)
         with self.assertRaises(FileNotFoundError):
-            run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root/'absent', timeout_seconds=1)
+            await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root/'absent', timeout_seconds=1)
 
 
 if __name__ == '__main__':

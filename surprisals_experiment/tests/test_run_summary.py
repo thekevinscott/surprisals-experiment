@@ -21,12 +21,12 @@ def report(folder):
 
 def describe_run_summary():
     @pytest.mark.parametrize('failures', [0, 2, 5])
-    def it_counts_rewrites_separately_from_evaluations(config, botbox_script, failures):
+    async def it_counts_rewrites_separately_from_evaluations(config, botbox_script, failures):
         config.u_advice_max_chars = 5
         count = min(failures + 1, 5)
         botbox_script.advice.extend(['12345', 'ok'] * count)
         botbox_script.solutions.extend([FAIL] * failures + [PASS])
-        run_experiment(config, on_delta=None)
+        await run_experiment(config, on_delta=None)
         (config.output / 'run.json').write_text(json.dumps({
             'params': {'u-advice-max-chars': 5},
         }))
@@ -45,13 +45,13 @@ def describe_run_summary():
         assert [row['tests_passed'] for row in attempts] == [0] * failures + ([2] if failures < 5 else [])
 
     @pytest.mark.parametrize('failure', ['rewrite_exhaustion', 't_infrastructure'])
-    def it_does_not_count_missing_evaluations_as_failed_ts(config, botbox_script, failure):
+    async def it_does_not_count_missing_evaluations_as_failed_ts(config, botbox_script, failure):
         config.u_advice_max_chars = 5
         config.u_advice_retries = 2
         botbox_script.advice.extend(['12345'] * 3 if failure == 'rewrite_exhaustion' else ['ok'])
         botbox_script.solutions.append(RuntimeError('provider unavailable'))
         with pytest.raises(RuntimeError):
-            run_experiment(config, on_delta=None)
+            await run_experiment(config, on_delta=None)
         summary, attempt = report(config.output)
         assert summary['completed_t_evaluations'] == 0
         assert summary['evaluation_attempts_to_success'] is None
