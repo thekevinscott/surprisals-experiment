@@ -65,6 +65,7 @@ def describe_n_of_t():
         for i, passed in enumerate([2, 0, 2]):
             assert f'T {i}: solution in /solutions/0/{i}; passed {passed} of 2 tests.' in feedback
         assert botbox_script.snapshots[2] == {
+            '0/advice.txt': 'one',
             '0/0/main.py': PASS, '0/1/main.py': FAIL, '0/2/main.py': PASS,
         }
         assert not (config.attempt_dir(1) / 'feedback.txt').exists()

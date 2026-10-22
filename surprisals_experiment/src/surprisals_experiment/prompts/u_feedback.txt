@@ -3,7 +3,9 @@ The same advice was given to {total} independent instances of T.
 
 {evaluations}
 
-Use your read and ls tools to inspect their source files.
+Use your read and ls tools to inspect their source files. All earlier attempts remain available
+under /solutions/<attempt>/, with the advice in advice.txt and each T implementation in its
+numbered subfolder.
 
 Review the solutions against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
 
