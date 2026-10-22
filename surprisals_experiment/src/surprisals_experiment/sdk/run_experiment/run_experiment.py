@@ -1,11 +1,13 @@
 """Run the experiment through the Python SDK."""
 
 import json
+import traceback
 from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from .run_attempt import run_attempt
+from .prompt_t_to_produce_code import prompt_t_to_produce_code
+from ..run_test_suite import run_test_suite_for_ts
 from .prepare_advice import prepare_advice
 from .prepare_feedback import prepare_feedback
 from ..utils.u_session import open_u_session
@@ -31,10 +33,16 @@ async def run_experiment(
             advice = await prepare_advice(
                 config, u_session, prompt, attempt=attempt, on_delta=on_delta,
             )
-            output, results = await run_attempt(
-                config, attempt=attempt, advice=advice, test_suite=test_suite,
-                snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
-            )
+            try:
+                solutions = await prompt_t_to_produce_code(
+                    config, attempt=attempt, advice=advice,
+                    snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
+                )
+                results = await run_test_suite_for_ts(config, solutions, test_suite)
+            except Exception:
+                (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
+                raise
+            output = solutions[0]
             if all(result.all_passed for result in results):
                 break
             if attempt + 1 < config.max_u_turns:

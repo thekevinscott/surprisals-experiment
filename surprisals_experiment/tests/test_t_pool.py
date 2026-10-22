@@ -9,7 +9,8 @@ from pydantic import ValidationError
 from conftest import FakeSession
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.run_attempt import run_attempt
+from surprisals_experiment.sdk.run_experiment.prompt_t_to_produce_code import prompt_t_to_produce_code
+from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 
 
 def describe_t_pool():
@@ -41,9 +42,8 @@ def describe_t_pool():
                 finished[sample].set()
 
         monkeypatch.setattr(FakeSession, 'message', message)
-        task = asyncio.create_task(run_attempt(
+        task = asyncio.create_task(prompt_t_to_produce_code(
             config, attempt=0, advice='double it',
-            test_suite={'inputs': ['3\n'], 'outputs': ['6\n']},
             snapshot=config.output / 'snapshots',
         ))
         try:
@@ -56,7 +56,9 @@ def describe_t_pool():
                     await finished[sample].wait()
                 for event in release:
                     event.set()
-                _, results = await task
+                solutions = await task
+            assert not list(config.output.glob("attempts/*/t_samples/*/tests.json"))
+            results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
             assert peak == capacity
             assert completion[:capacity] == list(reversed(range(capacity)))
             assert [result.all_passed for result in results] == [True, False, True, False, True]
