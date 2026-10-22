@@ -24,7 +24,7 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--t-samples", type=int, default=5,
                         help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3,
-                        help="Maximum concurrent T evaluations (default: 3)")
+                        help="Maximum concurrent T generations (default: 3)")
     parser.add_argument(
         "--max-u-turns", type=int, default=5, help="Maximum U attempts (default: 5)",
     )

@@ -12,7 +12,7 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
-3. Give that same advice to `--t-samples` fresh T sessions (default 5). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Samples run sequentially.
+3. Give that same advice to `--t-samples` fresh T sessions (default 5). Each writes `main.py`; the evaluator runs each solution against `input_output.json`. Generation uses the T pool; once all solutions are generated, testing runs sequentially.
 4. After the full batch, if any solution fails, U receives each T's passing-test count and can inspect read-only copies of all their source files. It then writes new advice for a fresh batch.
 5. The run stops when every T in a batch passes every stored test, or the advice-attempt budget is exhausted, currently five batches. An infrastructure error aborts the run while preserving completed evaluations; it is not treated as a failed solution.
 
@@ -49,7 +49,7 @@ uv run python -m surprisals_experiment.cli.run \
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
-Control concurrent T evaluations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential evaluation.
+Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation.
 
 The current [experiment.toml](experiment.toml) selects problem `2286` with a cap of 100. With labnotes 0.0.101 or later, run it from this repository root:
 
