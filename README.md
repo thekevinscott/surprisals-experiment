@@ -14,8 +14,8 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
 3. Give that same advice to `--t-samples` fresh T sessions (default 5), with up to `--t-pool-size` generating code concurrently (default 3).
 4. Once generation finishes, test every T solution against every case in `input_output.json`. U can inspect every attempt's advice and pre-test source snapshots, and receives passing-test counts after a failed batch.
-5. When all Ts pass, ask U for advice strictly shorter than that successful advice. Equal or longer candidates are saved and rejected, with up to ten rewrites per batch. A failed batch keeps the current character bound.
-6. Continue until 20 consecutive batches fail, Ctrl-C, or an explicit `--max-u-turns` limit. Success resets the failure streak. Infrastructure errors abort rather than counting as test failures.
+5. Ask U for the shortest possible advice, allowing candidates of any length in uncapped mode. Track the shortest advice that makes every T pass every test. U receives each turn’s length, test outcomes, best successful length, and no-improvement counter.
+6. Stop after 20 consecutive turns without improvement, Ctrl-C, or an explicit `--max-u-turns` limit. The first all-pass advice establishes the baseline; only strictly shorter all-pass advice resets the counter afterward. Failed tests, longer successes, and equal-length successes increment it. Infrastructure errors abort rather than counting as completed turns.
 
 U keeps its conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `prompt_t_to_produce_code`, and `run_test_suite_for_ts` in that order for each batch.
 
@@ -26,7 +26,7 @@ See the [five-phase experiment plan](plan/readme.md):
 1. Uncapped advice — complete.
 2. Capped advice — complete; demonstrated success after multiple attempts.
 3. n-of-T evaluation — complete.
-4. Minimize advice without a preset cap — character ratchet implemented.
+4. Minimize advice without a preset cap — advice minimization implemented.
 5. Surprisal scoring and optimization — planned.
 
 ## Run an experiment
@@ -47,7 +47,7 @@ uv run python -m surprisals_experiment.cli.run \
   --u-advice-max-chars 100
 ```
 
-Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` to start uncapped; successful advice establishes the next bound. Use `--max-consecutive-failures` to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` to allow any advice length throughout the run. An explicitly supplied cap stays fixed. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially.
 
@@ -88,4 +88,4 @@ The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surpris
 
 ## Next steps
 
-Review the character-ratchet behavior, then evaluate it in live runs before adding surprisal scoring.
+Review the advice-minimization behavior, then evaluate it in live runs before adding surprisal scoring.
