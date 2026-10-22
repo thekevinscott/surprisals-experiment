@@ -12,18 +12,21 @@ async def prepare_advice(
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
     candidate = 0
-    while candidate <= config.u_advice_retries:
+    rejected = True
+    while rejected:
+        if candidate > config.u_advice_retries:
+            break
         advice = await u_session.prompt(prompt, on_delta=on_delta)
         measurement = len(advice)
         rejected = config.u_advice_max_chars is not None and measurement >= config.u_advice_max_chars
         save_advice(config.advice_dir(attempt, candidate), advice,
                     rejected=rejected, measurement=measurement)
-        if not rejected:
-            return advice
         candidate += 1
         prompt = (f"Your advice was {measurement} characters. It must be fewer than "
                   f"{config.u_advice_max_chars} characters, including spaces and newlines. "
                   "Rewrite it to meet that limit. Return only the instructions to T.")
-    raise RuntimeError(
-        f"U advice exceeded the character limit after {config.u_advice_retries} retries"
-    )
+    if rejected:
+        raise RuntimeError(
+            f"U advice exceeded the character limit after {config.u_advice_retries} retries"
+        )
+    return advice
