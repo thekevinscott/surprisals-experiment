@@ -25,6 +25,7 @@ from surprisals_experiment.sdk.utils.u_session import USession
 from surprisals_experiment.sdk import prompt_t
 
 root = Path(sys.argv[1])
+actor = sys.argv[2]
 child = r"""
 import json, sys, time
 from pathlib import Path
@@ -59,7 +60,7 @@ async def session(agent):
                                 {'session.jsonl': 'saved transcript'}, 'proxy log', 'image')
 
 async def experiment(config, *, on_delta, on_t_delta):
-    if sys.argv[2] == 'T':
+    if actor == 'T':
         class Box:
             def __init__(self, agent, **kwargs):
                 self.agent = agent
@@ -91,7 +92,9 @@ cli = importlib.import_module('surprisals_experiment.cli.main')
 with patch.object(cli, 'find_dotenv', return_value='unused'), \
      patch.object(cli, 'dotenv_values', return_value={'OPENROUTER_API_KEY':'dummy'}), \
      patch.object(cli, 'run_experiment', side_effect=experiment):
-    asyncio.run(cli.main(['--output', str(root/'run'), 'problem', str(root)]))
+    import runpy
+    sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'), 'problem', str(root)]
+    runpy.run_module('surprisals_experiment.cli.run', run_name='__main__')
 '''
 
 

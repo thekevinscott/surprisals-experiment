@@ -13,10 +13,6 @@ dependencies = [
     "python-dotenv>=1.2.4",
 ]
 
-[project.scripts]
-surprisals-experiment = "surprisals_experiment.cli.__main__:run"
-surprisals_experiment = "surprisals_experiment.cli.__main__:run"
-
 [build-system]
 requires = ["uv_build>=0.13.3,<0.14.0"]
 build-backend = "uv_build"

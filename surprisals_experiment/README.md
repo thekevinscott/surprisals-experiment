@@ -5,7 +5,7 @@ Download the dataset using the [APPS setup instructions](../scripts/README.md).
 The U integration uses botbox 0.0.15 or newer and its released `box.session()` API ([issue #48](https://github.com/thekevinscott/botbox/issues/48)). The experiment does not implement its own pipe transport. `uv` uses a zero-second release cutoff so freshly published versions can be installed.
 
 ```bash
-uv run surprisals_experiment \
+uv run python -m surprisals_experiment.cli.run \
   --output runs/example \
   -U xiaomi/mimo-v2.6-pro \
   --u-thinking high \
@@ -45,7 +45,7 @@ from surprisals_experiment.sdk import run_experiment
 solution = await run_experiment(config, on_delta=None)
 ```
 
-A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Installed commands and `python -m surprisals_experiment.cli` share `run()` in `cli/__main__.py`, which calls `asyncio.run(main())`. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
+A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Launch with `python -m surprisals_experiment.cli.run`; `cli/run.py` calls `asyncio.run(main())` under its module guard. There are no installed console commands or synchronous wrapper functions. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
 
 Advice attempts, T samples, and test cases still run sequentially. Botbox sessions and messages use its native async API; streaming callbacks run synchronously on the event-loop thread. Testcases use native async subprocesses. Timeout or cancellation kills and reaps the current testcase before session cleanup. Small filesystem operations remain synchronous.
 
