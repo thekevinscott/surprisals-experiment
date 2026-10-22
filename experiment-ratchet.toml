@@ -1,4 +1,4 @@
-name = "Character ratchet pilot: 10 problems, uncapped start"
+name = "Advice minimization pilot: 10 problems, uncapped start"
 command = '''
 uv run \
   --directory surprisals_experiment \
@@ -6,7 +6,7 @@ uv run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \
-  --max-consecutive-failures 30 \
+  --max-turns-without-improvement 30 \
   --output "{run_dir}" \
   problem'''
 repeats = 1

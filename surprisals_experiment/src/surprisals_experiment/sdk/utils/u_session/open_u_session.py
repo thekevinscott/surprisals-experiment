@@ -25,6 +25,8 @@ async def open_u_session(config) -> AsyncGenerator[USession]:
         system_prompt = workspace / "u.txt"
         system_prompt.write_text((RESOURCES / "prompts/u.txt").read_text().format(
             max_chars=config.u_advice_max_chars or "Infinity",
+            t_samples=config.t_samples,
+            max_turns_without_improvement=config.max_turns_without_improvement,
         ))
         solutions = workspace / "solutions"
         solutions.mkdir()

@@ -44,19 +44,15 @@ Keep n separate from U's turn budget and advice-rewrite retries. Initially retai
 
 ## Phase 4: Minimize advice without a preset cap
 
-**Implemented: strict character ratchet. Live search validation and the final research policy remain open.**
+**Implemented: minimize characters without enforcing a ratcheting cap.**
 
-Start uncapped and obtain advice that qualifies under n-of-T evaluation. Then ask U to make it as small as possible while preserving effectiveness. Measure each candidate and retain the shortest qualifying advice, even if later candidates fail.
+U is explicitly asked to produce the shortest advice possible while making every T pass every test. Each turn consists of advice, n fresh T implementations, and evaluation against the full test suite. U may explore longer or equal-length advice; all candidates are tested in uncapped mode.
 
-A starting prompt to discuss:
+The first all-pass advice establishes the baseline. A strictly shorter all-pass result updates the best result and resets the no-improvement counter. Failed tests, longer successes, and equal-length successes increment it. Before the first success, every failed turn counts. Stop after `--max-turns-without-improvement` consecutive turns (default 20), an optional total-turn limit, or interruption.
 
-> Your best successful advice was {characters} characters and passed all tests in {n} of {n} independent evaluations. Write the shortest self-contained advice you can that still lets T solve the problem. Return only the advice.
+Each feedback message includes the latest advice length, per-T test results, the shortest successful length, and the no-improvement count. Prior advice and implementations remain available in U's session and mounted history. Hidden test contents remain excluded. The shortest successful result survives later failures, longer successes, and interruption.
 
-The merged implementation requires advice strictly shorter than the last successful advice. It saves and rejects equal-or-longer candidates before T runs, allowing ten rewrites per batch. Failed batches retain the bound; all-pass batches lower it and reset the failure streak. Twenty consecutive failed batches stop the run by default, with an optional total-batch limit. The best successful result is preserved through later failures and interruption.
-
-The research policy remains open for discussion with Caleb: alternatively, tell U it is judged on shortness without enforcing a cap, and re-present all prior advice lengths and test outcomes every turn. This would allow temporary length increases. That alternative is documented locally, not implemented. Hidden test contents remain excluded from U's context.
-
-Integration tests cover strict shortening, equal-or-longer rejection, failure-streak reset, and preservation of the best result. A live ratchet search remains to be run. The optional `experiment-ratchet.toml` pilot uses ten problems, starts uncapped and permits 30 consecutive failed batches; this is a configurable pilot, not a new default or a proven convergence criterion.
+An explicitly configured fixed cap remains available for phase 2 experiments; it never tightens automatically. The optional `experiment-ratchet.toml` pilot starts uncapped across ten problems and sets the no-improvement limit to 30. Integration tests cover the stopping rule, mixed n-of-T outcomes, longer/equal candidates, counter resets, and best-result retention. Live validation of this revised policy remains outstanding.
 
 ## Phase 5: Surprisal
 
