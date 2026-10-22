@@ -33,4 +33,4 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.uv.sources]
-botbox = { git = "https://github.com/thekevinscott/botbox.git", rev = "ed3536e", subdirectory = "packages/python" }
+botbox = { git = "https://github.com/thekevinscott/botbox.git", rev = "666d627fbf1f1cbddb0773cf9bc7d01b067f0e38", subdirectory = "packages/python" }
