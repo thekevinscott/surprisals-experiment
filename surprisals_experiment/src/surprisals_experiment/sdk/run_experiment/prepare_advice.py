@@ -11,7 +11,8 @@ async def prepare_advice(
     config: Config, u_session: USession, prompt: str, *, attempt: int,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
-    for candidate in range(config.u_advice_retries + 1):
+    candidate = 0
+    while candidate <= config.u_advice_retries:
         advice = await u_session.prompt(prompt, on_delta=on_delta)
         measurement = len(advice)
         rejected = config.u_advice_max_chars is not None and measurement >= config.u_advice_max_chars
@@ -19,6 +20,7 @@ async def prepare_advice(
                     rejected=rejected, measurement=measurement)
         if not rejected:
             return advice
+        candidate += 1
         prompt = (f"Your advice was {measurement} characters. It must be fewer than "
                   f"{config.u_advice_max_chars} characters, including spaces and newlines. "
                   "Rewrite it to meet that limit. Return only the instructions to T.")
