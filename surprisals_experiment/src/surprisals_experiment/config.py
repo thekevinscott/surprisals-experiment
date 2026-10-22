@@ -54,8 +54,8 @@ class Config(BaseModel):
         return self.output / "u_transcripts"
 
     @property
-    def u_run_file(self) -> Path:
-        return self.output / "u_run.json"
+    def u_proxy_log(self) -> Path:
+        return self.output / "proxy_logs" / "u.log"
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.output / "attempts" / str(attempt)
