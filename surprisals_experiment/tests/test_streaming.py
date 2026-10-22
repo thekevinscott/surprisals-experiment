@@ -91,7 +91,7 @@ cli = importlib.import_module('surprisals_experiment.cli.main')
 with patch.object(cli, 'find_dotenv', return_value='unused'), \
      patch.object(cli, 'dotenv_values', return_value={'OPENROUTER_API_KEY':'dummy'}), \
      patch.object(cli, 'run_experiment', side_effect=experiment):
-    cli.main(['--output', str(root/'run'), 'problem', str(root)])
+    asyncio.run(cli.main(['--output', str(root/'run'), 'problem', str(root)]))
 '''
 
 

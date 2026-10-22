@@ -102,7 +102,7 @@ def describe_n_of_t():
         assert Config(**values).t_samples == 5
 
     @pytest.mark.parametrize('args,expected', [([], 5), (['--t-samples', '1'], 1), (['--t-samples', '3'], 3)])
-    def it_accepts_the_cli_flag(config, monkeypatch, args, expected):
+    async def it_accepts_the_cli_flag(config, monkeypatch, args, expected):
         cli = importlib.import_module('surprisals_experiment.cli.main')
         received = []
         monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: 'unused')
@@ -110,5 +110,5 @@ def describe_n_of_t():
         async def run(config, **kwargs):
             received.append(config)
         monkeypatch.setattr(cli, 'run_experiment', run)
-        cli.main(['--output', str(config.output), *args, 'problem', str(config.problem_dir)])
+        await cli.main(['--output', str(config.output), *args, 'problem', str(config.problem_dir)])
         assert received[0].t_samples == expected

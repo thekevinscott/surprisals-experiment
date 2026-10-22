@@ -45,7 +45,7 @@ from surprisals_experiment.sdk import run_experiment
 solution = await run_experiment(config, on_delta=None)
 ```
 
-A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI does this internally; its commands are unchanged. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
+A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Installed commands use a synchronous `cli.run:run` wrapper, and `python -m surprisals_experiment.cli` starts it from `cli/__main__.py`. Both entry points use `asyncio.run(main())`. U sessions use `async with open_u_session(config)` and `await u_session.prompt(...)`.
 
 Advice attempts, T samples, and test cases still run sequentially. Botbox sessions and messages use its native async API; streaming callbacks run synchronously on the event-loop thread. Test subprocess calls use `sdk/utils/run_sync.py` to keep the loop responsive, waiting for the current test before cancellation cleanup. Small filesystem operations remain synchronous.
 

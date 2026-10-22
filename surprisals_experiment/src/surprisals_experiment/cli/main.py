@@ -1,7 +1,6 @@
 """Argument parsing and presentation for the experiment SDK."""
 
 import argparse
-import asyncio
 import sys
 from functools import partial
 from pathlib import Path
@@ -13,7 +12,7 @@ from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
 
-def main(argv: list[str] | None = None) -> None:
+async def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
@@ -59,7 +58,7 @@ def main(argv: list[str] | None = None) -> None:
         key = dotenv_values(env_file, interpolate=False).get("OPENROUTER_API_KEY")
         if not key or not key.strip():
             raise ValueError("Set OPENROUTER_API_KEY in your .env file")
-        asyncio.run(run_experiment(Config(
+        await run_experiment(Config(
             api_key=key,
             problem_dir=args.problem_dir or args.problem_dir_option,
             output=args.output,
@@ -71,7 +70,7 @@ def main(argv: list[str] | None = None) -> None:
             t_samples=args.t_samples,
             max_u_turns=args.max_u_turns,
             test_timeout_seconds=args.test_timeout_seconds,
-        ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T")))
+        ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
 
