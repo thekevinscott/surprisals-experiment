@@ -1,7 +1,7 @@
 name = "Surprisal experiment: U to T"
 command = '''
 uv run \
-  --directory surprisals-experiment/surprisals_experiment \
+  --directory surprisals_experiment \
   surprisals_experiment \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
@@ -15,4 +15,4 @@ mode = "adhoc"
 [params]
 problem-dir = ["../data/APPS/test/2286"]
 # Exclusive character bounds; overlong advice is rewritten before T runs.
-u-advice-max-chars = [70, 80]
+u-advice-max-chars = [100]
