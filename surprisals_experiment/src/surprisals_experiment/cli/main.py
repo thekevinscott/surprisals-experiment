@@ -23,6 +23,8 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
     parser.add_argument("--t-samples", type=int, default=5,
                         help="Independent T solutions per advice; all must pass (default: 5)")
+    parser.add_argument("--t-pool-size", type=int, default=3,
+                        help="Maximum concurrent T evaluations (default: 3)")
     parser.add_argument(
         "--max-u-turns", type=int, default=5, help="Maximum U attempts (default: 5)",
     )
@@ -68,6 +70,7 @@ async def main(argv: list[str] | None = None) -> None:
             u_advice_retries=args.u_advice_retries,
             t_model=args.T,
             t_samples=args.t_samples,
+            t_pool_size=args.t_pool_size,
             max_u_turns=args.max_u_turns,
             test_timeout_seconds=args.test_timeout_seconds,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))

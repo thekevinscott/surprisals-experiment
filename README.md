@@ -49,6 +49,8 @@ uv run python -m surprisals_experiment.cli.run \
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` for an uncapped run. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
+Control concurrent T evaluations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential evaluation.
+
 The current [experiment.toml](experiment.toml) selects problem `2286` with a cap of 100. With labnotes 0.0.101 or later, run it from this repository root:
 
 ```bash
