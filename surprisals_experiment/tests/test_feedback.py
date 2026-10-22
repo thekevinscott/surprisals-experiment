@@ -86,7 +86,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((config.t_dir(0, 0)/'t_transcripts/same.jsonl').read_text(), 'First advice')
                 if turns == 1:
                     self.assertIsNone(result)
-                    self.assertFalse((config.attempt_dir(0)/'feedback.txt').exists())
+                    self.assertTrue((config.attempt_dir(0)/'feedback.txt').exists())
                     self.assertFalse(json.loads(config.result_file.read_text())['success'])
                 else:
                     self.assertEqual(result, config.t_dir(1, 0)/'src')

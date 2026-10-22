@@ -24,6 +24,7 @@ def describe_run_summary():
     async def it_counts_rewrites_separately_from_evaluations(config, botbox_script, failures):
         config.u_advice_max_chars = 5
         count = min(failures + 1, 5)
+        config.max_u_turns = count
         botbox_script.advice.extend(['12345', 'ok'] * count)
         botbox_script.solutions.extend([FAIL] * failures + [PASS])
         await run_experiment(config, on_delta=None)
