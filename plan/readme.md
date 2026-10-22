@@ -38,7 +38,7 @@ Set n with `--t-samples` (default 5; use 1 for the original single-T behavior). 
 
 Preserve each T's code, transcript, and test results, plus the aggregate outcome. Return all individual outcomes and source access to U after the batch. An incomplete batch caused by infrastructure errors cannot establish n/n success; the current policy is to stop on infrastructure errors, preserve completed evaluations, and leave the batch incomplete. Automatic resumption is not implemented.
 
-Keep n separate from U's turn budget and advice-rewrite retries. Initially retain fixed-cap mode to validate this change; n=1 should preserve current behavior. Integration tests cover all-pass, mixed-pass, all-fail, and interrupted batches, identical advice, independent sessions, separate artifacts, and rewrites followed by a successful revised batch. Samples run sequentially and the full batch is evaluated even when an earlier sample fails.
+Keep n separate from U's turn budget and advice-rewrite retries. Initially retain fixed-cap mode to validate this change; n=1 should preserve current behavior. Integration tests cover all-pass, mixed-pass, all-fail, and interrupted batches, identical advice, independent sessions, separate artifacts, and rewrites followed by a successful revised batch. Samples run in a configurable pool (`--t-pool-size`, default 3; use 1 for sequential evaluation). The full batch is evaluated even when an earlier sample fails its tests, and feedback retains sample order.
 
 ## Phase 4: Minimize advice without a preset cap
 
