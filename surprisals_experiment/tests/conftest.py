@@ -51,7 +51,7 @@ class FakeSession:
         if self.is_u:
             self.script.snapshots.append({
                 str(path.relative_to(self.mounts['/solutions'])): path.read_text()
-                for path in self.mounts['/solutions'].rglob('main.py')
+                for path in self.mounts['/solutions'].rglob('*') if path.is_file()
             })
             reply = self.script.advice.popleft()
         else:
