@@ -65,7 +65,8 @@ def describe_advice_cap_loop():
 
 def describe_u_to_t_loop():
     @pytest.mark.parametrize('failures', [0, 2, 4, 5])
-    async def it_stops_on_success_or_the_attempt_budget(config, botbox_script, failures):
+    async def it_records_each_batch_with_an_explicit_iteration_limit(config, botbox_script, failures):
+        config.max_u_turns = min(failures + 1, 5)
         # Extra scripted responses reveal accidental calls after completion.
         botbox_script.advice.extend(f'advice {i}' for i in range(6))
         botbox_script.solutions.extend([FAIL] * failures + [PASS, PASS])
@@ -92,13 +93,14 @@ def describe_u_to_t_loop():
                 assert botbox_script.u_sessions[0].messages[i + 1] == feedback
                 assert botbox_script.snapshots[i + 1][f'{i}/0/main.py'] == FAIL
         assert config.error_file.exists() == (failures == 5)
-        assert not (config.attempt_dir(count - 1) / 'feedback.txt').exists()
+        assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
         assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
 
 
 def describe_combined_loops():
     async def it_resets_rewrite_budget_without_spending_t_attempts(config, botbox_script):
+        config.max_u_turns = 2
         config.u_advice_max_chars = 5
         botbox_script.advice.extend(['12345'] * 10 + ['one'] + ['123456'] * 10 + ['two'])
         botbox_script.solutions.extend([FAIL, PASS])

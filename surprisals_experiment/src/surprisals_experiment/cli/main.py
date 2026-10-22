@@ -25,8 +25,10 @@ async def main(argv: list[str] | None = None) -> None:
                         help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3,
                         help="Maximum concurrent T generations (default: 3)")
+    parser.add_argument("--max-consecutive-failures", type=int, default=20,
+                        help="Stop after this many consecutive failing batches (default: 20)")
     parser.add_argument(
-        "--max-u-turns", type=int, default=5, help="Maximum U attempts (default: 5)",
+        "--max-u-turns", type=int, help="Optional total iteration limit (default: stop after consecutive failures or interruption)",
     )
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
     parser.add_argument("--test-timeout-seconds", type=float, default=5, help="Time limit per test case (default: 5)")
@@ -72,6 +74,7 @@ async def main(argv: list[str] | None = None) -> None:
             t_samples=args.t_samples,
             t_pool_size=args.t_pool_size,
             max_u_turns=args.max_u_turns,
+            max_consecutive_failures=args.max_consecutive_failures,
             test_timeout_seconds=args.test_timeout_seconds,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
     except (ValueError, OSError, RuntimeError) as error:
