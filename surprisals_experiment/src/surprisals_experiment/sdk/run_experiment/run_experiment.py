@@ -6,7 +6,7 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from .run_attempt import run_attempt
-from .save_advice import save_advice
+from .prepare_advice import prepare_advice
 from .prepare_feedback import prepare_feedback
 from ..utils.u_session import open_u_session
 
@@ -28,21 +28,9 @@ async def run_experiment(
     config.save_settings()
     async with open_u_session(config) as u_session:
         for attempt in range(config.max_u_turns):
-            for candidate in range(config.u_advice_retries + 1):
-                advice = await u_session.prompt(prompt, on_delta=on_delta)
-                measurement = len(advice)
-                rejected = config.u_advice_max_chars is not None and measurement >= config.u_advice_max_chars
-                save_advice(config.advice_dir(attempt, candidate), advice,
-                            rejected=rejected, measurement=measurement)
-                if not rejected:
-                    break
-                prompt = (f"Your advice was {measurement} characters. It must be fewer than "
-                          f"{config.u_advice_max_chars} characters, including spaces and newlines. "
-                          "Rewrite it to meet that limit. Return only the instructions to T.")
-            else:
-                raise RuntimeError(
-                    f"U advice exceeded the character limit after {config.u_advice_retries} retries"
-                )
+            advice = await prepare_advice(
+                config, u_session, prompt, attempt=attempt, on_delta=on_delta,
+            )
             output, results = await run_attempt(
                 config, attempt=attempt, advice=advice, test_suite=test_suite,
                 snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
