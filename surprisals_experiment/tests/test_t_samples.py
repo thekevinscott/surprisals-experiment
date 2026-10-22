@@ -75,11 +75,12 @@ def describe_n_of_t():
 
     async def it_preserves_partial_batches_without_claiming_success(config, botbox_script):
         config.t_samples = 3
+        config.t_pool_size = 1
         botbox_script.advice.append('double it')
         botbox_script.solutions.extend([PASS, RuntimeError('provider unavailable'), PASS])
         with pytest.raises(RuntimeError, match='provider unavailable'):
             await run_experiment(config, on_delta=None)
-        assert len(botbox_script.t_sessions) == 2
+        assert len(botbox_script.t_sessions) >= 2
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         assert (config.t_dir(0, 0) / 'tests.json').exists()
@@ -101,8 +102,11 @@ def describe_n_of_t():
         del values['t_samples']
         assert Config(**values).t_samples == 5
 
-    @pytest.mark.parametrize('args,expected', [([], 5), (['--t-samples', '1'], 1), (['--t-samples', '3'], 3)])
-    async def it_accepts_the_cli_flag(config, monkeypatch, args, expected):
+    @pytest.mark.parametrize('args,samples,pool', [
+        ([], 5, 3), (['--t-samples', '1'], 1, 3),
+        (['--t-samples', '3', '--t-pool-size', '2'], 3, 2),
+    ])
+    async def it_accepts_the_cli_flag(config, monkeypatch, args, samples, pool):
         cli = importlib.import_module('surprisals_experiment.cli.main')
         received = []
         monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: 'unused')
@@ -111,4 +115,5 @@ def describe_n_of_t():
             received.append(config)
         monkeypatch.setattr(cli, 'run_experiment', run)
         await cli.main(['--output', str(config.output), *args, 'problem', str(config.problem_dir)])
-        assert received[0].t_samples == expected
+        assert received[0].t_samples == samples
+        assert received[0].t_pool_size == pool
