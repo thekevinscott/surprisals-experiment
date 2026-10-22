@@ -32,11 +32,12 @@ class AdviceLimitTest(unittest.IsolatedAsyncioTestCase):
                 async def open_session(config):
                     yield session
 
-                attempt = AsyncMock(side_effect=[(root/'first', [SimpleNamespace(all_passed=False)]),
-                                            (root/'second', [SimpleNamespace(all_passed=True)])])
+                attempt = AsyncMock(side_effect=[[SimpleNamespace(all_passed=False)],
+                                                [SimpleNamespace(all_passed=True)]])
                 module = 'surprisals_experiment.sdk.run_experiment.run_experiment'
                 with patch(module+'.open_u_session', open_session), \
-                     patch(module+'.run_attempt', attempt), \
+                     patch(module+'.prompt_t_to_produce_code', AsyncMock(side_effect=[[root/'first'], [root/'second']])), \
+                     patch(module+'.test_code', attempt), \
                      patch(module+'.prepare_feedback', return_value='Test feedback'):
                     if exhausted:
                         with self.assertRaisesRegex(RuntimeError, 'after 2 retries'):
@@ -52,8 +53,8 @@ class AdviceLimitTest(unittest.IsolatedAsyncioTestCase):
                         if limit:
                             self.assertIn('Your advice was 5 characters', prompts[1])
                             self.assertIn('fewer than 5 characters', prompts[1])
-                            self.assertEqual([c.kwargs['advice'] for c in attempt.call_args_list],
-                                             ['1234', 'abc'])
+                            self.assertEqual([p.read_text() for p in sorted(output.glob('attempts/*/advices/*/advice.txt'))
+                                              if len(p.read_text()) < limit], ['1234', 'abc'])
 
                 saved = sorted(output.glob('attempts/*/advices/*/advice.txt'))
                 self.assertEqual([p.read_text() for p in saved], replies)

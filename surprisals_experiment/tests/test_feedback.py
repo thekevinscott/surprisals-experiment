@@ -71,7 +71,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                     return RunResult('', '', 0, {'same.jsonl': advice}, 'proxy', 'image')
 
                 with patch('surprisals_experiment.sdk.run_experiment.run_experiment.open_u_session', side_effect=start), \
-                     patch('surprisals_experiment.sdk.run_experiment.evaluate_attempt.prompt_t', side_effect=t):
+                     patch('surprisals_experiment.sdk.run_experiment.produce_code.prompt_t', side_effect=t):
                     result = await run_experiment(config, on_delta=lambda kind, text: deltas.append((kind, text)),
                                             on_t_delta=lambda kind, text: t_deltas.append((kind, text)))
                 snapshot = root / "shared/0/0"
