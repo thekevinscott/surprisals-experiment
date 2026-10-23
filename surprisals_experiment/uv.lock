@@ -47,8 +47,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.1.2.dev5+ged3536e0e"
-source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=ed3536e#ed3536e0ef1cd2ea20347fb1e0bfbcb31f6c51eb" }
+version = "0.1.6"
+source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=666d627fbf1f1cbddb0773cf9bc7d01b067f0e38#666d627fbf1f1cbddb0773cf9bc7d01b067f0e38" }
+dependencies = [
+    { name = "json5" },
+]
 
 [[package]]
 name = "colorama"
@@ -201,6 +204,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/21/e3/4b1a43501fb9ed17b01d137e380cb0e8fdcb39a254ce31aa2ab95bc861ac/jiter-0.17.0-cp315-cp315t-win32.whl", hash = "sha256:86d703d9faa1ffc8ae4e9de0fa007712ed2171b5c0d93811a8e2e105ac729b0d", size = 184603, upload-time = "2026-09-12T15:13:59.27Z" },
     { url = "https://files.pythonhosted.org/packages/f9/f2/b8ee0372b6ebdf1bde5cc44495d5291d17f961065f5b48f8616cc67cac2e/jiter-0.17.0-cp315-cp315t-win_amd64.whl", hash = "sha256:42b0260445251b1bc520a63baa94a32d88e0f931fba234f1764db7feb7c72174", size = 227936, upload-time = "2026-09-12T15:14:00.472Z" },
     { url = "https://files.pythonhosted.org/packages/a4/b4/923a1215daba959aed8355973315cb3f81f53e0d01c5b211870a27b41f45/jiter-0.17.0-cp315-cp315t-win_arm64.whl", hash = "sha256:d47687806f9c54c84ea38733507081337922beca90ce819c7d852dd485bc0f23", size = 182977, upload-time = "2026-09-12T15:14:01.799Z" },
+]
+
+[[package]]
+name = "json5"
+version = "0.17.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/1f/58a4d7ee466f81bc3c7337036380fc6d49de3afb7855d74f8121b1e89b32/json5-0.17.3.tar.gz", hash = "sha256:8d0278ad34ebaa9c3af76d9519274811830224a2d1cd5af156dbd067f461b8a4", size = 54234, upload-time = "2026-10-09T21:19:28.335Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/39/e689b616c4279a821d5842a8a85c1874540f8d58e35028df93f2182120c2/json5-0.17.3-py3-none-any.whl", hash = "sha256:2c8b22a893c35cd6a3c5ccbf1dd1c7d02c25dc1b5897fea658f9bf08c2e05f9a", size = 34809, upload-time = "2026-10-09T21:19:27.357Z" },
+]
+
+[[package]]
+name = "measure-surprisal"
+version = "0.1.0"
+source = { git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78#4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" }
+dependencies = [
+    { name = "openai" },
 ]
 
 [[package]]
@@ -398,6 +418,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "botbox" },
+    { name = "measure-surprisal" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -413,7 +434,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=ed3536e" },
+    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=666d627fbf1f1cbddb0773cf9bc7d01b067f0e38" },
+    { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
