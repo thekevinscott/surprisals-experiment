@@ -19,6 +19,7 @@ class Config(BaseModel):
     u_mode: Literal["chat", "agent"] = "agent"
     u_model: str
     u_thinking: ThinkingLevel
+    u_compact_chars: int = Field(default=400000, ge=0)
     t_model: str
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)

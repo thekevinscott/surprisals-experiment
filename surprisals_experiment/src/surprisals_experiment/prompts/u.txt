@@ -11,4 +11,4 @@ The session ends after {max_turns_without_improvement} consecutive turns without
 The first all-pass advice establishes the baseline and resets this counter. Before that, failed turns count toward the limit.
 Only a strictly shorter all-pass advice resets the counter afterward; longer or equal successes and any test failures count as turns without improvement.
 {implementation_access}
-Your final response must contain only the instructions to T.
+Your final response must contain only the instructions to T, except when explicitly asked to summarize the conversation for compaction; then return only the requested summary.

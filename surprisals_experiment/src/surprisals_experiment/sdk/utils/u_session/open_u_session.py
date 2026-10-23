@@ -39,6 +39,7 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
                 u_session = ChatSession(
                     client, config.u_model, config.u_thinking, solutions,
                     config.u_transcripts / "messages.jsonl",
+                    compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
                 )
                 u_session.record({"role": "system", "content": prompt})
                 yield u_session
