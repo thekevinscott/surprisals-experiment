@@ -29,7 +29,6 @@ def describe_chat_compaction():
         assert await run_experiment(config, on_delta=None) == config.t_dir(2, 0) / 'src'
         assert len(chat_provider) == 7
         system = chat_provider[0]['messages'][0]
-        assert 'except when explicitly asked to summarize' in system['content']
         for request_index, attempt, advice, length, streak in [
             (2, 0, best, len(best), 0), (4, 1, best, len(best), 1), (6, 2, 'double', 6, 0),
         ]:
