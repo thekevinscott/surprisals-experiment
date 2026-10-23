@@ -6,7 +6,7 @@ The agent-mode U integration uses botbox and its released `box.session()` API ([
 
 ```bash
 uv run python -m surprisals_experiment.cli.run \
-  --output runs/example \
+  --output ../experiments/sanity-check/runs/example \
   -U xiaomi/mimo-v2.6-pro \
   --u-thinking high \
   -T openai/gpt-oss-120b \
@@ -24,10 +24,10 @@ Each iteration calls `prepare_advice`, `prompt_t_to_produce_code`, then `run_tes
 Run the configured problem through labnotes from the repository root (one directory above this Python project):
 
 ```bash
-uvx --no-config --from 'labnotes==0.0.101' labnotes experiments surprisals-experiment run
+uvx --no-config --from labnotes labnotes experiments sanity-check run
 ```
 
-`../experiment.toml` selects APPS problem `2286` with an exclusive advice cap of 100 characters, one run, a stopping threshold of 20 consecutive failed batches and ten length-rewrite retries per batch. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `runs/<run>/` relative to the repository root; Each attempt stores U's advice candidates in `attempts/<i>/advices/` and T's files in `attempts/<i>/t_samples/<j>/src/`. Attempts are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
+`../experiments/sanity-check/experiment.toml` selects APPS problem `2286` with an exclusive advice cap of 100 characters, one run, a stopping threshold of 20 consecutive batches without improvement and ten length-rewrite retries per batch. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `experiments/<experiment>/runs/<run>/` relative to the repository root; Each attempt stores U's advice candidates in `attempts/<i>/advices/` and T's files in `attempts/<i>/t_samples/<j>/src/`. Attempts are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
 
 In agent mode, U’s native Pi session files are retained in `u_transcripts/` and its proxy log in `proxy_logs/u.log`. U’s container stderr is forwarded to the experiment’s stderr, captured by labnotes in `stderr.log`; labnotes records the experiment exit code in `run.json`. Compaction appends a summary without deleting earlier session messages. T’s session transcripts are saved under `attempts/0/t_samples/0/t_transcripts/`, preserving Pi’s relative filenames, including on nonzero exits.
 
