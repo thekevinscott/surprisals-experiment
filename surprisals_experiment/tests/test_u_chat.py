@@ -83,15 +83,6 @@ def describe_chat_u():
         assert '"hidden.json":' not in feedback
         assert '"binary.dat":' not in feedback
 
-    async def it_keeps_rejected_advice_in_chat_history(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
-        config.u_advice_max_chars = 5
-        botbox_script.advice.extend(['too long', 'ok'])
-        botbox_script.solutions.append(PASS)
-        await run_experiment(config, on_delta=None)
-        assert chat_provider[1]['messages'][2]['content'] == 'too long'
-        assert 'fewer than 5' in chat_provider[1]['messages'][-1]['content']
-        assert json.loads((config.advice_dir(0, 0) / 'metadata.json').read_text())['rejected']
 
     @pytest.mark.parametrize('finish', [None, 'length', 'content_filter'])
     async def it_rejects_incomplete_advice_but_retains_the_transcript(

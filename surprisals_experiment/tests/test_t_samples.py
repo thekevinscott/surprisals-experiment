@@ -42,7 +42,7 @@ def describe_n_of_t():
             assert (directory / 't_transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
-        assert settings == {'u_mode': 'agent', 'u_advice_max_chars': None, 't_samples': n, 't_sample_retries': 3}
+        assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3}
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n
@@ -53,25 +53,23 @@ def describe_n_of_t():
     async def it_returns_all_outcomes_before_revising_advice(config, botbox_script):
         config.t_samples = 3
         config.max_u_turns = 2
-        config.u_advice_max_chars = 5
-        config.u_advice_retries = 1
-        botbox_script.advice.extend(['too long', 'one', 'too long again', 'two'])
+        botbox_script.advice.extend(['one', 'two'])
         botbox_script.solutions.extend([PASS, FAIL, PASS] + [PASS] * 3)
         assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
         assert [s.messages for s in botbox_script.t_sessions] == [['one']] * 3 + [['two']] * 3
-        feedback = botbox_script.u_sessions[0].messages[2]
+        feedback = botbox_script.u_sessions[0].messages[1]
         assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
         assert '2 of 3 solutions passed every test' in feedback
         for i, passed in enumerate([2, 0, 2]):
             assert f'T {i}: solution in /solutions/0/{i}; passed {passed} of 2 tests.' in feedback
-        assert botbox_script.snapshots[2] == {
+        assert botbox_script.snapshots[1] == {
             '0/advice.txt': 'one',
             '0/0/main.py': PASS, '0/1/main.py': FAIL, '0/2/main.py': PASS,
         }
         assert (config.attempt_dir(1) / 'feedback.txt').exists()
         assert json.loads(config.result_file.read_text())['attempts'] == 2
         summary, *_ = report(config.output)
-        assert summary['advice_rewrites'] == 2
+        assert summary['advice_rewrites'] == 0
         assert summary['completed_t_evaluations'] == 6
         assert summary['evaluation_attempts_to_success'] == 2
 

@@ -60,13 +60,6 @@ def describe_advice_improvement():
                 assert history[f'{attempt}/{sample}/main.py'] == outcomes[attempt][sample]
         assert all(session.closed for session in botbox_script.sessions)
 
-    async def it_keeps_an_explicit_fixed_cap_without_ratchet(config, botbox_script):
-        config.max_u_turns = 2
-        config.u_advice_max_chars = 10
-        botbox_script.advice.extend(['tiny', 'longer'])
-        botbox_script.solutions.extend([PASS, PASS])
-        assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
-        assert botbox_script.t_sessions[1].messages == ['longer']
 
     @pytest.mark.parametrize('actor', ['U', 'T'])
     async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script, monkeypatch, actor):

@@ -69,13 +69,13 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
             root = Path(temporary)
             config = Config(u_mode='agent', api_key='dummy', problem_dir=root/'problem', output=root/'run',
                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2,
-                            u_advice_max_chars=100, max_turns_without_improvement=7)
+                            max_turns_without_improvement=7)
             stderr = io.StringIO()
             with redirect_stderr(stderr), patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
                 with self.assertRaisesRegex(RuntimeError, 'test failure'):
                     async with open_u_session(config) as u_session:
                         mounts, workdir = opened[0]
-                        self.assertIn('fewer than 100 characters', mounts[0][0].read_text())
+                        self.assertNotIn('cap', mounts[0][0].read_text().lower())
                         self.assertIn('7 consecutive turns', mounts[0][0].read_text())
                         self.assertIn('1 fresh T implementations', mounts[0][0].read_text())
                         self.assertIn('shortest possible advice', mounts[0][0].read_text())

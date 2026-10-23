@@ -10,57 +10,8 @@ PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 
 
-def saved_candidates(config, attempt):
-    directory = config.attempt_dir(attempt) / 'advices'
-    return [(path.joinpath('advice.txt').read_text(),
-             json.loads(path.joinpath('metadata.json').read_text()))
-            for path in sorted(directory.iterdir(), key=lambda path: int(path.name))]
 
 
-def describe_advice_cap_loop():
-    @pytest.mark.parametrize('cap,advice,rejected', [
-        (5, 'abcd', False), (5, 'abcde', True), (5, 'abcdef', True),
-        (5, 'abc \n', True), (5, 'éééé', False), (None, 'unlimited advice', False),
-    ])
-    async def it_enforces_exclusive_character_bounds(config, botbox_script, cap, advice, rejected):
-        config.u_advice_max_chars = cap
-        botbox_script.advice.extend([advice, 'ok'] if rejected else [advice])
-        botbox_script.solutions.append(PASS)
-
-        assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
-        candidates = saved_candidates(config, 0)
-        assert candidates[0] == (advice, {'measurement': len(advice), 'rejected': rejected})
-        assert len(candidates) == 1 + rejected
-        assert botbox_script.t_sessions[0].messages == ['ok' if rejected else advice]
-        prompts = botbox_script.u_sessions[0].messages
-        assert prompts[0] == config.question_file.read_text()
-        if rejected:
-            assert f'Your advice was {len(advice)} characters' in prompts[1]
-            assert f'fewer than {cap} characters' in prompts[1]
-            assert candidates[1] == ('ok', {'measurement': 2, 'rejected': False})
-
-    @pytest.mark.parametrize('retries', [0, 2, 10])
-    async def it_preserves_every_rejection_on_exhaustion(config, botbox_script, retries):
-        config.u_advice_max_chars = 5
-        config.u_advice_retries = retries
-        botbox_script.advice.extend(['12345'] * (retries + 1))
-        with pytest.raises(RuntimeError, match=f'after {retries} retries'):
-            await run_experiment(config, on_delta=None)
-        assert len(saved_candidates(config, 0)) == retries + 1
-        assert all(metadata == {'rejected': True, 'measurement': 5}
-                   for _, metadata in saved_candidates(config, 0))
-        assert not botbox_script.t_sessions
-        assert not config.result_file.exists()
-        assert (config.u_transcripts / 'session.jsonl').exists()
-        assert botbox_script.u_sessions[0].closed
-
-    async def it_accepts_the_tenth_rewrite(config, botbox_script):
-        config.u_advice_max_chars = 5
-        botbox_script.advice.extend(['12345'] * 10 + ['ok'])
-        botbox_script.solutions.append(PASS)
-        await run_experiment(config, on_delta=None)
-        assert len(saved_candidates(config, 0)) == 11
-        assert botbox_script.t_sessions[0].messages == ['ok']
 
 
 def describe_u_to_t_loop():
@@ -99,21 +50,6 @@ def describe_u_to_t_loop():
 
 
 def describe_combined_loops():
-    async def it_resets_rewrite_budget_without_spending_t_attempts(config, botbox_script):
-        config.max_u_turns = 2
-        config.u_advice_max_chars = 5
-        botbox_script.advice.extend(['12345'] * 10 + ['one'] + ['123456'] * 10 + ['two'])
-        botbox_script.solutions.extend([FAIL, PASS])
-        assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
-        assert [s.messages for s in botbox_script.t_sessions] == [['one'], ['two']]
-        for attempt in range(2):
-            candidates = saved_candidates(config, attempt)
-            assert len(candidates) == 11
-            assert [metadata['rejected'] for _, metadata in candidates] == [True] * 10 + [False]
-        prompts = botbox_script.u_sessions[0].messages
-        assert prompts[11] == (config.attempt_dir(0) / 'feedback.txt').read_text()
-        assert 'Your advice was 6 characters' in prompts[12]
-        assert json.loads(config.result_file.read_text())['attempts'] == 2
 
     @pytest.mark.parametrize('actor', ['U', 'T'])
     async def it_keeps_infrastructure_errors_separate_from_test_failures(config, botbox_script, actor):
