@@ -19,8 +19,6 @@ async def main(argv: list[str] | None = None) -> None:
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
     )
-    parser.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
-                        help="U interface (default: agent)")
     parser.add_argument("--u-compact-chars", type=int, default=400000,
                         help="Chat U conversation compaction threshold; 0 disables (default: 400000)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
@@ -42,6 +40,8 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--test-timeout-seconds", type=float, default=5, help="Time limit per test case (default: 5)")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
+    problem.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
+                         help="U interface (default: agent)")
     problem.add_argument("--u-advice-max-chars", type=int,
                          help="Exclusive character limit for U advice (default: uncapped)")
     problem.add_argument("--u-advice-retries", type=int, default=10,
