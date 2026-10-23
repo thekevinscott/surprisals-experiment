@@ -23,31 +23,56 @@ def describe_t_sample_timeout():
     def it_defaults_to_fifteen_minutes(config):
         assert config.t_sample_timeout == 900
 
-    async def it_aborts_a_hung_batch_and_preserves_the_previous_best(config, botbox_script, monkeypatch):
-        config.max_u_turns = 2
+    async def it_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
         config.t_samples = 3
         config.t_sample_timeout = .1
-        botbox_script.advice.extend(['Double the input.', 'Double.'])
+        botbox_script.advice.append('Double.')
         botbox_script.solutions.extend(['print(int(input()) * 2)'] * 3)
         original = FakeSession.message
+        hung = []
 
         async def message(self, text):
-            if not self.is_u and self.mounts['/solution'].parents[2].name == '1':
+            if not self.is_u and self.mounts['/solution'].parent.name == '1' and not hung:
+                hung.append(self)
                 await asyncio.Event().wait()
             return await original(self, text)
 
         monkeypatch.setattr(FakeSession, 'message', message)
-        with pytest.raises(RuntimeError, match=r'T sample \d exceeded 0.1 seconds'):
-            await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+        await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+        assert len(botbox_script.t_sessions) == 4
         assert all(s.closed for s in botbox_script.sessions)
-        assert len(botbox_script.t_sessions) == 6
-        assert 'exceeded 0.1 seconds' in (config.attempt_dir(1) / 'error.txt').read_text()
-        assert not (config.attempt_dir(1) / 'feedback.txt').exists()
-        assert not list(config.attempt_dir(1).glob('t_samples/*/tests.json'))
+        assert json.loads(config.result_file.read_text())['success']
+        assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T sample 1 exceeded 0.1 seconds\n'
+        assert not (config.attempt_dir(0) / 'error.txt').exists()
+
+    async def it_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(
+        config, botbox_script, monkeypatch,
+    ):
+        config.max_u_turns = 2
+        config.t_samples = 3
+        config.t_sample_timeout = .1
+        botbox_script.advice.extend(['Double the input.', 'Double.'])
+        botbox_script.solutions.extend(['print(int(input()) * 2)'] * 5)
+        original = FakeSession.message
+
+        async def message(self, text):
+            output = self.mounts['/solution'] if not self.is_u else None
+            if output is not None and output.parents[2].name == '1' and output.parent.name == '2':
+                await asyncio.Event().wait()
+            return await original(self, text)
+
+        monkeypatch.setattr(FakeSession, 'message', message)
+        await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+        assert len(botbox_script.t_sessions) == 7
+        assert all(s.closed for s in botbox_script.sessions)
+        assert not (config.attempt_dir(1) / 'error.txt').exists()
+        assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
+        tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
+        assert tests['passed'] == 0 and not tests['all_passed']
+        assert (config.attempt_dir(1) / 'feedback.txt').exists()
         result = json.loads(config.result_file.read_text())
-        assert result['success'] and result['attempts'] == 1
+        assert result['success'] and result['attempts'] == 2
         assert result['solution'] == str(config.t_dir(0, 0) / 'src')
-        assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
 
     async def it_gives_queued_samples_their_own_full_budget(config, botbox_script, monkeypatch):
         config.t_samples = 3
