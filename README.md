@@ -105,6 +105,8 @@ file writes, and require Docker but no API key or model calls. They are excluded
 from default test discovery and skipped in CI. They test startup and mounts, not
 live model generation. Containers run with the invoking host process's UID/GID.
 
+The chat U compaction e2e test makes live OpenRouter calls (requires `OPENROUTER_API_KEY` in `.env`) and checks that compaction summarizes, then keeps advising from the measured best advice, length, and streak.
+
 ## Next steps
 
 Review the advice-minimization behavior, then evaluate it in live runs before adding surprisal scoring.
