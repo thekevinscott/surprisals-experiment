@@ -1,0 +1,21 @@
+The same advice was given to {{ total }} independent instances of T.
+{{ passed }} of {{ total }} solutions passed every test; all must pass.
+
+{% for sample in evaluations %}T {{ loop.index0 }}: solution in /solutions/{{ attempt }}/{{ loop.index0 }}; passed {{ sample.passed }} of {{ sample.total }} tests{% if sample.timed_out %}; timed out on every try and wrote no solution.{% else %}.{% endif %}{% if not loop.last %}
+{% endif %}{% endfor %}
+
+{% include context_template %}
+
+{{ implementations }}
+
+Review the solutions against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
+
+T will see only your new instructions—not this feedback, its previous solution, or your earlier advice.
+
+Your advice was {{ advice_length }} characters.
+Shortest successful advice so far: {{ best_length }} characters (None means no advice has passed every test for every T yet).
+Turns without improvement: {{ turns_without_improvement }} of {{ max_turns_without_improvement }}.
+Your goal is the shortest possible advice that passes every test for every T.
+Only strictly shorter, all-pass advice resets the counter.
+
+Return only the revised instructions.

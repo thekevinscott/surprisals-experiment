@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from surprisals_experiment.prompts import render
+
 
 def read_implementations(snapshot: Path) -> str:
     implementations = {}
@@ -15,5 +17,5 @@ def read_implementations(snapshot: Path) -> str:
                 sources[str(path.relative_to(sample))] = path.read_text()
             except UnicodeDecodeError:
                 continue
-        implementations[f"T {sample.name}"] = sources
+        implementations[render("t_label.j2", sample_name=sample.name)] = sources
     return json.dumps(implementations, ensure_ascii=False, indent=2)

@@ -10,6 +10,8 @@ from tempfile import TemporaryDirectory
 
 from openai import AsyncOpenAI
 
+from surprisals_experiment.prompts import render
+
 from ..u_agent import UAgent
 from ..u_chat import ChatSession
 from ..botbox_session import botbox_session
@@ -23,8 +25,8 @@ RESOURCES = Path(str(files("surprisals_experiment")))
 async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
     with TemporaryDirectory(prefix="surprisals-u-solutions-") as temporary:
         workspace = Path(temporary)
-        prompt = (RESOURCES / "prompts/u.txt").read_text().format(
-            implementation_access=(RESOURCES / f"prompts/u_context_{config.u_mode}.txt").read_text(),
+        prompt = render(
+            "u.j2", context_template=f"u_context_{config.u_mode}.j2",
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,
         )

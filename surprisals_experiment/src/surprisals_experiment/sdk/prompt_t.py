@@ -7,12 +7,13 @@ from pathlib import Path
 from botbox import RunResult
 
 from surprisals_experiment.config import Config
+from surprisals_experiment.prompts import render
 from .utils.t_agent import TAgent
 from .utils.botbox_session import botbox_session
 
 
 RESOURCES = files("surprisals_experiment")
-INSTRUCTIONS = RESOURCES.joinpath("prompts/t.txt").read_text()
+INSTRUCTIONS = render("t.j2")
 
 
 async def prompt_t(config: Config, advice: str, *, output: Path,

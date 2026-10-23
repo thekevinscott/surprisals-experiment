@@ -1,21 +1,21 @@
 """Summarize prior turns while keeping measured experiment state verbatim."""
 
-from importlib.resources import files
-
-PROMPTS = files("surprisals_experiment").joinpath("prompts")
+from surprisals_experiment.prompts import render
 
 
 async def compact(self, *, on_delta=None) -> None:
-    self.record({"role": "user", "content": PROMPTS.joinpath("u_compact.txt").read_text()})
+    self.record({"role": "user", "content": render("u_compact.j2")})
+    summary = None
+    error = None
     try:
         summary = await self.reply(on_delta=on_delta)
-    except RuntimeError as error:
-        summary = f"(summary unavailable: {error})"
-    none = "(none yet)"
-    preamble = PROMPTS.joinpath("u_compacted.txt").read_text().format(
+    except RuntimeError as exc:
+        error = str(exc)
+    preamble = render(
+        "u_compacted.j2", error=error,
         question=self.question, summary=summary,
-        best_advice=none if self.best_advice is None else self.best_advice,
-        best_length=none if self.best_length is None else self.best_length,
+        best_advice=self.best_advice,
+        best_length=self.best_length,
         turns_without_improvement=self.turns_without_improvement,
     )
     self.messages = self.messages[:1]
