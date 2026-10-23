@@ -15,11 +15,11 @@ __pycache__/
 build/
 dist/
 
-# Local datasets, run artifacts, and notes
+# Local datasets, run artifacts, and private notes
 outputs/
 runs/
 data
-notes
+/notes/internal/
 
 # Per-experiment artifacts
-/experiments/*/files/
+/experiments/*/files/internal/
