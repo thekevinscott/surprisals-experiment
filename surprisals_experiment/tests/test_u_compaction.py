@@ -89,28 +89,35 @@ def describe_chat_compaction():
         await run_experiment(config, on_delta=None)
         assert 'fewer than 5' in chat_provider[-1]['messages'][-1]['content']
         preamble = chat_provider[-1]['messages'][1]['content']
-        assert 'Best successful advice length: None' in preamble
+        assert 'Best successful advice length: (none yet)' in preamble
+        assert 'None' not in preamble
         assert 'Turns without improvement: 0' in preamble
         assert (config.advice_dir(0, 1) / 'advice.txt').read_text() == 'ok'
         assert len(botbox_script.t_sessions) == 1
 
-    @pytest.mark.parametrize('summary', ['x' * 2000, {'status': 400}])
-    async def it_preserves_history_and_previous_result_on_summary_failure(
-        config, botbox_script, summary,
+    async def it_keeps_a_summary_over_2000_characters(config, botbox_script, chat_provider):
+        config.u_mode = 'chat'
+        config.u_compact_chars = 1
+        config.max_u_turns = 2
+        botbox_script.advice.extend(['good', 'x' * 2500, 'better'])
+        botbox_script.solutions.extend([PASS, PASS])
+        await run_experiment(config, on_delta=None)
+        assert '<prior_summary>\n' + 'x' * 2500 + '\n</prior_summary>' in chat_provider[-1]['messages'][1]['content']
+        assert json.loads(config.result_file.read_text())['attempts'] == 2
+
+    async def it_compacts_with_the_measured_state_when_the_summary_request_fails(
+        config, botbox_script, chat_provider,
     ):
         config.u_mode = 'chat'
         config.u_compact_chars = 1
         config.max_u_turns = 2
-        botbox_script.advice.extend(['good', summary])
-        botbox_script.solutions.append(PASS)
-        with pytest.raises(RuntimeError):
-            await run_experiment(config, on_delta=None)
-        assert json.loads(config.result_file.read_text())['attempts'] == 1
-        transcript = (config.u_transcripts / 'messages.jsonl').read_text()
-        assert 'good' in transcript
-        assert 'Pause advice generation' in transcript
-        assert 'We compacted' not in transcript
-        assert len(botbox_script.t_sessions) == 1
+        botbox_script.advice.extend(['good', {'status': 400}, 'better'])
+        botbox_script.solutions.extend([PASS, PASS])
+        await run_experiment(config, on_delta=None)
+        preamble = chat_provider[-1]['messages'][1]['content']
+        assert '<prior_summary>\n(summary unavailable: U chat request failed' in preamble
+        assert '<best_successful_advice>\ngood\n</best_successful_advice>' in preamble
+        assert json.loads(config.result_file.read_text())['attempts'] == 2
         assert all(session.closed for session in botbox_script.sessions)
 
     async def it_leaves_agent_mode_unchanged(config, botbox_script, chat_provider):
