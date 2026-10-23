@@ -5,4 +5,4 @@ path = "experiments/{experiment}"
 path = "experiments/{experiment}/files/"
 
 [runs]
-path = "experiments/{experiment}/runs/{run}"
+path = "runs/{experiment}/{run}"

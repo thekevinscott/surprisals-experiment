@@ -22,5 +22,4 @@ data
 notes
 
 # Per-experiment artifacts
-/experiments/*/runs/
 /experiments/*/files/

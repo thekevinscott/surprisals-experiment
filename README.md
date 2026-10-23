@@ -44,7 +44,7 @@ uv run python -m surprisals_experiment.cli.run \
   -T openai/gpt-oss-120b \
   --u-thinking high \
   --t-samples 5 \
-  --output ../experiments/sanity-check/runs/example-100 \
+  --output ../runs/sanity-check/example-100 \
   problem ../data/APPS/test/2286 \
   --u-advice-max-chars 100
 ```
@@ -53,7 +53,7 @@ Use `--t-samples 5` to require five independently generated solutions to pass. F
 
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially.
 
-Each experiment has its own TOML, `runs/`, and `files/` directory under `experiments/`:
+Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
 
 - [sanity-check](experiments/sanity-check/experiment.toml): problem `2286`, character cap 100.
 - [advice-minimization-pilot-20](experiments/advice-minimization-pilot-20/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
@@ -69,7 +69,7 @@ Tests execute generated Python on the host, outside the agent containers. The ev
 
 ## Outputs
 
-Run artifacts belong in `experiments/<experiment>/runs/`; experiment files belong in `experiments/<experiment>/files/`. Both are ignored by Git. Existing root `runs/` and `notes/` are retained as legacy local archives; Labnotes does not discover them under the new layout. The dataset destination is [surprisals-experiment-runs on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs).
+Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experiments/<experiment>/files/`. Both are ignored by Git. `runs/` is one clone of the [surprisals-experiment-runs dataset on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs), with a folder per experiment. Runs from before the current configurations are under `runs/development/`.
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, updated after every evaluated batch.
 - `u_transcripts/`: U’s conversation. Chat mode writes `messages.jsonl` with system, user, and assistant messages (including returned reasoning); agent mode retains Pi session files.
@@ -80,7 +80,7 @@ Run artifacts belong in `experiments/<experiment>/runs/`; experiment files belon
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
-Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh experiments/<experiment>/runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
+Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<experiment>/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 

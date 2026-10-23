@@ -37,13 +37,13 @@ The dataset is also available [on Hugging Face](https://huggingface.co/datasets/
 From the repository root, pass one run folder (not a batch containing multiple runs):
 
 ```bash
-./scripts/summarize-run.sh experiments/sanity-check/runs/<run>
+./scripts/summarize-run.sh runs/sanity-check/<run>
 ```
 
 Use `--format json` for JSON output, or `--format table` explicitly (the default):
 
 ```bash
-./scripts/summarize-run.sh experiments/sanity-check/runs/<run> --format json
+./scripts/summarize-run.sh runs/sanity-check/<run> --format json
 ```
 
 This runs [run-summary.sql](run-summary.sql) through dirsql. The table shows only the cap, advice rewrites, and evaluation attempts needed to reach all-T success (null if success has not been reached). JSON includes all fields, with one `run` summary followed by an `attempt` row for each attempt. It reads saved advice metadata and test results dynamically; no model calls or transcript parsing are needed.
