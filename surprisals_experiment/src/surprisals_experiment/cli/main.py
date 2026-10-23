@@ -19,6 +19,8 @@ async def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
                         help="U interface (default: agent)")
+    parser.add_argument("--u-compact-chars", type=int, default=400000,
+                        help="Chat U conversation compaction threshold; 0 disables (default: 400000)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
@@ -70,6 +72,7 @@ async def main(argv: list[str] | None = None) -> None:
             output=args.output,
             u_model=args.U,
             u_mode=args.u_mode,
+            u_compact_chars=args.u_compact_chars,
             u_thinking=args.u_thinking,
             u_advice_max_chars=args.u_advice_max_chars,
             u_advice_retries=args.u_advice_retries,

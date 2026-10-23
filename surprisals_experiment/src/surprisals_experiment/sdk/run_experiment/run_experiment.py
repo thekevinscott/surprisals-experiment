@@ -12,6 +12,7 @@ from ..run_test_suite import run_test_suite_for_ts
 from .prepare_advice import prepare_advice
 from .prepare_feedback import prepare_feedback
 from ..utils.u_session import open_u_session
+from ..utils.u_chat import ChatSession
 
 
 async def run_experiment(
@@ -52,8 +53,13 @@ async def run_experiment(
                 turns_without_improvement = 0
                 best_solution = solutions[0]
                 best_length = len(advice)
+                if isinstance(u_session, ChatSession):
+                    u_session.best_advice = advice
             else:
                 turns_without_improvement += 1
+            if isinstance(u_session, ChatSession):
+                u_session.best_length = best_length
+                u_session.turns_without_improvement = turns_without_improvement
             prompt = prepare_feedback(
                 config, attempt, results, snapshot=u_session.solutions / str(attempt),
                 advice_length=len(advice),
