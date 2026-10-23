@@ -17,8 +17,8 @@ async def main(argv: list[str] | None = None) -> None:
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
     )
-    parser.add_argument("--u-mode", choices=("chat", "agent"), default="chat",
-                        help="U interface (default: chat)")
+    parser.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
+                        help="U interface (default: agent)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")

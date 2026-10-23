@@ -114,10 +114,10 @@ def describe_chat_u():
         assert not botbox_script.t_sessions
         assert config.question_file.read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
 
-    def it_defaults_to_chat(config):
+    def it_defaults_to_agent(config):
         values = config.model_dump()
         values.pop('u_mode')
-        assert Config(**values).u_mode == 'chat'
+        assert Config(**values).u_mode == 'agent'
 
     async def it_keeps_reasoning_details_in_the_next_request(config, botbox_script, chat_provider):
         config.u_mode = 'chat'

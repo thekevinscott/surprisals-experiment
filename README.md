@@ -8,7 +8,7 @@ The current MVP implements the advice, execution, and test-feedback loop with op
 
 ## How it works
 
-Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `xiaomi/mimo-v2.6-pro` and T uses `openai/gpt-oss-120b`, accessed through OpenRouter. U defaults to a persistent OpenRouter chat conversation (`--u-mode chat`). Use `--u-mode agent` to restore U’s Pi agent with tools. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
+Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `xiaomi/mimo-v2.6-pro` and T uses `openai/gpt-oss-120b`, accessed through OpenRouter. U defaults to a Pi agent with tools (`--u-mode agent`). Use `--u-mode chat` for a persistent OpenRouter chat conversation. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
@@ -33,7 +33,7 @@ See the [five-phase experiment plan](plan/readme.md):
 
 Install [uv](https://docs.astral.sh/uv/) and Docker, then follow the [APPS download instructions](scripts/README.md). The Python project requires Python 3.14 or newer.
 
-Select `--u-mode chat` (default) for direct chat or `--u-mode agent` for the previous tool-using U. Docker is still required for T.
+Select `--u-mode agent` (default) for the tool-using U or `--u-mode chat` for direct chat. Docker is still required for T.
 
 Create a `.env` file in this repository with your `OPENROUTER_API_KEY`. It is ignored by Git. From the repository root:
 

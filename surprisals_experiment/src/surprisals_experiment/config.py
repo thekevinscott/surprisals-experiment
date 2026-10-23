@@ -16,7 +16,7 @@ class Config(BaseModel):
     api_key: SecretStr
     problem_dir: Path
     output: Path
-    u_mode: Literal["chat", "agent"] = "chat"
+    u_mode: Literal["chat", "agent"] = "agent"
     u_model: str
     u_thinking: ThinkingLevel
     t_model: str
