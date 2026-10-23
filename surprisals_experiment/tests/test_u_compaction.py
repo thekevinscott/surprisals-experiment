@@ -78,22 +78,6 @@ def describe_chat_compaction():
         assert len(chat_provider) == expected_requests
         assert chat_provider[-1]['messages'][-1]['content'] == pending
 
-    async def it_compacts_rejected_rewrites_without_sending_the_summary_to_t(
-        config, botbox_script, chat_provider,
-    ):
-        config.u_mode = 'chat'
-        config.u_compact_chars = 1
-        config.u_advice_max_chars = 5
-        botbox_script.advice.extend(['too long', 'Prior advice exceeded the cap.', 'ok'])
-        botbox_script.solutions.append(PASS)
-        await run_experiment(config, on_delta=None)
-        assert 'fewer than 5' in chat_provider[-1]['messages'][-1]['content']
-        preamble = chat_provider[-1]['messages'][1]['content']
-        assert 'Best successful advice length: (none yet)' in preamble
-        assert 'None' not in preamble
-        assert 'Turns without improvement: 0' in preamble
-        assert (config.advice_dir(0, 1) / 'advice.txt').read_text() == 'ok'
-        assert len(botbox_script.t_sessions) == 1
 
     async def it_keeps_a_summary_over_2000_characters(config, botbox_script, chat_provider):
         config.u_mode = 'chat'

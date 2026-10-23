@@ -14,7 +14,7 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
 3. Give that same advice to `--t-samples` fresh T sessions (default 5), with up to `--t-pool-size` generating code concurrently (default 3).
 4. Once generation finishes, test every T solution against every case in `input_output.json`. Chat U receives every T’s pre-test source files and per-T passing-test counts in the next feedback message. Agent U can inspect the same snapshots through its tools.
-5. Ask U for the shortest possible advice, allowing candidates of any length in uncapped mode. Track the shortest advice that makes every T pass every test. U receives each turn’s length, test outcomes, best successful length, and no-improvement counter.
+5. Ask U for the shortest possible advice, allowing candidates of any length. Track the shortest advice that makes every T pass every test. U receives each turn’s length, test outcomes, best successful length, and no-improvement counter.
 6. Stop after 20 consecutive turns without improvement, Ctrl-C, or an explicit `--max-u-turns` limit. The first all-pass advice establishes the baseline; only strictly shorter all-pass advice resets the counter afterward. Failed tests, longer successes, and equal-length successes increment it. Infrastructure errors abort rather than counting as completed turns.
 
 Both U modes keep their conversation across attempts; T starts fresh each time. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `prompt_t_to_produce_code`, and `run_test_suite_for_ts` in that order for each batch.
@@ -44,18 +44,17 @@ uv run python -m surprisals_experiment.cli.run \
   -T openai/gpt-oss-120b \
   --u-thinking high \
   --t-samples 5 \
-  --output ../runs/sanity-check/example-100 \
-  problem ../data/APPS/test/2286 \
-  --u-advice-max-chars 100
+  --output ../runs/sanity-check/example \
+  problem ../data/APPS/test/2286
 ```
 
-Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` to allow any advice length throughout the run. An explicitly supplied cap stays fixed. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. Each timeout is logged in `timeouts.txt`. `--t-sample-retries` sets the retry count (default 3, up to 4 tries; 0 means no retry), with a fresh T and empty source directory each time. If all tries time out, the empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
 
-- [sanity-check](experiments/sanity-check/experiment.toml): problem `2286`, character cap 100.
+- [sanity-check](experiments/sanity-check/experiment.toml): problem `2286`.
 - [advice-minimization](experiments/advice-minimization/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
 
 Labnotes reads the paths in `.labnotes.toml` and executes commands from this repository root. `uv --directory surprisals_experiment` then selects the Python project, so APPS paths remain relative to that directory. Run either experiment from the repository root:
@@ -73,14 +72,14 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, updated after every evaluated batch.
 - `u_transcripts/`: U’s conversation. Chat mode writes `messages.jsonl` with system, user, and assistant messages (including returned reasoning); agent mode retains Pi session files.
-- `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
-- Adjacent `metadata.json`: rejection status and measured character count.
-- `settings.json`: the U mode, advice cap, requested T count, and timeout retry count, explicitly selected by `Config.save_settings()`.
+- `attempts/<attempt>/advices/0/advice.txt`: the advice for that turn.
+- Adjacent `metadata.json`: measured character count and `rejected: false` for compatibility with existing readers.
+- `settings.json`: the U mode, requested T count, and timeout retry count, explicitly selected by `Config.save_settings()`.
 - Each T has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
-Generate a dynamic summary of advice rewrites and T attempts with `./scripts/summarize-run.sh runs/<experiment>/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
+Generate a dynamic summary of advice and T attempts with `./scripts/summarize-run.sh runs/<experiment>/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 
@@ -92,7 +91,7 @@ From the repository root:
 uv run --directory surprisals_experiment pytest
 ```
 
-The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/conftest.py` replaces Botbox with scripted sessions. Loop integration tests exercise real advice validation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. Chat tests mock the HTTP transport globally while exercising the real SDK streaming parser, conversation history, feedback, and transcripts. They cover character-cap rewrites, retry exhaustion, recovery across T attempts, and the interaction between both loops.
+The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/conftest.py` replaces Botbox with scripted sessions. Loop integration tests exercise real advice generation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. Chat tests mock the HTTP transport globally while exercising the real SDK streaming parser, conversation history, feedback, and transcripts. They cover provider retries, recovery across T attempts, and advice minimization.
 
 Real Docker/Pi startup tests are separate and opt-in:
 

@@ -5,7 +5,6 @@ Preserve the required input and output formats, constraints, and relevant edge c
 The problem uses standard input and standard output; preserve that interface.
 Your goal is to produce the shortest possible advice that lets every T pass every test.
 You may explore longer or equal-length advice; there is no ratcheting length limit.
-Any explicitly configured fixed cap is fewer than {max_chars} characters, including spaces and newlines.
 One turn consists of your advice, {t_samples} fresh T implementations, and their test suites.
 The session ends after {max_turns_without_improvement} consecutive turns without strictly shorter advice that passes every test for every T.
 The first all-pass advice establishes the baseline and resets this counter. Before that, failed turns count toward the limit.

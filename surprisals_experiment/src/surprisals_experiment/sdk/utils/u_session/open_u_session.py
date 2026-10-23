@@ -25,7 +25,6 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
         workspace = Path(temporary)
         prompt = (RESOURCES / "prompts/u.txt").read_text().format(
             implementation_access=(RESOURCES / f"prompts/u_context_{config.u_mode}.txt").read_text(),
-            max_chars=config.u_advice_max_chars or "Infinity",
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,
         )
