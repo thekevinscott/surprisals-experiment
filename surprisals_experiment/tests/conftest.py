@@ -107,7 +107,7 @@ def config(tmp_path):
         'inputs': ['3\n', '7\n'], 'outputs': ['6\n', '14\n'],
     }))
     return Config(u_mode='agent', api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
-                  u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1,)
+                  u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1)
 
 
 @pytest.fixture(autouse=True)
