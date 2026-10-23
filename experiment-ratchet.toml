@@ -1,4 +1,4 @@
-name = "Advice minimization pilot: 10 problems, uncapped start"
+name = "Advice minimization pilot: 20 problems, uncapped start"
 command = '''
 uv run \
   --directory surprisals_experiment \
@@ -6,7 +6,7 @@ uv run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \
-  --max-turns-without-improvement 30 \
+  --max-turns-without-improvement 3 \
   --output "{run_dir}" \
   problem'''
 repeats = 1
@@ -14,4 +14,4 @@ mode = "adhoc"
 concurrency = 1
 
 [params]
-problem-dir = ["../data/APPS/test/0154", "../data/APPS/test/2333", "../data/APPS/test/2286", "../data/APPS/test/3784", "../data/APPS/test/3858", "../data/APPS/test/1370", "../data/APPS/test/4394", "../data/APPS/test/2229", "../data/APPS/test/2324", "../data/APPS/test/3540"]
+problem-dir = ["../data/APPS/test/0154", "../data/APPS/test/2333", "../data/APPS/test/2286", "../data/APPS/test/3784", "../data/APPS/test/3858", "../data/APPS/test/1370", "../data/APPS/test/4394", "../data/APPS/test/2229", "../data/APPS/test/2324", "../data/APPS/test/3540", "../data/APPS/test/0023", "../data/APPS/test/0398", "../data/APPS/test/1415", "../data/APPS/test/1889", "../data/APPS/test/1923", "../data/APPS/test/1981", "../data/APPS/test/2325", "../data/APPS/test/2983", "../data/APPS/test/4584", "../data/APPS/test/4854"]
