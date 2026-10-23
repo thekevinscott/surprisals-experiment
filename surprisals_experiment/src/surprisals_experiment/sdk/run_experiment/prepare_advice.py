@@ -1,4 +1,4 @@
-"""Prompt U until its advice fits the cap, preserving every candidate."""
+"""Prompt U once and preserve its advice and measurement."""
 
 from collections.abc import Callable
 
@@ -9,23 +9,10 @@ from .save_advice import save_advice
 
 
 async def prepare_advice(
-    config: Config, u_session: USession | ChatSession, prompt: str, *, attempt: int, max_chars: int | None,
+    config: Config, u_session: USession | ChatSession, prompt: str, *, attempt: int,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
-    tries = 0
-    while True:
-        if tries > config.u_advice_retries:
-            raise RuntimeError(
-                f"U advice exceeded the character limit after {config.u_advice_retries} retries"
-            )
-        advice = await u_session.prompt(prompt, on_delta=on_delta)
-        measurement = len(advice)
-        rejected = max_chars is not None and measurement >= max_chars
-        save_advice(config.advice_dir(attempt, tries), advice,
-                    rejected=rejected, measurement=measurement)
-        if not rejected:
-            return advice
-        tries += 1
-        prompt = (f"Your advice was {measurement} characters. It must be fewer than "
-                  f"{max_chars} characters, including spaces and newlines. "
-                  "Rewrite it to meet that limit. Return only the instructions to T.")
+    advice = await u_session.prompt(prompt, on_delta=on_delta)
+    save_advice(config.advice_dir(attempt, 0), advice,
+                rejected=False, measurement=len(advice))
+    return advice

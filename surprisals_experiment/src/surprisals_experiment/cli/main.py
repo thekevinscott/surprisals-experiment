@@ -43,10 +43,6 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
-    problem.add_argument("--u-advice-max-chars", type=int,
-                         help="Exclusive character limit for U advice (default: uncapped)")
-    problem.add_argument("--u-advice-retries", type=int, default=10,
-                         help="Length rewrite retries per T attempt (default: 10)")
     source = problem.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
@@ -81,8 +77,6 @@ async def main(argv: list[str] | None = None) -> None:
             u_mode=args.u_mode,
             u_compact_chars=args.u_compact_chars,
             u_thinking=args.u_thinking,
-            u_advice_max_chars=args.u_advice_max_chars,
-            u_advice_retries=args.u_advice_retries,
             t_model=args.T,
             t_samples=args.t_samples,
             t_pool_size=args.t_pool_size,

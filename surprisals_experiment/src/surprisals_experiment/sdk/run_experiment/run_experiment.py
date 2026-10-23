@@ -37,7 +37,7 @@ async def run_experiment(
     async with open_u_session(config) as u_session:
         for attempt in attempts:
             advice = await prepare_advice(
-                config, u_session, prompt, attempt=attempt, max_chars=config.u_advice_max_chars, on_delta=on_delta,
+                config, u_session, prompt, attempt=attempt, on_delta=on_delta,
             )
             try:
                 solutions = await prompt_t_to_produce_code(
