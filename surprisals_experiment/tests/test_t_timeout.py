@@ -26,6 +26,7 @@ def describe_t_sample_timeout():
     async def it_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
         config.t_samples = 3
         config.t_sample_timeout = .1
+        config.t_sample_retries = 1
         botbox_script.advice.append('Double.')
         botbox_script.solutions.extend(['print(int(input()) * 2)'] * 3)
         original = FakeSession.message
@@ -51,6 +52,7 @@ def describe_t_sample_timeout():
         config.max_u_turns = 2
         config.t_samples = 3
         config.t_sample_timeout = .1
+        config.t_sample_retries = 1
         botbox_script.advice.extend(['Double the input.', 'Double.'])
         botbox_script.solutions.extend(['print(int(input()) * 2)'] * 5)
         original = FakeSession.message
@@ -122,3 +124,56 @@ def describe_t_sample_timeout():
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+
+def describe_t_sample_retries():
+    def it_defaults_to_three_retries(config):
+        assert config.t_sample_retries == 3
+
+    def it_rejects_negative_retries(config):
+        with pytest.raises(ValidationError):
+            Config(**(config.model_dump() | {'t_sample_retries': -1}))
+
+    @pytest.mark.parametrize('retries,hangs,success,tries', [
+        (0, 1, False, 1), (2, 2, True, 3), (3, 4, False, 4),
+    ])
+    async def it_uses_the_configured_retry_budget(config, botbox_script, monkeypatch, retries, hangs, success, tries):
+        config.t_sample_retries = retries
+        config.t_sample_timeout = .05
+        botbox_script.advice.append('Double.')
+        botbox_script.solutions.append('print(int(input()) * 2)')
+        original = FakeSession.message
+        calls = 0
+
+        async def message(self, text):
+            nonlocal calls
+            if not self.is_u:
+                calls += 1
+                assert not list(self.mounts['/solution'].iterdir())
+                if calls <= hangs:
+                    (self.mounts['/solution'] / 'partial.py').write_text('partial')
+                    await asyncio.Event().wait()
+            return await original(self, text)
+
+        monkeypatch.setattr(FakeSession, 'message', message)
+        await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+        assert len(botbox_script.t_sessions) == tries
+        assert all(s.closed for s in botbox_script.sessions)
+        assert json.loads(config.result_file.read_text())['success'] is success
+        assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == min(hangs, tries)
+        if not success:
+            assert not list((config.t_dir(0, 0) / 'src').iterdir())
+            assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['passed'] == 0
+        assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == retries
+
+    @pytest.mark.parametrize('args,expected', [([], 3), (['--t-sample-retries', '0'], 0), (['--t-sample-retries', '2'], 2)])
+    async def it_wires_the_cli_flag(config, monkeypatch, args, expected):
+        module = importlib.import_module('surprisals_experiment.cli.main')
+        received = []
+        async def run(settings, **kwargs):
+            received.append(settings.t_sample_retries)
+        monkeypatch.setattr(module, 'find_dotenv', lambda **kw: 'unused')
+        monkeypatch.setattr(module, 'dotenv_values', lambda *a, **kw: {'OPENROUTER_API_KEY': 'test-key'})
+        monkeypatch.setattr(module, 'run_experiment', run)
+        await main(['--output', str(config.output), *args, 'problem', str(config.problem_dir)])
+        assert received == [expected]
