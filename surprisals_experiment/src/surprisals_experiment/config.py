@@ -10,6 +10,7 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 T_MODEL = "openai/gpt-oss-120b"
+TEST_TIMEOUT_SECONDS = 5
 
 
 class Config(BaseModel):

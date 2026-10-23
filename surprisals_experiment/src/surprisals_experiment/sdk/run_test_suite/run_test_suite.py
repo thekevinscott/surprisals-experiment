@@ -2,11 +2,10 @@
 
 from pathlib import Path
 
+from surprisals_experiment.config import TEST_TIMEOUT_SECONDS
+
 from .results import TestSuiteResult
 from .run_case import run_case
-
-
-TEST_TIMEOUT_SECONDS = 5
 
 
 async def run_test_suite(test_suite: dict, solution_dir: Path) -> TestSuiteResult:
