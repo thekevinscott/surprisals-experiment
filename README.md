@@ -65,7 +65,7 @@ uvx --no-config --from labnotes labnotes experiments sanity-check run
 uvx --no-config --from labnotes labnotes experiments advice-minimization run --concurrency 3
 ```
 
-Tests execute generated Python on the host, outside the agent containers. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.
+Tests execute generated Python on the host, outside the agent containers, with a fixed five-second limit per test case. Each sample’s `tests.json` includes the suite’s wall-clock `duration_seconds`, rounded to three decimal places. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.
 
 ## Outputs
 

@@ -28,7 +28,6 @@ class Config(BaseModel):
     u_advice_retries: int = Field(default=10, ge=0)
     max_turns_without_improvement: int = Field(default=20, ge=1)
     max_u_turns: int | None = Field(default=None, ge=1)
-    test_timeout_seconds: float = Field(gt=0)
 
     def save_settings(self) -> None:
         """Save the U mode and fields needed by run summaries."""

@@ -1,6 +1,7 @@
 """Evaluate every generated solution on every testcase and preserve results."""
 
 import json
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -14,8 +15,11 @@ async def run_test_suite_for_ts(
 ) -> list[TestSuiteResult]:
     results = []
     for solution in solutions:
-        result = await run_test_suite(test_suite, solution, timeout_seconds=config.test_timeout_seconds)
+        started = time.monotonic()
+        result = await run_test_suite(test_suite, solution)
+        duration = round(time.monotonic() - started, 3)
         (solution.parent / "tests.json").write_text(json.dumps({
+            "duration_seconds": duration,
             "passed": result.passed,
             "failed": result.failed,
             "total": result.total,
