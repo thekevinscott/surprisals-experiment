@@ -6,7 +6,7 @@ uv run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \
-  --max-turns-without-improvement 3 \
+  --max-turns-without-improvement 30 \
   --output "{run_dir}" \
   problem'''
 repeats = 1
