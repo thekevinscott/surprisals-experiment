@@ -32,6 +32,7 @@ async def reply(self, *, on_delta=None) -> str:
         if snapshot is not None and snapshot.choices:
             message = snapshot.choices[0].message.model_dump(exclude_none=True)
             message.pop("parsed", None)
+            message["role"] = "assistant"
             self.record(message)
     choice = completion.choices[0]
     if choice.finish_reason != "stop" or not choice.message.content:

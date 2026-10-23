@@ -188,3 +188,53 @@ def describe_chat_u():
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
         assert not botbox_script.t_sessions
+
+
+ROLES = {'system', 'user', 'assistant'}
+
+
+def describe_chat_u_roles():
+    async def it_sends_and_records_exact_roles_when_every_chunk_repeats_the_role(
+        config, botbox_script, chat_provider,
+    ):
+        config.u_mode = 'chat'
+        config.max_u_turns = 3
+        chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
+        botbox_script.advice.extend([chunked('long advice'), chunked('shorter'), chunked('short')])
+        botbox_script.solutions.extend([PASS, PASS, PASS])
+        await run_experiment(config, on_delta=None)
+        assert len(chat_provider) == 3
+        for request in chat_provider:
+            assert {m['role'] for m in request['messages']} <= ROLES
+        assert [m['content'] for m in chat_provider[-1]['messages'] if m['role'] == 'assistant'] == [
+            'long advice', 'shorter',
+        ]
+        transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+        assert {m['role'] for m in transcript} <= ROLES
+        assert [m['content'] for m in transcript if m['role'] == 'assistant'] == [
+            'long advice', 'shorter', 'short',
+        ]
+
+    async def it_records_an_exact_role_for_reasoning_chunks(config, botbox_script, chat_provider):
+        config.u_mode = 'chat'
+        botbox_script.advice.append({'deltas': [
+            {'role': 'assistant', 'reasoning': 'Thinking.'},
+            {'role': 'assistant', 'reasoning': ' More.'},
+            {'role': 'assistant', 'content': 'advice'},
+        ]})
+        async with open_u_session(config) as session:
+            assert await session.prompt('question') == 'advice'
+        assert session.messages[-1]['role'] == 'assistant'
+        assert session.messages[-1]['reasoning'] == 'Thinking. More.'
+
+    @pytest.mark.parametrize('finish', [None, 'length'])
+    async def it_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, finish):
+        config.u_mode = 'chat'
+        botbox_script.advice.append({
+            'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
+            'finish': finish,
+        })
+        with pytest.raises(RuntimeError, match='U chat'):
+            await run_experiment(config, on_delta=None)
+        transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+        assert transcript[-1] == {'role': 'assistant', 'content': 'partial'}

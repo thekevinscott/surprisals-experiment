@@ -130,7 +130,7 @@ def chat_provider(monkeypatch, botbox_script):
             finish = reply.get('finish', 'stop')
         else:
             deltas = [{'role': 'assistant', 'reasoning': 'Thinking.'},
-                      {'content': reply[:2]}, {'content': reply[2:]}]
+                      {'role': 'assistant', 'content': reply[:2]}, {'role': 'assistant', 'content': reply[2:]}]
             finish = 'stop'
         chunks = [
             {'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1,
