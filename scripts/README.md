@@ -28,7 +28,7 @@ test -f data/APPS/test/2286/input_output.json
 
 The experiment reads `question.txt` and `input_output.json`; reference solutions are not passed to either model. Its current evaluator supports standard-input/output problems, not function-based suites with `fn_name`.
 
-`experiment.toml` uses `../data/APPS/test/2286` because the Python project is in the adjacent `surprisals_experiment/` folder. Keep `data/` ignored by Git. You can delete `data/APPS.tar.gz` after extraction.
+`experiments/sanity-check/experiment.toml` uses `../data/APPS/test/2286` because Labnotes starts at the repository root and `uv --directory surprisals_experiment` selects the Python project. Keep `data/` ignored by Git. You can delete `data/APPS.tar.gz` after extraction.
 
 The dataset is also available [on Hugging Face](https://huggingface.co/datasets/codeparrot/apps), but the commands above provide the directory/file layout expected by this experiment directly.
 
@@ -37,13 +37,13 @@ The dataset is also available [on Hugging Face](https://huggingface.co/datasets/
 From the repository root, pass one run folder (not a batch containing multiple runs):
 
 ```bash
-./scripts/summarize-run.sh runs/20261021-024204-soft-firefly
+./scripts/summarize-run.sh runs/sanity-check/<run>
 ```
 
 Use `--format json` for JSON output, or `--format table` explicitly (the default):
 
 ```bash
-./scripts/summarize-run.sh runs/20261021-024204-soft-firefly --format json
+./scripts/summarize-run.sh runs/sanity-check/<run> --format json
 ```
 
 This runs [run-summary.sql](run-summary.sql) through dirsql. The table shows only the cap, advice rewrites, and evaluation attempts needed to reach all-T success (null if success has not been reached). JSON includes all fields, with one `run` summary followed by an `attempt` row for each attempt. It reads saved advice metadata and test results dynamically; no model calls or transcript parsing are needed.

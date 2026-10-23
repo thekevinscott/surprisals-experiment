@@ -20,3 +20,6 @@ outputs/
 runs/
 data
 notes
+
+# Per-experiment artifacts
+/experiments/*/files/
