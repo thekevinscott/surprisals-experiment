@@ -148,8 +148,10 @@ def describe_chat_u():
         assert sum(json.dumps(PASS) in m['content'] for m in history if m['role'] == 'user') == 2
         assert json.loads((config.output / 'settings.json').read_text())['u_mode'] == 'chat'
 
-    @pytest.mark.parametrize('mode', ['chat', 'agent'])
-    async def it_wires_the_cli_mode(monkeypatch, tmp_path, mode):
+    @pytest.mark.parametrize('args,mode', [
+        (['--u-mode', 'chat'], 'chat'), (['--u-mode', 'agent'], 'agent'), ([], 'agent'),
+    ])
+    async def it_wires_the_cli_mode(monkeypatch, tmp_path, args, mode):
         import importlib
         cli = importlib.import_module('surprisals_experiment.cli.main')
         received = []
@@ -161,7 +163,7 @@ def describe_chat_u():
         monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
         monkeypatch.setattr(cli, 'run_experiment', run)
         await cli.main([
-            '--u-mode', mode, '--output', str(tmp_path / 'run'), 'problem', str(tmp_path),
+            '--output', str(tmp_path / 'run'), 'problem', str(tmp_path), *args,
         ])
         assert received == [mode]
 
