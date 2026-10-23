@@ -17,10 +17,16 @@ async def prompt_t_to_produce_code(
     pool = asyncio.Semaphore(config.t_pool_size)
     async def generate(sample: int) -> Path:
         async with pool:
-            return await produce_code(
-                config, attempt=attempt, sample=sample, advice=advice,
-                snapshot=snapshot / str(sample), on_delta=on_delta,
-            )
+            try:
+                async with asyncio.timeout(config.t_sample_timeout):
+                    return await produce_code(
+                        config, attempt=attempt, sample=sample, advice=advice,
+                        snapshot=snapshot / str(sample), on_delta=on_delta,
+                    )
+            except TimeoutError as error:
+                raise RuntimeError(
+                    f"T sample {sample} exceeded {config.t_sample_timeout:g} seconds"
+                ) from error
 
     tasks = [asyncio.create_task(generate(sample)) for sample in range(config.t_samples)]
     try:
