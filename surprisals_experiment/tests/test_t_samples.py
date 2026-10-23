@@ -42,7 +42,7 @@ def describe_n_of_t():
             assert (directory / 't_transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
-        assert settings == {'u_mode': 'agent', 'u_advice_max_chars': None, 't_samples': n}
+        assert settings == {'u_mode': 'agent', 'u_advice_max_chars': None, 't_samples': n, 't_sample_retries': 3}
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n
@@ -99,7 +99,7 @@ def describe_n_of_t():
     @pytest.mark.parametrize('n', [0, -1])
     def it_rejects_nonpositive_sample_counts(config, n):
         with pytest.raises(ValidationError):
-            Config(**(config.model_dump() | {'t_samples': n}))
+            Config(**(config.model_dump() | {'t_samples': n, 't_sample_retries': 3}))
 
     def it_defaults_to_five_samples_in_the_sdk(config):
         values = config.model_dump()

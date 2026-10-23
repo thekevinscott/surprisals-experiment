@@ -24,6 +24,7 @@ class Config(BaseModel):
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
+    t_sample_retries: int = Field(default=3, ge=0)
     u_advice_max_chars: int | None = Field(default=None, gt=0)
     u_advice_retries: int = Field(default=10, ge=0)
     max_turns_without_improvement: int = Field(default=20, ge=1)
@@ -37,6 +38,7 @@ class Config(BaseModel):
             "u_mode": self.u_mode,
             "u_advice_max_chars": self.u_advice_max_chars,
             "t_samples": self.t_samples,
+            "t_sample_retries": self.t_sample_retries,
         }, indent=2) + "\n")
 
     @property
