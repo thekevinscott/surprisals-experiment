@@ -1,6 +1,7 @@
 """Prompt a pool of fresh Ts and return their source directories in sample order."""
 
 import asyncio
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -17,16 +18,21 @@ async def prompt_t_to_produce_code(
     pool = asyncio.Semaphore(config.t_pool_size)
     async def generate(sample: int) -> Path:
         async with pool:
-            try:
-                async with asyncio.timeout(config.t_sample_timeout):
-                    return await produce_code(
-                        config, attempt=attempt, sample=sample, advice=advice,
-                        snapshot=snapshot / str(sample), on_delta=on_delta,
-                    )
-            except TimeoutError as error:
-                raise RuntimeError(
-                    f"T sample {sample} exceeded {config.t_sample_timeout:g} seconds"
-                ) from error
+            output = config.t_dir(attempt, sample) / "src"
+            for _ in range(2):
+                try:
+                    async with asyncio.timeout(config.t_sample_timeout):
+                        return await produce_code(
+                            config, attempt=attempt, sample=sample, advice=advice,
+                            snapshot=snapshot / str(sample), on_delta=on_delta,
+                        )
+                except TimeoutError:
+                    with (config.t_dir(attempt, sample) / "timeouts.txt").open("a") as log:
+                        log.write(f"T sample {sample} exceeded {config.t_sample_timeout:g} seconds\n")
+                    shutil.rmtree(output)
+            output.mkdir()
+            (snapshot / str(sample)).mkdir()
+            return output
 
     tasks = [asyncio.create_task(generate(sample)) for sample in range(config.t_samples)]
     try:
