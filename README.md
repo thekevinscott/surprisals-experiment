@@ -44,7 +44,7 @@ uv run python -m surprisals_experiment.cli.run \
   -T openai/gpt-oss-120b \
   --u-thinking high \
   --t-samples 5 \
-  --output ../runs/phase-2/example-100 \
+  --output ../runs/sanity-check/example-100 \
   problem ../data/APPS/test/2286 \
   --u-advice-max-chars 100
 ```
@@ -55,14 +55,14 @@ Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples`
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
 
-- [phase-2](experiments/phase-2/experiment.toml): problem `2286`, character cap 100.
-- [advice-convergence](experiments/advice-convergence/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
+- [sanity-check](experiments/sanity-check/experiment.toml): problem `2286`, character cap 100.
+- [advice-minimization](experiments/advice-minimization/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
 
 Labnotes reads the paths in `.labnotes.toml` and executes commands from this repository root. `uv --directory surprisals_experiment` then selects the Python project, so APPS paths remain relative to that directory. Run either experiment from the repository root:
 
 ```bash
-uvx --no-config --from labnotes labnotes experiments phase-2 run
-uvx --no-config --from labnotes labnotes experiments advice-convergence run --concurrency 3
+uvx --no-config --from labnotes labnotes experiments sanity-check run
+uvx --no-config --from labnotes labnotes experiments advice-minimization run --concurrency 3
 ```
 
 Tests execute generated Python on the host, outside the agent containers. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.

@@ -1,4 +1,4 @@
-name = "Advice convergence"
+name = "Advice minimization"
 command = '''
 uv run \
   --directory surprisals_experiment \
