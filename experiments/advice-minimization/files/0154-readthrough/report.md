@@ -1,6 +1,6 @@
 # Read-through: run 20261022-214114-empty-waterfall (APPS 0154)
 
-Run: runs/advice-convergence/20261022-214114-empty-waterfall/ (878 files).
+Run: runs/advice-minimization/20261022-214114-empty-waterfall/ (878 files).
 Questions: Fable. Data pulls: 4 Sonnet agents (curve, advice, U, T). Spot-checked: stop 3 of 3, best 192 chars.
 
 ## Facts
