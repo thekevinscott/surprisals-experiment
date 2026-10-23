@@ -1,0 +1,22 @@
+We compacted the prior conversation. Continue the same experiment and task.
+
+<original_question>
+Solve {"n": 2}.
+Keep <tags> & braces {{x}}.
+
+</original_question>
+
+<prior_summary>
+Remember <edge> & {cases}.
+
+</prior_summary>
+
+The following state comes directly from the experiment and is authoritative, even if the summary contradicts it.
+Best successful advice length: 14
+Turns without improvement: 3
+<best_successful_advice>
+Use {"n": 2}.
+
+</best_successful_advice>
+
+Respond to the next request with advice as usual.

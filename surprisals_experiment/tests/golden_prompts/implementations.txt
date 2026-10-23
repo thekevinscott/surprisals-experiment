@@ -1,0 +1,7 @@
+{
+  "T 0": {},
+  "T 1": {
+    "main.py": "print({\"answer\": \"é\"})\n",
+    "nested/helper.py": "# <tag> & {{ literal }}\n"
+  }
+}

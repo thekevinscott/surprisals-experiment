@@ -1,0 +1,24 @@
+The same advice was given to 2 independent instances of T.
+1 of 2 solutions passed every test; all must pass.
+
+T 0: solution in /solutions/3/0; passed 0 of 1 tests; timed out on every try and wrote no solution.
+T 1: solution in /solutions/3/1; passed 1 of 1 tests.
+
+Use your read and ls tools to inspect T implementations. All earlier attempts remain available
+under /solutions/<attempt>/, with the advice in advice.txt and each T implementation in its
+numbered subfolder.
+
+
+
+
+Review the solutions against the original problem and your previous advice. Write revised, self-contained instructions that will help a fresh instance of T produce a correct solution.
+
+T will see only your new instructions—not this feedback, its previous solution, or your earlier advice.
+
+Your advice was 21 characters.
+Shortest successful advice so far: None characters (None means no advice has passed every test for every T yet).
+Turns without improvement: 2 of 7.
+Your goal is the shortest possible advice that passes every test for every T.
+Only strictly shorter, all-pass advice resets the counter.
+
+Return only the revised instructions.
