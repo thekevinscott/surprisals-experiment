@@ -17,6 +17,8 @@ async def main(argv: list[str] | None = None) -> None:
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
     )
+    parser.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
+                        help="U interface (default: agent)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
@@ -67,6 +69,7 @@ async def main(argv: list[str] | None = None) -> None:
             problem_dir=args.problem_dir or args.problem_dir_option,
             output=args.output,
             u_model=args.U,
+            u_mode=args.u_mode,
             u_thinking=args.u_thinking,
             u_advice_max_chars=args.u_advice_max_chars,
             u_advice_retries=args.u_advice_retries,

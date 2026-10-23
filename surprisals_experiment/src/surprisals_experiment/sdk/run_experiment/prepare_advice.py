@@ -4,11 +4,12 @@ from collections.abc import Callable
 
 from surprisals_experiment.config import Config
 from ..utils.u_session import USession
+from ..utils.u_chat import ChatSession
 from .save_advice import save_advice
 
 
 async def prepare_advice(
-    config: Config, u_session: USession, prompt: str, *, attempt: int, max_chars: int | None,
+    config: Config, u_session: USession | ChatSession, prompt: str, *, attempt: int, max_chars: int | None,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
     tries = 0

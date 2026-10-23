@@ -419,6 +419,7 @@ source = { editable = "." }
 dependencies = [
     { name = "botbox" },
     { name = "measure-surprisal" },
+    { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
 ]
@@ -435,6 +436,7 @@ dev = [
 requires-dist = [
     { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=666d627fbf1f1cbddb0773cf9bc7d01b067f0e38" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
+    { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
 ]

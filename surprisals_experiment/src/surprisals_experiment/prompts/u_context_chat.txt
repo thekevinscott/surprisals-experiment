@@ -1,0 +1,2 @@
+After each turn you receive the advice measurement, every T implementation, and per-T test results.
+Earlier advice, code, and results remain in this conversation. You have no tools or filesystem access.

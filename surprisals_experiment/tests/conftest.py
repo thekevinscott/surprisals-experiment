@@ -106,6 +106,50 @@ def config(tmp_path):
     (problem / 'input_output.json').write_text(json.dumps({
         'inputs': ['3\n', '7\n'], 'outputs': ['6\n', '14\n'],
     }))
-    return Config(api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
+    return Config(u_mode='agent', api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
                   u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1,
                   test_timeout_seconds=2)
+
+
+@pytest.fixture(autouse=True)
+def chat_provider(monkeypatch, botbox_script):
+    """Mock only HTTP; exercise the real SDK's streaming and message assembly."""
+    import httpx2
+    from openai import AsyncOpenAI
+
+    requests = []
+
+    def respond(request):
+        requests.append(json.loads(request.content))
+        reply = botbox_script.advice.popleft()
+        if isinstance(reply, dict):
+            status = reply.get('status', 200)
+            if status != 200:
+                return httpx2.Response(status, json={'error': {'message': 'provider failed'}})
+            deltas = reply['deltas']
+            finish = reply.get('finish', 'stop')
+        else:
+            deltas = [{'role': 'assistant', 'reasoning': 'Thinking.'},
+                      {'content': reply[:2]}, {'content': reply[2:]}]
+            finish = 'stop'
+        chunks = [
+            {'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1,
+             'model': 'u', 'choices': [{'index': 0, 'delta': delta, 'finish_reason': None}]}
+            for delta in deltas
+        ]
+        if finish is not None:
+            chunks.append({
+                'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
+                'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
+            })
+        stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
+        return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
+                              content=stream + 'data: [DONE]\n\n')
+
+    def client(**kwargs):
+        return AsyncOpenAI(**kwargs, max_retries=0,
+                           http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
+
+    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.u_session.open_u_session'),
+                        'AsyncOpenAI', client)
+    return requests
