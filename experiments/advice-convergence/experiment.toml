@@ -1,4 +1,4 @@
-name = "Advice minimization pilot: 20 problems, uncapped start"
+name = "Advice convergence"
 command = '''
 uv run \
   --directory surprisals_experiment \

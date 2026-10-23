@@ -52,7 +52,7 @@ The first all-pass advice establishes the baseline. A strictly shorter all-pass 
 
 Each feedback message includes the latest advice length, per-T test results, the shortest successful length, and the no-improvement count. Prior advice and implementations remain available in U's session and mounted history. Hidden test contents remain excluded. The shortest successful result survives later failures, longer successes, and interruption.
 
-An explicitly configured fixed cap remains available for phase 2 experiments; it never tightens automatically. The optional `experiments/advice-minimization-pilot-20/experiment.toml` pilot starts uncapped across twenty problems and sets the no-improvement limit to 30. Integration tests cover the stopping rule, mixed n-of-T outcomes, longer/equal candidates, counter resets, and best-result retention. Live validation of this revised policy remains outstanding.
+An explicitly configured fixed cap remains available for phase 2 experiments; it never tightens automatically. The optional `experiments/advice-convergence/experiment.toml` pilot starts uncapped across twenty problems and sets the no-improvement limit to 30. Integration tests cover the stopping rule, mixed n-of-T outcomes, longer/equal candidates, counter resets, and best-result retention. Live validation of this revised policy remains outstanding.
 
 ## Phase 5: Surprisal
 
