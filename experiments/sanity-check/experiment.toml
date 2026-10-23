@@ -1,4 +1,4 @@
-name = "Surprisal experiment: U to T"
+name = "Sanity check"
 command = '''
 uv run \
   --directory surprisals_experiment \
