@@ -19,7 +19,7 @@ async def prompt_t_to_produce_code(
     async def generate(sample: int) -> Path:
         async with pool:
             output = config.t_dir(attempt, sample) / "src"
-            for _ in range(2):
+            for _ in range(config.t_sample_retries + 1):
                 try:
                     async with asyncio.timeout(config.t_sample_timeout):
                         return await produce_code(

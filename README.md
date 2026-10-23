@@ -51,7 +51,7 @@ uv run python -m surprisals_experiment.cli.run \
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The rewrite allowance applies once per advice batch, not once per T. Omit `--u-advice-max-chars` to allow any advice length throughout the run. An explicitly supplied cap stays fixed. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
-Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. A timed-out sample is logged in `timeouts.txt` and retried once with a fresh T and empty source directory; if it times out again, its empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
+Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. Each timeout is logged in `timeouts.txt`. `--t-sample-retries` sets the retry count (default 3, up to 4 tries; 0 means no retry), with a fresh T and empty source directory each time. If all tries time out, the empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
 
@@ -75,7 +75,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 - `u_transcripts/`: U’s conversation. Chat mode writes `messages.jsonl` with system, user, and assistant messages (including returned reasoning); agent mode retains Pi session files.
 - `attempts/<attempt>/advices/<i>/advice.txt`: each advice candidate, including rejected rewrites.
 - Adjacent `metadata.json`: rejection status and measured character count.
-- `settings.json`: the U mode, advice cap, and requested T count, explicitly selected by `Config.save_settings()`.
+- `settings.json`: the U mode, advice cap, requested T count, and timeout retry count, explicitly selected by `Config.save_settings()`.
 - Each T has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
