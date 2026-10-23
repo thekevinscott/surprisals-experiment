@@ -1,6 +1,7 @@
 """Model calls and testcase subprocesses cancel before session cleanup."""
 
 import asyncio
+import importlib
 import os
 
 import pytest
@@ -40,9 +41,10 @@ def describe_async_orchestration():
             assert config.u_proxy_log.exists()
 
     @pytest.mark.parametrize('outcome', ['cancel', 'timeout'])
-    async def it_reaps_evaluation_before_session_cleanup(config, botbox_script, outcome):
+    async def it_reaps_evaluation_before_session_cleanup(config, botbox_script, monkeypatch, outcome):
         config.max_u_turns = 1
-        config.test_timeout_seconds = 0.5 if outcome == 'timeout' else 30
+        suite = importlib.import_module('surprisals_experiment.sdk.run_test_suite.run_test_suite')
+        monkeypatch.setattr(suite, 'TEST_TIMEOUT_SECONDS', 0.5 if outcome == 'timeout' else 30)
         botbox_script.advice.append('double it')
         botbox_script.solutions.append(
             "import os, time\nfrom pathlib import Path\n"

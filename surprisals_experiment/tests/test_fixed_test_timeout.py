@@ -28,7 +28,7 @@ def describe_fixed_test_timeout():
         monkeypatch.setattr(cli, 'find_dotenv', lambda **kw: 'unused')
         monkeypatch.setattr(cli, 'dotenv_values', lambda *a, **kw: {'OPENROUTER_API_KEY': 'test'})
         with pytest.raises(SystemExit) as error:
-            await cli.main(['--output', str(config.output), '--test-timeout-seconds', '1', 'problem', str(config.problem_dir)])
+            await cli.main(['--output', str(config.output), '--test-timeout-seconds=1', 'problem', str(config.problem_dir)])
         assert error.value.code == 2
         assert 'unrecognized arguments: --test-timeout-seconds' in capsys.readouterr().err
 
