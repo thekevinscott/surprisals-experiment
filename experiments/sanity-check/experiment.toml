@@ -13,4 +13,3 @@ mode = "adhoc"
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
-# Exclusive character bounds; overlong advice is rewritten before T runs.
