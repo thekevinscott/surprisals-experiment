@@ -68,7 +68,7 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             config = Config(u_mode='agent', api_key='dummy', problem_dir=root/'problem', output=root/'run',
-                            u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2, test_timeout_seconds=2,
+                            u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=2,
                             u_advice_max_chars=100, max_turns_without_improvement=7)
             stderr = io.StringIO()
             with redirect_stderr(stderr), patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):

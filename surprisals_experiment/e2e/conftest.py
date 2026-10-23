@@ -18,5 +18,5 @@ def config(tmp_path):
     return Config(
         api_key='unused-no-provider-calls', problem_dir=tmp_path / 'problem',
         output=tmp_path / 'run', u_model=U_MODEL, t_model=T_MODEL,
-        u_thinking='off', t_samples=1, max_u_turns=1, test_timeout_seconds=5,
+        u_thinking='off', t_samples=1, max_u_turns=1,
     )

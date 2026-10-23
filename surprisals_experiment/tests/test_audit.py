@@ -25,7 +25,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         self.root = Path(temporary.name)
         (self.root/'question.txt').write_text('Print 7.')
         self.config = Config(u_mode='agent', api_key='dummy', problem_dir=self.root, output=self.root/'run',
-                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=1, test_timeout_seconds=2)
+                             u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=1)
 
     async def test_invalid_suites_fail_before_starting_u(self):
         invalid = [None, {}, {'inputs': [], 'outputs': []},
@@ -46,7 +46,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
     async def test_evaluator_cannot_drop_unmatched_cases(self):
         (self.root/'main.py').write_text('print(7)')
         with self.assertRaises(ValueError):
-            await run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, self.root, timeout_seconds=2)
+            await run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, self.root)
 
     async def attempt(self, exit_code):
         def t(config, advice, *, output, on_delta=None):
@@ -101,6 +101,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse((self.root/'run.json').exists())
         self.assertFalse((self.root/'t_transcripts').exists())
 
+    @patch('surprisals_experiment.sdk.run_test_suite.run_test_suite.TEST_TIMEOUT_SECONDS', .2)
     async def test_candidate_outcomes_and_evaluator_errors(self):
         cases = [('print(7)', True), ('print(8)', False), ('raise RuntimeError("bad code")', False),
                  ('import time; time.sleep(2)', False), ("import os; os.write(1,b'\\xff')", False),
@@ -108,10 +109,10 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         for source, passed in cases:
             with self.subTest(source=source):
                 (self.root/'main.py').write_text(source)
-                results = await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root, timeout_seconds=.2)
+                results = await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root)
                 self.assertEqual(results.all_passed, passed)
         with self.assertRaises(FileNotFoundError):
-            await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root/'absent', timeout_seconds=1)
+            await run_test_suite({'inputs': [''], 'outputs': ['7']}, self.root/'absent')
 
 
 if __name__ == '__main__':

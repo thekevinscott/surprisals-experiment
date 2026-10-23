@@ -41,7 +41,6 @@ async def main(argv: list[str] | None = None) -> None:
         "--max-u-turns", type=int, help="Optional total iteration limit (default: stop after no improvement or interruption)",
     )
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
-    parser.add_argument("--test-timeout-seconds", type=float, default=5, help="Time limit per test case (default: 5)")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
     problem.add_argument("--u-advice-max-chars", type=int,
@@ -91,7 +90,6 @@ async def main(argv: list[str] | None = None) -> None:
             t_sample_retries=args.t_sample_retries,
             max_u_turns=args.max_u_turns,
             max_turns_without_improvement=args.max_turns_without_improvement,
-            test_timeout_seconds=args.test_timeout_seconds,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))

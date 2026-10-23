@@ -22,7 +22,7 @@ def live_config(tmp_path):
     (problem / 'question.txt').write_text(QUESTION)
     return Config(
         api_key=key, problem_dir=problem, output=tmp_path / 'run', u_mode='chat',
-        u_model=U_MODEL, t_model=T_MODEL, u_thinking='low', t_samples=1, test_timeout_seconds=5,
+        u_model=U_MODEL, t_model=T_MODEL, u_thinking='low', t_samples=1,
     )
 
 
