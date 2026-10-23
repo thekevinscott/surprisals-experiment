@@ -17,9 +17,9 @@ def prepare_feedback(
 ) -> str:
     evaluations = []
     for index, sample in enumerate(results):
-        timeouts = config.t_dir(attempt, index) / "timeouts.txt"
-        ending = "; timed out twice and wrote no solution." if (
-            timeouts.exists() and len(timeouts.read_text().splitlines()) >= 2
+        t_dir = config.t_dir(attempt, index)
+        ending = "; timed out on every try and wrote no solution." if (
+            (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
         ) else "."
         evaluations.append(
             f"T {index}: solution in /solutions/{attempt}/{index}; "
