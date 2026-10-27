@@ -38,16 +38,16 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_recovery_sends_prompt_once_and_next_turn_stays_separate(self):
         events = []
-        for i in range(1, 11):
+        for i in range(1, 61):
             events += [end('terminated', will_retry=True), {'type': 'auto_retry_start', 'attempt': i,
-                       'maxAttempts': 10, 'delayMs': 100 * 2**(i-1), 'errorMessage': 'terminated'}]
-        events += [{'type': 'auto_retry_end', 'success': True, 'attempt': 10}, end(), settled(), end(), settled()]
+                       'maxAttempts': 60, 'delayMs': min(5000 * 2**(i-1), 60000), 'errorMessage': 'terminated'}]
+        events += [{'type': 'auto_retry_end', 'success': True, 'attempt': 60}, end(), settled(), end(), settled()]
         session, process = self.session(events)
         deltas = []
         self.assertEqual(await session.prompt('original', on_delta=lambda *x: deltas.append(x)), 'advice')
         self.assertEqual(len(process.getvalue().splitlines()), 1)
-        self.assertEqual(len(deltas), 10)
-        self.assertIn('10/10 in 51.2s', deltas[-1][1])
+        self.assertEqual(len(deltas), 60)
+        self.assertIn('60/60 in 60s', deltas[-1][1])
         self.assertEqual(await session.prompt('feedback'), 'advice')
         self.assertEqual(len(process.getvalue().splitlines()), 2)
         self.assertIsNone(session.pi_session.agent.on_event)
@@ -56,7 +56,7 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
         for error in ('terminated', 'Retry cancelled'):
             with self.subTest(error=error):
                 session, process = self.session([end('terminated'),
-                    {'type': 'auto_retry_end', 'success': False, 'attempt': 10, 'finalError': error}, settled(aborted=error == 'Retry cancelled'), end(), settled()])
+                    {'type': 'auto_retry_end', 'success': False, 'attempt': 60, 'finalError': error}, settled(aborted=error == 'Retry cancelled'), end(), settled()])
                 with self.assertRaisesRegex(USessionError, error):
                     await session.prompt('original')
                 self.assertEqual(len(process.getvalue().splitlines()), 1)
@@ -74,8 +74,6 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await session.prompt('next turn'), 'advice')
 
     def test_retry_settings(self):
-        from importlib.resources import files
-        settings = json.loads((files('surprisals_experiment') / 'docker/U/settings.json').read_text())['retry']
-        self.assertTrue(settings['enabled'])
-        self.assertEqual(settings['maxRetries'], 10)
-        self.assertLessEqual(settings['baseDelayMs'] * 2**9, 60000)
+        from surprisals_experiment.retry_policy import RetryPolicy
+        policy = RetryPolicy()
+        self.assertEqual(policy.retries, 60)

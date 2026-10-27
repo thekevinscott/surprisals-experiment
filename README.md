@@ -50,6 +50,8 @@ uv run python -m surprisals_experiment.cli.run \
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
 
+Transient LLM failures share a `--llm-retries` budget across chat U, agent U, and T (default 60). Waits are 5, 10, 20, 40, then 60 seconds, totaling 3,435 seconds (57m15s), plus request time. Permanent errors fail fast. Existing per-T-sample timeouts still apply.
+
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. Each timeout is logged in `timeouts.txt`. `--t-sample-retries` sets the retry count (default 3, up to 4 tries; 0 means no retry), with a fresh T and empty source directory each time. If all tries time out, the empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
@@ -74,7 +76,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 - `u_transcripts/`: U’s conversation. Chat mode writes `messages.jsonl` with system, user, and assistant messages (including returned reasoning); agent mode retains Pi session files.
 - `attempts/<attempt>/advices/0/advice.txt`: the advice for that turn.
 - Adjacent `metadata.json`: measured character count and `rejected: false` for compatibility with existing readers.
-- `settings.json`: the U mode, requested T count, and timeout retry count, explicitly selected by `Config.save_settings()`.
+- `settings.json`: the U mode, requested T count, timeout retry count, and LLM retry count, explicitly selected by `Config.save_settings()`.
 - Each T has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.

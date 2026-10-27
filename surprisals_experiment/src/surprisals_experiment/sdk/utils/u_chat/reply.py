@@ -1,40 +1,41 @@
-"""Stream a chat reply and retain its complete message, including reasoning."""
+"""Retry transient chat failures, including failures after streaming starts."""
 
-from openai import OpenAIError
+from openai import APIConnectionError, APIError, APIStatusError, OpenAIError
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
+
+from .stream_reply import IncompleteStreamError, stream_reply
+
+
+def transient(error: BaseException) -> bool:
+    if isinstance(error, APIStatusError):
+        return error.status_code == 429 or error.status_code >= 500
+    if type(error) is APIError:
+        # OpenRouter reports upstream failures after the 200 as an in-stream error chunk.
+        code = error.body.get("code") if isinstance(error.body, dict) else None
+        return isinstance(code, int) and (code == 429 or code >= 500)
+    return isinstance(error, (APIConnectionError, IncompleteStreamError))
 
 
 async def reply(self, *, on_delta=None) -> str:
-    reasoning = {"enabled": False} if self.thinking == "off" else {"effort": self.thinking}
-    snapshot = None
+    history_length = len(self.messages)
+    policy = self.retry_policy
+
+    def before_sleep(state):
+        # Keep failed partial output on disk, but retry the original conversation.
+        del self.messages[history_length:]
+        if on_delta is not None:
+            on_delta("retry", f"{state.attempt_number}/{policy.retries} in {state.upcoming_sleep:g}s: "
+                              f"{state.outcome.exception()}\n")
+
     try:
-        async with self.client.chat.completions.stream(
-            model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
-        ) as stream:
-            async for event in stream:
-                snapshot = stream.current_completion_snapshot
-                if on_delta is not None:
-                    if event.type == "content.delta":
-                        on_delta("text", event.delta)
-                    elif event.type == "chunk":
-                        for choice in event.chunk.choices:
-                            thinking = getattr(choice.delta, "reasoning", None) or "".join(
-                                detail.get("text", detail.get("summary", ""))
-                                for detail in (getattr(choice.delta, "reasoning_details", None) or [])
-                            )
-                            if thinking:
-                                on_delta("thinking", thinking)
-            if snapshot is None or not snapshot.choices:
-                raise RuntimeError("U chat returned no advice")
-            completion = await stream.get_final_completion()
-    except OpenAIError as error:
+        async for attempt in AsyncRetrying(
+            retry=retry_if_exception(transient),
+            stop=stop_after_attempt(policy.retries + 1),
+            wait=wait_exponential(multiplier=policy.base_delay_ms / 1000, max=policy.max_delay_ms / 1000),
+            before_sleep=before_sleep,
+            reraise=True,
+        ):
+            with attempt:
+                return await stream_reply(self, on_delta=on_delta)
+    except (OpenAIError, IncompleteStreamError) as error:
         raise RuntimeError(f"U chat request failed: {error}") from error
-    finally:
-        if snapshot is not None and snapshot.choices:
-            message = snapshot.choices[0].message.model_dump(exclude_none=True)
-            message.pop("parsed", None)
-            message["role"] = "assistant"
-            self.record(message)
-    choice = completion.choices[0]
-    if choice.finish_reason != "stop" or not choice.message.content:
-        raise RuntimeError(f"U chat did not produce complete advice ({choice.finish_reason})")
-    return choice.message.content

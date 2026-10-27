@@ -124,6 +124,8 @@ def chat_provider(monkeypatch, botbox_script):
     def respond(request):
         requests.append(json.loads(request.content))
         reply = botbox_script.advice.popleft()
+        if isinstance(reply, Exception):
+            raise reply
         if isinstance(reply, dict):
             status = reply.get('status', 200)
             if status != 200:
@@ -144,12 +146,22 @@ def chat_provider(monkeypatch, botbox_script):
                 'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
                 'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
             })
+        if isinstance(reply, dict) and 'stream_error' in reply:
+            chunks.append({'error': reply['stream_error']})
         stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
+        if isinstance(reply, dict) and reply.get('drop_stream'):
+            class DroppedStream(httpx2.AsyncByteStream):
+                async def __aiter__(self):
+                    yield stream.encode()
+                    raise httpx2.RemoteProtocolError('stream disconnected')
+            return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
+                                   stream=DroppedStream())
         return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
                               content=stream + 'data: [DONE]\n\n')
 
     def client(**kwargs):
-        return AsyncOpenAI(**kwargs, max_retries=0,
+        kwargs.setdefault('max_retries', 0)
+        return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
     monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.u_session.open_u_session'),

@@ -3,12 +3,15 @@
 import shlex
 from collections.abc import Callable
 
-from botbox import PiAgent
+from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES
+from .retrying_pi_agent import RetryingPiAgent
 
 
-class UAgent(PiAgent):
-    def __init__(self, provider: str, model: str, *, api_key: str, thinking: str):
-        super().__init__(provider, model=model, api_key=api_key)
+class UAgent(RetryingPiAgent):
+    def __init__(self, provider: str, model: str, *, api_key: str, thinking: str,
+                 llm_retries: int = DEFAULT_LLM_RETRIES):
+        super().__init__(provider, model=model, api_key=api_key,
+                         llm_retries=llm_retries, compaction=False)
         self.thinking = thinking
         self.on_event: Callable[[dict], None] | None = None
 
