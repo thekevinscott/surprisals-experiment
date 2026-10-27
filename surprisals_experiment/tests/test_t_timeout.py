@@ -47,9 +47,11 @@ def describe_t_sample_timeout():
         assert not (config.attempt_dir(0) / 'error.txt').exists()
         assert 'timed out' not in (config.attempt_dir(0) / 'feedback.txt').read_text()
 
+    @pytest.mark.parametrize("mode", ["chat", "agent"])
     async def it_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(
-        config, botbox_script, monkeypatch,
+        config, botbox_script, monkeypatch, mode,
     ):
+        config.u_mode = mode
         config.max_u_turns = 2
         config.t_samples = 3
         config.t_sample_timeout = .1
@@ -73,7 +75,10 @@ def describe_t_sample_timeout():
         tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
         assert tests['passed'] == 0 and not tests['all_passed']
         feedback = (config.attempt_dir(1) / 'feedback.txt').read_text()
-        assert 'T 2: solution in /solutions/1/2; passed 0 of 2 tests; timed out on every try and wrote no solution.' in feedback
+        location = 'solution in /solutions/1/2; ' if mode == 'agent' else ''
+        assert f'T 2: {location}passed 0 of 2 tests; timed out on every try and wrote no solution.' in feedback
+        if mode == 'chat':
+            assert '/solutions/' not in feedback
         for line in feedback.splitlines():
             if line.startswith(('T 0:', 'T 1:')):
                 assert 'timed out' not in line
