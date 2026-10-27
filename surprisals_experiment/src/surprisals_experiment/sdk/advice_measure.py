@@ -30,5 +30,5 @@ class AdviceMeasure:
     def result_fields(self, best_measurement: int | float | None) -> dict:
         if self.client is None:
             return {}
-        return {"measure": self.name, "best_measurement": best_measurement,
+        return {"cap_strategy": self.name, "best_measurement": best_measurement,
                 "scorer_model": self.client.model, "scorer_base_url": self.client.base_url}

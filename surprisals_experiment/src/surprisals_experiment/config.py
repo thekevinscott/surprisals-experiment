@@ -23,7 +23,7 @@ class Config(BaseModel):
     u_thinking: ThinkingLevel
     u_compact_chars: int = Field(default=400000, ge=0)
     t_model: str
-    measure: Literal["characters", "surprisal"] = "characters"
+    cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
@@ -34,7 +34,7 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def require_scorer(self):
-        if self.measure == "surprisal" and not self.scorer_base_url:
+        if self.cap_strategy == "surprisal" and not self.scorer_base_url:
             raise ValueError("scorer_base_url is required for surprisal")
         return self
 
@@ -42,7 +42,7 @@ class Config(BaseModel):
     def advice_measure(self):
         from .sdk.advice_measure import AdviceMeasure
 
-        return AdviceMeasure(self.measure, base_url=self.scorer_base_url, model=self.t_model)
+        return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
         """Save the U mode and fields needed by run summaries."""

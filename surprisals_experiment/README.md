@@ -69,11 +69,11 @@ Chat messages are appended to `u_transcripts/messages.jsonl` as they arrive. Ass
 
 Prompt wording lives in `prompts/u.txt`, `prompts/u_feedback.txt`, and mode-specific `u_context_chat.txt` / `u_context_agent.txt`. The iteration loop uses the same session `prompt(...)` call in either mode. `settings.json` records the mode so runs can be distinguished.
 
-### Advice measure
+### Advice cap strategy
 
 Character minimization remains the default, with unchanged prompts and results.
 To minimize surprisal instead, add
-`--measure surprisal --scorer-base-url https://HOST/v1` before the `problem`
+`--cap-strategy surprisal --scorer-base-url https://HOST/v1` before the `problem`
 subcommand. The scorer must serve T's model (the `-T` model ID) and support
 completion prompt logprobs. No separate scorer-model override is used.
 
@@ -82,7 +82,7 @@ with no problem or conversation prefix. Its convention skips tokens whose
 logprob is null (normally the first token). All-pass advice improves the
 baseline only when its measured bits are strictly lower. Advice metadata
 stores the measurement; surprisal-mode `result.json` also records
-`measure`, `best_measurement`, `scorer_model`, and `scorer_base_url`.
+`cap_strategy`, `best_measurement`, `scorer_model`, and `scorer_base_url`.
 Character-mode artifacts retain their existing shape.
 
 The manual paid check in `e2e/test_surprisal_live.py` starts one GPT-OSS-120B
