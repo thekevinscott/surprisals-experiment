@@ -11,7 +11,7 @@ Review the solutions against the original problem and your previous advice. Writ
 
 T will see only your new instructions—not this feedback, its previous solution, or your earlier advice.
 
-Your advice was {advice_length} characters.
+{advice_measurement}
 Shortest successful advice so far: {best_length} characters (None means no advice has passed every test for every T yet).
 Turns without improvement: {turns_without_improvement} of {max_turns_without_improvement}.
 Your goal is the shortest possible advice that passes every test for every T.

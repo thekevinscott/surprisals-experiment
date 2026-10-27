@@ -47,7 +47,7 @@ async def test_transient_scorer_failure_retries_with_advice_saved(
         assert (config.advice_dir(0, 0) / "advice.txt").read_text() == advice
         if calls == 1:
             raise failure
-        return 10.0
+        return [(advice, 10.0)]
 
     monkeypatch.setattr(importlib.import_module("surprisals_experiment.sdk.advice_measure"),
                         "measure_surprisal", score)
@@ -59,7 +59,7 @@ async def test_transient_scorer_failure_retries_with_advice_saved(
     no_retry_wait.assert_awaited_once_with(5)
     assert any(kind == "retry" and "1/2 in 5s" in text for kind, text in deltas)
     assert json.loads((config.advice_dir(0, 0) / "metadata.json").read_text()) == {
-        "rejected": False, "measurement": 10.0,
+        "rejected": False, "measurement": 10.0, "tokens": [["Use a loop", 10.0]],
     }
 
 
@@ -100,7 +100,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
     config = scoring_config
     config.max_u_turns = 3
     config.max_turns_without_improvement = 1
-    scorer = AsyncMock(side_effect=[10.0, 9.0])
+    scorer = AsyncMock(side_effect=[[("same", 4.0), (" advice", 6.0)], [("same advice", 9.0)]])
     monkeypatch.setattr(importlib.import_module("surprisals_experiment.sdk.advice_measure"),
                         "measure_surprisal", scorer)
     botbox_script.advice.extend(["same advice"] * 2)
@@ -109,7 +109,12 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
     assert scorer.await_count == 1
     assert json.loads(config.result_file.read_text())["attempts"] == 2
     for attempt in range(2):
-        assert json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())["measurement"] == 10.0
+        metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
+        assert metadata["measurement"] == 10.0
+        assert metadata["tokens"] == [["same", 4.0], [" advice", 6.0]]
+        assert "Your advice cost 10.0 bits:\nsame<4.0> advice<6.0>" in (
+            config.attempt_dir(attempt) / "feedback.txt"
+        ).read_text()
     assert "Turns without improvement: 1 of 1." in (config.attempt_dir(1) / "feedback.txt").read_text()
 
 
