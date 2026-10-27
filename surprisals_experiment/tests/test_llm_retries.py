@@ -91,7 +91,14 @@ def test_pi_agents_share_retry_settings(monkeypatch, agent_type, retries):
     assert settings['retry'] == {
         'enabled': retries > 0, 'maxRetries': retries, 'baseDelayMs': 5000, 'maxAgentDelayMs': 60000,
     }
-    assert settings['compaction']['enabled'] is (agent_type is TAgent)
+    assert settings['compaction'] == (
+        {'enabled': True, 'reserveTokens': 917504} if agent_type is UAgent else {'enabled': True}
+    )
+    if agent_type is UAgent:
+        from importlib.resources import files
+        model = json.loads(files('surprisals_experiment').joinpath('docker/U/models.json').read_text())
+        window = model['providers']['openrouter']['models'][0]['contextWindow']
+        assert window - settings['compaction']['reserveTokens'] == 131072
 
 
 async def test_cli_retry_flag(monkeypatch, tmp_path):
