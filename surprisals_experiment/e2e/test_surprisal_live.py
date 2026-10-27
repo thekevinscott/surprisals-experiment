@@ -53,8 +53,10 @@ def runpod_scorer(advice_paths):
     created = subprocess.run(
         ["uv", "run", str(scripts / "setup.py"), "--model", "openai/gpt-oss-120b",
          "--gpu", "NVIDIA H100 80GB HBM3"],
-        capture_output=True, text=True, timeout=2100, check=True,
+        capture_output=True, text=True, timeout=2100, check=False,
     )
+    if created.returncode:
+        pytest.fail(f"RunPod setup failed:\n{created.stderr}")
     pod = json.loads(created.stdout)
     try:
         print(json.dumps({"event": "ready", **pod,
