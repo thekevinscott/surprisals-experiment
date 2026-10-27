@@ -1,9 +1,5 @@
-# /// script
-# dependencies = ["httpx", "python-dotenv"]
-# ///
-"""uv run scripts/runpod/teardown.py <pod_id>"""
+"""Delete a scorer and verify it is gone."""
 
-import argparse
 import os
 import time
 from pathlib import Path
@@ -16,11 +12,12 @@ DELETE_TIMEOUT = 120
 
 
 def api_key():
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
     return os.environ["RUNPOD_API_KEY"]
 
 
 def request(method, url, key=None, **kwargs):
+    # Cloudflare returns 403 without a browser User-Agent.
     headers = {"User-Agent": "Mozilla/5.0"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -29,7 +26,11 @@ def request(method, url, key=None, **kwargs):
 
 def delete_pod(pod_id, key):
     url = f"{API}/pods/{pod_id}"
-    result = request("DELETE", url, key)
+    for attempt in range(3):
+        result = request("DELETE", url, key)
+        if result.status_code < 500 or attempt == 2:
+            break
+        time.sleep(attempt + 1)
     if result.status_code != 404:
         result.raise_for_status()
     deadline = time.monotonic() + DELETE_TIMEOUT
@@ -40,14 +41,3 @@ def delete_pod(pod_id, key):
         result.raise_for_status()
         time.sleep(2)
     raise TimeoutError(f"Pod {pod_id} still exists after deletion")
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("pod_id")
-    args = parser.parse_args(argv)
-    delete_pod(args.pod_id, api_key())
-
-
-if __name__ == "__main__":
-    main()

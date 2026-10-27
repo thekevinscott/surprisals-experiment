@@ -1,38 +1,35 @@
-# /// script
-# dependencies = ["httpx", "python-dotenv"]
-# ///
-"""uv run scripts/runpod/setup.py [--model MODEL] [--gpu GPU_ID]"""
+"""Create a vLLM scorer and wait for readiness."""
 
-import argparse
 import json
 import time
+import sys
 
 import httpx
 
-import teardown
+from . import teardown
 
 READY_TIMEOUT = 1800
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", default="openai/gpt-oss-120b")
-    parser.add_argument("--gpu", default="NVIDIA H100 80GB HBM3")
-    args = parser.parse_args(argv)
+DEFAULT_MODEL = "openai/gpt-oss-120b"
+DEFAULT_GPU = "NVIDIA H100 80GB HBM3"
+
+
+def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
     key = teardown.api_key()
     result = teardown.request("POST", f"{teardown.API}/pods", key, json={
         "name": "surprisal-scorer",
         "imageName": "vllm/vllm-openai:v0.30.0",
         "cloudType": "SECURE",
         "computeType": "GPU",
-        "gpuTypeIds": [args.gpu],
+        "gpuTypeIds": [gpu],
         "gpuCount": 1,
         "containerDiskInGb": 100,
         "volumeInGb": 0,
         "ports": ["8000/http"],
         "dockerEntrypoint": ["python3", "-m", "vllm.entrypoints.openai.api_server"],
         "dockerStartCmd": [
-            "--model", args.model,
+            "--model", model,
             "--host", "0.0.0.0", "--port", "8000",
             "--max-model-len", "8192",
             "--enable-chunked-prefill",
@@ -42,6 +39,7 @@ def main(argv=None):
     })
     result.raise_for_status()
     pod_id = result.json()["id"]
+    print(f"Created pod {pod_id}", file=sys.stderr, flush=True)
     base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
     try:
         deadline = time.monotonic() + READY_TIMEOUT
@@ -58,7 +56,3 @@ def main(argv=None):
     except BaseException:
         teardown.delete_pod(pod_id, key)
         raise
-
-
-if __name__ == "__main__":
-    main()

@@ -1,18 +1,12 @@
-import importlib.util
 import json
-import sys
 from pathlib import Path
 from unittest.mock import Mock
 
 import httpx
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent))
-import teardown
-
-spec = importlib.util.spec_from_file_location("runpod_setup", Path(__file__).with_name("setup.py"))
-setup = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(setup)
+from runpod_scorer import setup, teardown
+from runpod_scorer.cli import main
 
 
 def response(status=200, body=None):
@@ -23,14 +17,15 @@ def response(status=200, body=None):
 def fake_http(monkeypatch):
     request = Mock()
     monkeypatch.setattr(teardown.httpx, "request", request)
-    monkeypatch.setattr(teardown, "api_key", lambda: "test-key")
+    monkeypatch.setenv("RUNPOD_API_KEY", "test-key")
+    monkeypatch.setattr(teardown, "load_dotenv", Mock())
     monkeypatch.setattr(teardown.time, "sleep", lambda _: None)
     return request
 
 
 def test_create_and_wait(fake_http, capsys):
     fake_http.side_effect = [response(body={"id": "pod1"}), response(503), response(body={"data": []})]
-    setup.main([])
+    main(["up"])
     calls = fake_http.call_args_list
     payload = calls[0].kwargs["json"]
     assert payload["imageName"] == "vllm/vllm-openai:v0.30.0"
@@ -47,7 +42,7 @@ def test_create_and_wait(fake_http, capsys):
 
 def test_override(fake_http):
     fake_http.side_effect = [response(body={"id": "pod1"}), response()]
-    setup.main(["--model", "small", "--gpu", "cheap"])
+    main(["up", "--model", "small", "--gpu", "cheap"])
     payload = fake_http.call_args_list[0].kwargs["json"]
     assert payload["gpuTypeIds"] == ["cheap"]
     assert "small" in payload["dockerStartCmd"]
@@ -57,7 +52,7 @@ def test_override(fake_http):
 def test_startup_cleanup(fake_http, failure):
     fake_http.side_effect = [response(body={"id": "pod1"}), failure, response(204), response(404)]
     with pytest.raises(type(failure)):
-        setup.main([])
+        main(["up"])
     assert fake_http.call_args_list[2].args == ("DELETE", teardown.API + "/pods/pod1")
     assert fake_http.call_args_list[3].args == ("GET", teardown.API + "/pods/pod1")
 
@@ -66,12 +61,12 @@ def test_readiness_timeout_cleans_up(fake_http, monkeypatch):
     monkeypatch.setattr(setup, "READY_TIMEOUT", 0)
     fake_http.side_effect = [response(body={"id": "pod1"}), response(204), response(404)]
     with pytest.raises(TimeoutError):
-        setup.main([])
+        main(["up"])
 
 
 def test_teardown_waits_until_gone(fake_http):
     fake_http.side_effect = [response(204), response(body={"id": "pod1"}), response(404)]
-    teardown.main(["pod1"])
+    main(["down", "pod1"])
     assert fake_http.call_count == 3
 
 
@@ -79,13 +74,13 @@ def test_teardown_not_gone_fails(fake_http, monkeypatch):
     monkeypatch.setattr(teardown, "DELETE_TIMEOUT", 0)
     fake_http.return_value = response(204)
     with pytest.raises(TimeoutError):
-        teardown.main(["pod1"])
+        main(["down", "pod1"])
 
 
 def test_teardown_api_failure(fake_http):
     fake_http.return_value = response(403)
     with pytest.raises(httpx.HTTPStatusError):
-        teardown.main(["pod1"])
+        main(["down", "pod1"])
 
 
 def test_readiness_transport_retry(fake_http):
@@ -94,20 +89,20 @@ def test_readiness_transport_retry(fake_http):
         httpx.ConnectError("not listening yet"),
         response(),
     ]
-    setup.main([])
+    main(["up"])
     assert fake_http.call_count == 3
 
 
 def test_create_failure_does_not_delete(fake_http):
     fake_http.return_value = response(500)
     with pytest.raises(httpx.HTTPStatusError):
-        setup.main([])
+        main(["up"])
     assert fake_http.call_count == 1
 
 
 def test_api_key_stays_on_control_plane(fake_http):
     fake_http.side_effect = [response(body={"id": "pod1"}), response()]
-    setup.main([])
+    main(["up"])
     assert fake_http.call_args_list[0].kwargs["headers"]["Authorization"] == "Bearer test-key"
     assert "Authorization" not in fake_http.call_args_list[1].kwargs["headers"]
 
@@ -116,10 +111,34 @@ def test_loads_repo_env(monkeypatch):
     load = Mock()
     monkeypatch.setattr(teardown, "load_dotenv", load)
     monkeypatch.setenv("RUNPOD_API_KEY", "fake")
-    # autouse replaces api_key; exercise the real function via a fresh module.
-    spec = importlib.util.spec_from_file_location("fresh_teardown", Path(teardown.__file__))
-    fresh = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(fresh)
-    monkeypatch.setattr(fresh, "load_dotenv", load)
-    assert fresh.api_key() == "fake"
-    load.assert_called_once_with(Path(teardown.__file__).resolve().parents[2] / ".env")
+    assert teardown.api_key() == "fake"
+    load.assert_called_once_with(Path(teardown.__file__).resolve().parents[3] / ".env")
+
+
+def test_pod_id_printed_before_readiness(fake_http, capsys):
+    def respond(method, url, **kwargs):
+        if method == "POST":
+            return response(body={"id": "pod1"})
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == "Created pod pod1\n"
+        return response()
+    fake_http.side_effect = respond
+    main(["up"])
+
+
+@pytest.mark.parametrize("status", [500, 502, 503])
+def test_delete_retries_server_errors(fake_http, monkeypatch, status):
+    sleep = Mock()
+    monkeypatch.setattr(teardown.time, "sleep", sleep)
+    fake_http.side_effect = [response(status), response(status), response(204), response(404)]
+    main(["down", "pod1"])
+    assert [call.args for call in sleep.call_args_list] == [(1,), (2,)]
+    assert [call.args[0] for call in fake_http.call_args_list] == ["DELETE"] * 3 + ["GET"]
+
+
+def test_delete_exhausts_server_errors(fake_http):
+    fake_http.return_value = response(503)
+    with pytest.raises(httpx.HTTPStatusError):
+        main(["down", "pod1"])
+    assert fake_http.call_count == 3
