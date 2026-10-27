@@ -61,14 +61,15 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                     solutions.mkdir()
                     yield USession(pi, solutions)
 
-                def t(config, advice, *, output, on_delta=None):
+                def t(config, advice, *, output, logs, on_delta=None):
                     received.append(advice)
+                    self.assertEqual(logs, output.parent)
                     on_delta("thinking", "T thinking")
                     output.mkdir()
                     source = first_source if len(received) == 1 else 'print(sum(map(int,input().split())))'
                     (output/'main.py').write_text(source)
                     (output/'helpers.py').write_text('VALUE = 42')
-                    return RunResult('', '', 0, {'same.jsonl': advice}, 'proxy', 'image')
+                    return RunResult(0)
 
                 with patch('surprisals_experiment.sdk.run_experiment.run_experiment.open_u_session', side_effect=start), \
                      patch('surprisals_experiment.sdk.run_experiment.produce_code.prompt_t', side_effect=t):
@@ -82,8 +83,7 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(t_deltas, [("thinking", "T thinking")] * turns)
                 self.assertFalse((config.output/'u_solutions').exists())
                 self.assertEqual(json.loads(config.result_file.read_text())['attempts'], turns)
-                self.assertEqual(json.loads((config.t_dir(0, 0)/'run.json').read_text())['proxy'], 'proxy')
-                self.assertEqual((config.t_dir(0, 0)/'t_transcripts/same.jsonl').read_text(), 'First advice')
+                self.assertEqual(json.loads((config.t_dir(0, 0)/'run.json').read_text()), {'exit_code': 0})
                 if turns == 1:
                     self.assertIsNone(result)
                     self.assertTrue((config.attempt_dir(0)/'feedback.txt').exists())
@@ -96,7 +96,6 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                     self.assertIn('passed 0 of 1 tests', feedback)
                     self.assertNotIn('19381', feedback)
                     self.assertEqual((config.attempt_dir(0)/'feedback.txt').read_text(), feedback)
-                    self.assertEqual((config.t_dir(1, 0)/'t_transcripts/same.jsonl').read_text(), 'Revised advice')
                     self.assertIn(('thinking', 'Thinking'), deltas)
 
     async def test_first_agent_end_provider_failure_aborts(self):

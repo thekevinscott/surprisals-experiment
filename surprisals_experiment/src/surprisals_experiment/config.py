@@ -55,12 +55,16 @@ class Config(BaseModel):
         return self.output / "error.txt"
 
     @property
+    def u_dir(self) -> Path:
+        return self.output / "u"
+
+    @property
     def u_transcripts(self) -> Path:
-        return self.output / "u_transcripts"
+        return self.u_dir / "transcripts"
 
     @property
     def u_proxy_log(self) -> Path:
-        return self.output / "proxy_logs" / "u.log"
+        return self.u_dir / "proxy.log"
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.output / "attempts" / str(attempt)

@@ -15,9 +15,9 @@ RESOURCES = files("surprisals_experiment")
 INSTRUCTIONS = RESOURCES.joinpath("prompts/t.txt").read_text()
 
 
-async def prompt_t(config: Config, advice: str, *, output: Path,
+async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
              on_delta: Callable[[str, str], None] | None = None) -> RunResult:
-    """Run T, retain its artifacts, and return its process result."""
+    """Run T, write its streams, proxy log and transcripts live to `logs`, and return its exit."""
     output.mkdir(parents=True, exist_ok=False)
     agent = TAgent(
         provider="openrouter", model=config.t_model, api_key=config.api_key.get_secret_value(),
@@ -25,7 +25,7 @@ async def prompt_t(config: Config, advice: str, *, output: Path,
     )
     async with botbox_session(
         agent, dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),
-        mounts=[(output, "/solution", "rw")], workdir="/solution",
+        mounts=[(output, "/solution", "rw")], workdir="/solution", output=logs,
     ) as t_session:
         await t_session.message(advice)
     return t_session.result

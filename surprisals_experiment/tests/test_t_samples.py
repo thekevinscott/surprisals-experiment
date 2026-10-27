@@ -39,7 +39,7 @@ def describe_n_of_t():
             directory = config.t_dir(0, i)
             assert directory == config.attempt_dir(0) / 't_samples' / str(i)
             assert (directory / 'src/main.py').read_text() == source
-            assert (directory / 't_transcripts/session.jsonl').exists()
+            assert (directory / 'transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
         assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3}
@@ -84,7 +84,7 @@ def describe_n_of_t():
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         assert (config.t_dir(0, 0) / 'src/main.py').exists()
-        assert (config.t_dir(0, 0) / 't_transcripts/session.jsonl').exists()
+        assert (config.t_dir(0, 0) / 'transcripts/session.jsonl').exists()
         assert not (config.t_dir(0, 0) / 'tests.json').exists()
         assert 'provider unavailable' in (config.attempt_dir(0) / 'error.txt').read_text()
         assert not (config.attempt_dir(0) / 'batch.json').exists()
