@@ -65,6 +65,8 @@ An infrastructure exception stops the batch and preserves earlier completed resu
 
 After each complete batch, both modes receive the measured advice length (labelled in characters), each T's test counts, best successful length, and no-improvement count. Chat feedback additionally includes every T's generated text files, including helper files, from snapshots taken before evaluation. Binary files and links outside a sample's snapshot are omitted. Test-created files and hidden inputs/expected outputs are not included. All previous feedback remains in the conversation; there is no automatic truncation or compaction in chat mode.
 
+Each chat U call appends a UTC timestamp, completion ID, and the returned usage object to `u/transcripts/usage.jsonl`, including compaction calls. Prompt/completion counts and reasoning/cache details remain as returned; unavailable usage is `null`, not zero. These records are separate from conversation messages and are never sent back to the model.
+
 Chat messages are appended to `u_transcripts/messages.jsonl` as they arrive. Assistant reasoning and reasoning details are retained, including available partial output on failure or cancellation. Thinking and advice stream to the existing callbacks. A truncated or incomplete reply is an infrastructure error, never valid advice. Chat uses the SDK's standard request retries; Pi's agent-specific retry/compaction configuration applies only to agent mode.
 
 Prompt wording lives in `prompts/u.txt`, `prompts/u_feedback.txt`, and mode-specific `u_context_chat.txt` / `u_context_agent.txt`. The iteration loop uses the same session `prompt(...)` call in either mode. `settings.json` records the mode so runs can be distinguished.
