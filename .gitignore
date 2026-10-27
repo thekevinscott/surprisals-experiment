@@ -23,3 +23,5 @@ data
 
 # Per-experiment artifacts
 /experiments/*/files/internal/
+
+.worktrees
