@@ -13,7 +13,7 @@ TEMPLATE = files("surprisals_experiment").joinpath("prompts/u_feedback.txt").rea
 
 def prepare_feedback(
     config: Config, attempt: int, results: list[TestSuiteResult], *,
-    snapshot: Path, advice_length: int, best_length: int | None, turns_without_improvement: int,
+    snapshot: Path, advice_length: int | float, best_length: int | float | None, turns_without_improvement: int,
 ) -> str:
     evaluations = []
     for index, sample in enumerate(results):
@@ -25,7 +25,7 @@ def prepare_feedback(
             f"T {index}: solution in /solutions/{attempt}/{index}; "
             f"passed {sample.passed} of {sample.total} tests{ending}"
         )
-    feedback = TEMPLATE.format(
+    feedback = config.advice_measure.render(TEMPLATE).format(
         implementation_access=files("surprisals_experiment").joinpath(
             f"prompts/u_context_{config.u_mode}.txt",
         ).read_text(),

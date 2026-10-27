@@ -36,7 +36,7 @@ async def run_experiment(
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_session(config) as u_session:
         for attempt in attempts:
-            advice = await prepare_advice(
+            advice, measurement = await prepare_advice(
                 config, u_session, prompt, attempt=attempt, on_delta=on_delta,
             )
             try:
@@ -49,10 +49,10 @@ async def run_experiment(
                 (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
                 raise
             if (all(result.all_passed for result in results)
-                    and (best_length is None or len(advice) < best_length)):
+                    and (best_length is None or measurement < best_length)):
                 turns_without_improvement = 0
                 best_solution = solutions[0]
-                best_length = len(advice)
+                best_length = measurement
                 if isinstance(u_session, ChatSession):
                     u_session.best_advice = advice
             else:
@@ -62,10 +62,11 @@ async def run_experiment(
                 u_session.turns_without_improvement = turns_without_improvement
             prompt = prepare_feedback(
                 config, attempt, results, snapshot=u_session.solutions / str(attempt),
-                advice_length=len(advice),
+                advice_length=measurement,
                 best_length=best_length, turns_without_improvement=turns_without_improvement,
             )
             config.result_file.write_text(json.dumps({
+                **config.advice_measure.result_fields(best_length),
                 "success": best_solution is not None,
                 "attempts": attempt + 1,
                 "solution": str(best_solution) if best_solution is not None else None,

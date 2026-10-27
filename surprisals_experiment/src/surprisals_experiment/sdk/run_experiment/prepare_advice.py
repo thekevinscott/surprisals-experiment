@@ -11,8 +11,9 @@ from .save_advice import save_advice
 async def prepare_advice(
     config: Config, u_session: USession | ChatSession, prompt: str, *, attempt: int,
     on_delta: Callable[[str, str], None] | None = None,
-) -> str:
+) -> tuple[str, int | float]:
     advice = await u_session.prompt(prompt, on_delta=on_delta)
+    measurement = await config.advice_measure.score(advice)
     save_advice(config.advice_dir(attempt, 0), advice,
-                rejected=False, measurement=len(advice))
-    return advice
+                rejected=False, measurement=measurement)
+    return advice, measurement

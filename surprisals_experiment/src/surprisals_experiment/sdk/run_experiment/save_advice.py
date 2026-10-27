@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def save_advice(directory: Path, advice: str, *, rejected: bool, measurement: int) -> None:
+def save_advice(directory: Path, advice: str, *, rejected: bool, measurement: int | float) -> None:
     directory.mkdir(parents=True)
     (directory / "advice.txt").write_text(advice)
     (directory / "metadata.json").write_text(json.dumps({

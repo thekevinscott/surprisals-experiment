@@ -25,7 +25,7 @@ class ChatSession:
     compact_chars: int = 400000
     question: str = ""
     best_advice: str | None = None
-    best_length: int | None = None
+    best_length: int | float | None = None
     turns_without_improvement: int = 0
 
     compact = compact

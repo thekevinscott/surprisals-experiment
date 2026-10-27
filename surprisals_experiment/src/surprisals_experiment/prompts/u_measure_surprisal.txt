@@ -1,0 +1,1 @@
+Advice length is measured in bits of surprisal under T's model: the sum of -log2 token probabilities, scoring the advice without the problem or conversation as context. Shorter means fewer bits.
