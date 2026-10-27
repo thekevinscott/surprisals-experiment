@@ -15,7 +15,8 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
     async def test_failure_clears_event_callback(self):
         events = [
             {"type": "response", "success": False, "error": "provider failed"},
-            {"type": "agent_end"},
+            {"type": "agent_end", "willRetry": False, "messages": []},
+            {"type": "agent_settled", "aborted": False},
         ]
         class ListSession:
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
@@ -100,6 +101,17 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
                     temporary_solutions = u_session.solutions
                     self.assertTrue(temporary_solutions.exists())
                 self.assertFalse(temporary_solutions.exists())
+
+    def test_both_completion_events_are_required(self):
+        from surprisals_experiment.sdk.utils.u_session.advice_from_events import advice_from_events
+        end = {'type': 'agent_end', 'willRetry': False, 'messages': [
+            {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': 'advice'}]},
+        ]}
+        settled = {'type': 'agent_settled', 'aborted': False}
+        for events in ([], [end], [settled]):
+            with self.subTest(events=events), self.assertRaisesRegex(USessionError, 'before completing'):
+                advice_from_events(events)
+        self.assertEqual(advice_from_events([end, settled]), 'advice')
 
     def test_launch_flags_and_model_quoting(self):
         import shlex

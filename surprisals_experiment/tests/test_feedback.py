@@ -25,12 +25,13 @@ class FakePi:
             {'type': 'response', 'success': True},
             {'type': 'message_update', 'assistantMessageEvent': {'type': 'thinking_delta', 'delta': 'Thinking'}},
             {'type': 'message_update', 'assistantMessageEvent': {'type': 'text_delta', 'delta': advice}},
-            {'type': 'agent_end', 'messages': [
+            {'type': 'agent_end', 'willRetry': False, 'messages': [
                 {'role': 'user', 'content': text},
                 {'role': 'assistant', 'stopReason': 'toolUse', 'content': [{'type': 'text', 'text': 'Inspecting files'}]},
                 {'role': 'toolResult', 'content': []},
                 {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': advice}]},
             ]},
+            {'type': 'agent_settled', 'aborted': False},
         ]
 
         for event in events:
@@ -103,9 +104,9 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
             agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
             async def message(self, text):
-                events = [{'type': 'agent_end', 'messages': [
+                events = [{'type': 'agent_end', 'willRetry': False, 'messages': [
                     {'role': 'assistant', 'stopReason': 'error', 'content': [], 'errorMessage': 'rate limit'},
-                ]}]
+                ]}, {'type': 'agent_settled', 'aborted': False}]
                 for event in events:
                     self.agent.turn_ended(event)
                 return events

@@ -63,10 +63,10 @@ class FakeSession:
         if not self.is_u:
             (self.mounts['/solution'] / 'main.py').write_text(reply)
             reply = 'Solution written.'
-        return [{'type': 'agent_end', 'messages': [{
+        return [{'type': 'agent_end', 'willRetry': False, 'messages': [{
             'role': 'assistant', 'stopReason': 'stop',
             'content': [{'type': 'text', 'text': reply}],
-        }]}]
+        }]}, {'type': 'agent_settled', 'aborted': False}]
 
     def close(self):
         self.closed = True

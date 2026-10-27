@@ -11,12 +11,16 @@ from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.u_session import USession, USessionError
 
 
-def end(error=None, reason='error'):
+def end(error=None, reason='error', *, will_retry=False):
     message = {'role': 'assistant', 'stopReason': reason if error else 'stop',
                'content': [] if error else [{'type': 'text', 'text': 'advice'}]}
     if error:
         message['errorMessage'] = error
-    return {'type': 'agent_end', 'messages': [message]}
+    return {'type': 'agent_end', 'messages': [message], 'willRetry': will_retry}
+
+
+def settled(aborted=False):
+    return {'type': 'agent_settled', 'aborted': aborted}
 
 
 class RetryTest(unittest.IsolatedAsyncioTestCase):
@@ -35,9 +39,9 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
     async def test_recovery_sends_prompt_once_and_next_turn_stays_separate(self):
         events = []
         for i in range(1, 11):
-            events += [end('terminated'), {'type': 'auto_retry_start', 'attempt': i,
+            events += [end('terminated', will_retry=True), {'type': 'auto_retry_start', 'attempt': i,
                        'maxAttempts': 10, 'delayMs': 100 * 2**(i-1), 'errorMessage': 'terminated'}]
-        events += [{'type': 'auto_retry_end', 'success': True, 'attempt': 10}, end(), end()]
+        events += [{'type': 'auto_retry_end', 'success': True, 'attempt': 10}, end(), settled(), end(), settled()]
         session, process = self.session(events)
         deltas = []
         self.assertEqual(await session.prompt('original', on_delta=lambda *x: deltas.append(x)), 'advice')
@@ -52,20 +56,22 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
         for error in ('terminated', 'Retry cancelled'):
             with self.subTest(error=error):
                 session, process = self.session([end('terminated'),
-                    {'type': 'auto_retry_end', 'success': False, 'attempt': 10, 'finalError': error}])
+                    {'type': 'auto_retry_end', 'success': False, 'attempt': 10, 'finalError': error}, settled(aborted=error == 'Retry cancelled'), end(), settled()])
                 with self.assertRaisesRegex(USessionError, error):
                     await session.prompt('original')
                 self.assertEqual(len(process.getvalue().splitlines()), 1)
                 self.assertIsNone(session.pi_session.agent.on_event)
+                self.assertEqual(await session.prompt('next turn'), 'advice')
 
     async def test_permanent_error_and_abort_do_not_wait_for_retry(self):
         for error, reason in [('401 invalid API key', 'error'), ('cancelled', 'aborted'),
                               ('Provider returned error: maximum context length is 500 tokens', 'error')]:
             with self.subTest(error=error):
-                session, process = self.session([end(error, reason), end()])
+                session, process = self.session([end(error, reason), settled(aborted=reason == 'aborted'), end(), settled()])
                 with self.assertRaisesRegex(USessionError, error):
                     await session.prompt('original')
                 self.assertTrue(self.lines)
+                self.assertEqual(await session.prompt('next turn'), 'advice')
 
     def test_retry_settings(self):
         from importlib.resources import files

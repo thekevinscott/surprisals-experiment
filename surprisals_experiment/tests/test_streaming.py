@@ -33,7 +33,8 @@ for kind, text in [('thinking_delta', 'THINKING_BEFORE_END'), ('text_delta', 'TE
     print(json.dumps({'type':'message_update', 'assistantMessageEvent':{'type':kind, 'delta':text}}), flush=True)
 while not Path(sys.argv[1]).exists():
     time.sleep(.01)
-print(json.dumps({'type':'agent_end', 'messages':[{'role':'assistant', 'stopReason':'stop', 'content':[{'type':'text','text':'TEXT_BEFORE_END'}]}]}), flush=True)
+print(json.dumps({'type':'agent_end', 'willRetry':False, 'messages':[{'role':'assistant', 'stopReason':'stop', 'content':[{'type':'text','text':'TEXT_BEFORE_END'}]}]}), flush=True)
+print(json.dumps({'type':'agent_settled', 'aborted':False}), flush=True)
 sys.stdin.read()
 """
 
