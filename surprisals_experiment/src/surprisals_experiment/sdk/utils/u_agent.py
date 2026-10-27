@@ -5,8 +5,6 @@ from collections.abc import Callable
 
 from botbox import PiAgent
 
-from .u_retryable import u_retryable
-
 
 class UAgent(PiAgent):
     def __init__(self, provider: str, model: str, *, api_key: str, thinking: str):
@@ -25,11 +23,4 @@ class UAgent(PiAgent):
         # Botbox calls this for every parsed event, before buffering the next one.
         if self.on_event is not None:
             self.on_event(event)
-        if event["type"] == "auto_retry_end":
-            return not event["success"]
-        if event["type"] == "agent_end":
-            assistant = next((m for m in reversed(event.get("messages", []))
-                              if m["role"] == "assistant"), None)
-            if assistant is not None and u_retryable(assistant):
-                return False
         return super().turn_ended(event)
