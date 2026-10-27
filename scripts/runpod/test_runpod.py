@@ -86,3 +86,40 @@ def test_teardown_api_failure(fake_http):
     fake_http.return_value = response(403)
     with pytest.raises(httpx.HTTPStatusError):
         teardown.main(["pod1"])
+
+
+def test_readiness_transport_retry(fake_http):
+    fake_http.side_effect = [
+        response(body={"id": "pod1"}),
+        httpx.ConnectError("not listening yet"),
+        response(),
+    ]
+    setup.main([])
+    assert fake_http.call_count == 3
+
+
+def test_create_failure_does_not_delete(fake_http):
+    fake_http.return_value = response(500)
+    with pytest.raises(httpx.HTTPStatusError):
+        setup.main([])
+    assert fake_http.call_count == 1
+
+
+def test_api_key_stays_on_control_plane(fake_http):
+    fake_http.side_effect = [response(body={"id": "pod1"}), response()]
+    setup.main([])
+    assert fake_http.call_args_list[0].kwargs["headers"]["Authorization"] == "Bearer test-key"
+    assert "Authorization" not in fake_http.call_args_list[1].kwargs["headers"]
+
+
+def test_loads_repo_env(monkeypatch):
+    load = Mock()
+    monkeypatch.setattr(teardown, "load_dotenv", load)
+    monkeypatch.setenv("RUNPOD_API_KEY", "fake")
+    # autouse replaces api_key; exercise the real function via a fresh module.
+    spec = importlib.util.spec_from_file_location("fresh_teardown", Path(teardown.__file__))
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)
+    monkeypatch.setattr(fresh, "load_dotenv", load)
+    assert fresh.api_key() == "fake"
+    load.assert_called_once_with(Path(teardown.__file__).resolve().parents[2] / ".env")
