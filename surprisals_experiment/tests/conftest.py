@@ -31,8 +31,9 @@ class Script:
 
 
 class FakeSession:
-    def __init__(self, agent, mounts, script):
+    def __init__(self, agent, mounts, output, script):
         self.agent = agent
+        self.output = Path(output)
         self.mounts = {target: Path(source) for source, target, _ in mounts}
         self.script = script
         self.is_u = isinstance(agent, UAgent)
@@ -69,10 +70,12 @@ class FakeSession:
 
     def close(self):
         self.closed = True
-        return RunResult(stdout='', stderr='', exit_code=0,
-                         transcript={'session.jsonl': '\n'.join(
-                             json.dumps({'prompt': text}) for text in self.messages)},
-                         proxy='', image='fake-image')
+        (self.output / 'transcripts').mkdir(parents=True, exist_ok=True)
+        (self.output / 'transcripts/session.jsonl').write_text('\n'.join(
+            json.dumps({'prompt': text}) for text in self.messages))
+        for name in ('stdout.txt', 'stderr.txt', 'proxy.log'):
+            (self.output / name).write_text('')
+        return RunResult(exit_code=0)
 
 
 @pytest.fixture(autouse=True)
@@ -90,8 +93,8 @@ def botbox_script(monkeypatch):
         async def __aexit__(self, *args):
             pass
 
-        def session(self, *, mounts, workdir):
-            return FakeSession(self.agent, mounts, script)
+        def session(self, *, mounts, workdir, output):
+            return FakeSession(self.agent, mounts, output, script)
 
     monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_session'),
                         'Botbox', FakeBotbox)

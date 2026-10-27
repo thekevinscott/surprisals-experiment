@@ -44,6 +44,9 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
     async def test_session_mounts_and_failure_diagnostics(self):
         opened = []
         class Session:
+            def __init__(self, output):
+                self.output = output
+
             async def __aenter__(self):
                 return self
 
@@ -52,8 +55,9 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
 
             def close(self):
                 assert opened[-1][0][-1][0].exists(), "Remove snapshots only after Pi closes"
-                return RunResult(exit_code=1, stdout='', stderr='failure', image='test-image', proxy='proxy-log',
-                                              transcript={'.pi/agent/sessions/test.jsonl':'session-history\n'})
+                self.output.mkdir(parents=True, exist_ok=True)
+                (self.output/'stderr.txt').write_text('failure')
+                return RunResult(exit_code=1)
         class Box:
             def __init__(self, agent, *, dockerfile):
                 self.agent = agent
@@ -62,9 +66,9 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
                 return self
             async def __aexit__(self, *exc):
                 pass
-            def session(self, *, mounts, workdir):
+            def session(self, *, mounts, workdir, output):
                 opened.append((mounts, workdir))
-                return Session()
+                return Session(output)
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             config = Config(u_mode='agent', api_key='dummy', problem_dir=root/'problem', output=root/'run',
@@ -88,8 +92,6 @@ class USessionTest(unittest.IsolatedAsyncioTestCase):
                         raise RuntimeError('test failure')
             self.assertFalse((config.output/'u_run.json').exists())
             self.assertEqual(stderr.getvalue(), 'failure')
-            self.assertEqual((config.output/'proxy_logs/u.log').read_text(), 'proxy-log')
-            self.assertEqual((config.output/'u_transcripts/.pi/agent/sessions/test.jsonl').read_text(), 'session-history\n')
             self.assertFalse(opened[0][0][0][0].exists())
             self.assertFalse(opened[0][0][-1][0].exists())
             self.assertFalse((config.output/'u_solutions').exists())

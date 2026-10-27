@@ -19,7 +19,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from botbox import Session, RunResult
-from botbox.docker.Capture import Capture
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.u_session import USession
 from surprisals_experiment.sdk import prompt_t
@@ -40,24 +39,18 @@ sys.stdin.read()
 
 @asynccontextmanager
 async def session(agent):
-    async with Capture(bytearray()) as stdout, Capture(bytearray()) as stderr:
-        process = await asyncio.create_subprocess_exec(
-            sys.executable, '-c', child, str(root/'release'),
-            stdin=asyncio.subprocess.PIPE, stdout=stdout.write, stderr=stderr.write,
-        )
-        stdout.release()
-        stderr.release()
-        client = asyncio.create_task(process.wait())
-        live = Session(agent, process.stdin, stdout, stderr.into, client)
-        try:
-            yield live
-        finally:
-            process.stdin.close()
-            code = await client
-            await stdout.eof
-            await stderr.eof
-        live.result = RunResult(stdout.into.decode(), stderr.into.decode(), code,
-                                {'session.jsonl': 'saved transcript'}, 'proxy log', 'image')
+    process = await asyncio.create_subprocess_exec(
+        sys.executable, '-c', child, str(root/'release'),
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+    )
+    client = asyncio.create_task(process.wait())
+    live = Session(agent, process.stdin, client, process.stdout.readline)
+    try:
+        yield live
+    finally:
+        process.stdin.close()
+        code = await client
+    live.result = RunResult(code)
 
 async def experiment(config, *, on_delta, on_t_delta):
     if actor == 'T':
@@ -68,18 +61,17 @@ async def experiment(config, *, on_delta, on_t_delta):
                 return self
             async def __aexit__(self, *args):
                 pass
-            def session(self, *, mounts, workdir):
+            def session(self, *, mounts, workdir, output):
                 import shlex
                 args = shlex.split(self.agent.session_command())
                 assert args[args.index('--mode') + 1] == 'rpc'
                 assert '--append-system-prompt' in args
                 assert workdir == '/solution'
+                assert output == root/'logs'
                 return session(self.agent)
         with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
-            result = await prompt_t(config, 'question', output=root/'solution', on_delta=on_t_delta)
+            result = await prompt_t(config, 'question', output=root/'solution', logs=root/'logs', on_delta=on_t_delta)
         assert result.exit_code == 0
-        assert result.transcript == {'session.jsonl': 'saved transcript'}
-        assert result.proxy == 'proxy log'
         return
     agent = UAgent('openrouter', 'unused', api_key='dummy', thinking='high')
     async with session(agent) as pi_session:

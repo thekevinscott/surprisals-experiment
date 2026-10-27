@@ -2,11 +2,11 @@ import asyncio
 import io
 import json
 import unittest
+from collections import deque
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
 from botbox import Session
-from botbox.docker.Capture import Capture
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.u_session import USession, USessionError
 
@@ -21,14 +21,15 @@ def end(error=None, reason='error'):
 
 class RetryTest(unittest.IsolatedAsyncioTestCase):
     def session(self, events):
-        data = bytearray(''.join(json.dumps(e) + '\n' for e in events).encode())
-        output = Capture(data)
+        self.lines = deque((json.dumps(e) + '\n').encode() for e in events)
         written = io.BytesIO()
         writer = Mock(drain=AsyncMock())
         writer.write.side_effect = written.write
         agent = UAgent('openrouter', 'test', api_key='dummy', thinking='high')
         client = asyncio.get_running_loop().create_future()
-        session = Session(agent, writer, output, bytearray(), client)
+        async def readline():
+            return self.lines.popleft() if self.lines else b''
+        session = Session(agent, writer, client, readline)
         return USession(session, Path()), written
 
     async def test_recovery_sends_prompt_once_and_next_turn_stays_separate(self):
@@ -46,7 +47,6 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await session.prompt('feedback'), 'advice')
         self.assertEqual(len(process.getvalue().splitlines()), 2)
         self.assertIsNone(session.pi_session.agent.on_event)
-        self.assertIn('terminated', session.pi_session.stdout.into.decode())
 
     async def test_exhaustion_and_cancellation_stop(self):
         for error in ('terminated', 'Retry cancelled'):
@@ -65,7 +65,7 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
                 session, process = self.session([end(error, reason), end()])
                 with self.assertRaisesRegex(USessionError, error):
                     await session.prompt('original')
-                self.assertLess(session.pi_session.read, len(session.pi_session.stdout.into))
+                self.assertTrue(self.lines)
 
     def test_retry_settings(self):
         from importlib.resources import files

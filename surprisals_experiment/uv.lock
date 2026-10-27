@@ -47,10 +47,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.1.6"
-source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=666d627fbf1f1cbddb0773cf9bc7d01b067f0e38#666d627fbf1f1cbddb0773cf9bc7d01b067f0e38" }
+version = "0.1.70"
+source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=9b9c59976ec5540431e5998ac0762a7e8786b426#9b9c59976ec5540431e5998ac0762a7e8786b426" }
 dependencies = [
     { name = "json5" },
+    { name = "posix-tools" },
 ]
 
 [[package]]
@@ -259,6 +260,15 @@ wheels = [
 ]
 
 [[package]]
+name = "posix-tools"
+version = "0.0.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/85/c7fa03485a6a5bf1ea148ab4311c692755bc0549736f0983f8ab5320d20b/posix_tools-0.0.10.tar.gz", hash = "sha256:b8235614ccec1a8ed8f3ec85532a666203d72dcd33ac838c2c6a5493d41bf290", size = 28590, upload-time = "2026-10-26T01:53:26.772Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/4c/aee0336f197751dfecdcbd7082bd582121248848e17b75cd550695010e56/posix_tools-0.0.10-py3-none-any.whl", hash = "sha256:c73d07b754a8f3942b1b98a671c30f57785f8445785917f94e883c3cc492da7c", size = 5421, upload-time = "2026-10-26T01:53:25.43Z" },
+]
+
+[[package]]
 name = "pydantic"
 version = "2.14.1"
 source = { registry = "https://pypi.org/simple" }
@@ -434,7 +444,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=666d627fbf1f1cbddb0773cf9bc7d01b067f0e38" },
+    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=9b9c59976ec5540431e5998ac0762a7e8786b426" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },

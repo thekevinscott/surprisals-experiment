@@ -47,8 +47,8 @@ def convert_message(message):
     return AssistantMessage(content=blocks, model=message["model"], tool_calls=calls or None)
 
 
-def transcript(directory, metadata):
-    sessions = sorted(directory.rglob("*.jsonl"))
+def transcript(directories, metadata):
+    sessions = next((found for d in directories if (found := sorted(d.rglob("*.jsonl")))), [])
     if not sessions:
         return None
     messages = [
@@ -79,7 +79,8 @@ def convert(run):
             "exit_code": record["exit_code"],
             "settings": json.loads((problem_run / "settings.json").read_text()),
         }
-        u = transcript(problem_run / "u_transcripts", base | {
+        # Runs before botbox 0.1.70 used u_transcripts/ and t_transcripts/.
+        u = transcript([problem_run / "u/transcripts", problem_run / "u_transcripts"], base | {
             "agent": "U", "success": result.get("success"), "attempts": result.get("attempts"),
         })
         agent_runs.append(u) if u else missing.append(f"{base['problem_run']} U")
@@ -91,7 +92,7 @@ def convert(run):
             accepted = [m for m in accepted if not m["rejected"]]
             tests_file = sample / "tests.json"
             tests = json.loads(tests_file.read_text()) if tests_file.exists() else None
-            t = transcript(sample / "t_transcripts", base | {
+            t = transcript([sample / "transcripts", sample / "t_transcripts"], base | {
                 "agent": "T",
                 "attempt": int(attempt.name),
                 "sample": int(sample.name),

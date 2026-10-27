@@ -36,7 +36,7 @@ def describe_u_to_t_loop():
             attempt = config.attempt_dir(i)
             tests = json.loads((config.t_dir(i, 0) / 'tests.json').read_text())
             assert tests['passed'] == (2 if i == failures else 0)
-            assert (config.t_dir(i, 0) / 't_transcripts/session.jsonl').exists()
+            assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = (attempt / 'feedback.txt').read_text()
                 assert 'passed 0 of 2 tests' in feedback

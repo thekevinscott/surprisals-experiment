@@ -49,10 +49,10 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
             await run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, self.root)
 
     async def attempt(self, exit_code):
-        def t(config, advice, *, output, on_delta=None):
+        def t(config, advice, *, output, logs, on_delta=None):
             output.mkdir()
             (output/'main.py').write_text('print(7)')
-            return RunResult('', '', exit_code, {}, 'proxy', 'image')
+            return RunResult(exit_code)
         self.config.test_suite_file.write_text(json.dumps({'inputs': [''], 'outputs': ['7']}))
         with patch(ATTEMPT+'prompt_t', side_effect=t), \
              patch(EXPERIMENT+'prepare_advice', return_value='Print 7'):
@@ -89,14 +89,14 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(args[args.index('--thinking') + 1], level)
 
     async def test_prompt_t_has_no_sibling_artifact_writes(self):
-        result = RunResult('', '', 1, {'same.jsonl': 'transcript'}, 'proxy', 'image')
+        result = RunResult(1)
         with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox') as box:
             live = MagicMock(result=result)
             box.return_value.__aenter__.return_value.session = MagicMock()
             box.return_value.__aenter__.return_value.session.return_value.__aenter__.return_value = live
             live.message = AsyncMock()
             for name in ['first', 'second']:
-                self.assertIs(await prompt_t(self.config, 'advice', output=self.root/name), result)
+                self.assertIs(await prompt_t(self.config, 'advice', output=self.root/name, logs=self.root/f'{name}-logs'), result)
                 self.assertTrue((self.root/name).is_dir())
         self.assertFalse((self.root/'run.json').exists())
         self.assertFalse((self.root/'t_transcripts').exists())

@@ -13,7 +13,6 @@ from openai import AsyncOpenAI
 from ..u_agent import UAgent
 from ..u_chat import ChatSession
 from ..botbox_session import botbox_session
-from ..transcripts import save_transcripts
 from .u_session import USession
 
 RESOURCES = Path(str(files("surprisals_experiment")))
@@ -52,13 +51,9 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
             async with botbox_session(
                 agent, dockerfile=RESOURCES / "docker/U/Dockerfile",
                 mounts=[(system_prompt, "/u-config/u.txt", "ro"), (solutions, "/solutions", "ro")],
-                workdir="/solutions",
+                workdir="/solutions", output=config.u_dir,
             ) as pi_session:
                 yield USession(pi_session, solutions)
         finally:
             if pi_session is not None and pi_session.result is not None:
-                result = pi_session.result
-                print(result.stderr, file=sys.stderr, end="", flush=True)
-                save_transcripts(result.transcript, config.u_transcripts)
-                config.u_proxy_log.parent.mkdir(parents=True, exist_ok=True)
-                config.u_proxy_log.write_text(result.proxy)
+                print((config.u_dir / "stderr.txt").read_text(), file=sys.stderr, end="", flush=True)
