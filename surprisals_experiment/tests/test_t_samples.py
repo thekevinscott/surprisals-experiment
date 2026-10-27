@@ -42,7 +42,7 @@ def describe_n_of_t():
             assert (directory / 'transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
-        assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3}
+        assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3, 'llm_retries': 10}
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n

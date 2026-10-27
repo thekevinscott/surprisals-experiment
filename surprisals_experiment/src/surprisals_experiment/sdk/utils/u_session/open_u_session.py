@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from openai import AsyncOpenAI
+from surprisals_experiment.retry_policy import RetryPolicy
 
 from ..u_agent import UAgent
 from ..u_chat import ChatSession
@@ -32,11 +33,13 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
         if config.u_mode == "chat":
             async with AsyncOpenAI(
                 base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
+                max_retries=0,
             ) as client:
                 config.u_transcripts.mkdir(parents=True, exist_ok=True)
                 u_session = ChatSession(
                     client, config.u_model, config.u_thinking, solutions,
                     config.u_transcripts / "messages.jsonl",
+                    retry_policy=RetryPolicy(config.llm_retries),
                     compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
                 )
                 u_session.record({"role": "system", "content": prompt})
@@ -45,7 +48,8 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
         system_prompt = workspace / "u.txt"
         system_prompt.write_text(prompt)
         agent = UAgent(provider="openrouter", model=config.u_model,
-                       api_key=config.api_key.get_secret_value(), thinking=config.u_thinking)
+                       api_key=config.api_key.get_secret_value(), thinking=config.u_thinking,
+                       llm_retries=config.llm_retries)
         pi_session = None
         try:
             async with botbox_session(

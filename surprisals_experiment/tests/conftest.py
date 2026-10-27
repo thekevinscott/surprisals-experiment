@@ -147,6 +147,13 @@ def chat_provider(monkeypatch, botbox_script):
                 'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
             })
         stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
+        if isinstance(reply, dict) and reply.get('drop_stream'):
+            class DroppedStream(httpx2.AsyncByteStream):
+                async def __aiter__(self):
+                    yield stream.encode()
+                    raise httpx2.RemoteProtocolError('stream disconnected')
+            return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
+                                   stream=DroppedStream())
         return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
                               content=stream + 'data: [DONE]\n\n')
 

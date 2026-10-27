@@ -432,6 +432,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "botbox" },
+    { name = "httpx2" },
     { name = "measure-surprisal" },
     { name = "openai" },
     { name = "pydantic" },
@@ -449,6 +450,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", specifier = ">=0.1.72" },
+    { name = "httpx2", specifier = ">=2.16.0" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },

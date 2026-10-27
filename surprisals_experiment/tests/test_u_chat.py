@@ -89,6 +89,7 @@ def describe_chat_u():
         config, botbox_script, finish,
     ):
         config.u_mode = 'chat'
+        config.llm_retries = 0
         botbox_script.advice.append({
             'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': finish,
         })
@@ -177,6 +178,7 @@ def describe_chat_u():
     @pytest.mark.parametrize('deltas', [[], [{'role': 'assistant'}]])
     async def it_does_not_accept_empty_replies(config, botbox_script, deltas):
         config.u_mode = 'chat'
+        config.llm_retries = 0
         botbox_script.advice.append({'deltas': deltas, 'finish': None})
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
@@ -223,6 +225,7 @@ def describe_chat_u_roles():
     @pytest.mark.parametrize('finish', [None, 'length'])
     async def it_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, finish):
         config.u_mode = 'chat'
+        config.llm_retries = 0
         botbox_script.advice.append({
             'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
             'finish': finish,

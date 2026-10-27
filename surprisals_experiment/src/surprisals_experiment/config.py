@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
+from .retry_policy import DEFAULT_LLM_RETRIES
+
 ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
 U_MODEL = "xiaomi/mimo-v2.6-pro"
@@ -17,6 +19,7 @@ class Config(BaseModel):
     api_key: SecretStr
     problem_dir: Path
     output: Path
+    llm_retries: int = Field(default=DEFAULT_LLM_RETRIES, ge=0)
     u_mode: Literal["chat", "agent"] = "agent"
     u_model: str
     u_thinking: ThinkingLevel
@@ -34,6 +37,7 @@ class Config(BaseModel):
         self.output.mkdir(parents=True, exist_ok=True)
         (self.output / "settings.json").write_text(json.dumps({
             "u_mode": self.u_mode,
+            "llm_retries": self.llm_retries,
             "t_samples": self.t_samples,
             "t_sample_retries": self.t_sample_retries,
         }, indent=2) + "\n")

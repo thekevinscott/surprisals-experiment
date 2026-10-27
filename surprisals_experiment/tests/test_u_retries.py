@@ -74,8 +74,9 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await session.prompt('next turn'), 'advice')
 
     def test_retry_settings(self):
-        from importlib.resources import files
-        settings = json.loads((files('surprisals_experiment') / 'docker/U/settings.json').read_text())['retry']
-        self.assertTrue(settings['enabled'])
-        self.assertEqual(settings['maxRetries'], 10)
-        self.assertLessEqual(settings['baseDelayMs'] * 2**9, 60000)
+        from surprisals_experiment.retry_policy import RetryPolicy
+        policy = RetryPolicy()
+        self.assertEqual(policy.retries, 10)
+        self.assertEqual([policy.delay(i) for i in range(1, 11)],
+                         [5, 10, 20, 40, 60, 60, 60, 60, 60, 60])
+        self.assertEqual(sum(policy.delay(i) for i in range(1, 11)), 435)

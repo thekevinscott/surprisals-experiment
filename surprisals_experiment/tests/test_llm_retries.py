@@ -20,6 +20,7 @@ def no_retry_wait(monkeypatch):
 
 
 @pytest.mark.parametrize('failure', [
+    {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None, 'drop_stream': True},
     {'status': 429}, {'status': 500}, {'status': 503},
     httpx2.ConnectError('Connection error'),
     {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None},
@@ -86,3 +87,20 @@ async def test_cli_retry_flag(monkeypatch, tmp_path):
     for options in ([], ['--llm-retries', '3']):
         await cli.main(['--output', str(tmp_path / 'run'), *options, 'problem', str(tmp_path)])
     assert received == [10, 3]
+
+
+async def test_retry_count_reaches_both_agent_call_sites(config, botbox_script):
+    from surprisals_experiment.sdk.prompt_t import prompt_t
+    config.llm_retries = 4
+    async with open_u_session(config) as session:
+        assert session.pi_session.agent.retry_policy.retries == 4
+    botbox_script.solutions.append("print(1)")
+    await prompt_t(config, 'advice', output=config.output / 'src', logs=config.output / 't')
+    assert botbox_script.t_sessions[-1].agent.retry_policy.retries == 4
+
+
+def test_negative_retries_are_rejected(config):
+    from pydantic import ValidationError
+    from surprisals_experiment.config import Config
+    with pytest.raises(ValidationError):
+        Config(**{**config.model_dump(), 'llm_retries': -1})
