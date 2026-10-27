@@ -19,8 +19,6 @@ async def main(argv: list[str] | None = None) -> None:
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
     )
-    parser.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
-                        help="U interface (default: agent)")
     parser.add_argument("--u-compact-chars", type=int, default=400000,
                         help="Chat U conversation compaction threshold; 0 disables (default: 400000)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
@@ -43,6 +41,8 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
+    problem.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
+                         help="U interface (default: agent)")
     source = problem.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
