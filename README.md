@@ -113,3 +113,26 @@ The chat U compaction e2e test makes live OpenRouter calls (requires `OPENROUTER
 Review the advice-minimization behavior, then evaluate it in live runs before adding surprisal scoring.
 
 Chat U compacts its history before a request when the serialized messages (including reasoning) plus the pending request exceed `--u-compact-chars` (default 400000; 0 disables). It asks U for a summary under 2,000 characters, then keeps the original system prompt and question, that summary, and the exact best successful advice, length, and no-improvement count from the experiment. The pending request is sent unchanged. Agent mode keeps Pi’s own compaction. The full history, summary request/reply, and new preamble remain in `u_transcripts/messages.jsonl`. A summary over 2,000 characters is kept as is. If the summary request fails, compaction goes ahead with the error in place of the summary; the measured state is still exact. This is a soft character trigger, not a token limit: the preserved question, best advice, and latest feedback can themselves exceed it.
+
+## Shared RunPod scorer
+
+The [runpod_scorer package](runpod_scorer/README.md) owns one scorer per
+labnotes invocation directory. Its runpod.json records the pod ID immediately
+and adds the endpoint once ready; a file lock prevents concurrent creation.
+
+~~~bash
+uv run --project runpod_scorer runpod-scorer up runs/my-invocation
+uv run --project runpod_scorer runpod-scorer down runs/my-invocation
+uv run --project runpod_scorer pytest runpod_scorer/tests
+~~~
+
+Run each cell through runpod_scorer/run-cell.sh <invocation_dir> <full command>.
+Character cells pass through unchanged. Labnotes' setup hook starts the scorer
+before any cell runs, including for characters-only invocations. Surprisal cells
+still call up to reuse the ready pod and inject its URL; they never delete it.
+Labnotes' teardown hook owns deletion after all cells finish. For a single run use its run directory,
+then call down explicitly.
+
+See the package README for intended experiment.toml setup/command/teardown lines,
+single-run commands and the PR #51 flag dependency. No experiment TOML or
+experiment-package code is changed by this integration.
