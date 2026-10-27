@@ -1,6 +1,7 @@
 {
   "providers": {
     "openrouter": {
+      "baseUrl": "http://127.0.0.1:41894/api/v1",
       "models": [
         {
           "id": "xiaomi/mimo-v2.6-pro",
