@@ -47,8 +47,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.1.70"
-source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=9b9c59976ec5540431e5998ac0762a7e8786b426#9b9c59976ec5540431e5998ac0762a7e8786b426" }
+version = "0.1.72"
+source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=6b243bd9c9f636a5493f404e9f5d6fe8606deb65#6b243bd9c9f636a5493f404e9f5d6fe8606deb65" }
 dependencies = [
     { name = "json5" },
     { name = "posix-tools" },
@@ -444,7 +444,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=9b9c59976ec5540431e5998ac0762a7e8786b426" },
+    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=6b243bd9c9f636a5493f404e9f5d6fe8606deb65" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },
