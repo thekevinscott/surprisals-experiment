@@ -16,8 +16,7 @@ class TAgent(PiAgent):
         self.on_delta = on_delta
 
     def session_command(self) -> str:
-        # Unlike PiAgent's, keeps message_update events: they carry the live deltas.
-        return self._pi("--mode rpc --append-system-prompt " + shlex.quote(self.instructions))
+        return super().session_command() + " --append-system-prompt " + shlex.quote(self.instructions)
 
     def turn_ended(self, event: dict) -> bool:
         receive_event(event, on_delta=self.on_delta)
