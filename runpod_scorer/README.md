@@ -46,14 +46,17 @@ shared, so cell success or failure must not delete it.
 Intended experiment.toml lines (documentation only; no TOML is changed):
 
 ~~~toml
+setup = "uv run --project runpod_scorer runpod-scorer up {invocation_dir}"
 command = '''runpod_scorer/run-cell.sh "{invocation_dir}" uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --measure {measure} --output "{run_dir}" problem --problem-dir {problem_dir}'''
 teardown = "uv run --project runpod_scorer runpod-scorer down {invocation_dir}"
 ~~~
 
 Measure belongs in the existing sanity-check matrix, not a separate
 experiment. This assumes labnotes provides invocation_dir to commands and
-hooks and runs teardown once after every cell ends. No setup hook is needed:
-the first surprisal cell starts the pod lazily. The surprisal flags require
+hooks, waits for setup before any cell runs, and runs teardown once after every
+cell ends. With this setup hook, even a characters-only invocation starts a pod.
+Surprisal cells still call up: it reuses the ready pod, and this call also lets
+single runs without labnotes start their own scorer. The surprisal flags require
 PR #51; these changes do not modify that PR.
 
 For a single run, use its run directory as the invocation directory, then

@@ -125,11 +125,12 @@ uv run --project runpod_scorer pytest runpod_scorer/tests
 ~~~
 
 Run each cell through runpod_scorer/run-cell.sh <invocation_dir> <full command>.
-Character cells pass through unchanged. Surprisal cells lazily start/reuse
-the scorer and inject its URL; they never delete it. Labnotes' teardown hook
-owns deletion after all cells finish. For a single run use its run directory,
+Character cells pass through unchanged. Labnotes' setup hook starts the scorer
+before any cell runs, including for characters-only invocations. Surprisal cells
+still call up to reuse the ready pod and inject its URL; they never delete it.
+Labnotes' teardown hook owns deletion after all cells finish. For a single run use its run directory,
 then call down explicitly.
 
-See the package README for intended experiment.toml command/teardown lines,
+See the package README for intended experiment.toml setup/command/teardown lines,
 single-run commands and the PR #51 flag dependency. No experiment TOML or
 experiment-package code is changed by this integration.
