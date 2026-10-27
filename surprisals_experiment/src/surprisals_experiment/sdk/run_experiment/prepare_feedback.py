@@ -21,8 +21,9 @@ def prepare_feedback(
         ending = "; timed out on every try and wrote no solution." if (
             (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
         ) else "."
+        location = f"solution in /solutions/{attempt}/{index}; " if config.u_mode == "agent" else ""
         evaluations.append(
-            f"T {index}: solution in /solutions/{attempt}/{index}; "
+            f"T {index}: {location}"
             f"passed {sample.passed} of {sample.total} tests{ending}"
         )
     feedback = config.advice_measure.render(TEMPLATE).format(

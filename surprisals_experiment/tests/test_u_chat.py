@@ -71,9 +71,10 @@ def describe_chat_u():
         assert len(botbox_script.t_sessions) == 4
         feedback = chat_provider[1]['messages'][-1]['content']
         assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
+        assert '/solutions/' not in feedback
         assert 'Your advice was 11 characters' in feedback
-        assert 'T 0: solution in /solutions/0/0; passed 0 of 2 tests.' in feedback
-        assert 'T 1: solution in /solutions/0/1; passed 2 of 2 tests.' in feedback
+        assert 'T 0: passed 0 of 2 tests.' in feedback
+        assert 'T 1: passed 2 of 2 tests.' in feedback
         assert feedback.count('"helper.py": "VALUE = 42\\n"') == 2
         assert feedback.count('"nested/extra.py": "EXTRA = 7\\n"') == 2
         assert json.dumps(failed_code) in feedback
