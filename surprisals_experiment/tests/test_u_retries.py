@@ -77,6 +77,3 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
         from surprisals_experiment.retry_policy import RetryPolicy
         policy = RetryPolicy()
         self.assertEqual(policy.retries, 10)
-        self.assertEqual([policy.delay(i) for i in range(1, 11)],
-                         [5, 10, 20, 40, 60, 60, 60, 60, 60, 60])
-        self.assertEqual(sum(policy.delay(i) for i in range(1, 11)), 435)

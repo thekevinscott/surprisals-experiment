@@ -146,6 +146,8 @@ def chat_provider(monkeypatch, botbox_script):
                 'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
                 'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
             })
+        if isinstance(reply, dict) and 'stream_error' in reply:
+            chunks.append({'error': reply['stream_error']})
         stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
         if isinstance(reply, dict) and reply.get('drop_stream'):
             class DroppedStream(httpx2.AsyncByteStream):

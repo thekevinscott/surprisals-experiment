@@ -24,6 +24,8 @@ def no_retry_wait(monkeypatch):
     {'status': 429}, {'status': 500}, {'status': 503},
     httpx2.ConnectError('Connection error'),
     {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None},
+    {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None,
+     'stream_error': {'code': 502, 'message': 'Provider returned error'}},
 ])
 async def test_chat_retries_transient_calls(config, botbox_script, chat_provider, no_retry_wait, failure):
     config.u_mode = 'chat'
@@ -38,10 +40,11 @@ async def test_chat_retries_transient_calls(config, botbox_script, chat_provider
         assert 'partial' in (config.u_transcripts / 'messages.jsonl').read_text()
 
 
-@pytest.mark.parametrize('status', [400, 401, 403])
-async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provider, no_retry_wait, status):
+@pytest.mark.parametrize('failure', [{'status': 400}, {'status': 401}, {'status': 403},
+    {'deltas': [], 'finish': None, 'stream_error': {'code': 400, 'message': 'provider failed'}}])
+async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provider, no_retry_wait, failure):
     config.u_mode = 'chat'
-    botbox_script.advice.extend([{'status': status}, 'unused'])
+    botbox_script.advice.extend([failure, 'unused'])
     with pytest.raises(RuntimeError, match='provider failed'):
         async with open_u_session(config) as session:
             await session.prompt('question')
@@ -49,7 +52,7 @@ async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provi
     no_retry_wait.assert_not_awaited()
 
 
-@pytest.mark.parametrize('retries', [0, 2])
+@pytest.mark.parametrize('retries', [0, 2, 10])
 async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, retries):
     config.u_mode = 'chat'
     config.llm_retries = retries
@@ -58,7 +61,7 @@ async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_w
         async with open_u_session(config) as session:
             await session.prompt('question')
     assert len(chat_provider) == retries + 1
-    assert [c.args[0] for c in no_retry_wait.await_args_list] == [5, 10][:retries]
+    assert [c.args[0] for c in no_retry_wait.await_args_list] == [5, 10, 20, 40, 60, 60, 60, 60, 60, 60][:retries]
 
 
 @pytest.mark.parametrize('agent_type', [UAgent, TAgent])

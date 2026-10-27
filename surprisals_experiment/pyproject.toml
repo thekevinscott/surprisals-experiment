@@ -9,11 +9,11 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "botbox>=0.1.72",
-    "httpx2>=2.16.0",
     "measure-surprisal>=0.1.0",
     "openai>=3.37.0",
     "pydantic>=2",
     "python-dotenv>=1.2.4",
+    "tenacity>=9.2.1",
 ]
 
 [build-system]

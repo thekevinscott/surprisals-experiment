@@ -57,7 +57,7 @@ Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). 
 
 Each sample stores its source, transcripts, diagnostics, and tests under `attempts/<attempt>/t_samples/<index>/`. U receives all per-sample test counts after every completed batch, with inline source in chat mode or source paths in agent mode. Temporary snapshots are `/solutions/<attempt>/<sample>` for every sample, with the corresponding advice at `/solutions/<attempt>/advice.txt`. All earlier attempts remain accessible; tests and expected outputs remain hidden.
 
-An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume or added infrastructure retry policy in this change. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes only the U mode and requested T count to `settings.json`.
+An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume. LLM calls (chat U, and Pi for agent U and T) retry transient failures `--llm-retries` times (default 10) with 5–60 s exponential backoff before the exception ends the run. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
 
 ## U chat and agent modes
 
