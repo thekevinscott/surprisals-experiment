@@ -11,7 +11,10 @@ class UAgent(RetryingPiAgent):
     def __init__(self, provider: str, model: str, *, api_key: str, thinking: str,
                  llm_retries: int = DEFAULT_LLM_RETRIES):
         super().__init__(provider, model=model, api_key=api_key,
-                         llm_retries=llm_retries, compaction=False)
+                         llm_retries=llm_retries,
+                         # Pi compacts above contextWindow - reserveTokens:
+                         # 1,048,576 - 917,504 = 131,072 tokens for the configured MiMo model.
+                         compaction={"enabled": True, "reserveTokens": 917504})
         self.thinking = thinking
         self.on_event: Callable[[dict], None] | None = None
 
