@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-DEFAULT_LLM_RETRIES = 10
+DEFAULT_LLM_RETRIES = 60
 
 
 @dataclass(frozen=True)
