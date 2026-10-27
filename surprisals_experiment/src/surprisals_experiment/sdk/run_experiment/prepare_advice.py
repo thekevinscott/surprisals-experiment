@@ -16,9 +16,10 @@ async def prepare_advice(
     advice = await u_session.prompt(prompt, on_delta=on_delta)
     directory = config.advice_dir(attempt, 0)
     save_advice(directory, advice)
-    measurement = await config.advice_measure.score(advice, on_delta=on_delta)
+    measurement, tokens = await config.advice_measure.score(advice, on_delta=on_delta)
     (directory / "metadata.json").write_text(json.dumps({
         "rejected": False,
         "measurement": measurement,
+        **({"tokens": tokens} if tokens is not None else {}),
     }, indent=2) + "\n")
     return advice, measurement

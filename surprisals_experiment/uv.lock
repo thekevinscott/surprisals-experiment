@@ -222,8 +222,8 @@ wheels = [
 
 [[package]]
 name = "measure-surprisal"
-version = "0.1.0"
-source = { git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78#4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" }
+version = "0.2.0"
+source = { git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9#7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" }
 dependencies = [
     { name = "openai" },
 ]
@@ -450,7 +450,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", specifier = ">=0.1.72" },
-    { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
+    { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },

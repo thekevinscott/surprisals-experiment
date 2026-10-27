@@ -80,7 +80,7 @@ async def test_saved_advice_scores_on_real_scorer(runpod_scorer, advice_paths):
     async with asyncio.timeout(600):
         for path in advice_paths:
             advice = path.read_text()
-            bits = await measure.score(advice)
+            bits, _ = await measure.score(advice)
             assert math.isfinite(bits) and bits > 0
             scores.append(bits)
             print(json.dumps({"event": "score", "source": str(path),

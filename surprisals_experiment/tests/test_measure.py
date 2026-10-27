@@ -1,5 +1,6 @@
 import importlib
 import json
+import re
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -37,7 +38,9 @@ def test_surprisal_requires_endpoint(config):
 @pytest.mark.parametrize("mode", ["chat", "agent"])
 async def test_bits_drive_improvement_feedback_and_result(config, botbox_script, monkeypatch, mode):
     module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
-    scorer = AsyncMock(side_effect=[10.5, 8.25, 8.25])
+    scorer = AsyncMock(side_effect=[
+        [("tiny", 10.5)], [("much longer but fewer bits", 8.25)], [("equal bits", 8.25)],
+    ])
     monkeypatch.setattr(module, "measure_surprisal", scorer)
     config = Config(**(config.model_dump() | {
         "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1", "u_mode": mode,
@@ -57,7 +60,7 @@ async def test_bits_drive_improvement_feedback_and_result(config, botbox_script,
         metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
         assert metadata["measurement"] == bits
         feedback = (config.attempt_dir(attempt) / "feedback.txt").read_text()
-        assert f"Your advice was {bits} bits of surprisal." in feedback
+        assert f"Your advice cost {bits:.1f} bits:" in feedback
         assert "characters" not in feedback
     assert "Turns without improvement: 0 of 1." in (config.attempt_dir(1) / "feedback.txt").read_text()
     assert "Turns without improvement: 1 of 1." in (config.attempt_dir(2) / "feedback.txt").read_text()
@@ -84,11 +87,12 @@ async def test_surprisal_system_prompt_defines_the_measure(config):
         prompt = session.messages[0]["content"]
         assert "bits of surprisal under T's model" in prompt
         assert "Shorter means fewer bits." in prompt
+        assert "Feedback marks each token with <bits>" in prompt
 
 
 async def test_failed_lower_bits_do_not_replace_success(config, botbox_script, monkeypatch):
     module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
-    monkeypatch.setattr(module, "measure_surprisal", AsyncMock(side_effect=[10.0, 1.0]))
+    monkeypatch.setattr(module, "measure_surprisal", AsyncMock(side_effect=[[("good", 10.0)], [("bad", 1.0)]]))
     config = Config(**(config.model_dump() | {
         "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1",
         "max_u_turns": 2, "max_turns_without_improvement": 1,
@@ -98,3 +102,54 @@ async def test_failed_lower_bits_do_not_replace_success(config, botbox_script, m
     solution = await run_experiment(config, on_delta=None)
     assert solution == config.t_dir(0, 0) / "src"
     assert json.loads(config.result_file.read_text())["best_measurement"] == 10.0
+
+
+@pytest.mark.parametrize("mode", ["chat", "agent"])
+async def test_per_token_feedback_and_metadata(config, botbox_script, chat_provider, monkeypatch, mode):
+    pairs = [("Use", 2.123456789), (" a", 0.4), (" two", 3.0),
+             ("-pointer", 5.2), ("\n sweep", 7.9)]
+    advice = "".join(token for token, _ in pairs)
+    scorer = AsyncMock(return_value=pairs)
+    module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
+    monkeypatch.setattr(module, "measure_surprisal", scorer)
+    config = Config(**(config.model_dump() | {
+        "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1",
+        "u_mode": mode, "max_u_turns": 2,
+    }))
+    botbox_script.advice.extend([advice, advice])
+    botbox_script.solutions.extend(["print(int(input())*2)"] * 2)
+    await run_experiment(config, on_delta=None)
+    expected = "Your advice cost 18.6 bits:\nUse<2.1> a<0.4> two<3.0>-pointer<5.2>\n sweep<7.9>"
+    feedback = (config.attempt_dir(0) / "feedback.txt").read_text()
+    assert expected in feedback
+    annotated = feedback.split("Your advice cost 18.6 bits:\n", 1)[1].split(
+        "\nShortest successful advice", 1,
+    )[0]
+    assert re.sub(r"<\d+\.\d>", "", annotated) == advice
+    metadata = json.loads((config.advice_dir(0, 0) / "metadata.json").read_text())
+    assert metadata == {"rejected": False, "measurement": sum(bits for _, bits in pairs),
+                        "tokens": [list(pair) for pair in pairs]}
+    assert (config.advice_dir(0, 0) / "advice.txt").read_text() == advice
+    scorer.assert_awaited_with(advice, client=config.advice_measure.client)
+    # Both U implementations receive the rendered feedback on their next turn.
+    if mode == "agent":
+        assert expected in botbox_script.u_sessions[0].messages[1]
+    else:
+        assert expected in chat_provider[1]["messages"][-1]["content"]
+
+
+async def test_character_metadata_has_no_tokens(config, botbox_script, monkeypatch):
+    scorer = AsyncMock()
+    module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
+    monkeypatch.setattr(module, "measure_surprisal", scorer)
+    config.max_u_turns = 1
+    botbox_script.advice.append("Use a loop")
+    botbox_script.solutions.append("print(int(input())*2)")
+    await run_experiment(config, on_delta=None)
+    metadata = json.loads((config.advice_dir(0, 0) / "metadata.json").read_text())
+    assert metadata == {"rejected": False, "measurement": 10}
+    feedback = (config.attempt_dir(0) / "feedback.txt").read_text()
+    assert "Your advice was 10 characters." in feedback
+    assert "<bits>" not in feedback
+    assert "Use<" not in feedback
+    scorer.assert_not_awaited()

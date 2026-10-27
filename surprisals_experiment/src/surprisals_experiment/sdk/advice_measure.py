@@ -16,15 +16,15 @@ class AdviceMeasure:
                  llm_retries: int = DEFAULT_LLM_RETRIES):
         self.name = name
         self.retry_policy = RetryPolicy(llm_retries)
-        self.scores: dict[str, float] = {}
+        self.scores: dict[str, list[tuple[str, float]]] = {}
         self.client = Client(base_url=base_url, model=model) if name == "surprisal" else None
         if self.client is not None:
             # The shared policy owns retries; the scorer currently exposes no public retry option.
             self.client._openai.max_retries = 0
 
-    async def score(self, advice: str, *, on_delta=None) -> int | float:
+    async def score(self, advice: str, *, on_delta=None) -> tuple[int | float, list[tuple[str, float]] | None]:
         if self.client is None:
-            return len(advice)
+            return len(advice), None
         if advice not in self.scores:
             def before_sleep(state):
                 if on_delta is not None:
@@ -34,7 +34,8 @@ class AdviceMeasure:
             self.scores[advice] = await self.retry_policy.retrying(before_sleep=before_sleep)(
                 measure_surprisal, advice, client=self.client,
             )
-        return self.scores[advice]
+        tokens = self.scores[advice]
+        return sum(bits for _, bits in tokens), tokens
 
     def render(self, template: str) -> str:
         if self.client is None:
