@@ -1,68 +1,94 @@
-# RunPod scorer
+# Shared RunPod scorer
 
-From this repository, with `RUNPOD_API_KEY` in the root `.env`:
-
-```bash
-uv run --project runpod_scorer runpod-scorer up
-# {"pod_id": "...", "base_url": "https://...-8000.proxy.runpod.net/v1"}
-uv run --project runpod_scorer runpod-scorer down <pod_id>
-```
-
-Setup starts one H100 80GB pod serving `openai/gpt-oss-120b` with
-`vllm/vllm-openai:v0.30.0`. It waits up to 30 minutes for `/v1/models`.
-The pod ID is printed to stderr immediately after creation; stdout remains one
-JSON line after readiness. On startup failure or Ctrl-C it deletes the pod and verifies deletion.
-Teardown also verifies deletion; API errors or a pod still present after
-two minutes produce a nonzero exit. DELETE retries server errors up to three
-attempts, waiting one then two seconds. Other HTTP errors fail immediately.
-
-The endpoint has no inference API key; anyone with its URL can use it.
-The RunPod key is sent only to the RunPod control API. No persistent volume
-is created. Deleting the pod discards the model cache.
-
-The 8,192-token context and 85% GPU memory allocation leave room beyond the
-approximately 61GB mxfp4 weights on an 80GB GPU. The default model/GPU pair
-has not been live-tested by the small-model smoke test.
-
-For a cheaper model, override only the model and GPU ID:
-
-```bash
-uv run --project runpod_scorer runpod-scorer up --model Qwen/Qwen2.5-0.5B-Instruct --gpu 'NVIDIA RTX A4000'
-```
-
-Use `POST <base_url>/completions` with `model`, `prompt`, `echo: true`,
-`max_tokens: 0`, and `logprobs: 1` to score prompt tokens.
-The first token has no preceding context and may have a null logprob.
-
-Unit tests (no API calls):
-
-```bash
-uv run --project runpod_scorer pytest
-```
-
-## Launch an experiment
+One invocation directory owns one scorer. All cells use the same directory,
+even when a matrix mixes character and surprisal runs.
 
 From the repository root:
 
 ~~~bash
-# Default character mode: no RunPod invocation.
-./scripts/run-experiment.sh --output runs/example problem /path/to/problem
-
-# Surprisal mode: start scorer, inject its URL, run experiment, delete scorer.
-./scripts/run-experiment.sh --measure surprisal --output runs/example problem /path/to/problem
-# --measure=surprisal is also supported.
+uv run --project runpod_scorer runpod-scorer up runs/my-invocation
+uv run --project runpod_scorer runpod-scorer down runs/my-invocation
 ~~~
 
-The wrapper runs the existing experiment command:
-uv run --project surprisals_experiment python -m surprisals_experiment.cli.run.
-Arguments and their quoting are preserved. Surprisal flags require PR #51's
-experiment changes; this package and wrapper do not include that PR.
+Up takes an exclusive file lock on runpod.lock, holding it through readiness.
+It reuses the pod in runpod.json if present; otherwise it creates one pod and
+immediately saves its pod_id before waiting. The ID is also printed to stderr.
+Once ready, base_url is added to the file and the JSON is printed to stdout.
+A second concurrent up waits for the lock, then checks the same pod's readiness.
+All cells in an invocation must use the same scorer model/GPU; overrides on a
+later up do not replace the existing pod.
 
-Cleanup runs on exit, including experiment failure. The wrapper preserves the
-experiment's nonzero exit status and reports failure if teardown fails after a
-successful experiment. Setup failure cleanup remains owned by the scorer.
-The setup stderr pod ID allows manual deletion if the process is forcibly killed.
+Down uses the same lock, deletes the saved pod, verifies it is gone, then
+removes runpod.json. Without a state file it succeeds without HTTP calls or
+credential loading, including a characters-only invocation. The lock file
+remains; removing it could break synchronization. Down accepts a directory,
+not a bare pod ID.
 
-The package's tests mock HTTP and place a fake uv command first on PATH for the
-wrapper, so they neither start pods nor run experiments. The root pytest.ini
-restricts root-level discovery to these tests for the command shown above.
+Startup failure or Ctrl-C deletes the pod and removes its state only after
+verified deletion. Failed cleanup leaves runpod.json for a later down.
+SIGKILL cannot run cleanup; the saved ID enables recovery.
+
+## Per-cell command
+
+run-cell.sh takes an invocation directory followed by the **full experiment
+command**, matching labnotes' command template:
+
+~~~bash
+runpod_scorer/run-cell.sh runs/my-invocation   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --measure surprisal --output runs/my-invocation/cell-1 problem /path/to/problem
+~~~
+
+Both --measure surprisal and --measure=surprisal call up and insert
+--scorer-base-url immediately before the measure flag. Other arguments and
+their boundaries are preserved. Character cells execute the command unchanged
+and never call the scorer. The script has **no trap or teardown**: the pod is
+shared, so cell success or failure must not delete it.
+
+Intended experiment.toml lines (documentation only; no TOML is changed):
+
+~~~toml
+command = '''runpod_scorer/run-cell.sh "{invocation_dir}" uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --measure {measure} --output "{run_dir}" problem --problem-dir {problem_dir}'''
+teardown = "uv run --project runpod_scorer runpod-scorer down {invocation_dir}"
+~~~
+
+Measure belongs in the existing sanity-check matrix, not a separate
+experiment. This assumes labnotes provides invocation_dir to commands and
+hooks and runs teardown once after every cell ends. No setup hook is needed:
+the first surprisal cell starts the pod lazily. The surprisal flags require
+PR #51; these changes do not modify that PR.
+
+For a single run, use its run directory as the invocation directory, then
+explicitly clean up even if the experiment fails:
+
+~~~bash
+runpod_scorer/run-cell.sh runs/single   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --measure surprisal --output runs/single problem /path/to/problem
+uv run --project runpod_scorer runpod-scorer down runs/single
+~~~
+
+## Scorer configuration
+
+RUNPOD_API_KEY loads in-process from the repository root .env.
+Default: openai/gpt-oss-120b on one H100 80GB, image
+vllm/vllm-openai:v0.30.0, context8192,85% GPU allocation,100GB disposable
+disk and no persistent volume. Up retains --model and --gpu overrides.
+Readiness timeout is30minutes. DELETE retries5xx up to3 attempts with1s/2s
+backoff; absence verification times out after2minutes.
+The inference endpoint has no API key. The RunPod key goes only to the
+control API. Deletion discards the model cache.
+
+Use POST <base_url>/completions with model, prompt, echo=true, max_tokens=0
+and logprobs=1 for prompt token scores; the first token may have a null
+logprob. The previous small-model smoke passed; the later120B check did not
+reach readiness. This revision has no live validation.
+
+## Unit tests only
+
+~~~bash
+# From repository root:
+uv run --project runpod_scorer pytest runpod_scorer/tests
+
+# Or from inside runpod_scorer/:
+uv run --project . pytest
+~~~
+
+No repository-root pytest configuration is needed. HTTP is mocked and the
+cell script uses fake commands on PATH, so these tests incur no provider cost.

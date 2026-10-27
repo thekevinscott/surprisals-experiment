@@ -1,11 +1,14 @@
 """Delete a scorer and verify it is gone."""
 
+import json
 import os
 import time
 from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
+
+from .invocation import locked_state
 
 API = "https://rest.runpod.io/v1"
 DELETE_TIMEOUT = 120
@@ -41,3 +44,13 @@ def delete_pod(pod_id, key):
         result.raise_for_status()
         time.sleep(2)
     raise TimeoutError(f"Pod {pod_id} still exists after deletion")
+
+
+def down(directory):
+    if not directory.exists():
+        return
+    with locked_state(directory) as state:
+        if not state.exists():
+            return
+        delete_pod(json.loads(state.read_text())["pod_id"], api_key())
+        state.unlink()

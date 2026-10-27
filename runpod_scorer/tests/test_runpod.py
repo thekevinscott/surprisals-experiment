@@ -14,6 +14,14 @@ def response(status=200, body=None):
 
 
 @pytest.fixture(autouse=True)
+def invocation(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "down-dir").mkdir()
+    (tmp_path / "down-dir/runpod.json").write_text(json.dumps({"pod_id": "pod1"}))
+    return tmp_path / "up-dir"
+
+
+@pytest.fixture(autouse=True)
 def fake_http(monkeypatch):
     request = Mock()
     monkeypatch.setattr(teardown.httpx, "request", request)
@@ -25,7 +33,7 @@ def fake_http(monkeypatch):
 
 def test_create_and_wait(fake_http, capsys):
     fake_http.side_effect = [response(body={"id": "pod1"}), response(503), response(body={"data": []})]
-    main(["up"])
+    main(["up", "up-dir"])
     calls = fake_http.call_args_list
     payload = calls[0].kwargs["json"]
     assert payload["imageName"] == "vllm/vllm-openai:v0.30.0"
@@ -42,7 +50,7 @@ def test_create_and_wait(fake_http, capsys):
 
 def test_override(fake_http):
     fake_http.side_effect = [response(body={"id": "pod1"}), response()]
-    main(["up", "--model", "small", "--gpu", "cheap"])
+    main(["up", "up-dir", "--model", "small", "--gpu", "cheap"])
     payload = fake_http.call_args_list[0].kwargs["json"]
     assert payload["gpuTypeIds"] == ["cheap"]
     assert "small" in payload["dockerStartCmd"]
@@ -52,7 +60,7 @@ def test_override(fake_http):
 def test_startup_cleanup(fake_http, failure):
     fake_http.side_effect = [response(body={"id": "pod1"}), failure, response(204), response(404)]
     with pytest.raises(type(failure)):
-        main(["up"])
+        main(["up", "up-dir"])
     assert fake_http.call_args_list[2].args == ("DELETE", teardown.API + "/pods/pod1")
     assert fake_http.call_args_list[3].args == ("GET", teardown.API + "/pods/pod1")
 
@@ -61,12 +69,12 @@ def test_readiness_timeout_cleans_up(fake_http, monkeypatch):
     monkeypatch.setattr(setup, "READY_TIMEOUT", 0)
     fake_http.side_effect = [response(body={"id": "pod1"}), response(204), response(404)]
     with pytest.raises(TimeoutError):
-        main(["up"])
+        main(["up", "up-dir"])
 
 
 def test_teardown_waits_until_gone(fake_http):
     fake_http.side_effect = [response(204), response(body={"id": "pod1"}), response(404)]
-    main(["down", "pod1"])
+    main(["down", "down-dir"])
     assert fake_http.call_count == 3
 
 
@@ -74,13 +82,13 @@ def test_teardown_not_gone_fails(fake_http, monkeypatch):
     monkeypatch.setattr(teardown, "DELETE_TIMEOUT", 0)
     fake_http.return_value = response(204)
     with pytest.raises(TimeoutError):
-        main(["down", "pod1"])
+        main(["down", "down-dir"])
 
 
 def test_teardown_api_failure(fake_http):
     fake_http.return_value = response(403)
     with pytest.raises(httpx.HTTPStatusError):
-        main(["down", "pod1"])
+        main(["down", "down-dir"])
 
 
 def test_readiness_transport_retry(fake_http):
@@ -89,20 +97,20 @@ def test_readiness_transport_retry(fake_http):
         httpx.ConnectError("not listening yet"),
         response(),
     ]
-    main(["up"])
+    main(["up", "up-dir"])
     assert fake_http.call_count == 3
 
 
 def test_create_failure_does_not_delete(fake_http):
     fake_http.return_value = response(500)
     with pytest.raises(httpx.HTTPStatusError):
-        main(["up"])
+        main(["up", "up-dir"])
     assert fake_http.call_count == 1
 
 
 def test_api_key_stays_on_control_plane(fake_http):
     fake_http.side_effect = [response(body={"id": "pod1"}), response()]
-    main(["up"])
+    main(["up", "up-dir"])
     assert fake_http.call_args_list[0].kwargs["headers"]["Authorization"] == "Bearer test-key"
     assert "Authorization" not in fake_http.call_args_list[1].kwargs["headers"]
 
@@ -124,7 +132,7 @@ def test_pod_id_printed_before_readiness(fake_http, capsys):
         assert captured.err == "Created pod pod1\n"
         return response()
     fake_http.side_effect = respond
-    main(["up"])
+    main(["up", "up-dir"])
 
 
 @pytest.mark.parametrize("status", [500, 502, 503])
@@ -132,7 +140,7 @@ def test_delete_retries_server_errors(fake_http, monkeypatch, status):
     sleep = Mock()
     monkeypatch.setattr(teardown.time, "sleep", sleep)
     fake_http.side_effect = [response(status), response(status), response(204), response(404)]
-    main(["down", "pod1"])
+    main(["down", "down-dir"])
     assert [call.args for call in sleep.call_args_list] == [(1,), (2,)]
     assert [call.args[0] for call in fake_http.call_args_list] == ["DELETE"] * 3 + ["GET"]
 
@@ -140,5 +148,86 @@ def test_delete_retries_server_errors(fake_http, monkeypatch, status):
 def test_delete_exhausts_server_errors(fake_http):
     fake_http.return_value = response(503)
     with pytest.raises(httpx.HTTPStatusError):
-        main(["down", "pod1"])
+        main(["down", "down-dir"])
     assert fake_http.call_count == 3
+
+
+def test_shared_concurrent_up_creates_once(fake_http, invocation, capsys):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier, Event
+
+    together, waiting, release = Barrier(2), Event(), Event()
+
+    def respond(method, url, **kwargs):
+        if method == "POST":
+            return response(body={"id": "pod1"})
+        waiting.set()
+        assert release.wait(3)
+        return response()
+
+    def up():
+        together.wait(timeout=3)
+        return setup.up(invocation)
+
+    fake_http.side_effect = respond
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(up) for _ in range(2)]
+        try:
+            assert waiting.wait(3)
+            assert json.loads((invocation / "runpod.json").read_text()) == {"pod_id": "pod1"}
+        finally:
+            release.set()
+        results = [future.result(timeout=3) for future in futures]
+    assert results[0] == results[1]
+    assert results[0]["base_url"] == "https://pod1-8000.proxy.runpod.net/v1"
+    assert sum(call.args[0] == "POST" for call in fake_http.call_args_list) == 1
+    assert [json.loads(line) for line in capsys.readouterr().out.splitlines()] == results
+    assert json.loads((invocation / "runpod.json").read_text()) == results[0]
+
+
+def test_up_reuses_incomplete_state(fake_http, invocation):
+    invocation.mkdir()
+    (invocation / "runpod.json").write_text('{"pod_id": "existing"}')
+    fake_http.side_effect = [response(503), response()]
+    pod = setup.up(invocation)
+    assert pod["pod_id"] == "existing"
+    assert all(call.args[0] == "GET" for call in fake_http.call_args_list)
+
+
+@pytest.mark.parametrize("exists", [False, True])
+def test_down_without_state_does_nothing(fake_http, invocation, exists):
+    if exists:
+        invocation.mkdir()
+    teardown.down(invocation)
+    fake_http.assert_not_called()
+    teardown.load_dotenv.assert_not_called()
+
+
+def test_down_removes_state_only_after_verified(fake_http, tmp_path):
+    state = tmp_path / "down-dir/runpod.json"
+
+    def respond(method, url, **kwargs):
+        assert state.exists()
+        return response(204 if method == "DELETE" else 404)
+
+    fake_http.side_effect = respond
+    main(["down", "down-dir"])
+    assert not state.exists()
+
+
+def test_failed_deletion_retains_state(fake_http, tmp_path):
+    fake_http.return_value = response(503)
+    with pytest.raises(httpx.HTTPStatusError):
+        main(["down", "down-dir"])
+    assert json.loads((tmp_path / "down-dir/runpod.json").read_text()) == {"pod_id": "pod1"}
+
+
+@pytest.mark.parametrize("cleanup_ok", [True, False])
+def test_startup_failure_state_cleanup(fake_http, invocation, cleanup_ok):
+    fake_http.side_effect = [
+        response(body={"id": "pod1"}), RuntimeError("startup"),
+        *([response(204), response(404)] if cleanup_ok else [response(503)] * 3),
+    ]
+    with pytest.raises((RuntimeError, httpx.HTTPStatusError)):
+        setup.up(invocation)
+    assert (invocation / "runpod.json").exists() is not cleanup_ok
