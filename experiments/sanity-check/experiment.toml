@@ -9,7 +9,7 @@ uv run \
   --max-turns-without-improvement 50 \
   --output "{run_dir}" \
   problem'''
-repeats = 3
+repeats = 6
 mode = "adhoc"
 
 [params]
