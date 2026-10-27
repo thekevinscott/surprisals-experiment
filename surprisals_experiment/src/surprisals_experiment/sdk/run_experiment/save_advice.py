@@ -1,13 +1,8 @@
-"""Save one advice candidate and its acceptance measurement."""
+"""Preserve advice before calling the scorer."""
 
-import json
 from pathlib import Path
 
 
-def save_advice(directory: Path, advice: str, *, rejected: bool, measurement: int | float) -> None:
+def save_advice(directory: Path, advice: str) -> None:
     directory.mkdir(parents=True)
     (directory / "advice.txt").write_text(advice)
-    (directory / "metadata.json").write_text(json.dumps({
-        "rejected": rejected,
-        "measurement": measurement,
-    }, indent=2) + "\n")
