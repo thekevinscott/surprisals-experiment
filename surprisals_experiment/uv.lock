@@ -48,10 +48,14 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 [[package]]
 name = "botbox"
 version = "0.1.72"
-source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=6b243bd9c9f636a5493f404e9f5d6fe8606deb65#6b243bd9c9f636a5493f404e9f5d6fe8606deb65" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "json5" },
     { name = "posix-tools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/15/cb/e9f3d7c8625a98212f06017c827c1186b2781a968e5a2b9ac0f53c26c594/botbox-0.1.72.tar.gz", hash = "sha256:cbc0319308a61f11bb5dade10b79718b99db23c1d0aab41b78ad6ebf4112f585", size = 68871, upload-time = "2026-10-27T01:27:14.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/cd/962bfec3d7d39ae08b9ab10fdaa879656384aa3d2060a3a613796f94f87d/botbox-0.1.72-py3-none-any.whl", hash = "sha256:6cddd6acf9aa880ef4fe6874d0963497118b85b0ff5d190e856bd2214388692d", size = 62108, upload-time = "2026-10-27T01:27:13.489Z" },
 ]
 
 [[package]]
@@ -444,7 +448,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=6b243bd9c9f636a5493f404e9f5d6fe8606deb65" },
+    { name = "botbox", specifier = ">=0.1.72" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },

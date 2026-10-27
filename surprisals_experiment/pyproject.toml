@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "botbox>=0.1.70",
+    "botbox>=0.1.72",
     "measure-surprisal>=0.1.0",
     "openai>=3.37.0",
     "pydantic>=2",
@@ -35,5 +35,4 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.uv.sources]
-botbox = { git = "https://github.com/thekevinscott/botbox.git", rev = "6b243bd9c9f636a5493f404e9f5d6fe8606deb65", subdirectory = "packages/python" }
 measure-surprisal = { git = "https://github.com/thekevinscott/measure-surprisal.git", rev = "4cc2108d5ef8d824bfe4b29f87452e7a911f9b78" }
