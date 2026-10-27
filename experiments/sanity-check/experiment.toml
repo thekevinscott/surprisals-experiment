@@ -6,6 +6,7 @@ uv run \
   -U xiaomi/mimo-v2.6-pro \
   -T openai/gpt-oss-120b \
   --u-thinking high \
+  --max-turns-without-improvement 50 \
   --output "{run_dir}" \
   problem'''
 repeats = 1
@@ -13,3 +14,4 @@ mode = "adhoc"
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
+u-mode = ["agent", "chat"]
