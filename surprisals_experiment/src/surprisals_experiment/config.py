@@ -45,7 +45,8 @@ class Config(BaseModel):
     def advice_measure(self):
         from .sdk.advice_measure import AdviceMeasure
 
-        return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
+        return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model,
+                             llm_retries=self.llm_retries)
 
     def save_settings(self) -> None:
         """Save the U mode and fields needed by run summaries."""

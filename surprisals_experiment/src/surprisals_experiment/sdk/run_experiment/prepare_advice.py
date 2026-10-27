@@ -1,5 +1,6 @@
 """Prompt U once and preserve its advice and measurement."""
 
+import json
 from collections.abc import Callable
 
 from surprisals_experiment.config import Config
@@ -13,7 +14,11 @@ async def prepare_advice(
     on_delta: Callable[[str, str], None] | None = None,
 ) -> tuple[str, int | float]:
     advice = await u_session.prompt(prompt, on_delta=on_delta)
-    measurement = await config.advice_measure.score(advice)
-    save_advice(config.advice_dir(attempt, 0), advice,
-                rejected=False, measurement=measurement)
+    directory = config.advice_dir(attempt, 0)
+    save_advice(directory, advice)
+    measurement = await config.advice_measure.score(advice, on_delta=on_delta)
+    (directory / "metadata.json").write_text(json.dumps({
+        "rejected": False,
+        "measurement": measurement,
+    }, indent=2) + "\n")
     return advice, measurement

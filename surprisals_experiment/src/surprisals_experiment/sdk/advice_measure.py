@@ -4,20 +4,37 @@ from importlib.resources import files
 
 from measure_surprisal import Client, measure_surprisal
 
+from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES, RetryPolicy
+
 SURPRISAL_WORDING = files("surprisals_experiment").joinpath(
     "prompts/u_measure_surprisal.txt",
 ).read_text()
 
 
 class AdviceMeasure:
-    def __init__(self, name: str, *, base_url: str | None, model: str):
+    def __init__(self, name: str, *, base_url: str | None, model: str,
+                 llm_retries: int = DEFAULT_LLM_RETRIES):
         self.name = name
+        self.retry_policy = RetryPolicy(llm_retries)
+        self.scores: dict[str, float] = {}
         self.client = Client(base_url=base_url, model=model) if name == "surprisal" else None
+        if self.client is not None:
+            # The shared policy owns retries; the scorer currently exposes no public retry option.
+            self.client._openai.max_retries = 0
 
-    async def score(self, advice: str) -> int | float:
+    async def score(self, advice: str, *, on_delta=None) -> int | float:
         if self.client is None:
             return len(advice)
-        return await measure_surprisal(advice, client=self.client)
+        if advice not in self.scores:
+            def before_sleep(state):
+                if on_delta is not None:
+                    on_delta("retry", f"Scorer {state.attempt_number}/{self.retry_policy.retries} "
+                                      f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
+
+            self.scores[advice] = await self.retry_policy.retrying(before_sleep=before_sleep)(
+                measure_surprisal, advice, client=self.client,
+            )
+        return self.scores[advice]
 
     def render(self, template: str) -> str:
         if self.client is None:
