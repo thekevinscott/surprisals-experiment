@@ -1,10 +1,11 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
 import json
+from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
@@ -22,12 +23,26 @@ class Config(BaseModel):
     u_thinking: ThinkingLevel
     u_compact_chars: int = Field(default=400000, ge=0)
     t_model: str
+    measure: Literal["characters", "surprisal"] = "characters"
+    scorer_base_url: str | None = None
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
     t_sample_retries: int = Field(default=3, ge=0)
     max_turns_without_improvement: int = Field(default=20, ge=1)
     max_u_turns: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def require_scorer(self):
+        if self.measure == "surprisal" and not self.scorer_base_url:
+            raise ValueError("scorer_base_url is required for surprisal")
+        return self
+
+    @cached_property
+    def advice_measure(self):
+        from .sdk.advice_measure import AdviceMeasure
+
+        return AdviceMeasure(self.measure, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
         """Save the U mode and fields needed by run summaries."""

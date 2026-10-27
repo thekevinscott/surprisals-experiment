@@ -22,7 +22,7 @@ RESOURCES = Path(str(files("surprisals_experiment")))
 async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
     with TemporaryDirectory(prefix="surprisals-u-solutions-") as temporary:
         workspace = Path(temporary)
-        prompt = (RESOURCES / "prompts/u.txt").read_text().format(
+        prompt = config.advice_measure.render((RESOURCES / "prompts/u.txt").read_text()).format(
             implementation_access=(RESOURCES / f"prompts/u_context_{config.u_mode}.txt").read_text(),
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,

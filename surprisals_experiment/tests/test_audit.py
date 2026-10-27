@@ -55,7 +55,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
             return RunResult(exit_code)
         self.config.test_suite_file.write_text(json.dumps({'inputs': [''], 'outputs': ['7']}))
         with patch(ATTEMPT+'prompt_t', side_effect=t), \
-             patch(EXPERIMENT+'prepare_advice', return_value='Print 7'):
+             patch(EXPERIMENT+'prepare_advice', return_value=('Print 7', 7)):
             return await run_experiment(self.config, on_delta=None)
 
     async def test_nonzero_t_exit_can_produce_valid_solution(self):
@@ -73,7 +73,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
     async def test_orchestration_errors_propagate_and_preserve_traceback(self):
         self.config.test_suite_file.write_text(json.dumps({'inputs': [''], 'outputs': ['7']}))
         with patch(ATTEMPT+'prompt_t', side_effect=OSError('disk failure')), \
-             patch(EXPERIMENT+'prepare_advice', return_value='Print 7'):
+             patch(EXPERIMENT+'prepare_advice', return_value=('Print 7', 7)):
             with self.assertRaisesRegex(OSError, 'disk failure'):
                 await run_experiment(self.config, on_delta=None)
         self.assertIn('disk failure', (self.config.attempt_dir(0)/'error.txt').read_text())

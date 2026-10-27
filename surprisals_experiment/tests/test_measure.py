@@ -74,3 +74,27 @@ async def test_cli_measure_flags(config, monkeypatch):
     received = run.call_args.args[0]
     assert received.measure == "surprisal"
     assert received.scorer_base_url == "http://scorer/v1"
+
+
+async def test_surprisal_system_prompt_defines_the_measure(config):
+    config = Config(**(config.model_dump() | {
+        "measure": "surprisal", "scorer_base_url": "http://scorer/v1", "u_mode": "chat",
+    }))
+    async with open_u_session(config) as session:
+        prompt = session.messages[0]["content"]
+        assert "bits of surprisal under T's model" in prompt
+        assert "Shorter means fewer bits." in prompt
+
+
+async def test_failed_lower_bits_do_not_replace_success(config, botbox_script, monkeypatch):
+    module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
+    monkeypatch.setattr(module, "measure_surprisal", AsyncMock(side_effect=[10.0, 1.0]))
+    config = Config(**(config.model_dump() | {
+        "measure": "surprisal", "scorer_base_url": "http://scorer/v1",
+        "max_u_turns": 2, "max_turns_without_improvement": 1,
+    }))
+    botbox_script.advice.extend(["good", "bad"])
+    botbox_script.solutions.extend(["print(int(input())*2)", "print(0)"])
+    solution = await run_experiment(config, on_delta=None)
+    assert solution == config.t_dir(0, 0) / "src"
+    assert json.loads(config.result_file.read_text())["best_measurement"] == 10.0

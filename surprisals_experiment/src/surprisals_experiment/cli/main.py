@@ -25,6 +25,10 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
+    parser.add_argument("--measure", choices=("characters", "surprisal"), default="characters",
+                        help="Advice minimization measure (default: characters)")
+    parser.add_argument("--scorer-base-url",
+                        help="OpenAI-compatible prompt-logprob endpoint; required for surprisal")
     parser.add_argument("--t-samples", type=int, default=5,
                         help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3,
@@ -78,6 +82,8 @@ async def main(argv: list[str] | None = None) -> None:
             u_compact_chars=args.u_compact_chars,
             u_thinking=args.u_thinking,
             t_model=args.T,
+            measure=args.measure,
+            scorer_base_url=args.scorer_base_url,
             t_samples=args.t_samples,
             t_pool_size=args.t_pool_size,
             t_sample_timeout=args.t_sample_timeout,
