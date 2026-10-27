@@ -146,6 +146,11 @@ def chat_provider(monkeypatch, botbox_script):
                 'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
                 'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
             })
+        if isinstance(reply, dict) and 'usage' in reply:
+            chunks.append({
+                'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1,
+                'model': 'u', 'choices': [], 'usage': reply['usage'],
+            })
         if isinstance(reply, dict) and 'stream_error' in reply:
             chunks.append({'error': reply['stream_error']})
         stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)

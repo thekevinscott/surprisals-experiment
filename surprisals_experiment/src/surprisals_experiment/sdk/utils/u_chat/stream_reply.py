@@ -1,5 +1,9 @@
 """Stream a chat reply and retain its complete message, including reasoning."""
 
+import json
+from datetime import UTC, datetime
+
+
 class IncompleteStreamError(RuntimeError):
     """A stream ended before its terminal completion event."""
 
@@ -28,6 +32,13 @@ async def stream_reply(self, *, on_delta=None) -> str:
                 raise IncompleteStreamError("U chat returned no advice")
             completion = await stream.get_final_completion()
     finally:
+        usage = snapshot.usage if snapshot is not None else None
+        with self.transcript.with_name("usage.jsonl").open("a") as log:
+            log.write(json.dumps({
+                "timestamp": datetime.now(UTC).isoformat(),
+                "completion_id": snapshot.id if snapshot is not None else None,
+                "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
+            }) + "\n")
         if snapshot is not None and snapshot.choices:
             message = snapshot.choices[0].message.model_dump(exclude_none=True)
             message.pop("parsed", None)
