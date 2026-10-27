@@ -54,7 +54,7 @@ Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples`
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
 
-- [sanity-check](experiments/sanity-check/experiment.toml): problem `2286`.
+- [sanity-check](experiments/sanity-check/experiment.toml): problem 2286, stop after 50 turns without improvement, agent and chat U.
 - [advice-minimization](experiments/advice-minimization/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
 
 Labnotes reads the paths in `.labnotes.toml` and executes commands from this repository root. `uv --directory surprisals_experiment` then selects the Python project, so APPS paths remain relative to that directory. Run either experiment from the repository root:
