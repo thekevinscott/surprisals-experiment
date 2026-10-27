@@ -34,11 +34,11 @@ run-cell.sh takes an invocation directory followed by the **full experiment
 command**, matching labnotes' command template:
 
 ~~~bash
-runpod_scorer/run-cell.sh runs/my-invocation   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --measure surprisal --output runs/my-invocation/cell-1 problem /path/to/problem
+runpod_scorer/run-cell.sh runs/my-invocation   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --cap-strategy surprisal --output runs/my-invocation/cell-1 problem /path/to/problem
 ~~~
 
-Both --measure surprisal and --measure=surprisal call up and insert
---scorer-base-url immediately before the measure flag. Other arguments and
+Both --cap-strategy surprisal and --cap-strategy=surprisal call up and insert
+--scorer-base-url immediately before the cap-strategy flag. Other arguments and
 their boundaries are preserved. Character cells execute the command unchanged
 and never call the scorer. The script has **no trap or teardown**: the pod is
 shared, so cell success or failure must not delete it.
@@ -47,11 +47,11 @@ Intended experiment.toml lines (documentation only; no TOML is changed):
 
 ~~~toml
 setup = "uv run --project runpod_scorer runpod-scorer up {invocation_dir}"
-command = '''runpod_scorer/run-cell.sh "{invocation_dir}" uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --measure {measure} --output "{run_dir}" problem --problem-dir {problem_dir}'''
+command = '''runpod_scorer/run-cell.sh "{invocation_dir}" uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" problem --problem-dir {problem_dir}'''
 teardown = "uv run --project runpod_scorer runpod-scorer down {invocation_dir}"
 ~~~
 
-Measure belongs in the existing sanity-check matrix, not a separate
+Cap strategy belongs in the existing sanity-check matrix, not a separate
 experiment. This assumes labnotes provides invocation_dir to commands and
 hooks, waits for setup before any cell runs, and runs teardown once after every
 cell ends. With this setup hook, even a characters-only invocation starts a pod.
@@ -63,7 +63,7 @@ For a single run, use its run directory as the invocation directory, then
 explicitly clean up even if the experiment fails:
 
 ~~~bash
-runpod_scorer/run-cell.sh runs/single   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --measure surprisal --output runs/single problem /path/to/problem
+runpod_scorer/run-cell.sh runs/single   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --cap-strategy surprisal --output runs/single problem /path/to/problem
 uv run --project runpod_scorer runpod-scorer down runs/single
 ~~~
 

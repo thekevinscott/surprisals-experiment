@@ -35,8 +35,8 @@ else:
     return env, log
 
 
-@pytest.mark.parametrize("flags", [[], ["--measure", "characters"],
-                                    ["--measure", "surprisal"], ["--measure=surprisal"]])
+@pytest.mark.parametrize("flags", [[], ["--cap-strategy", "characters"],
+                                    ["--cap-strategy", "surprisal"], ["--cap-strategy=surprisal"]])
 @pytest.mark.parametrize("exit_code", [0, 7])
 def test_cell_branches_without_teardown(fake_commands, flags, exit_code):
     env, log = fake_commands
@@ -59,7 +59,7 @@ def test_cell_branches_without_teardown(fake_commands, flags, exit_code):
 
 def test_setup_failure_does_not_start_experiment(fake_commands):
     env, log = fake_commands
-    result = subprocess.run([str(WRAPPER), "invocation", "experiment", "--measure=surprisal"],
+    result = subprocess.run([str(WRAPPER), "invocation", "experiment", "--cap-strategy=surprisal"],
                             env=env | {"UP_EXIT": "9"})
     assert result.returncode == 9
     assert len(log.read_text().splitlines()) == 1
