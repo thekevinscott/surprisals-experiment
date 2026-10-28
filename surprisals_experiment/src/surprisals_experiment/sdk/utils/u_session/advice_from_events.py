@@ -1,3 +1,4 @@
+from ..output_limit_message import output_limit_message
 from .u_session_error import USessionError
 
 
@@ -15,6 +16,9 @@ def advice_from_events(events: list[dict]) -> str:
         if event["type"] == "response" and not event["success"]:
             raise USessionError(event.get("error", "Pi prompt failed"))
     message = next(message for message in reversed(end["messages"]) if message["role"] == "assistant")
+    if message["stopReason"] == "length":
+        usage = message.get("usage") or {}
+        raise USessionError(output_limit_message(usage.get("output"), usage.get("reasoning")))
     if message["stopReason"] in ("error", "aborted"):
         raise USessionError(message.get("errorMessage") or "U response failed or was aborted")
     advice = "".join(block["text"] for block in message["content"] if block["type"] == "text")

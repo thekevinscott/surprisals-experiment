@@ -50,9 +50,17 @@ async def test_absent_usage_is_unknown_not_zero(config, botbox_script):
 
 async def test_failed_call_retains_reported_usage(config, botbox_script):
     config.u_mode = 'chat'
-    botbox_script.advice.append(response('partial') | {'finish': 'length'})
+    botbox_script.advice.extend([response('partial') | {'finish': 'length'}] * 9)
     async with open_u_session(config) as session:
         with pytest.raises(RuntimeError, match='U chat request failed'):
             await session.prompt('question')
-    usage = json.loads((config.u_transcripts / 'usage.jsonl').read_text())
-    assert usage['usage'] == USAGE
+    usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
+    assert len(usage) == 9
+    assert all(entry['usage'] == USAGE for entry in usage)
+
+
+@pytest.fixture(autouse=True)
+def no_retry_wait(monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr(asyncio, 'sleep', AsyncMock())
