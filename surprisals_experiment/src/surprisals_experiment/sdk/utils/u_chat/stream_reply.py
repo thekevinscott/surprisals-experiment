@@ -3,9 +3,26 @@
 import json
 from datetime import UTC, datetime
 
+from openai import LengthFinishReasonError
+
+from ..output_limit_message import output_limit_message
+
 
 class IncompleteStreamError(RuntimeError):
     """A stream ended before its terminal completion event."""
+
+
+class OutputTokenLimitError(RuntimeError):
+    """U exhausted its output budget without completing its advice."""
+
+
+def output_limit_error(completion):
+    usage = completion.usage
+    details = usage.completion_tokens_details if usage is not None else None
+    return OutputTokenLimitError(output_limit_message(
+        usage.completion_tokens if usage is not None else None,
+        details.reasoning_tokens if details is not None else None,
+    ))
 
 
 async def stream_reply(self, *, on_delta=None) -> str:
@@ -31,6 +48,9 @@ async def stream_reply(self, *, on_delta=None) -> str:
             if snapshot is None or not snapshot.choices:
                 raise IncompleteStreamError("U chat returned no advice")
             completion = await stream.get_final_completion()
+    except LengthFinishReasonError as error:
+        snapshot = error.completion
+        raise output_limit_error(snapshot) from error
     finally:
         usage = snapshot.usage if snapshot is not None else None
         with self.transcript.with_name("usage.jsonl").open("a") as log:
@@ -45,6 +65,8 @@ async def stream_reply(self, *, on_delta=None) -> str:
             message["role"] = "assistant"
             self.record(message)
     choice = completion.choices[0]
+    if choice.finish_reason == "length":
+        raise output_limit_error(completion)
     if choice.finish_reason is None:
         raise IncompleteStreamError("U chat stream ended before completion")
     if choice.finish_reason != "stop" or not choice.message.content:
