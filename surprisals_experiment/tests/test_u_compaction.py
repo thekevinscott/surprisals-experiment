@@ -73,7 +73,10 @@ def describe_chat_compaction():
         async with open_u_session(config) as session:
             await session.prompt('question')
             pending = 'feedback' * 100
-            session.compact_chars = sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) + len(pending) - over_by
+            session.compact_chars = sum(
+                len(m.get('content') or '') + len(m.get('reasoning') or '')
+                for m in session.messages
+            ) + len(pending) - over_by
             await session.prompt(pending)
         assert len(chat_provider) == expected_requests
         assert chat_provider[-1]['messages'][-1]['content'] == pending
@@ -133,3 +136,29 @@ def describe_chat_compaction():
             '--u-compact-chars', '1234', '--output', str(config.output), 'problem', str(config.problem_dir),
         ])
         assert received == [1234]
+
+
+@pytest.mark.parametrize('reasoning_chars,expected_requests', [(210000, 2), (400000, 3)])
+async def test_compaction_counts_reasoning_once(
+    config, botbox_script, chat_provider, reasoning_chars, expected_requests,
+):
+    config.u_mode = 'chat'
+    reasoning = 'r' * reasoning_chars
+    details = [{'type': 'reasoning.text', 'index': 0, 'text': reasoning, 'format': 'unknown'}]
+    botbox_script.advice.extend([
+        {'deltas': [{'role': 'assistant', 'content': 'advice',
+                     'reasoning': reasoning, 'reasoning_details': details}]},
+        'summary' if expected_requests == 3 else 'next',
+        'next',
+    ])
+    async with open_u_session(config) as session:
+        await session.prompt('question')
+        assert session.compact_chars == 400000
+        assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000
+        await session.prompt('feedback')
+    assert len(chat_provider) == expected_requests
+    # Even when compaction summarizes history, its request retains both reasoning fields.
+    assistant = chat_provider[1]['messages'][2]
+    assert assistant['reasoning'] == reasoning
+    assert assistant['reasoning_details'] == details
+    assert chat_provider[-1]['messages'][-1]['content'] == 'feedback'
