@@ -33,6 +33,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
     reasoning = {"enabled": False} if self.thinking == "off" else {"effort": self.thinking}
     snapshot = None
     provider_error = None
+    reasoning_formats = {}
     try:
         async with self.client.chat.completions.stream(
             model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
@@ -42,6 +43,12 @@ async def stream_reply(self, *, on_delta=None) -> str:
                 if event.type == "chunk" and any(c.finish_reason == "error" for c in event.chunk.choices):
                     # The SDK drops final-choice extras from the accumulated snapshot.
                     provider_error = event.chunk.model_dump(exclude_unset=True)
+                if event.type == "chunk":
+                    for choice in event.chunk.choices:
+                        if choice.index == 0:
+                            for detail in getattr(choice.delta, "reasoning_details", None) or []:
+                                if "format" in detail:
+                                    reasoning_formats[detail["index"]] = detail["format"]
                 if on_delta is not None:
                     if event.type == "content.delta":
                         on_delta("text", event.delta)
@@ -73,6 +80,10 @@ async def stream_reply(self, *, on_delta=None) -> str:
             message["role"] = "assistant"
             if provider_error is not None:
                 message["provider_error"] = provider_error
+            # The SDK concatenates unknown string fields; format is metadata, not a text delta.
+            for detail in message.get("reasoning_details") or []:
+                if detail["index"] in reasoning_formats:
+                    detail["format"] = reasoning_formats[detail["index"]]
             self.record(message)
     choice = completion.choices[0]
     if choice.finish_reason == "error":
