@@ -1,11 +1,12 @@
-"""One retry budget and capped exponential schedule for chat, scoring, and Pi."""
-
-from dataclasses import dataclass
+"""Fixed retry schedules for transient failures; Pi owns its internal retries."""
 
 from openai import APIConnectionError, APIError, APIStatusError
-from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_chain, wait_fixed
 
-DEFAULT_LLM_RETRIES = 60
+DELAYS = (10, 30, 60, 120, 300, 600, 1800, 3600)
+PI_RETRIES = 60
+PI_BASE_DELAY_MS = 5000
+PI_MAX_DELAY_MS = 60000
 
 
 def transient(error: BaseException) -> bool:
@@ -18,25 +19,28 @@ def transient(error: BaseException) -> bool:
     return isinstance(error, APIConnectionError)
 
 
-@dataclass(frozen=True)
-class RetryPolicy:
-    retries: int = DEFAULT_LLM_RETRIES
-    base_delay_ms: int = 5000
-    max_delay_ms: int = 60000
+def retried(retryable, *, operation: str, before_sleep=None):
+    def exhausted(state):
+        error = state.outcome.exception()
+        detail = " ".join(str(error).splitlines())
+        raise RuntimeError(
+            f"{operation} failed: {detail}; {state.attempt_number - 1} retries exhausted"
+        ) from error
 
-    def retrying(self, *, before_sleep=None, retryable=transient) -> AsyncRetrying:
-        return AsyncRetrying(
-            retry=retry_if_exception(retryable),
-            stop=stop_after_attempt(self.retries + 1),
-            wait=wait_exponential(multiplier=self.base_delay_ms / 1000, max=self.max_delay_ms / 1000),
-            before_sleep=before_sleep,
-            reraise=True,
-        )
+    return retry(
+        retry=retry_if_exception(retryable),
+        stop=stop_after_attempt(len(DELAYS) + 1),
+        wait=wait_chain(*(wait_fixed(delay) for delay in DELAYS)),
+        before_sleep=before_sleep,
+        retry_error_callback=exhausted,
+        reraise=True,
+    )
 
-    def pi_settings(self) -> dict:
-        return {
-            "enabled": self.retries > 0,
-            "maxRetries": self.retries,
-            "baseDelayMs": self.base_delay_ms,
-            "maxAgentDelayMs": self.max_delay_ms,
-        }
+
+def pi_settings() -> dict:
+    return {
+        "enabled": True,
+        "maxRetries": PI_RETRIES,
+        "baseDelayMs": PI_BASE_DELAY_MS,
+        "maxAgentDelayMs": PI_MAX_DELAY_MS,
+    }

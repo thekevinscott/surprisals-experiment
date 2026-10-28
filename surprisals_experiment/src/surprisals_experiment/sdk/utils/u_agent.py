@@ -3,15 +3,12 @@
 import shlex
 from collections.abc import Callable
 
-from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES
 from .retrying_pi_agent import RetryingPiAgent
 
 
 class UAgent(RetryingPiAgent):
-    def __init__(self, provider: str, model: str, *, api_key: str, thinking: str,
-                 llm_retries: int = DEFAULT_LLM_RETRIES):
+    def __init__(self, provider: str, model: str, *, api_key: str, thinking: str):
         super().__init__(provider, model=model, api_key=api_key,
-                         llm_retries=llm_retries,
                          # Pi compacts above contextWindow - reserveTokens:
                          # 1,048,576 - 917,504 = 131,072 tokens for the configured MiMo model.
                          compaction={"enabled": True, "reserveTokens": 917504})

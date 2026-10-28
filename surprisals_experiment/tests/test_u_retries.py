@@ -74,6 +74,5 @@ class RetryTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(await session.prompt('next turn'), 'advice')
 
     def test_retry_settings(self):
-        from surprisals_experiment.retry_policy import RetryPolicy
-        policy = RetryPolicy()
-        self.assertEqual(policy.retries, 60)
+        from surprisals_experiment.retry_policy import pi_settings
+        self.assertEqual(pi_settings()["maxRetries"], 60)

@@ -10,7 +10,6 @@ from typing import get_args
 
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES
 from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
@@ -20,8 +19,6 @@ async def main(argv: list[str] | None = None) -> None:
         prog="surprisals_experiment",
         description="Run the U → T experiment on an APPS problem.",
     )
-    parser.add_argument("--llm-retries", type=int, default=DEFAULT_LLM_RETRIES,
-                        help="Retries per transient LLM failure, for U and T (default: %(default)s)")
     parser.add_argument("--u-compact-chars", type=int, default=400000,
                         help="Chat U conversation compaction threshold; 0 disables (default: 400000)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
@@ -77,7 +74,7 @@ async def main(argv: list[str] | None = None) -> None:
         if not key or not key.strip():
             raise ValueError("Set OPENROUTER_API_KEY in your .env file")
         await run_experiment(Config(
-            api_key=key, llm_retries=args.llm_retries,
+            api_key=key,
             problem_dir=args.problem_dir or args.problem_dir_option,
             output=args.output,
             u_model=args.U,
