@@ -144,7 +144,8 @@ def chat_provider(monkeypatch, botbox_script):
         if finish is not None:
             chunks.append({
                 'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
-                'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish}],
+                'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish,
+                             **(reply.get('finish_choice', {}) if isinstance(reply, dict) else {})}],
             })
         if isinstance(reply, dict) and 'usage' in reply:
             chunks.append({

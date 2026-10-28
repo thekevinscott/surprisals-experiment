@@ -12,6 +12,10 @@ class IncompleteStreamError(RuntimeError):
     """A stream ended before its terminal completion event."""
 
 
+class ProviderError(RuntimeError):
+    """The provider ended a chat reply with an error."""
+
+
 class OutputTokenLimitError(RuntimeError):
     """U exhausted its output budget without completing its advice."""
 
@@ -28,12 +32,16 @@ def output_limit_error(completion):
 async def stream_reply(self, *, on_delta=None) -> str:
     reasoning = {"enabled": False} if self.thinking == "off" else {"effort": self.thinking}
     snapshot = None
+    provider_error = None
     try:
         async with self.client.chat.completions.stream(
             model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
         ) as stream:
             async for event in stream:
                 snapshot = stream.current_completion_snapshot
+                if event.type == "chunk" and any(c.finish_reason == "error" for c in event.chunk.choices):
+                    # The SDK drops final-choice extras from the accumulated snapshot.
+                    provider_error = event.chunk.model_dump(exclude_unset=True)
                 if on_delta is not None:
                     if event.type == "content.delta":
                         on_delta("text", event.delta)
@@ -63,8 +71,12 @@ async def stream_reply(self, *, on_delta=None) -> str:
             message = snapshot.choices[0].message.model_dump(exclude_none=True)
             message.pop("parsed", None)
             message["role"] = "assistant"
+            if provider_error is not None:
+                message["provider_error"] = provider_error
             self.record(message)
     choice = completion.choices[0]
+    if choice.finish_reason == "error":
+        raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
     if choice.finish_reason == "length":
         raise output_limit_error(completion)
     if choice.finish_reason is None:
