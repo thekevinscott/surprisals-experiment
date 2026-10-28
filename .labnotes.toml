@@ -6,3 +6,6 @@ path = "experiments/{experiment}/files/"
 
 [runs]
 path = "runs/{experiment}/{run}"
+
+[experiment.env]
+BOTBOX_LABELS = "labnotes.run={run_dir}"

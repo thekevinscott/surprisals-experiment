@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "botbox>=0.1.72",
+    "botbox>=0.1.75",
     "measure-surprisal>=0.2.0",
     "openai>=3.37.0",
     "pydantic>=2",
