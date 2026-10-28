@@ -4,7 +4,7 @@ from importlib.resources import files
 
 from measure_surprisal import Client, measure_surprisal
 
-from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES, RetryPolicy
+from surprisals_experiment.retry_policy import DELAYS, retried, transient
 
 SURPRISAL_WORDING = files("surprisals_experiment").joinpath(
     "prompts/u_measure_surprisal.txt",
@@ -12,10 +12,8 @@ SURPRISAL_WORDING = files("surprisals_experiment").joinpath(
 
 
 class AdviceMeasure:
-    def __init__(self, name: str, *, base_url: str | None, model: str,
-                 llm_retries: int = DEFAULT_LLM_RETRIES):
+    def __init__(self, name: str, *, base_url: str | None, model: str):
         self.name = name
-        self.retry_policy = RetryPolicy(llm_retries)
         self.scores: dict[str, list[tuple[str, float]]] = {}
         self.client = Client(base_url=base_url, model=model) if name == "surprisal" else None
         if self.client is not None:
@@ -28,12 +26,14 @@ class AdviceMeasure:
         if advice not in self.scores:
             def before_sleep(state):
                 if on_delta is not None:
-                    on_delta("retry", f"Scorer {state.attempt_number}/{self.retry_policy.retries} "
+                    on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
                                       f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
-            self.scores[advice] = await self.retry_policy.retrying(before_sleep=before_sleep)(
-                measure_surprisal, advice, client=self.client,
-            )
+            @retried(transient, operation="Scorer request", before_sleep=before_sleep)
+            async def score():
+                return await measure_surprisal(advice, client=self.client)
+
+            self.scores[advice] = await score()
         tokens = self.scores[advice]
         return sum(bits for _, bits in tokens), tokens
 

@@ -1,5 +1,4 @@
 import asyncio
-import importlib
 import json
 from unittest.mock import AsyncMock, Mock
 
@@ -7,6 +6,7 @@ import httpx2
 import pytest
 
 from botbox import PiAgent
+from surprisals_experiment.retry_policy import DELAYS
 from surprisals_experiment.sdk.utils.u_session import open_u_session
 from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.t_agent import TAgent
@@ -36,7 +36,7 @@ async def test_chat_retries_transient_calls(config, botbox_script, chat_provider
         assert [m['content'] for m in session.messages if m['role'] == 'assistant'] == ['advice']
     assert len(chat_provider) == 2
     assert chat_provider[0]['messages'] == chat_provider[1]['messages']
-    no_retry_wait.assert_awaited_once_with(5)
+    no_retry_wait.assert_awaited_once_with(10)
     if isinstance(failure, dict) and 'deltas' in failure:
         assert 'partial' in (config.u_transcripts / 'messages.jsonl').read_text()
 
@@ -54,15 +54,14 @@ async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provi
     no_retry_wait.assert_not_awaited()
 
 
-@pytest.mark.parametrize('retries', [0, 2, 60])
 @pytest.mark.parametrize('dropped', [False, True], ids=['http-error', 'dropped-stream'])
-async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, retries, dropped):
+async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, dropped):
     config.u_mode = 'chat'
-    config.llm_retries = retries
+    retries = len(DELAYS)
     failure = ({'deltas': [{'role': 'assistant', 'content': 'partial'}],
                 'finish': None, 'drop_stream': True} if dropped else {'status': 503})
     botbox_script.advice.extend([failure] * (retries + 1))
-    with pytest.raises(RuntimeError, match='U chat request failed'):
+    with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted'):
         async with open_u_session(config) as session:
             await session.prompt('question')
     assert len(chat_provider) == retries + 1
@@ -74,22 +73,20 @@ async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_w
         assert partials == ['partial'] * (retries + 1)
         # Exhaustion retains the last partial in memory, as before this refactor.
         assert session.messages[-1]['content'] == 'partial'
-    if retries == 60:
-        assert sum(c.args[0] for c in no_retry_wait.await_args_list) == 3435
-    assert [c.args[0] for c in no_retry_wait.await_args_list] == ([5, 10, 20, 40] + [60] * 56)[:retries]
+    assert [c.args[0] for c in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
+    assert sum(c.args[0] for c in no_retry_wait.await_args_list) == 3600
 
 
 @pytest.mark.parametrize('agent_type', [UAgent, TAgent])
-@pytest.mark.parametrize('retries', [0, 3, 60])
-def test_pi_agents_share_retry_settings(monkeypatch, agent_type, retries):
+def test_pi_agents_share_retry_settings(monkeypatch, agent_type):
     monkeypatch.setattr(PiAgent, 'stage_auth', Mock())
     kwargs = {'thinking': 'high'} if agent_type is UAgent else {'instructions': 'Do it.', 'on_delta': None}
-    agent = agent_type('openrouter', 'u', api_key='unused', llm_retries=retries, **kwargs)
+    agent = agent_type('openrouter', 'u', api_key='unused', **kwargs)
     home = Mock()
     agent.stage_auth(home)
     settings = json.loads(next(c.args[1] for c in home.write.call_args_list if c.args[0] == '.pi/agent/settings.json'))
     assert settings['retry'] == {
-        'enabled': retries > 0, 'maxRetries': retries, 'baseDelayMs': 5000, 'maxAgentDelayMs': 60000,
+        'enabled': True, 'maxRetries': 60, 'baseDelayMs': 5000, 'maxAgentDelayMs': 60000,
     }
     assert settings['compaction'] == (
         {'enabled': True, 'reserveTokens': 917504} if agent_type is UAgent else {'enabled': True}
@@ -99,33 +96,3 @@ def test_pi_agents_share_retry_settings(monkeypatch, agent_type, retries):
         model = json.loads(files('surprisals_experiment').joinpath('docker/U/models.json').read_text())
         window = model['providers']['openrouter']['models'][0]['contextWindow']
         assert window - settings['compaction']['reserveTokens'] == 131072
-
-
-async def test_cli_retry_flag(monkeypatch, tmp_path):
-    cli = importlib.import_module('surprisals_experiment.cli.main')
-    received = []
-    async def run(config, **kwargs):
-        received.append(config.llm_retries)
-    monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: '/unused')
-    monkeypatch.setattr(cli, 'dotenv_values', lambda *a, **kw: {'OPENROUTER_API_KEY': 'dummy'})
-    monkeypatch.setattr(cli, 'run_experiment', run)
-    for options in ([], ['--llm-retries', '3']):
-        await cli.main(['--output', str(tmp_path / 'run'), *options, 'problem', str(tmp_path)])
-    assert received == [60, 3]
-
-
-async def test_retry_count_reaches_both_agent_call_sites(config, botbox_script):
-    from surprisals_experiment.sdk.prompt_t import prompt_t
-    config.llm_retries = 4
-    async with open_u_session(config) as session:
-        assert session.pi_session.agent.retry_policy.retries == 4
-    botbox_script.solutions.append("print(1)")
-    await prompt_t(config, 'advice', output=config.output / 'src', logs=config.output / 't')
-    assert botbox_script.t_sessions[-1].agent.retry_policy.retries == 4
-
-
-def test_negative_retries_are_rejected(config):
-    from pydantic import ValidationError
-    from surprisals_experiment.config import Config
-    with pytest.raises(ValidationError):
-        Config(**{**config.model_dump(), 'llm_retries': -1})

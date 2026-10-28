@@ -3,7 +3,6 @@
 import shlex
 from collections.abc import Callable
 
-from surprisals_experiment.retry_policy import DEFAULT_LLM_RETRIES
 from .retrying_pi_agent import RetryingPiAgent
 
 from .receive_event import receive_event
@@ -11,10 +10,8 @@ from .receive_event import receive_event
 
 class TAgent(RetryingPiAgent):
     def __init__(self, provider: str, model: str, *, api_key: str,
-                 instructions: str, on_delta: Callable[[str, str], None] | None,
-                 llm_retries: int = DEFAULT_LLM_RETRIES):
-        super().__init__(provider, model=shlex.quote(model), api_key=api_key,
-                         llm_retries=llm_retries)
+                 instructions: str, on_delta: Callable[[str, str], None] | None):
+        super().__init__(provider, model=shlex.quote(model), api_key=api_key)
         self.instructions = instructions
         self.on_delta = on_delta
 

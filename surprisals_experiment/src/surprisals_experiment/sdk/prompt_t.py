@@ -21,7 +21,7 @@ async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
     output.mkdir(parents=True, exist_ok=False)
     agent = TAgent(
         provider="openrouter", model=config.t_model, api_key=config.api_key.get_secret_value(),
-        instructions=INSTRUCTIONS, on_delta=on_delta, llm_retries=config.llm_retries,
+        instructions=INSTRUCTIONS, on_delta=on_delta,
     )
     async with botbox_session(
         agent, dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),

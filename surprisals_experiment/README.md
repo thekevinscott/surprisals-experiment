@@ -33,7 +33,7 @@ In agent mode, U’s native Pi session files are retained in `u_transcripts/` an
 
 Tests execute generated Python on the host, as requested. Agent container isolation does not isolate that evaluation step; generated code can access host files available to the current user.
 
-Botbox returns each session turn as a buffered list; U and T forward events through the existing agent hooks. Pi handles transient model failures for agent U and T within the same conversation. Chat U uses Tenacity to retry the original conversation while preserving partial replies in its transcript. The shared --llm-retries default is 60, separate from experiment turns. Delays are 5, 10, 20, 40, then 60 seconds: 3,435 seconds (57m15s) of waiting, plus request time. Permanent errors fail fast. Exhaustion stops the run as an infrastructure error and retains diagnostics. Partial replies without a completed turn are rejected.
+Botbox returns each session turn as a buffered list; U and T forward events through the existing agent hooks. Chat U retries the original conversation while preserving partial replies in its transcript. Chat U, scorer requests, and Botbox session entry retry transient failures up to 8 times (9 attempts), on the cumulative schedule 10 s, 30 s, 60 s, 2 m, 5 m, 10 m, 30 m, and 60 m. The derived waits are 10, 20, 30, 60, 180, 300, 1200, and 1800 seconds: one hour of waiting total, plus request time. Botbox retries only entry failures whose Docker stderr contains `DeadlineExceeded`; it never replays the session body. Pi separately retries transient model failures for agent U and T up to 60 times with 5, 10, 20, 40, then 60-second waits. Permanent errors fail fast; exhausted retries report the operation, cause, and retry count. Existing per-T-sample timeouts still apply. Partial replies without a completed turn are rejected.
 
 ## Async SDK
 
@@ -57,7 +57,7 @@ Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). 
 
 Each sample stores its source, transcripts, diagnostics, and tests under `attempts/<attempt>/t_samples/<index>/`. U receives all per-sample test counts after every completed batch, with inline source in chat mode or source paths in agent mode. Temporary snapshots are `/solutions/<attempt>/<sample>` for every sample, with the corresponding advice at `/solutions/<attempt>/advice.txt`. All earlier attempts remain accessible; tests and expected outputs remain hidden.
 
-An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume. LLM calls (chat U, and Pi for agent U and T) retry transient failures `--llm-retries` times (default 60) with 5–60 s exponential backoff before the exception ends the run. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
+An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume. Retries use the fixed schedules described above. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
 
 ## U chat and agent modes
 
@@ -67,7 +67,7 @@ After each complete batch, both modes receive the measured advice length (labell
 
 Each chat U call appends a UTC timestamp, completion ID, and the returned usage object to `u/transcripts/usage.jsonl`, including compaction calls. Prompt/completion counts and reasoning/cache details remain as returned; unavailable usage is `null`, not zero. These records are separate from conversation messages and are never sent back to the model.
 
-Chat messages are appended to `u_transcripts/messages.jsonl` as they arrive. Assistant reasoning and reasoning details are retained, including available partial output on failure or cancellation. Thinking and advice stream to the existing callbacks. A truncated or incomplete reply is an infrastructure error, never valid advice. Chat uses the SDK's standard request retries; Pi's agent-specific retry/compaction configuration applies only to agent mode.
+Chat messages are appended to `u_transcripts/messages.jsonl` as they arrive. Assistant reasoning and reasoning details are retained, including available partial output on failure or cancellation. Thinking and advice stream to the existing callbacks. A truncated or incomplete reply is an infrastructure error, never valid advice. Chat uses the shared Tenacity decorator with SDK retries disabled; Pi's retry/compaction configuration applies only to agent mode.
 
 Prompt wording lives in `prompts/u.txt`, `prompts/u_feedback.txt`, and mode-specific `u_context_chat.txt` / `u_context_agent.txt`. The iteration loop uses the same session `prompt(...)` call in either mode. `settings.json` records the mode so runs can be distinguished.
 

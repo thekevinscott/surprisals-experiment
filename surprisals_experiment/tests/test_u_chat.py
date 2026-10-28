@@ -90,10 +90,9 @@ def describe_chat_u():
         config, botbox_script, finish,
     ):
         config.u_mode = 'chat'
-        config.llm_retries = 0
-        botbox_script.advice.append({
+        botbox_script.advice.extend([{
             'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': finish,
-        })
+        }] * 9)
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
         assert not botbox_script.t_sessions
@@ -179,8 +178,7 @@ def describe_chat_u():
     @pytest.mark.parametrize('deltas', [[], [{'role': 'assistant'}]])
     async def it_does_not_accept_empty_replies(config, botbox_script, deltas):
         config.u_mode = 'chat'
-        config.llm_retries = 0
-        botbox_script.advice.append({'deltas': deltas, 'finish': None})
+        botbox_script.advice.extend([{'deltas': deltas, 'finish': None}] * 9)
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
         assert not botbox_script.t_sessions
@@ -226,12 +224,18 @@ def describe_chat_u_roles():
     @pytest.mark.parametrize('finish', [None, 'length'])
     async def it_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, finish):
         config.u_mode = 'chat'
-        config.llm_retries = 0
-        botbox_script.advice.append({
+        botbox_script.advice.extend([{
             'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
             'finish': finish,
-        })
+        }] * 9)
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
         transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
         assert transcript[-1] == {'role': 'assistant', 'content': 'partial'}
+
+
+@pytest.fixture(autouse=True)
+def no_retry_wait(monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
