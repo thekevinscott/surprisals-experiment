@@ -1,9 +1,12 @@
 """Fixed retry schedules for transient failures; Pi owns its internal retries."""
 
+from itertools import pairwise
+
 from openai import APIConnectionError, APIError, APIStatusError
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_chain, wait_fixed
 
-DELAYS = (10, 30, 60, 120, 300, 600, 1800, 3600)
+RETRY_AT_SECONDS = (10, 30, 60, 120, 300, 600, 1800, 3600)
+DELAYS = tuple(end - start for start, end in pairwise((0, *RETRY_AT_SECONDS)))
 PI_RETRIES = 60
 PI_BASE_DELAY_MS = 5000
 PI_MAX_DELAY_MS = 60000

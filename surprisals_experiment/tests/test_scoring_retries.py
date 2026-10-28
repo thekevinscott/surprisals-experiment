@@ -91,7 +91,7 @@ async def test_scorer_exhaustion_uses_fixed_budget(
         await run_experiment(scoring_config, on_delta=None)
     assert caught.value.__cause__ is error
     assert scorer.await_count == retries + 1
-    assert [c.args[0] for c in no_retry_wait.await_args_list] == [10, 30, 60, 120, 300, 600, 1800, 3600]
+    assert [c.args[0] for c in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
     assert (scoring_config.advice_dir(0, 0) / "advice.txt").read_text() == "preserve me"
 
 

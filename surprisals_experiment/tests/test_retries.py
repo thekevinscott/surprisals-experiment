@@ -73,8 +73,8 @@ async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_w
         assert partials == ['partial'] * (retries + 1)
         # Exhaustion retains the last partial in memory, as before this refactor.
         assert session.messages[-1]['content'] == 'partial'
-    assert [c.args[0] for c in no_retry_wait.await_args_list] == list(DELAYS)
-    assert sum(DELAYS) == 6520
+    assert [c.args[0] for c in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
+    assert sum(c.args[0] for c in no_retry_wait.await_args_list) == 3600
 
 
 @pytest.mark.parametrize('agent_type', [UAgent, TAgent])

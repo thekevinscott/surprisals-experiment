@@ -83,4 +83,4 @@ def describe_botbox_entry():
                 pytest.fail('body must not run')
         assert entry_harness['entries'] == 9
         assert entry_harness['box_exits'] == 9
-        assert [c.args[0] for c in entry_harness['sleep'].await_args_list] == [10,30,60,120,300,600,1800,3600]
+        assert [c.args[0] for c in entry_harness['sleep'].await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
