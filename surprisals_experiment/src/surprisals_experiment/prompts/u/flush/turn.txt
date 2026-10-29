@@ -1,5 +1,10 @@
 <original_question>
-{question}
+{{ question }}
 </original_question>
 
-{history}
+{% for attempt in history %}
+{% if not loop.first %}
+
+{% endif %}
+{% include "attempt.txt" %}
+{% endfor %}

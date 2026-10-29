@@ -1,15 +1,15 @@
 """Seed a cleared chat U with its previous attempts and their test results."""
 
 from dataclasses import dataclass
-from importlib.resources import files
+
+from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from surprisals_experiment.config import Config
 
-PROMPTS = files("surprisals_experiment").joinpath("prompts/u/flush")
-TURN, ATTEMPT, CODE, CODE_T, CODE_FILE = (
-    PROMPTS.joinpath(f"{name}.txt").read_text().rstrip("\n")
-    for name in ("turn", "attempt", "code/block", "code/t", "code/file")
-)
+TURN = Environment(
+    loader=PackageLoader("surprisals_experiment", "prompts/u/flush"),
+    trim_blocks=True, lstrip_blocks=True, undefined=StrictUndefined,
+).get_template("turn.txt")
 
 
 @dataclass
@@ -22,31 +22,14 @@ class Attempt:
     sources: dict[str, dict[str, str]]
 
 
-def render_code(attempt: Attempt) -> str:
-    return CODE.format(implementations="\n".join(
-        CODE_T.format(index=index, files="\n".join(
-            CODE_FILE.format(path=path, source=source.rstrip("\n"))
-            for path, source in attempt.sources.get(str(index), {}).items()
-        ))
-        for index in range(len(attempt.results))
-    )) + "\n"
-
-
 def render(config: Config, history: list[Attempt]) -> str:
     latest = history[-1:]
     latest_pass = next(([attempt] for attempt in reversed(history) if attempt.passed), [])
-    shown = {attempt.number for attempt in latest + latest_pass}
-    template = config.advice_measure.render(ATTEMPT)
-    return TURN.format(
+    return TURN.render(
         question=config.question_file.read_text().rstrip("\n"),
-        history="\n".join(
-            template.format(
-                number=attempt.number, length=attempt.length, advice=attempt.advice,
-                results="\n".join(f"T-{index}: {result}" for index, result in enumerate(attempt.results)),
-                code=render_code(attempt) if attempt.number in shown else "",
-            )
-            for attempt in history
-        ),
+        history=history,
+        shown={attempt.number for attempt in latest + latest_pass},
+        unit=config.advice_measure.render("characters"),
     )
 
 

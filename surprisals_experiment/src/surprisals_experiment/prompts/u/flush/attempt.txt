@@ -1,10 +1,16 @@
 <attempt>
-<index>{number}</index>
-<length>{length} characters</length>
+<index>{{ attempt.number }}</index>
+<length>{{ attempt.length }} {{ unit }}</length>
 <advice>
-{advice}
+{{ attempt.advice }}
 </advice>
 <results>
-{results}
+{% for result in attempt.results %}
+T-{{ loop.index0 }}: {{ result }}
+{% endfor %}
 </results>
-{code}</attempt>
+{% if attempt.number in shown %}
+{% include "code/block.txt" %}
+
+{% endif %}
+</attempt>

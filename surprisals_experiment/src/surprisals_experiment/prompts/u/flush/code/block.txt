@@ -1,3 +1,6 @@
 <code>
-{implementations}
+{% for index in range(attempt.results | length) %}
+{% include "code/t.txt" %}
+
+{% endfor %}
 </code>

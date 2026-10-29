@@ -1,3 +1,6 @@
-<T-{index}>
-{files}
-</T-{index}>
+<T-{{ index }}>
+{% for path, source in attempt.sources.get(index | string, {}).items() %}
+{% include "code/file.txt" %}
+
+{% endfor %}
+</T-{{ index }}>
