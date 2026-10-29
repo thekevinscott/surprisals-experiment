@@ -47,8 +47,8 @@ async def main(argv: list[str] | None = None) -> None:
     problem = commands.add_parser("problem", help="Select a problem directory")
     problem.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
                          help="U interface (default: agent)")
-    problem.add_argument("--u-flush", type=int, choices=(0, 1), default=0,
-                         help="1 clears chat U every turn and shows its previous advices with their lengths and test results, within --u-compact-chars (default: 0 keeps the conversation)")
+    problem.add_argument("--u-history", type=int, default=0,
+                         help="Clear chat U every turn; show its last N advices and results (default: 0 keeps the conversation)")
     source = problem.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
@@ -82,7 +82,7 @@ async def main(argv: list[str] | None = None) -> None:
             u_model=args.U,
             u_mode=args.u_mode,
             u_compact_chars=args.u_compact_chars,
-            u_flush=args.u_flush,
+            u_history=args.u_history,
             u_thinking=args.u_thinking,
             t_model=args.T,
             cap_strategy=args.cap_strategy,
