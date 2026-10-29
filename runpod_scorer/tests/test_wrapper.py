@@ -1,4 +1,4 @@
-"""Execute the cell script against fake scorer and experiment commands."""
+"""Execute the cell script against a fake experiment command."""
 
 import json
 import os
@@ -14,52 +14,39 @@ WRAPPER = Path(__file__).resolve().parents[1] / "run-cell.sh"
 @pytest.fixture
 def fake_commands(tmp_path):
     log = tmp_path / "commands.jsonl"
-    program = f"#!{sys.executable}\n" + """
+    path = tmp_path / "experiment"
+    path.write_text(f"#!{sys.executable}\n" + """
 import json, os, sys
-args = sys.argv[1:]
 with open(os.environ["COMMAND_LOG"], "a") as log:
-    log.write(json.dumps({"command": os.path.basename(sys.argv[0]), "args": args}) + "\\n")
-if os.path.basename(sys.argv[0]) == "uv":
-    assert args[3:5] == ["runpod-scorer", "up"]
-    if os.environ.get("UP_EXIT"):
-        sys.exit(int(os.environ["UP_EXIT"]))
-    print(json.dumps({"pod_id": "pod1", "base_url": "http://scorer/v1"}))
-else:
-    sys.exit(int(os.environ.get("EXPERIMENT_EXIT", "0")))
-"""
-    for name in ("uv", "experiment"):
-        path = tmp_path / name
-        path.write_text(program)
-        path.chmod(0o755)
-    env = os.environ | {"PATH": f"{tmp_path}:{os.environ['PATH']}", "COMMAND_LOG": str(log)}
+    log.write(json.dumps(sys.argv[1:]) + "\\n")
+sys.exit(int(os.environ.get("EXPERIMENT_EXIT", "0")))
+""")
+    path.chmod(0o755)
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"pod_id": "pod1", "base_url": "http://scorer/v1"}))
+    env = os.environ | {"PATH": f"{tmp_path}:{os.environ['PATH']}", "COMMAND_LOG": str(log),
+                        "LABNOTES_RUN_STATE": str(state)}
     return env, log
 
 
 @pytest.mark.parametrize("flags", [[], ["--cap-strategy", "characters"],
                                     ["--cap-strategy", "surprisal"], ["--cap-strategy=surprisal"]])
 @pytest.mark.parametrize("exit_code", [0, 7])
-def test_cell_branches_without_teardown(fake_commands, flags, exit_code):
+def test_cell_injects_base_url_for_surprisal(fake_commands, flags, exit_code):
     env, log = fake_commands
     args = ["experiment", *flags, "--output", "output with spaces", "problem", "problem with spaces"]
-    result = subprocess.run([str(WRAPPER), "invocation with spaces", *args],
-                            env=env | {"EXPERIMENT_EXIT": str(exit_code)})
+    result = subprocess.run([str(WRAPPER), *args], env=env | {"EXPERIMENT_EXIT": str(exit_code)})
     assert result.returncode == exit_code
-    calls = [json.loads(line) for line in log.read_text().splitlines()]
-    scoring = any("surprisal" in arg for arg in flags)
-    experiment = calls[-1]
-    assert experiment["command"] == "experiment"
-    if scoring:
-        assert calls[0]["args"][3:] == ["runpod-scorer", "up", "invocation with spaces"]
-        assert experiment["args"] == ["--scorer-base-url", "http://scorer/v1", *args[1:]]
-        assert len(calls) == 2
+    [called] = [json.loads(line) for line in log.read_text().splitlines()]
+    if any("surprisal" in arg for arg in flags):
+        assert called == ["--scorer-base-url", "http://scorer/v1", *args[1:]]
     else:
-        assert experiment["args"] == args[1:]
-        assert len(calls) == 1
+        assert called == args[1:]
 
 
-def test_setup_failure_does_not_start_experiment(fake_commands):
+def test_missing_state_does_not_start_experiment(fake_commands):
     env, log = fake_commands
-    result = subprocess.run([str(WRAPPER), "invocation", "experiment", "--cap-strategy=surprisal"],
-                            env=env | {"UP_EXIT": "9"})
-    assert result.returncode == 9
-    assert len(log.read_text().splitlines()) == 1
+    env = {k: v for k, v in env.items() if k != "LABNOTES_RUN_STATE"}
+    result = subprocess.run([str(WRAPPER), "experiment", "--cap-strategy=surprisal"], env=env)
+    assert result.returncode != 0
+    assert not log.exists()
