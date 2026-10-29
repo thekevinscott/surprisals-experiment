@@ -6,5 +6,29 @@
 {% if not loop.first %}
 
 {% endif %}
-{% include "attempt.txt" %}
+<attempt>
+<index>{{ attempt.number }}</index>
+<length>{{ attempt.length }} {{ unit }}</length>
+<advice>
+{{ attempt.advice }}
+</advice>
+<results>
+{% for result in attempt.results %}
+T-{{ loop.index0 }}: {{ result }}
 {% endfor %}
+</results>
+{% if attempt.number in shown %}
+<code>
+{% for index in range(attempt.results | length) %}
+<T-{{ index }}>
+{% for path, source in attempt.sources.get(index | string, {}).items() %}
+<file path="{{ path }}">
+{{ source.rstrip("\n") }}
+</file>
+{% endfor %}
+</T-{{ index }}>
+{% endfor %}
+</code>
+{% endif %}
+</attempt>
+{%- endfor %}
