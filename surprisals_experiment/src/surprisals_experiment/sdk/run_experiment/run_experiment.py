@@ -67,7 +67,7 @@ async def run_experiment(
                 advice_length=measurement,
                 best_length=best_length, turns_without_improvement=turns_without_improvement,
             )
-            if config.u_history > 0:
+            if config.u_flush:
                 history.append((attempt, advice, measurement, results))
                 u_session.messages = u_session.messages[:1]
                 prompt = prepare_flush(config, history, feedback=prompt)
