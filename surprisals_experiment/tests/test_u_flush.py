@@ -75,11 +75,23 @@ def describe_chat_flush():
             '--max-u-turns', '3', '--t-samples', '1', '--output', str(config.output),
             'problem', '--u-mode', 'chat', str(config.problem_dir), *args,
         ])
-        context = files('surprisals_experiment').joinpath('prompts/u_context_chat.txt').read_text()
+        context = files('surprisals_experiment').joinpath('prompts/u/chat/context.txt').read_text()
         assert context in chat_provider[0]['messages'][0]['content']
         assert [len(request['messages']) for request in chat_provider] == [2, 4, 6]
         for turn in [1, 2]:
             assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
+
+    @pytest.mark.parametrize('flush', [False, True])
+    async def it_uses_its_own_feedback_template(config, botbox_script, chat_provider, monkeypatch, flush):
+        module = importlib.import_module('surprisals_experiment.sdk.run_experiment.prepare_feedback')
+        monkeypatch.setattr(module, 'FLUSH_TEMPLATE', 'flush feedback\n')
+        config.u_mode = 'chat'
+        config.u_flush = flush
+        config.max_u_turns = 2
+        botbox_script.advice.extend(['double it', 'double'])
+        botbox_script.solutions.extend([PASS] * 2)
+        await run_experiment(config, on_delta=None)
+        assert chat_provider[1]['messages'][-1]['content'].endswith('flush feedback\n') is flush
 
     def it_allows_agent_mode_with_zero(config):
         assert config.u_flush is False

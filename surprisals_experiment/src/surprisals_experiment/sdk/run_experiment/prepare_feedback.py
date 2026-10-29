@@ -10,6 +10,7 @@ from surprisals_experiment.config import Config
 from ..run_test_suite import TestSuiteResult
 
 TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/feedback.txt").read_text()
+FLUSH_TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/flush/feedback.txt").read_text()
 
 
 def prepare_feedback(
@@ -32,7 +33,7 @@ def prepare_feedback(
         metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
         annotated = "".join(f"{token}<{bits:.1f}>" for token, bits in metadata["tokens"])
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
-    feedback = config.advice_measure.render(TEMPLATE).format(
+    feedback = config.advice_measure.render(FLUSH_TEMPLATE if config.u_context == "flush" else TEMPLATE).format(
         implementation_access=files("surprisals_experiment").joinpath(
             f"prompts/u/{config.u_context}/context.txt",
         ).read_text(),
