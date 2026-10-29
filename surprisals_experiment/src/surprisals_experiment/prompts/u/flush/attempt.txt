@@ -1,0 +1,10 @@
+<attempt>
+<index>{number}</index>
+<length>{length} characters</length>
+<advice>
+{advice}
+</advice>
+<results>
+{results}
+</results>
+{code}</attempt>

@@ -1,1 +1,1 @@
-Each turn starts a fresh conversation. It contains the original problem, the shortest successful advice so far, your most recent advices with their results, and every T implementation from the latest turn. You have no tools or filesystem access.
+Each turn starts a fresh conversation with the original problem and your previous attempts, oldest first. T code is included only for the latest attempt and the most recent attempt where every T passed. You have no tools or filesystem access.
