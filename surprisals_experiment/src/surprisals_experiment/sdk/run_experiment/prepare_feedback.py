@@ -9,7 +9,7 @@ from .read_implementations import read_implementations
 from surprisals_experiment.config import Config
 from ..run_test_suite import TestSuiteResult
 
-TEMPLATE = files("surprisals_experiment").joinpath("prompts/u_feedback.txt").read_text()
+TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/feedback.txt").read_text()
 
 
 def prepare_feedback(
@@ -34,7 +34,7 @@ def prepare_feedback(
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = config.advice_measure.render(TEMPLATE).format(
         implementation_access=files("surprisals_experiment").joinpath(
-            f"prompts/u_context_{config.u_mode}.txt",
+            f"prompts/u/{config.u_mode}/context.txt",
         ).read_text(),
         implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),

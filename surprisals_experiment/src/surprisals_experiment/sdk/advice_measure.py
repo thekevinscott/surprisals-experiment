@@ -7,7 +7,7 @@ from measure_surprisal import Client, measure_surprisal
 from surprisals_experiment.retry_policy import DELAYS, retried, transient
 
 SURPRISAL_WORDING = files("surprisals_experiment").joinpath(
-    "prompts/u_measure_surprisal.txt",
+    "prompts/u/measure_surprisal.txt",
 ).read_text()
 
 

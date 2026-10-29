@@ -69,7 +69,7 @@ Each chat U call appends a UTC timestamp, completion ID, and the returned usage 
 
 Chat messages are appended to `u_transcripts/messages.jsonl` as they arrive. Assistant reasoning and reasoning details are retained, including available partial output on failure or cancellation. Thinking and advice stream to the existing callbacks. A truncated or incomplete reply is an infrastructure error, never valid advice. Chat uses the shared Tenacity decorator with SDK retries disabled; Pi's retry/compaction configuration applies only to agent mode.
 
-Prompt wording lives in `prompts/u.txt`, `prompts/u_feedback.txt`, and mode-specific `u_context_chat.txt` / `u_context_agent.txt`. The iteration loop uses the same session `prompt(...)` call in either mode. `settings.json` records the mode so runs can be distinguished.
+Prompt wording lives in `prompts/u/system.txt`, `prompts/u/feedback.txt`, and mode-specific `prompts/u/chat/context.txt` / `prompts/u/agent/context.txt`. The iteration loop uses the same session `prompt(...)` call in either mode. `settings.json` records the mode so runs can be distinguished.
 
 ### Advice cap strategy
 
