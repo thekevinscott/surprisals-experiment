@@ -75,22 +75,35 @@ def describe_chat_flush():
             assert f'<best_successful_advice>\n{best}\n</best_successful_advice>' in prompt
             assert f'Best successful advice length: {length}' in prompt
 
-    async def it_accumulates_chat_without_the_flag(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
-        config.max_u_turns = 3
+    @pytest.mark.parametrize('args', [[], ['--u-history', '0']])
+    async def it_accumulates_chat_with_default_or_explicit_zero(
+        config, botbox_script, chat_provider, monkeypatch, args,
+    ):
+        cli = importlib.import_module('surprisals_experiment.cli.main')
+        monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: '/unused/.env')
+        monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
         botbox_script.advice.extend(['double it', 'double', 'ok'])
         botbox_script.solutions.extend([PASS] * 3)
-        await run_experiment(config, on_delta=None)
+        await cli.main([
+            *args, '--max-u-turns', '3', '--t-samples', '1', '--output', str(config.output),
+            'problem', '--u-mode', 'chat', str(config.problem_dir),
+        ])
+        context = files('surprisals_experiment').joinpath('prompts/u_context_chat.txt').read_text()
+        assert context in chat_provider[0]['messages'][0]['content']
         assert [len(request['messages']) for request in chat_provider] == [2, 4, 6]
         for turn in [1, 2]:
             assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
+
+    def it_allows_agent_mode_with_zero(config):
+        assert config.u_history == 0
+        assert Config(**(config.model_dump() | {'u_history': 0})).u_context == 'agent'
 
     def it_rejects_agent_mode(config):
         with pytest.raises(ValueError, match='u_history requires chat U'):
             Config(**(config.model_dump() | {'u_history': 2}))
 
-    @pytest.mark.parametrize('history_size', [0, -1])
-    def it_rejects_nonpositive_history(config, history_size):
+    @pytest.mark.parametrize('history_size', [-1, -2])
+    def it_rejects_negative_history(config, history_size):
         with pytest.raises(ValueError, match='u_history'):
             Config(**(config.model_dump() | {'u_mode': 'chat', 'u_history': history_size}))
 
@@ -100,7 +113,8 @@ def describe_chat_flush():
         assert 'Best successful advice length: 12.345' in prompt
         assert prompt.endswith('latest feedback\n')
 
-    async def it_wires_the_cli_flag(config, monkeypatch):
+    @pytest.mark.parametrize('args,expected', [([], 0), (['--u-history', '0'], 0), (['--u-history', '2'], 2)])
+    async def it_wires_the_cli_flag(config, monkeypatch, args, expected):
         cli = importlib.import_module('surprisals_experiment.cli.main')
         received = []
 
@@ -111,7 +125,7 @@ def describe_chat_flush():
         monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
         monkeypatch.setattr(cli, 'run_experiment', run)
         await cli.main([
-            '--u-history', '2', '--output', str(config.output),
+            *args, '--output', str(config.output),
             'problem', '--u-mode', 'chat', str(config.problem_dir),
         ])
-        assert received == [2]
+        assert received == [expected]
