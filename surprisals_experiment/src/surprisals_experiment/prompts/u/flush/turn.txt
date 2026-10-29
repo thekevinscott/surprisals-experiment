@@ -1,12 +1,5 @@
-We cleared the prior conversation. Continue the same experiment and task.
-
 <original_question>
 {question}
 </original_question>
 
-Your previous advices, oldest first, with their lengths and test results:
 {history}
-
-Feedback on your latest advice:
-
-{feedback}

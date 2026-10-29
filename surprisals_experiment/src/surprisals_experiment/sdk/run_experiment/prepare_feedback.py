@@ -10,7 +10,14 @@ from surprisals_experiment.config import Config
 from ..run_test_suite import TestSuiteResult
 
 TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/feedback.txt").read_text()
-FLUSH_TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/flush/feedback.txt").read_text()
+
+
+def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
+    t_dir = config.t_dir(attempt, index)
+    timed_out = (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
+    return f"passed {sample.passed} of {sample.total} tests" + (
+        "; timed out on every try and wrote no solution" if timed_out else ""
+    )
 
 
 def prepare_feedback(
@@ -19,21 +26,14 @@ def prepare_feedback(
 ) -> str:
     evaluations = []
     for index, sample in enumerate(results):
-        t_dir = config.t_dir(attempt, index)
-        ending = "; timed out on every try and wrote no solution." if (
-            (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
-        ) else "."
         location = f"solution in /solutions/{attempt}/{index}; " if config.u_mode == "agent" else ""
-        evaluations.append(
-            f"T {index}: {location}"
-            f"passed {sample.passed} of {sample.total} tests{ending}"
-        )
+        evaluations.append(f"T {index}: {location}{describe_result(config, attempt, index, sample)}.")
     advice_measurement = f"Your advice was {advice_length} characters."
     if config.cap_strategy == "surprisal":
         metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
         annotated = "".join(f"{token}<{bits:.1f}>" for token, bits in metadata["tokens"])
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
-    feedback = config.advice_measure.render(FLUSH_TEMPLATE if config.u_context == "flush" else TEMPLATE).format(
+    feedback = config.advice_measure.render(TEMPLATE).format(
         implementation_access=files("surprisals_experiment").joinpath(
             f"prompts/u/{config.u_context}/context.txt",
         ).read_text(),

@@ -9,9 +9,7 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush, render
-
-suite = importlib.import_module('surprisals_experiment.sdk.run_test_suite.results')
+from surprisals_experiment.sdk.run_experiment.prepare_flush import Attempt, prepare_flush, render
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -34,29 +32,29 @@ def describe_chat_flush():
         assert resources.joinpath('u/flush/context.txt').read_text() in system['content']
         assert resources.joinpath('u/chat/context.txt').read_text() not in system['content']
         assert chat_provider[0]['messages'][1]['content'] == config.question_file.read_text()
+        question = config.question_file.read_text().rstrip('\n')
+
+        def expected(i, code):
+            results = '\n'.join(f'T-{t}: passed {2 if s == PASS else 0} of 2 tests' for t, s in enumerate(sources[i]))
+            block = (f'<attempt>\n<index>{i}</index>\n<length>{len(advices[i])} characters</length>\n'
+                     f'<advice>\n{advices[i]}\n</advice>\n<results>\n{results}\n</results>\n')
+            if code:
+                block += '<code>\n' + '\n'.join(
+                    f'<T-{t}>\n<file path="main.py">\n{s.rstrip()}\n</file>\n</T-{t}>' for t, s in enumerate(sources[i])
+                ) + '\n</code>\n'
+            return block + '</attempt>'
+
+        latest_pass = {1: 0, 2: 0, 3: 2, 4: 2, 5: 4}
         for turn, request in enumerate(chat_provider[1:], 1):
             messages = request['messages']
             assert len(messages) == 2
             assert messages[0] == system
             assert messages[1]['role'] == 'user'
             prompt = messages[1]['content']
-            assert config.question_file.read_text() in prompt
-            entries = re.findall(
-                r'<attempt number="(\d+)" length="([^"]+)" passed="([^"]+)">\n<advice>\n(.*?)\n</advice>\n(.*?)</attempt>',
-                prompt, re.DOTALL,
+            assert prompt == f'<original_question>\n{question}\n</original_question>\n\n' + '\n'.join(
+                expected(i, i in (turn - 1, latest_pass[turn])) for i in range(turn)
             )
-            assert entries == [
-                (
-                    str(i), str(len(advices[i])), f'{sources[i].count(PASS)} of 2', advices[i],
-                    ''.join(f'T {t}: passed {2 if source == PASS else 0} of 2 tests\n' for t, source in enumerate(sources[i])),
-                )
-                for i in range(turn)
-            ]
-            feedback = (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
-            assert prompt.endswith(feedback)
-            for source in sources[turn - 1]:
-                assert json.dumps(source) in feedback
-            assert resources.joinpath('u/flush/context.txt').read_text() in feedback
+            assert (config.attempt_dir(turn - 1) / 'feedback.txt').read_text() == prompt
         settings = json.loads((config.output / 'settings.json').read_text())
         assert settings['u_flush'] is True
         transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
@@ -81,18 +79,6 @@ def describe_chat_flush():
         for turn in [1, 2]:
             assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
 
-    @pytest.mark.parametrize('flush', [False, True])
-    async def it_uses_its_own_feedback_template(config, botbox_script, chat_provider, monkeypatch, flush):
-        module = importlib.import_module('surprisals_experiment.sdk.run_experiment.prepare_feedback')
-        monkeypatch.setattr(module, 'FLUSH_TEMPLATE', 'flush feedback\n')
-        config.u_mode = 'chat'
-        config.u_flush = flush
-        config.max_u_turns = 2
-        botbox_script.advice.extend(['double it', 'double'])
-        botbox_script.solutions.extend([PASS] * 2)
-        await run_experiment(config, on_delta=None)
-        assert chat_provider[1]['messages'][-1]['content'].endswith('flush feedback\n') is flush
-
     def it_allows_agent_mode_with_zero(config):
         assert config.u_flush is False
         assert config.u_context == 'agent'
@@ -103,16 +89,13 @@ def describe_chat_flush():
 
     @pytest.mark.parametrize('kept', [[0, 1, 2, 3, 4], [0, 2, 3, 4], [0, 2, 4], [2, 4], [4], []])
     def it_ejects_oldest_failures_then_oldest_successes_to_fit_the_budget(config, kept):
-        passing = [suite.TestSuiteResult([suite.TestResult(0, True, 'passed', '', '', 0)])]
-        failing = [suite.TestSuiteResult([suite.TestResult(0, False, 'wrong_answer', '', '', 0)])]
-        history = [(i, chr(97 + i) * 50, 50, failing if i % 2 else passing) for i in range(5)]
-        config.u_compact_chars = len(render(config, [history[i] for i in kept], 'feedback\n'))
-        assert prepare_flush(config, history, feedback='feedback\n') == render(config, [history[i] for i in kept], 'feedback\n')
+        history = [Attempt(i, chr(97 + i) * 50, 50, ['passed 1 of 1 tests'], not i % 2, {}) for i in range(5)]
+        config.u_compact_chars = len(render(config, [history[i] for i in kept]))
+        assert prepare_flush(config, history) == render(config, [history[i] for i in kept])
 
     def it_preserves_fractional_measurements(config):
-        prompt = prepare_flush(config, [(0, 'double', 12.345, [])], feedback='latest feedback\n')
-        assert 'length="12.345"' in prompt
-        assert prompt.endswith('latest feedback\n')
+        prompt = prepare_flush(config, [Attempt(0, 'double', 12.345, [], True, {})])
+        assert '<length>12.345 characters</length>' in prompt
 
     @pytest.mark.parametrize('args,expected', [([], False), (['--u-flush', '0'], False), (['--u-flush', '1'], True)])
     async def it_wires_the_cli_flag(config, monkeypatch, args, expected):
