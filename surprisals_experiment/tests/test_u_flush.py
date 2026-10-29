@@ -85,8 +85,8 @@ def describe_chat_flush():
         botbox_script.advice.extend(['double it', 'double', 'ok'])
         botbox_script.solutions.extend([PASS] * 3)
         await cli.main([
-            *args, '--max-u-turns', '3', '--t-samples', '1', '--output', str(config.output),
-            'problem', '--u-mode', 'chat', str(config.problem_dir),
+            '--max-u-turns', '3', '--t-samples', '1', '--output', str(config.output),
+            'problem', '--u-mode', 'chat', str(config.problem_dir), *args,
         ])
         context = files('surprisals_experiment').joinpath('prompts/u_context_chat.txt').read_text()
         assert context in chat_provider[0]['messages'][0]['content']
@@ -125,7 +125,7 @@ def describe_chat_flush():
         monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
         monkeypatch.setattr(cli, 'run_experiment', run)
         await cli.main([
-            *args, '--output', str(config.output),
-            'problem', '--u-mode', 'chat', str(config.problem_dir),
+            '--output', str(config.output),
+            'problem', '--u-mode', 'chat', str(config.problem_dir), *args,
         ])
         assert received == [expected]
