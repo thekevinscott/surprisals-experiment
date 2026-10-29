@@ -8,7 +8,7 @@ from surprisals_experiment.config import Config
 PROMPTS = files("surprisals_experiment").joinpath("prompts/u/flush")
 TURN, ATTEMPT, CODE, CODE_T, CODE_FILE = (
     PROMPTS.joinpath(f"{name}.txt").read_text().rstrip("\n")
-    for name in ("turn", "attempt", "code", "code_t", "code_file")
+    for name in ("turn", "attempt", "code/block", "code/t", "code/file")
 )
 
 
