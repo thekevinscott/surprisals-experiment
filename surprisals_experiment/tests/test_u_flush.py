@@ -16,21 +16,25 @@ FAIL = 'print(0)\n'
 
 
 def describe_chat_flush():
-    @pytest.mark.parametrize('history_size', [1, 2, 8])
-    async def it_sends_only_recent_history(
-        config, botbox_script, chat_provider, history_size,
+    @pytest.mark.parametrize('history_size,kept', [
+        (1, [[0], [0], [2], [2], [4]]),
+        (2, [[0], [0, 1], [0, 2], [0, 2], [2, 4]]),
+        (8, [[0], [0, 1], [0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]]),
+    ])
+    async def it_sends_previous_advices_ejecting_failures_first(
+        config, botbox_script, chat_provider, history_size, kept,
     ):
         config.u_mode = 'chat'
         config.u_history = history_size
         config.u_compact_chars = 1
         config.t_samples = 2
-        config.max_u_turns = 5
-        advices = ['double "input" {exact}', 'x', 'a much longer successful advice', 'y', 'double']
-        sources = [[PASS, PASS], [PASS, FAIL], [PASS, PASS], [FAIL, FAIL], [PASS, PASS]]
+        config.max_u_turns = 6
+        advices = ['double "input" {exact}', 'x', 'a much longer successful advice', 'y', 'double', 'z']
+        sources = [[PASS, PASS], [PASS, FAIL], [PASS, PASS], [FAIL, FAIL], [PASS, PASS], [FAIL, FAIL]]
         botbox_script.advice.extend(advices)
         botbox_script.solutions.extend(source for batch in sources for source in batch)
         await run_experiment(config, on_delta=None)
-        assert len(chat_provider) == 5
+        assert len(chat_provider) == 6
         resources = files('surprisals_experiment').joinpath('prompts')
         system = chat_provider[0]['messages'][0]
         assert resources.joinpath('u/flush/context.txt').read_text() in system['content']
@@ -43,14 +47,16 @@ def describe_chat_flush():
             assert messages[1]['role'] == 'user'
             prompt = messages[1]['content']
             assert config.question_file.read_text() in prompt
-            assert 'best_successful_advice' not in prompt
             entries = re.findall(
-                r'<advice attempt="(\d+)" length="([^"]+)" passed="([^"]+)">\n(.*?)\n</advice>',
+                r'<attempt number="(\d+)" length="([^"]+)" passed="([^"]+)">\n<advice>\n(.*?)\n</advice>\n(.*?)</attempt>',
                 prompt, re.DOTALL,
             )
             assert entries == [
-                (str(i), str(len(advices[i])), f'{sources[i].count(PASS)} of 2', advices[i])
-                for i in range(max(0, turn - history_size), turn)
+                (
+                    str(i), str(len(advices[i])), f'{sources[i].count(PASS)} of 2', advices[i],
+                    ''.join(f'T {t}: passed {2 if source == PASS else 0} of 2 tests\n' for t, source in enumerate(sources[i])),
+                )
+                for i in kept[turn - 1]
             ]
             feedback = (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
             assert prompt.endswith(feedback)
@@ -95,7 +101,8 @@ def describe_chat_flush():
             Config(**(config.model_dump() | {'u_mode': 'chat', 'u_history': history_size}))
 
     def it_preserves_fractional_measurements(config):
-        prompt = prepare_flush(config, [(0, 'double', 12.345, 1)], feedback='latest feedback\n')
+        config.u_history = 1
+        prompt = prepare_flush(config, [(0, 'double', 12.345, [])], feedback='latest feedback\n')
         assert 'length="12.345"' in prompt
         assert prompt.endswith('latest feedback\n')
 

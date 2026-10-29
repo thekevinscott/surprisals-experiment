@@ -48,7 +48,7 @@ async def main(argv: list[str] | None = None) -> None:
     problem.add_argument("--u-mode", choices=("chat", "agent"), default="agent",
                          help="U interface (default: agent)")
     problem.add_argument("--u-history", type=int, default=0,
-                         help="Clear chat U every turn; show its last N advices and results (default: 0 keeps the conversation)")
+                         help="Clear chat U every turn; show up to N previous advices with their lengths and test results (default: 0 keeps the conversation)")
     source = problem.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
