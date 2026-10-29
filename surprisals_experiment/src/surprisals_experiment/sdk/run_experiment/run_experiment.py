@@ -67,10 +67,13 @@ async def run_experiment(
                 advice_length=measurement,
                 best_length=best_length, turns_without_improvement=turns_without_improvement,
             )
-            if config.u_flush:
-                history.append((attempt, advice, measurement, results))
+            if config.u_history > 0:
+                history.append((attempt, advice, measurement, sum(result.all_passed for result in results)))
                 u_session.messages = u_session.messages[:1]
-                prompt = prepare_flush(config, history, feedback=prompt)
+                prompt = prepare_flush(
+                    config, history[-config.u_history:], best_advice=u_session.best_advice,
+                    best_length=best_length, feedback=prompt,
+                )
             config.result_file.write_text(json.dumps({
                 **config.advice_measure.result_fields(best_length),
                 "success": best_solution is not None,

@@ -22,7 +22,7 @@ class Config(BaseModel):
     u_model: str
     u_thinking: ThinkingLevel
     u_compact_chars: int = Field(default=400000, ge=0)
-    u_flush: bool = False
+    u_history: int = Field(default=0, ge=0)
     t_model: str
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
@@ -40,14 +40,14 @@ class Config(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def require_chat_for_flush(self):
-        if self.u_flush and self.u_mode != "chat":
-            raise ValueError("u_flush requires chat U")
+    def require_chat_for_history(self):
+        if self.u_history > 0 and self.u_mode != "chat":
+            raise ValueError("u_history requires chat U")
         return self
 
     @property
     def u_context(self) -> str:
-        return "flush" if self.u_flush else self.u_mode
+        return "flush" if self.u_history > 0 else self.u_mode
 
     @cached_property
     def advice_measure(self):
@@ -60,7 +60,7 @@ class Config(BaseModel):
         self.output.mkdir(parents=True, exist_ok=True)
         (self.output / "settings.json").write_text(json.dumps({
             "u_mode": self.u_mode,
-            **({"u_flush": True} if self.u_flush else {}),
+            **({"u_history": self.u_history} if self.u_history > 0 else {}),
             "t_samples": self.t_samples,
             "t_sample_retries": self.t_sample_retries,
         }, indent=2) + "\n")
