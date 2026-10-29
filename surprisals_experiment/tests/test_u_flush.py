@@ -17,7 +17,7 @@ FAIL = 'print(0)\n'
 
 def describe_chat_flush():
     @pytest.mark.parametrize('history_size', [1, 2, 8])
-    async def it_sends_only_recent_history_and_retains_the_authoritative_best(
+    async def it_sends_only_recent_history(
         config, botbox_script, chat_provider, history_size,
     ):
         config.u_mode = 'chat'
@@ -43,10 +43,9 @@ def describe_chat_flush():
             assert messages[1]['role'] == 'user'
             prompt = messages[1]['content']
             assert config.question_file.read_text() in prompt
-            assert f'<best_successful_advice>\n{advices[0]}\n</best_successful_advice>' in prompt
-            assert f'Best successful advice length: {len(advices[0])}' in prompt
+            assert 'best_successful_advice' not in prompt
             entries = re.findall(
-                r'<advice attempt="(\d+)" measurement="([^"]+)" passed="([^"]+)">\n(.*?)\n</advice>',
+                r'<advice attempt="(\d+)" length="([^"]+)" passed="([^"]+)">\n(.*?)\n</advice>',
                 prompt, re.DOTALL,
             )
             assert entries == [
@@ -62,18 +61,6 @@ def describe_chat_flush():
         assert settings['u_history'] == history_size
         transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
         assert [m['content'] for m in transcript if m['role'] == 'assistant'] == advices
-
-    async def it_reports_none_until_success_and_then_updates_best(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
-        config.u_history = 1
-        config.max_u_turns = 4
-        botbox_script.advice.extend(['x', 'double it', 'double', 'ok'])
-        botbox_script.solutions.extend([FAIL, PASS, PASS, PASS])
-        await run_experiment(config, on_delta=None)
-        for turn, best, length in [(1, '(none yet)', '(none yet)'), (2, 'double it', 9), (3, 'double', 6)]:
-            prompt = chat_provider[turn]['messages'][1]['content']
-            assert f'<best_successful_advice>\n{best}\n</best_successful_advice>' in prompt
-            assert f'Best successful advice length: {length}' in prompt
 
     @pytest.mark.parametrize('args', [[], ['--u-history', '0']])
     async def it_accumulates_chat_with_default_or_explicit_zero(
@@ -108,9 +95,8 @@ def describe_chat_flush():
             Config(**(config.model_dump() | {'u_mode': 'chat', 'u_history': history_size}))
 
     def it_preserves_fractional_measurements(config):
-        prompt = prepare_flush(config, [(0, 'double', 12.345, 1)], best_advice='double', best_length=12.345, feedback='latest feedback\n')
-        assert 'measurement="12.345"' in prompt
-        assert 'Best successful advice length: 12.345' in prompt
+        prompt = prepare_flush(config, [(0, 'double', 12.345, 1)], feedback='latest feedback\n')
+        assert 'length="12.345"' in prompt
         assert prompt.endswith('latest feedback\n')
 
     @pytest.mark.parametrize('args,expected', [([], 0), (['--u-history', '0'], 0), (['--u-history', '2'], 2)])
