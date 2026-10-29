@@ -21,6 +21,8 @@ async def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--u-compact-chars", type=int, default=400000,
                         help="Chat U conversation compaction threshold; 0 disables (default: 400000)")
+    parser.add_argument("--u-history", type=int,
+                        help="Clear chat U every turn; show its last N advices and results (default: keep the conversation)")
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
                         default="high", help="U thinking level (default: high)")
@@ -80,6 +82,7 @@ async def main(argv: list[str] | None = None) -> None:
             u_model=args.U,
             u_mode=args.u_mode,
             u_compact_chars=args.u_compact_chars,
+            u_history=args.u_history,
             u_thinking=args.u_thinking,
             t_model=args.T,
             cap_strategy=args.cap_strategy,

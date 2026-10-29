@@ -114,6 +114,8 @@ Review the advice-minimization behavior, then evaluate it in live runs before ad
 
 Chat U compacts its history before a request when message content plus reasoning (counted once) plus the pending request exceed `--u-compact-chars` (default 400000; 0 disables). It asks U for a summary under 2,000 characters, then keeps the original system prompt and question, that summary, and the exact best successful advice, length, and no-improvement count from the experiment. The pending request is sent unchanged. Agent mode keeps Pi’s own compaction. The full history, summary request/reply, and new preamble remain in `u_transcripts/messages.jsonl`. A summary over 2,000 characters is kept as is. If the summary request fails, compaction goes ahead with the error in place of the summary; the measured state is still exact. This is a soft character trigger, not a token limit: the preserved question, best advice, and latest feedback can themselves exceed it.
 
+Use `--u-mode chat --u-history N` to clear U back to its system prompt after every turn. Each fresh user message contains the original problem, the best successful advice and its measurement, the last N advice attempts (oldest first, with measurements and passing T sample counts), and the latest feedback with T implementations. N must be at least 1. Without this flag, chat U keeps its conversation and the compaction behavior above.
+
 ## Shared RunPod scorer
 
 The [runpod_scorer package](runpod_scorer/README.md) owns one scorer per

@@ -34,7 +34,7 @@ def prepare_feedback(
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = config.advice_measure.render(TEMPLATE).format(
         implementation_access=files("surprisals_experiment").joinpath(
-            f"prompts/u/{config.u_mode}/context.txt",
+            f"prompts/u/{config.u_context}/context.txt",
         ).read_text(),
         implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),

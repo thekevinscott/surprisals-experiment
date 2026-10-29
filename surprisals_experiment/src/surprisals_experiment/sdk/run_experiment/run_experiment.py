@@ -11,6 +11,7 @@ from .prompt_t_to_produce_code import prompt_t_to_produce_code
 from ..run_test_suite import run_test_suite_for_ts
 from .prepare_advice import prepare_advice
 from .prepare_feedback import prepare_feedback
+from .prepare_flush import prepare_flush
 from ..utils.u_session import open_u_session
 from ..utils.u_chat import ChatSession
 
@@ -33,6 +34,7 @@ async def run_experiment(
     best_length = None
     best_solution = None
     turns_without_improvement = 0
+    history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_session(config) as u_session:
         for attempt in attempts:
@@ -65,6 +67,13 @@ async def run_experiment(
                 advice_length=measurement,
                 best_length=best_length, turns_without_improvement=turns_without_improvement,
             )
+            if config.u_history is not None:
+                history.append((attempt, advice, measurement, sum(result.all_passed for result in results)))
+                u_session.messages = u_session.messages[:1]
+                prompt = prepare_flush(
+                    config, history[-config.u_history:], best_advice=u_session.best_advice,
+                    best_length=best_length, feedback=prompt,
+                )
             config.result_file.write_text(json.dumps({
                 **config.advice_measure.result_fields(best_length),
                 "success": best_solution is not None,
