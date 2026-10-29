@@ -21,6 +21,9 @@ def no_retry_wait(monkeypatch):
 
 @pytest.mark.parametrize('failure', [
     {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None, 'drop_stream': True},
+    {'deltas': [{'role': 'assistant', 'content': 'partial', 'reasoning': 'partial reasoning'}], 'finish': 'error'},
+    {'deltas': [{'role': 'assistant', 'content': 'partial', 'reasoning': 'partial reasoning'}],
+     'finish': 'error', 'finish_choice': {'error': {'message': 'upstream failed', 'code': 502}}},
     {'status': 429}, {'status': 500}, {'status': 503},
     httpx2.ConnectError('Connection error'),
     {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None},
@@ -38,7 +41,13 @@ async def test_chat_retries_transient_calls(config, botbox_script, chat_provider
     assert chat_provider[0]['messages'] == chat_provider[1]['messages']
     no_retry_wait.assert_awaited_once_with(10)
     if isinstance(failure, dict) and 'deltas' in failure:
-        assert 'partial' in (config.u_transcripts / 'messages.jsonl').read_text()
+        messages = [json.loads(line) for line in
+                    (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+        partial = next(m for m in messages if m.get('content') == 'partial')
+        if failure.get('finish') == 'error':
+            assert partial['reasoning'] == 'partial reasoning'
+            if 'finish_choice' in failure:
+                assert partial['provider_error']['choices'][0]['error'] == failure['finish_choice']['error']
 
 
 @pytest.mark.parametrize('failure', [{'status': 400}, {'status': 401}, {'status': 403},
@@ -54,19 +63,25 @@ async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provi
     no_retry_wait.assert_not_awaited()
 
 
-@pytest.mark.parametrize('dropped', [False, True], ids=['http-error', 'dropped-stream'])
-async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, dropped):
+@pytest.mark.parametrize('failure_kind', ['http-error', 'dropped-stream', 'provider-error'])
+async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, failure_kind):
     config.u_mode = 'chat'
     retries = len(DELAYS)
     failure = ({'deltas': [{'role': 'assistant', 'content': 'partial'}],
-                'finish': None, 'drop_stream': True} if dropped else {'status': 503})
+                'finish': None, 'drop_stream': True} if failure_kind == 'dropped-stream' else {'status': 503})
+    if failure_kind == 'provider-error':
+        failure = {'deltas': [{'role': 'assistant', 'content': 'partial'}],
+                   'finish': 'error', 'finish_choice': {'error': {'message': 'upstream failed'}}}
     botbox_script.advice.extend([failure] * (retries + 1))
-    with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted'):
+    with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
         async with open_u_session(config) as session:
             await session.prompt('question')
+    if failure_kind == 'provider-error':
+        assert 'U chat provider error' in str(raised.value)
+        assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == retries + 1
     assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
-    if dropped:
+    if failure_kind != 'http-error':
         messages = [json.loads(line) for line in
                     (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
         partials = [message['content'] for message in messages if message['role'] == 'assistant']
