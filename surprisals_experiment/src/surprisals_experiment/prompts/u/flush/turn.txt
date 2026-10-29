@@ -4,13 +4,7 @@ We cleared the prior conversation. Continue the same experiment and task.
 {question}
 </original_question>
 
-The following state comes directly from the experiment.
-Best successful advice length: {best_length}
-<best_successful_advice>
-{best_advice}
-</best_successful_advice>
-
-Your most recent advices, oldest first:
+Your previous advices, oldest first, with their lengths and test results:
 {history}
 
 Feedback on your latest advice:
