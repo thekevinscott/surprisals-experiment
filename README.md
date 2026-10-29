@@ -117,22 +117,17 @@ Chat U compacts its history before a request when the serialized messages (inclu
 ## Shared RunPod scorer
 
 The [runpod_scorer package](runpod_scorer/README.md) owns one scorer per
-labnotes invocation directory. Its runpod.json records the pod ID immediately
-and adds the endpoint once ready; a file lock prevents concurrent creation.
+labnotes invocation. Its setup hook saves the pod ID to labnotes state
+immediately and adds the endpoint once ready; its teardown hook deletes the pod.
 
 ~~~bash
-uv run --project runpod_scorer runpod-scorer up runs/my-invocation
-uv run --project runpod_scorer runpod-scorer down runs/my-invocation
 uv run --project runpod_scorer pytest runpod_scorer/tests
 ~~~
 
-Run each cell through runpod_scorer/run-cell.sh <invocation_dir> <full command>.
-Character cells pass through unchanged. Labnotes' setup hook starts the scorer
-before any cell runs, including for characters-only invocations. Surprisal cells
-still call up to reuse the ready pod and inject its URL; they never delete it.
-Labnotes' teardown hook owns deletion after all cells finish. For a single run use its run directory,
-then call down explicitly.
+Run each cell through runpod_scorer/run-cell.sh <full command>. Character cells
+pass through unchanged. Surprisal cells read the endpoint from labnotes run
+state and inject it; they never delete the pod.
 
-See the package README for intended experiment.toml setup/command/teardown lines,
-single-run commands and the PR #51 flag dependency. No experiment TOML or
+See the package README for the experiment.toml setup/command/teardown lines
+and the PR #51 flag dependency. No experiment TOML or
 experiment-package code is changed by this integration.

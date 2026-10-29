@@ -1,13 +1,12 @@
 """Create a vLLM scorer and wait for readiness."""
 
-import json
 import time
 import sys
 
 import httpx
+import labnotes
 
 from . import teardown
-from .invocation import locked_state
 
 READY_TIMEOUT = 1800
 
@@ -43,31 +42,23 @@ def create_pod(model, gpu, key):
     return pod_id
 
 
-def up(directory, model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
-    with locked_state(directory) as state:
-        key = teardown.api_key()
-        if state.exists():
-            pod_id = json.loads(state.read_text())["pod_id"]
+def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
+    key = teardown.api_key()
+    pod_id = create_pod(model, gpu, key)
+    try:
+        labnotes.set_state({"pod_id": pod_id})
+        base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
+        deadline = time.monotonic() + READY_TIMEOUT
+        while time.monotonic() < deadline:
+            try:
+                ready = teardown.request("GET", f"{base_url}/models")
+                ready.raise_for_status()
+                break
+            except (httpx.HTTPError, OSError):
+                time.sleep(10)
         else:
-            pod_id = create_pod(model, gpu, key)
-        try:
-            state.write_text(json.dumps({"pod_id": pod_id}) + "\n")
-            base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
-            deadline = time.monotonic() + READY_TIMEOUT
-            while time.monotonic() < deadline:
-                try:
-                    ready = teardown.request("GET", f"{base_url}/models")
-                    ready.raise_for_status()
-                    break
-                except (httpx.HTTPError, OSError):
-                    time.sleep(10)
-            else:
-                raise TimeoutError(f"Pod {pod_id} did not become ready")
-            pod = {"pod_id": pod_id, "base_url": base_url}
-            state.write_text(json.dumps(pod) + "\n")
-            print(json.dumps(pod), flush=True)
-            return pod
-        except BaseException:
-            teardown.delete_pod(pod_id, key)
-            state.unlink(missing_ok=True)
-            raise
+            raise TimeoutError(f"Pod {pod_id} did not become ready")
+        labnotes.set_state({"base_url": base_url})
+    except BaseException:
+        teardown.delete_pod(pod_id, key)
+        raise

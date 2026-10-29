@@ -1,71 +1,31 @@
 # Shared RunPod scorer
 
-One invocation directory owns one scorer. All cells use the same directory,
-even when a matrix mixes character and surprisal runs.
+One labnotes invocation owns one scorer. Up and down run as the experiment's
+setup and teardown hooks and keep the pod in labnotes state
+(`labnotes.set_state` / `get_state`). Both raise outside those hooks.
 
-From the repository root:
-
-~~~bash
-uv run --project runpod_scorer runpod-scorer up runs/my-invocation
-uv run --project runpod_scorer runpod-scorer down runs/my-invocation
+~~~toml
+setup = "uv run --project runpod_scorer runpod-scorer up"
+command = '''runpod_scorer/run-cell.sh uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" problem --problem-dir {problem_dir}'''
+teardown = "uv run --project runpod_scorer runpod-scorer down"
 ~~~
 
-Up takes an exclusive file lock on runpod.lock, holding it through readiness.
-It reuses the pod in runpod.json if present; otherwise it creates one pod and
-immediately saves its pod_id before waiting. The ID is also printed to stderr.
-Once ready, base_url is added to the file and the JSON is printed to stdout.
-A second concurrent up waits for the lock, then checks the same pod's readiness.
-All cells in an invocation must use the same scorer model/GPU; overrides on a
-later up do not replace the existing pod.
+Up creates one pod and saves its pod_id to state before waiting. The ID is
+also printed to stderr. Once ready, base_url is added to state. Startup failure
+or Ctrl-C deletes the pod. All cells share the scorer model/GPU set on up.
 
-Down uses the same lock, deletes the saved pod, verifies it is gone, then
-removes runpod.json. Without a state file it succeeds without HTTP calls or
-credential loading, including a characters-only invocation. The lock file
-remains; removing it could break synchronization. Down accepts a directory,
-not a bare pod ID.
-
-Startup failure or Ctrl-C deletes the pod and removes its state only after
-verified deletion. Failed cleanup leaves runpod.json for a later down.
-SIGKILL cannot run cleanup; the saved ID enables recovery.
+Down deletes the pod in state and verifies it is gone. With no pod_id in state
+it does nothing, without HTTP calls or credential loading. If down fails,
+delete the pod by hand with the ID from stderr or the state file.
 
 ## Per-cell command
 
-run-cell.sh takes an invocation directory followed by the **full experiment
-command**, matching labnotes' command template:
-
-~~~bash
-runpod_scorer/run-cell.sh runs/my-invocation   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --cap-strategy surprisal --output runs/my-invocation/cell-1 problem /path/to/problem
-~~~
-
-Both --cap-strategy surprisal and --cap-strategy=surprisal call up and insert
---scorer-base-url immediately before the cap-strategy flag. Other arguments and
-their boundaries are preserved. Character cells execute the command unchanged
-and never call the scorer. The script has **no trap or teardown**: the pod is
-shared, so cell success or failure must not delete it.
-
-Intended experiment.toml lines (documentation only; no TOML is changed):
-
-~~~toml
-setup = "uv run --project runpod_scorer runpod-scorer up {invocation_dir}"
-command = '''runpod_scorer/run-cell.sh "{invocation_dir}" uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" problem --problem-dir {problem_dir}'''
-teardown = "uv run --project runpod_scorer runpod-scorer down {invocation_dir}"
-~~~
-
-Cap strategy belongs in the existing sanity-check matrix, not a separate
-experiment. This assumes labnotes provides invocation_dir to commands and
-hooks, waits for setup before any cell runs, and runs teardown once after every
-cell ends. With this setup hook, even a characters-only invocation starts a pod.
-Surprisal cells still call up: it reuses the ready pod, and this call also lets
-single runs without labnotes start their own scorer. The surprisal flags require
-PR #51; these changes do not modify that PR.
-
-For a single run, use its run directory as the invocation directory, then
-explicitly clean up even if the experiment fails:
-
-~~~bash
-runpod_scorer/run-cell.sh runs/single   uv run --project surprisals_experiment python -m surprisals_experiment.cli.run   --cap-strategy surprisal --output runs/single problem /path/to/problem
-uv run --project runpod_scorer runpod-scorer down runs/single
-~~~
+run-cell.sh takes the **full experiment command**. For --cap-strategy surprisal
+or --cap-strategy=surprisal it reads base_url from `$LABNOTES_RUN_STATE` and
+inserts --scorer-base-url immediately before the cap-strategy flag. Other
+arguments and their boundaries are preserved. Character cells execute the
+command unchanged. The script never deletes the pod. With this setup hook, even
+a characters-only invocation starts a pod. The surprisal flags require PR #51.
 
 ## Scorer configuration
 
