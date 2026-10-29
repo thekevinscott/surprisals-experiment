@@ -1,0 +1,5 @@
+<attempt number="{number}" length="{length}" passed="{passed} of {total}">
+<advice>
+{advice}
+</advice>
+{results}</attempt>
