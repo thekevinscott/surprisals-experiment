@@ -1,6 +1,7 @@
 """Chat U uses real SDK streaming with HTTP mocked by the global fixture."""
 
 import json
+from contextlib import nullcontext
 
 import pytest
 
@@ -239,3 +240,41 @@ def no_retry_wait(monkeypatch):
     import asyncio
     from unittest.mock import AsyncMock
     monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+
+
+@pytest.mark.parametrize('final_format', ['unknown', 'provider.v1'])
+@pytest.mark.parametrize('finish', ['stop', None, 'length'])
+async def test_reasoning_format_preserves_latest_provider_value(
+    config, botbox_script, chat_provider, final_format, finish,
+):
+    config.u_mode = 'chat'
+    reply = {
+        'deltas': [
+            {'role': 'assistant', 'reasoning_details': [
+                {'type': 'reasoning.text', 'index': 0, 'text': 'Think', 'format': 'unknown'},
+                {'type': 'reasoning.text', 'index': 1, 'text': 'Other', 'format': 'other'},
+            ]},
+            {'reasoning_details': [
+                {'type': 'reasoning.text', 'index': 1, 'text': ' thought', 'format': 'other'},
+                {'type': 'reasoning.text', 'index': 0, 'text': ' more', 'format': final_format},
+            ]},
+            {'reasoning_details': [{'type': 'reasoning.text', 'index': 0, 'text': '.'}],
+             'content': 'advice'},
+        ], 'finish': finish,
+    }
+    botbox_script.advice.extend([reply] * (1 if finish == 'stop' else 9))
+    botbox_script.advice.append('next')
+    expected = [
+        {'type': 'reasoning.text', 'index': 0, 'text': 'Think more.', 'format': final_format},
+        {'type': 'reasoning.text', 'index': 1, 'text': 'Other thought', 'format': 'other'},
+    ]
+    async with open_u_session(config) as session:
+        with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
+            await session.prompt('question')
+        assert session.messages[-1]['reasoning_details'] == expected
+        transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
+        assert transcript[-1]['reasoning_details'] == expected
+        assert transcript[-1]['content'] == 'advice'
+        if finish == 'stop':
+            await session.prompt('feedback')
+            assert chat_provider[-1]['messages'][2]['reasoning_details'] == expected
