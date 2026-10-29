@@ -15,6 +15,8 @@
   requirement. Less code is better when it satisfies the task.
 - Ask only when a missing decision materially affects scope or correctness and
   cannot be resolved from the conversation. Continue independent work meanwhile.
+- This project is never built or published as a package; it runs from source.
+  Do not check wheel builds or package-data config.
 
 ## Completion and recovery
 
