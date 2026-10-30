@@ -1,0 +1,18 @@
+name = "U flush"
+command = '''
+uv run \
+  --directory surprisals_experiment \
+  python -m surprisals_experiment.cli.run \
+  -U xiaomi/mimo-v2.6-pro \
+  -T openai/gpt-oss-120b \
+  --u-thinking high \
+  --max-turns-without-improvement 50 \
+  --output "{run_dir}" \
+  problem'''
+repeats = 6
+mode = "adhoc"
+
+[params]
+problem-dir = ["../data/APPS/test/2286"]
+u-mode = ["chat"]
+u-flush = [0, 1]
