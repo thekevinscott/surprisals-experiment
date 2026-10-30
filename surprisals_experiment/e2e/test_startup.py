@@ -35,7 +35,7 @@ def describe_real_container_startup():
         output.mkdir(mode=0o700)
         agent = TAgent(
             'openrouter', config.t_model, api_key=config.api_key.get_secret_value(),
-            instructions=INSTRUCTIONS, on_delta=None,
+            instructions=INSTRUCTIONS(), on_delta=None,
         )
         code = "from pathlib import Path; Path('main.py').write_text('print(42)\\n')"
         async with asyncio.timeout(180), botbox_session(
