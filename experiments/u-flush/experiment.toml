@@ -1,4 +1,4 @@
-name = "U mode experiment"
+name = "U flush"
 command = '''
 uv run \
   --directory surprisals_experiment \
