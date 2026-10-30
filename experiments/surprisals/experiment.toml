@@ -1,0 +1,23 @@
+name = "Surprisals"
+setup = "uv run --project runpod_scorer runpod-scorer up"
+command = '''
+runpod_scorer/run-cell.sh \
+  uv run \
+  --directory surprisals_experiment \
+  python -m surprisals_experiment.cli.run \
+  -U xiaomi/mimo-v2.6-pro \
+  -T openai/gpt-oss-120b \
+  --u-thinking high \
+  --max-turns-without-improvement 50 \
+  --cap-strategy surprisal \
+  --output "{run_dir}" \
+  problem'''
+teardown = "uv run --project runpod_scorer runpod-scorer down"
+repeats = 2
+mode = "adhoc"
+concurrency = 2
+
+[params]
+problem-dir = ["../data/APPS/test/2286"]
+u-mode = ["chat"]
+u-flush = [1]
