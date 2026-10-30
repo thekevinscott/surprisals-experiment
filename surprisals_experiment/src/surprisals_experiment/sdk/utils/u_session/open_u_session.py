@@ -10,15 +10,15 @@ from tempfile import TemporaryDirectory
 
 from openai import AsyncOpenAI
 
-from surprisals_experiment.prompt import PROMPTS, Prompt
+from surprisals_experiment.prompt import Prompt
 from ..u_agent import UAgent
 from ..u_chat import ChatSession
 from ..botbox_session import botbox_session
 from .u_session import USession
 
 RESOURCES = Path(str(files("surprisals_experiment")))
-SYSTEM = Prompt(PROMPTS / "u/system.txt")
-CONTEXTS = {name: Prompt(PROMPTS / f"u/{name}/context.txt") for name in ("agent", "chat", "flush")}
+SYSTEM = Prompt("u/system.txt")
+CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("agent", "chat", "flush")}
 
 
 @asynccontextmanager
@@ -27,7 +27,7 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
         workspace = Path(temporary)
         prompt = SYSTEM(
             measure_wording=config.advice_measure.wording,
-            implementation_access=CONTEXTS[config.u_context](),
+            implementation_access=CONTEXTS[config.u_context],
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,
         )

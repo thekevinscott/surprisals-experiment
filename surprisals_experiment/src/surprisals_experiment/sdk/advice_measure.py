@@ -2,10 +2,10 @@
 
 from measure_surprisal import Client, measure_surprisal
 
-from surprisals_experiment.prompt import PROMPTS, Prompt
+from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.retry_policy import DELAYS, retried, transient
 
-SURPRISAL_WORDING = Prompt(PROMPTS / "u/measure_surprisal.txt")
+SURPRISAL_WORDING = Prompt("u/measure_surprisal.txt")
 
 
 class AdviceMeasure:
@@ -40,7 +40,7 @@ class AdviceMeasure:
 
     @property
     def wording(self) -> str:
-        return "" if self.client is None else SURPRISAL_WORDING()
+        return "" if self.client is None else str(SURPRISAL_WORDING)
 
     def result_fields(self, best_measurement: int | float | None) -> dict:
         if self.client is None:

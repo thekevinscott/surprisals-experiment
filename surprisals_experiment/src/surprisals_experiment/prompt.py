@@ -1,4 +1,4 @@
-"""Prompt files read from disk once, at import, and rendered with Jinja on call."""
+"""Prompt files, relative to the prompts folder, read once at import and rendered with Jinja."""
 
 from importlib.resources import files
 from pathlib import Path
@@ -12,8 +12,11 @@ ENVIRONMENT = Environment(
 
 
 class Prompt:
-    def __init__(self, path: Path | str):
-        self.template = ENVIRONMENT.from_string(Path(path).read_text())
+    def __init__(self, path: str):
+        self.template = ENVIRONMENT.from_string((PROMPTS / path).read_text())
 
     def __call__(self, **kwargs) -> str:
         return self.template.render(**kwargs)
+
+    def __str__(self) -> str:
+        return self()

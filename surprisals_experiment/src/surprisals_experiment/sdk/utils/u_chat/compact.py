@@ -1,13 +1,13 @@
 """Summarize prior turns while keeping measured experiment state verbatim."""
 
-from surprisals_experiment.prompt import PROMPTS, Prompt
+from surprisals_experiment.prompt import Prompt
 
-COMPACT = Prompt(PROMPTS / "u/chat/compact.txt")
-COMPACTED = Prompt(PROMPTS / "u/chat/compacted.txt")
+COMPACT = Prompt("u/chat/compact.txt")
+COMPACTED = Prompt("u/chat/compacted.txt")
 
 
 async def compact(self, *, on_delta=None) -> None:
-    self.record({"role": "user", "content": COMPACT()})
+    self.record({"role": "user", "content": str(COMPACT)})
     try:
         summary = await self.reply(on_delta=on_delta)
     except RuntimeError as error:

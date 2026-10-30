@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.prompt import PROMPTS, Prompt
+from surprisals_experiment.prompt import Prompt
 
-TURN = Prompt(PROMPTS / "u/flush/turn.txt")
+TURN = Prompt("u/flush/turn.txt")
 
 
 @dataclass

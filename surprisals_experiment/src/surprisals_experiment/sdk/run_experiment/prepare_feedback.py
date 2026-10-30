@@ -6,11 +6,11 @@ from pathlib import Path
 from .read_implementations import read_implementations
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.prompt import PROMPTS, Prompt
+from surprisals_experiment.prompt import Prompt
 from ..run_test_suite import TestSuiteResult
 
-FEEDBACK = Prompt(PROMPTS / "u/feedback.txt")
-CONTEXTS = {name: Prompt(PROMPTS / f"u/{name}/context.txt") for name in ("agent", "chat")}
+FEEDBACK = Prompt("u/feedback.txt")
+CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("agent", "chat")}
 
 
 def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
@@ -36,7 +36,7 @@ def prepare_feedback(
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = FEEDBACK(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
-        implementation_access=CONTEXTS[config.u_context](),
+        implementation_access=CONTEXTS[config.u_context],
         implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,
