@@ -1,6 +1,7 @@
 name = "Surprisals"
 setup = "uv run --project runpod_scorer runpod-scorer up"
 command = '''
+BOTBOX_LABELS=labnotes.run={run_dir} \
 runpod_scorer/run-cell.sh \
   uv run \
   --directory surprisals_experiment \

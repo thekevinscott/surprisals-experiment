@@ -1,5 +1,6 @@
 name = "U flush"
 command = '''
+BOTBOX_LABELS=labnotes.run={run_dir} \
 uv run \
   --directory surprisals_experiment \
   python -m surprisals_experiment.cli.run \
