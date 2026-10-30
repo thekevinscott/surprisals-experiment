@@ -50,7 +50,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
                                 if "format" in detail:
                                     reasoning_formats[detail["index"]] = detail["format"]
                 if on_delta is not None:
-                    if event.type == "content.delta":
+                    if event.type == "content.delta" and event.delta:
                         on_delta("text", event.delta)
                     elif event.type == "chunk":
                         for choice in event.chunk.choices:

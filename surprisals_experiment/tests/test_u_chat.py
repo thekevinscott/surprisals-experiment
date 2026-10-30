@@ -222,6 +222,18 @@ def describe_chat_u_roles():
         assert session.messages[-1]['role'] == 'assistant'
         assert session.messages[-1]['reasoning'] == 'Thinking. More.'
 
+    async def it_streams_no_empty_text_alongside_reasoning(config, botbox_script):
+        config.u_mode = 'chat'
+        botbox_script.advice.append({'deltas': [
+            {'role': 'assistant', 'reasoning': 'Thinking.', 'content': ''},
+            {'role': 'assistant', 'reasoning': ' More.', 'content': ''},
+            {'role': 'assistant', 'content': 'advice'},
+        ]})
+        deltas = []
+        async with open_u_session(config) as session:
+            await session.prompt('question', on_delta=lambda *delta: deltas.append(delta))
+        assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
+
     @pytest.mark.parametrize('finish', [None, 'length'])
     async def it_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, finish):
         config.u_mode = 'chat'
