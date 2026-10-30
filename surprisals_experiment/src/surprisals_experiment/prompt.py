@@ -19,4 +19,4 @@ class Prompt:
         return self.template.render(**kwargs)
 
     def __str__(self) -> str:
-        return self()
+        raise TypeError("Call the prompt to render it")

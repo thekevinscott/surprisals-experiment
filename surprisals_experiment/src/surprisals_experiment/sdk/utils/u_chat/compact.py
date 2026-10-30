@@ -7,7 +7,7 @@ COMPACTED = Prompt("u/chat/compacted.txt")
 
 
 async def compact(self, *, on_delta=None) -> None:
-    self.record({"role": "user", "content": str(COMPACT)})
+    self.record({"role": "user", "content": COMPACT()})
     try:
         summary = await self.reply(on_delta=on_delta)
     except RuntimeError as error:
