@@ -67,6 +67,8 @@
   ```
 
   Then upload the invocation's own files with `runs/EXP/RUN EXP/RUN --exclude "*/*"`.
+- The Hub rate-limits commits. A stalled progress line is usually a 429 wait
+  (`Rate limited. Waiting ...s`, up to ~30 min) inside `hf upload`. Let it run.
 - Do not `git push` from the `runs/` clone. `optimizing` has no git-lfs, and the
   dataset's `.gitattributes` routes `*.json` to LFS.
 - Done means the file count under `EXP/RUN` on the Hub equals
