@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def read_implementations(snapshot: Path) -> str:
+def read_sources(snapshot: Path) -> dict[str, dict[str, str]]:
     implementations = {}
     for sample in sorted(path for path in snapshot.iterdir() if path.is_dir()):
         sources = {}
@@ -15,5 +15,11 @@ def read_implementations(snapshot: Path) -> str:
                 sources[str(path.relative_to(sample))] = path.read_text()
             except UnicodeDecodeError:
                 continue
-        implementations[f"T {sample.name}"] = sources
-    return json.dumps(implementations, ensure_ascii=False, indent=2)
+        implementations[sample.name] = sources
+    return implementations
+
+
+def read_implementations(snapshot: Path) -> str:
+    return json.dumps(
+        {f"T {name}": sources for name, sources in read_sources(snapshot).items()}, ensure_ascii=False, indent=2,
+    )

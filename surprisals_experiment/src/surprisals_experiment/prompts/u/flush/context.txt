@@ -1,0 +1,1 @@
+Each turn starts a fresh conversation with the original problem and your previous attempts, oldest first. T code is included only for the latest attempt and the most recent attempt where every T passed. You have no tools or filesystem access.
