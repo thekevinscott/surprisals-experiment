@@ -43,6 +43,8 @@ def describe_n_of_t():
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
         assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3}
+        for name in ('question.txt', 'input_output.json'):
+            assert (config.output / name).read_text() == (config.problem_dir / name).read_text()
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n

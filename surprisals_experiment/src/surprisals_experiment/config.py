@@ -1,6 +1,7 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
 import json
+import shutil
 from functools import cached_property
 from pathlib import Path
 from typing import Literal
@@ -56,8 +57,10 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
-        """Save the U mode and fields needed by run summaries."""
+        """Save the U mode, fields needed by run summaries, and the problem files."""
         self.output.mkdir(parents=True, exist_ok=True)
+        shutil.copy(self.question_file, self.output)
+        shutil.copy(self.test_suite_file, self.output)
         (self.output / "settings.json").write_text(json.dumps({
             "u_mode": self.u_mode,
             **({"u_flush": True} if self.u_flush else {}),
