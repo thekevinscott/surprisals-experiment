@@ -1,15 +1,16 @@
 """Prepare feedback for the next U turn from the preserved submission."""
 
 import json
-from importlib.resources import files
 from pathlib import Path
 
 from .read_implementations import read_implementations
 
 from surprisals_experiment.config import Config
+from surprisals_experiment.prompt import Prompt
 from ..run_test_suite import TestSuiteResult
 
-TEMPLATE = files("surprisals_experiment").joinpath("prompts/u/feedback.txt").read_text()
+FEEDBACK = Prompt("u/feedback.txt")
+CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("agent", "chat")}
 
 
 def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
@@ -33,10 +34,9 @@ def prepare_feedback(
         metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
         annotated = "".join(f"{token}<{bits:.1f}>" for token, bits in metadata["tokens"])
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
-    feedback = config.advice_measure.render(TEMPLATE).format(
-        implementation_access=files("surprisals_experiment").joinpath(
-            f"prompts/u/{config.u_context}/context.txt",
-        ).read_text(),
+    feedback = FEEDBACK(
+        unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
+        implementation_access=CONTEXTS[config.u_context],
         implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,

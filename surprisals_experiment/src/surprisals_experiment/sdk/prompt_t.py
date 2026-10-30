@@ -7,12 +7,13 @@ from pathlib import Path
 from botbox import RunResult
 
 from surprisals_experiment.config import Config
+from surprisals_experiment.prompt import Prompt
 from .utils.t_agent import TAgent
 from .utils.botbox_session import botbox_session
 
 
 RESOURCES = files("surprisals_experiment")
-INSTRUCTIONS = RESOURCES.joinpath("prompts/t.txt").read_text()
+INSTRUCTIONS = Prompt("t.txt")
 
 
 async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
@@ -21,7 +22,7 @@ async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
     output.mkdir(parents=True, exist_ok=False)
     agent = TAgent(
         provider="openrouter", model=config.t_model, api_key=config.api_key.get_secret_value(),
-        instructions=INSTRUCTIONS, on_delta=on_delta,
+        instructions=str(INSTRUCTIONS), on_delta=on_delta,
     )
     async with botbox_session(
         agent, dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),

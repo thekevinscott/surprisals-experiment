@@ -1,18 +1,18 @@
 We compacted the prior conversation. Continue the same experiment and task.
 
 <original_question>
-{question}
+{{ question }}
 </original_question>
 
 <prior_summary>
-{summary}
+{{ summary }}
 </prior_summary>
 
 The following state comes directly from the experiment and is authoritative, even if the summary contradicts it.
-Best successful advice length: {best_length}
-Turns without improvement: {turns_without_improvement}
+Best successful advice length: {{ best_length }}
+Turns without improvement: {{ turns_without_improvement }}
 <best_successful_advice>
-{best_advice}
+{{ best_advice }}
 </best_successful_advice>
 
 Respond to the next request with advice as usual.
