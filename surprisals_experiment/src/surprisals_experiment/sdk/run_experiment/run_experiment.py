@@ -68,6 +68,7 @@ async def run_experiment(
                     attempt, advice, measurement,
                     [describe_result(config, attempt, index, sample) for index, sample in enumerate(results)],
                     all(result.all_passed for result in results), read_sources(u_session.solutions / str(attempt)),
+                    config.advice_measure.scores.get(advice),
                 ))
                 u_session.messages = u_session.messages[:1]
                 prompt = prepare_flush(config, history)
