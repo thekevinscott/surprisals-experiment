@@ -36,7 +36,7 @@ def prepare_feedback(
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = FEEDBACK(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
-        implementation_access=CONTEXTS[config.u_context],
+        implementation_access=CONTEXTS[config.u_context](),
         implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,

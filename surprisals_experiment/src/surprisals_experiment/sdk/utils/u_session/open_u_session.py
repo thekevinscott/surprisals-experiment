@@ -27,7 +27,7 @@ async def open_u_session(config) -> AsyncGenerator[USession | ChatSession]:
         workspace = Path(temporary)
         prompt = SYSTEM(
             measure_wording=config.advice_measure.wording,
-            implementation_access=CONTEXTS[config.u_context],
+            implementation_access=CONTEXTS[config.u_context](),
             t_samples=config.t_samples,
             max_turns_without_improvement=config.max_turns_without_improvement,
         )

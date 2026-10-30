@@ -40,7 +40,7 @@ class AdviceMeasure:
 
     @property
     def wording(self) -> str:
-        return "" if self.client is None else str(SURPRISAL_WORDING)
+        return "" if self.client is None else SURPRISAL_WORDING()
 
     def result_fields(self, best_measurement: int | float | None) -> dict:
         if self.client is None:
