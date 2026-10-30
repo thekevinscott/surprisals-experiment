@@ -51,3 +51,23 @@
   it, verify the base again with `gh pr view --json baseRefName`.
 - If a change depends on an unmerged PR, wait for that dependency to merge into
   `main`, then rebase onto `main`. Do not merge work into the dependency branch.
+
+## Banking runs
+
+- Bank every run in the Hugging Face dataset
+  `thekevinscott/surprisals-experiment-runs`, at the same `{experiment}/{run}`
+  path it has under `runs/`. Bank before deleting a run from any host.
+- Upload from the host holding the full run (usually `optimizing`), from the
+  repo root, one commit per run cell so each stays a few thousand files:
+
+  ```sh
+  uv run --no-project --env-file .env --with huggingface-hub \
+    hf upload thekevinscott/surprisals-experiment-runs \
+    runs/EXP/RUN/CELL EXP/RUN/CELL --repo-type dataset
+  ```
+
+  Then upload the invocation's own files with `runs/EXP/RUN EXP/RUN --exclude "*/*"`.
+- Do not `git push` from the `runs/` clone. `optimizing` has no git-lfs, and the
+  dataset's `.gitattributes` routes `*.json` to LFS.
+- Done means the file count under `EXP/RUN` on the Hub equals
+  `find runs/EXP/RUN -type f | wc -l` on the host. Delete only after that.
