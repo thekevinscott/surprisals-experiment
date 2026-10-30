@@ -12,6 +12,12 @@
 <advice>
 {{ attempt.advice }}
 </advice>
+{% if attempt.tokens %}
+<bits>
+{% for token, bits in attempt.tokens %}{{ token }}<{{ '%.1f' % bits }}>{% endfor %}
+
+</bits>
+{% endif %}
 <results>
 {% for result in attempt.results %}
 T-{{ loop.index0 }}: {{ result }}

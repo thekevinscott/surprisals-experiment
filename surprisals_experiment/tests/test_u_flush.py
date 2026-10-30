@@ -4,6 +4,7 @@ import importlib
 import json
 import re
 from importlib.resources import files
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -92,6 +93,22 @@ def describe_chat_flush():
         history = [Attempt(i, chr(97 + i) * 50, 50, ['passed 1 of 1 tests'], not i % 2, {}) for i in range(5)]
         config.u_compact_chars = len(render(config, [history[i] for i in kept]))
         assert prepare_flush(config, history) == render(config, [history[i] for i in kept])
+
+    async def it_shows_per_token_bits_for_each_previous_advice(config, botbox_script, chat_provider, monkeypatch):
+        scores = [[('Use', 2.123), (' a', 0.4), (' two', 3.0), ('-pointer', 5.2)], [('Sweep', 7.9), ('.', 0.06)],
+                  [('done', 1.0)]]
+        module = importlib.import_module('surprisals_experiment.sdk.advice_measure')
+        monkeypatch.setattr(module, 'measure_surprisal', AsyncMock(side_effect=scores))
+        config = Config(**(config.model_dump() | {
+            'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
+            'u_mode': 'chat', 'u_flush': True, 'max_u_turns': 3, 'max_turns_without_improvement': 3,
+        }))
+        botbox_script.advice.extend(['Use a two-pointer', 'Sweep.', 'done'])
+        botbox_script.solutions.extend([PASS] * 3)
+        await run_experiment(config, on_delta=None)
+        prompt = chat_provider[2]['messages'][1]['content']
+        assert 'Use<2.1> a<0.4> two<3.0>-pointer<5.2>' in prompt
+        assert 'Sweep<7.9>.<0.1>' in prompt
 
     def it_preserves_fractional_measurements(config):
         prompt = prepare_flush(config, [Attempt(0, 'double', 12.345, [], True, {})])

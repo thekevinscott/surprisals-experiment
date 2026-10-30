@@ -20,6 +20,7 @@ class Attempt:
     results: list[str]
     passed: bool
     sources: dict[str, dict[str, str]]
+    tokens: list[tuple[str, float]] | None = None
 
 
 def render(config: Config, history: list[Attempt]) -> str:
