@@ -10,7 +10,7 @@ from surprisals_experiment.prompt import Prompt
 from ..run_test_suite import TestSuiteResult
 
 FEEDBACK = Prompt("u/feedback.txt")
-CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("agent", "chat")}
+CONTEXT = Prompt("u/chat/context.txt")
 
 
 def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
@@ -27,8 +27,7 @@ def prepare_feedback(
 ) -> str:
     evaluations = []
     for index, sample in enumerate(results):
-        location = f"solution in /solutions/{attempt}/{index}; " if config.u_mode == "agent" else ""
-        evaluations.append(f"T {index}: {location}{describe_result(config, attempt, index, sample)}.")
+        evaluations.append(f"T {index}: {describe_result(config, attempt, index, sample)}.")
     advice_measurement = f"Your advice was {advice_length} characters."
     if config.cap_strategy == "surprisal":
         metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
@@ -36,8 +35,8 @@ def prepare_feedback(
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = FEEDBACK(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
-        implementation_access=CONTEXTS[config.u_context](),
-        implementations=read_implementations(snapshot) if config.u_mode == "chat" else "",
+        implementation_access=CONTEXT(),
+        implementations=read_implementations(snapshot),
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,
         turns_without_improvement=turns_without_improvement,

@@ -16,7 +16,7 @@ FAIL = 'print(0)\n'
 
 def describe_u_to_t_loop():
     @pytest.mark.parametrize('failures', [0, 2, 4, 5])
-    async def it_records_each_batch_with_an_explicit_iteration_limit(config, botbox_script, failures):
+    async def it_records_each_batch_with_an_explicit_iteration_limit(config, botbox_script, chat_provider, failures):
         config.max_u_turns = min(failures + 1, 5)
         # Extra scripted responses reveal accidental calls after completion.
         botbox_script.advice.extend(f'advice {i}' for i in range(6))
@@ -29,9 +29,8 @@ def describe_u_to_t_loop():
             'success': failures < 5, 'attempts': count,
             'solution': str(expected) if expected else None,
         }
-        assert len(botbox_script.u_sessions) == 1
-        assert len(botbox_script.t_sessions) == count
-        assert [s.messages for s in botbox_script.t_sessions] == [[f'advice {i}'] for i in range(count)]
+        assert len(botbox_script.sessions) == count
+        assert [s.messages for s in botbox_script.sessions] == [[f'advice {i}'] for i in range(count)]
         for i in range(count):
             attempt = config.attempt_dir(i)
             tests = json.loads((config.t_dir(i, 0) / 'tests.json').read_text())
@@ -40,13 +39,12 @@ def describe_u_to_t_loop():
             if i + 1 < count:
                 feedback = (attempt / 'feedback.txt').read_text()
                 assert 'passed 0 of 2 tests' in feedback
-                assert f'/solutions/{i}' in feedback
-                assert botbox_script.u_sessions[0].messages[i + 1] == feedback
-                assert botbox_script.snapshots[i + 1][f'{i}/0/main.py'] == FAIL
+                assert '"main.py": "print(0)\\n"' in feedback
+                assert chat_provider[i + 1]['messages'][-1]['content'] == feedback
         assert config.error_file.exists() == (failures == 5)
         assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
-        assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
+        assert not botbox_script.u_workspaces[0].exists()
 
 
 def describe_combined_loops():
@@ -60,7 +58,7 @@ def describe_combined_loops():
             await run_experiment(config, on_delta=None)
         assert not config.result_file.exists()
         assert not (config.t_dir(0, 0) / 'tests.json').exists()
-        assert (config.u_transcripts / 'session.jsonl').exists()
+        assert (config.u_transcripts / 'messages.jsonl').exists()
         assert all(session.closed for session in botbox_script.sessions)
         if actor == 'T':
             assert 'provider unavailable' in (config.attempt_dir(0) / 'error.txt').read_text()

@@ -17,7 +17,7 @@ FAIL = 'print(0)\n'
 def describe_n_of_t():
     @pytest.mark.parametrize('n', [1, 3, 5])
     @pytest.mark.parametrize('outcome', ['all_pass', 'first_fails', 'last_fails', 'all_fail'])
-    async def it_requires_every_sample_to_pass(config, botbox_script, n, outcome):
+    async def it_requires_every_sample_to_pass(config, botbox_script, chat_provider, n, outcome):
         config.t_samples = n
         config.max_u_turns = 1
         sources = [PASS] * n
@@ -31,9 +31,9 @@ def describe_n_of_t():
         botbox_script.solutions.extend(sources)
         result = await run_experiment(config, on_delta=None)
         assert (result is not None) == (outcome == 'all_pass')
-        assert [s.messages for s in botbox_script.t_sessions] == [['double it']] * n
-        assert len({id(s.agent) for s in botbox_script.t_sessions}) == n
-        assert len(botbox_script.u_sessions[0].messages) == 1
+        assert [s.messages for s in botbox_script.sessions] == [['double it']] * n
+        assert len({id(s.agent) for s in botbox_script.sessions}) == n
+        assert len(chat_provider) == 1
         assert not (config.attempt_dir(0) / 'batch.json').exists()
         for i, source in enumerate(sources):
             directory = config.t_dir(0, i)
@@ -42,7 +42,7 @@ def describe_n_of_t():
             assert (directory / 'transcripts/session.jsonl').exists()
             assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
         settings = json.loads((config.output / 'settings.json').read_text())
-        assert settings == {'u_mode': 'agent', 't_samples': n, 't_sample_retries': 3}
+        assert settings == {'t_samples': n, 't_sample_retries': 3}
         summary, attempt = report(config.output)
         assert summary['ts_per_advice'] == n
         assert summary['completed_t_evaluations'] == n
@@ -50,22 +50,20 @@ def describe_n_of_t():
         assert summary['evaluation_attempts_to_success'] == (1 if outcome == 'all_pass' else None)
         assert attempt['passing_ts'] == sources.count(PASS)
 
-    async def it_returns_all_outcomes_before_revising_advice(config, botbox_script):
+    async def it_returns_all_outcomes_before_revising_advice(config, botbox_script, chat_provider):
         config.t_samples = 3
         config.max_u_turns = 2
         botbox_script.advice.extend(['one', 'two'])
         botbox_script.solutions.extend([PASS, FAIL, PASS] + [PASS] * 3)
         assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
-        assert [s.messages for s in botbox_script.t_sessions] == [['one']] * 3 + [['two']] * 3
-        feedback = botbox_script.u_sessions[0].messages[1]
+        assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
+        feedback = chat_provider[1]['messages'][-1]['content']
         assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
         assert '2 of 3 solutions passed every test' in feedback
         for i, passed in enumerate([2, 0, 2]):
-            assert f'T {i}: solution in /solutions/0/{i}; passed {passed} of 2 tests.' in feedback
-        assert botbox_script.snapshots[1] == {
-            '0/advice.txt': 'one',
-            '0/0/main.py': PASS, '0/1/main.py': FAIL, '0/2/main.py': PASS,
-        }
+            assert f'T {i}: passed {passed} of 2 tests.' in feedback
+        assert json.dumps({f'T {i}': {'main.py': source} for i, source in enumerate([PASS, FAIL, PASS])},
+                          indent=2) in feedback
         assert (config.attempt_dir(1) / 'feedback.txt').exists()
         assert json.loads(config.result_file.read_text())['attempts'] == 2
         summary, *_ = report(config.output)
@@ -80,7 +78,7 @@ def describe_n_of_t():
         botbox_script.solutions.extend([PASS, RuntimeError('provider unavailable'), PASS])
         with pytest.raises(RuntimeError, match='provider unavailable'):
             await run_experiment(config, on_delta=None)
-        assert len(botbox_script.t_sessions) >= 2
+        assert len(botbox_script.sessions) >= 2
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         assert (config.t_dir(0, 0) / 'src/main.py').exists()

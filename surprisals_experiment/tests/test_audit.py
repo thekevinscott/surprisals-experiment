@@ -12,7 +12,6 @@ from pydantic import ValidationError
 from surprisals_experiment.config import Config, ThinkingLevel
 from surprisals_experiment.sdk import run_experiment, prompt_t
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
-from surprisals_experiment.sdk.utils.u_agent import UAgent
 
 ATTEMPT = 'surprisals_experiment.sdk.run_experiment.produce_code.'
 EXPERIMENT = 'surprisals_experiment.sdk.run_experiment.run_experiment.'
@@ -24,7 +23,7 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         (self.root/'question.txt').write_text('Print 7.')
-        self.config = Config(u_mode='agent', api_key='dummy', problem_dir=self.root, output=self.root/'run',
+        self.config = Config(api_key='dummy', problem_dir=self.root, output=self.root/'run',
                              u_model='u', u_thinking='high', t_model='t', t_samples=1, max_u_turns=1)
 
     async def test_invalid_suites_fail_before_starting_u(self):
@@ -79,14 +78,11 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('disk failure', (self.config.attempt_dir(0)/'error.txt').read_text())
 
     def test_sdk_thinking_values(self):
-        import shlex
         values = self.config.model_dump()
         with self.assertRaises(ValidationError):
             Config(**(values | {'u_thinking': 'hgh'}))
         for level in get_args(ThinkingLevel):
-            config = Config(**(values | {'u_thinking': level}))
-            args = shlex.split(UAgent('openrouter', 'u', api_key='dummy', thinking=config.u_thinking).session_command())
-            self.assertEqual(args[args.index('--thinking') + 1], level)
+            self.assertEqual(Config(**(values | {'u_thinking': level})).u_thinking, level)
 
     async def test_prompt_t_has_no_sibling_artifact_writes(self):
         result = RunResult(1)

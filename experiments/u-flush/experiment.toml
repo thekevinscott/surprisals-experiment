@@ -14,5 +14,4 @@ mode = "adhoc"
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
-u-mode = ["chat"]
 u-flush = [0, 1]

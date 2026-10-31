@@ -1,4 +1,4 @@
-"""Exercise the actual U launcher, Pi RPC, Docker mounts and T Python runtime."""
+"""Exercise the actual Pi RPC, Docker mounts and T Python runtime."""
 
 import asyncio
 import json
@@ -8,7 +8,6 @@ import shlex
 from surprisals_experiment.sdk.prompt_t import RESOURCES, INSTRUCTIONS
 from surprisals_experiment.sdk.utils.botbox_session import botbox_session
 from surprisals_experiment.sdk.utils.t_agent import TAgent
-from surprisals_experiment.sdk.utils.u_session import open_u_session
 
 
 async def rpc(session, request):
@@ -22,14 +21,6 @@ async def rpc(session, request):
 
 
 def describe_real_container_startup():
-    async def it_starts_u_with_its_baked_configuration(config):
-        async with asyncio.timeout(180), open_u_session(config) as u_session:
-            reply = await rpc(u_session.pi_session, {'type': 'get_state'})
-            assert reply['data']['model']['id'] == config.u_model
-        stderr = (config.u_dir / 'stderr.txt').read_text()
-        assert u_session.pi_session.result.exit_code == 0, stderr
-        assert 'Permission denied' not in stderr
-
     async def it_starts_t_and_writes_host_owned_python(config, tmp_path):
         output = tmp_path / 'solution'
         output.mkdir(mode=0o700)

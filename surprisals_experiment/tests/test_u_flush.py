@@ -18,7 +18,6 @@ FAIL = 'print(0)\n'
 
 def describe_chat_flush():
     async def it_sends_every_previous_advice_with_its_results(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
         config.u_flush = True
         config.t_samples = 2
         config.max_u_turns = 6
@@ -72,21 +71,13 @@ def describe_chat_flush():
         botbox_script.solutions.extend([PASS] * 3)
         await cli.main([
             '--max-u-turns', '3', '--t-samples', '1', '--output', str(config.output),
-            'problem', '--u-mode', 'chat', str(config.problem_dir), *args,
+            'problem', str(config.problem_dir), *args,
         ])
         context = files('surprisals_experiment').joinpath('prompts/u/chat/context.txt').read_text()
         assert context in chat_provider[0]['messages'][0]['content']
         assert [len(request['messages']) for request in chat_provider] == [2, 4, 6]
         for turn in [1, 2]:
             assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
-
-    def it_allows_agent_mode_with_zero(config):
-        assert config.u_flush is False
-        assert config.u_context == 'agent'
-
-    def it_rejects_agent_mode(config):
-        with pytest.raises(ValueError, match='u_flush requires chat U'):
-            Config(**(config.model_dump() | {'u_flush': True}))
 
     @pytest.mark.parametrize('kept', [[0, 1, 2, 3, 4], [0, 2, 3, 4], [0, 2, 4], [2, 4], [4], []])
     def it_ejects_oldest_failures_then_oldest_successes_to_fit_the_budget(config, kept):
@@ -101,7 +92,7 @@ def describe_chat_flush():
         monkeypatch.setattr(module, 'measure_surprisal', AsyncMock(side_effect=scores))
         config = Config(**(config.model_dump() | {
             'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-            'u_mode': 'chat', 'u_flush': True, 'max_u_turns': 3, 'max_turns_without_improvement': 3,
+            'u_flush': True, 'max_u_turns': 3, 'max_turns_without_improvement': 3,
         }))
         botbox_script.advice.extend(['Use a two-pointer', 'Sweep.', 'done'])
         botbox_script.solutions.extend([PASS] * 3)
@@ -127,6 +118,6 @@ def describe_chat_flush():
         monkeypatch.setattr(cli, 'run_experiment', run)
         await cli.main([
             '--output', str(config.output),
-            'problem', '--u-mode', 'chat', str(config.problem_dir), *args,
+            'problem', str(config.problem_dir), *args,
         ])
         assert received == [expected]

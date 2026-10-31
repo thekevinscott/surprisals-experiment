@@ -8,35 +8,18 @@ from unittest.mock import patch
 from botbox import RunResult
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_session import USession, USessionError
 
 
-class FakePi:
-    def __init__(self):
+class FakeU:
+    def __init__(self, solutions):
+        self.solutions = solutions
         self.commands = []
-        self.agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
 
-    async def message(self, text):
+    async def prompt(self, text, *, on_delta=None):
         self.commands.append(text)
-        advice = 'First advice' if len(self.commands) == 1 else 'Revised advice'
-        events = [
-            {'type': 'response', 'success': True},
-            {'type': 'message_update', 'assistantMessageEvent': {'type': 'thinking_delta', 'delta': 'Thinking'}},
-            {'type': 'message_update', 'assistantMessageEvent': {'type': 'text_delta', 'delta': advice}},
-            {'type': 'agent_end', 'willRetry': False, 'messages': [
-                {'role': 'user', 'content': text},
-                {'role': 'assistant', 'stopReason': 'toolUse', 'content': [{'type': 'text', 'text': 'Inspecting files'}]},
-                {'role': 'toolResult', 'content': []},
-                {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': advice}]},
-            ]},
-            {'type': 'agent_settled', 'aborted': False},
-        ]
-
-        for event in events:
-            self.agent.turn_ended(event)
-        return events
+        on_delta('thinking', 'Thinking')
+        return 'First advice' if len(self.commands) == 1 else 'Revised advice'
 
 
 class FeedbackTest(unittest.IsolatedAsyncioTestCase):
@@ -52,15 +35,14 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                 root = Path(directory)
                 (root/'question.txt').write_text('Read two integers and print their sum.')
                 (root/'input_output.json').write_text(json.dumps({'inputs': ['19381 27493\n'], 'outputs': ['46874\n']}))
-                config = Config(u_mode='agent', api_key='dummy', problem_dir=root, output=root/'run', u_model='u',
+                config = Config(api_key='dummy', problem_dir=root, output=root/'run', u_model='u',
                                 u_thinking='high', t_model='t', t_samples=1, max_u_turns=turns)
-                pi, deltas, received, t_deltas = FakePi(), [], [], []
+                pi, deltas, received, t_deltas = FakeU(root / 'shared'), [], [], []
 
                 @asynccontextmanager
                 async def start(config):
-                    solutions = root / "shared"
-                    solutions.mkdir()
-                    yield USession(pi, solutions)
+                    pi.solutions.mkdir()
+                    yield pi
 
                 def t(config, advice, *, output, logs, on_delta=None):
                     received.append(advice)
@@ -93,25 +75,11 @@ class FeedbackTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(result, config.t_dir(1, 0)/'src')
                     self.assertEqual(received, ['First advice', 'Revised advice'])
                     feedback = pi.commands[1]
-                    self.assertIn('/solutions/0', feedback)
+                    self.assertIn('VALUE = 42', feedback)
                     self.assertIn('passed 0 of 1 tests', feedback)
                     self.assertNotIn('19381', feedback)
                     self.assertEqual((config.attempt_dir(0)/'feedback.txt').read_text(), feedback)
                     self.assertIn(('thinking', 'Thinking'), deltas)
-
-    async def test_first_agent_end_provider_failure_aborts(self):
-        class FailedPi:
-            agent = UAgent("openrouter", "u", api_key="dummy", thinking="high")
-
-            async def message(self, text):
-                events = [{'type': 'agent_end', 'willRetry': False, 'messages': [
-                    {'role': 'assistant', 'stopReason': 'error', 'content': [], 'errorMessage': 'rate limit'},
-                ]}, {'type': 'agent_settled', 'aborted': False}]
-                for event in events:
-                    self.agent.turn_ended(event)
-                return events
-        with self.assertRaisesRegex(USessionError, 'rate limit'):
-            await USession(FailedPi(), Path()).prompt('question')
 
 
 if __name__ == '__main__':

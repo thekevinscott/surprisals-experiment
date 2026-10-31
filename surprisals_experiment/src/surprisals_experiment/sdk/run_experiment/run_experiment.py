@@ -14,7 +14,6 @@ from .prepare_feedback import describe_result, prepare_feedback
 from .prepare_flush import Attempt, prepare_flush
 from .read_implementations import read_sources
 from ..utils.u_session import open_u_session
-from ..utils.u_chat import ChatSession
 
 
 async def run_experiment(
@@ -56,13 +55,11 @@ async def run_experiment(
                 turns_without_improvement = 0
                 best_solution = solutions[0]
                 best_length = measurement
-                if isinstance(u_session, ChatSession):
-                    u_session.best_advice = advice
+                u_session.best_advice = advice
             else:
                 turns_without_improvement += 1
-            if isinstance(u_session, ChatSession):
-                u_session.best_length = best_length
-                u_session.turns_without_improvement = turns_without_improvement
+            u_session.best_length = best_length
+            u_session.turns_without_improvement = turns_without_improvement
             if config.u_flush:
                 history.append(Attempt(
                     attempt, advice, measurement,

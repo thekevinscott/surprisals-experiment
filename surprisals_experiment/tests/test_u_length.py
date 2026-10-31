@@ -5,8 +5,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 from surprisals_experiment.sdk.utils.u_session import open_u_session
-from surprisals_experiment.sdk.utils.u_session.advice_from_events import advice_from_events
-from surprisals_experiment.sdk.utils.u_session.u_session_error import USessionError
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +30,6 @@ def describe_chat_length_stop():
             async def final(stream):
                 return stream.current_completion_snapshot
             monkeypatch.setattr(AsyncChatCompletionStream, "get_final_completion", final)
-        config.u_mode = 'chat'
         botbox_script.advice.extend([length_reply(20), 'good advice'])
         async with open_u_session(config) as session:
             assert await session.prompt('question') == 'good advice'
@@ -48,7 +45,7 @@ def describe_chat_length_stop():
         monkeypatch.setattr(cli, 'dotenv_values', lambda *a, **kw: {'OPENROUTER_API_KEY': 'dummy'})
         botbox_script.advice.extend(length_reply(20 + i if counts and not (counts == 'missing-last' and i == 8) else None) for i in range(9))
         with pytest.raises(SystemExit) as caught:
-            await cli.main(['--output', str(config.output), 'problem', str(config.problem_dir), '--u-mode', 'chat'])
+            await cli.main(['--output', str(config.output), 'problem', str(config.problem_dir)])
         assert caught.value.code == 2
         last = capsys.readouterr().err.splitlines()[-1]
         assert 'U hit its output token limit' in last
@@ -61,37 +58,10 @@ def describe_chat_length_stop():
             assert 'reasoning tokens' not in last
         assert len(chat_provider) == 9
         assert [c.args[0] for c in no_retry_wait.await_args_list] == [10,20,30,60,180,300,1200,1800]
-        assert not botbox_script.t_sessions
+        assert not botbox_script.sessions
 
-
-def describe_agent_length_stop():
-    @pytest.mark.parametrize('usage, expected', [(None, ''), ({'output': 131072}, '131072 completion tokens'),
-        ({'output': 0}, '0 completion tokens')])
-    @pytest.mark.parametrize('text', ['', 'partial advice'])
-    def it_reports_limit_even_with_partial_advice(usage, expected, text):
-        message = {'role': 'assistant', 'stopReason': 'length', 'content': [{'type': 'text', 'text': text}]}
-        if usage is not None:
-            message['usage'] = usage
-        events = [{'type': 'agent_end', 'messages': [message]}, {'type': 'agent_settled'}]
-        with pytest.raises(USessionError, match='U hit its output token limit') as caught:
-            advice_from_events(events)
-        assert expected in str(caught.value)
-        assert 'retries exhausted' not in str(caught.value)
-        assert 'reasoning tokens' not in str(caught.value)
-        if usage is None:
-            assert 'completion tokens' not in str(caught.value)
-
-@pytest.mark.parametrize('reasoning', [0, 131071])
-def test_agent_reports_available_reasoning_count(reasoning):
-    events = [{'type': 'agent_end', 'messages': [{'role': 'assistant', 'stopReason': 'length',
-        'content': [], 'usage': {'output': 131072, 'reasoning': reasoning}}]}, {'type': 'agent_settled'}]
-    with pytest.raises(USessionError) as caught:
-        advice_from_events(events)
-    assert '131072 completion tokens' in str(caught.value)
-    assert f'{reasoning} reasoning tokens' in str(caught.value)
 
 async def test_length_and_http_errors_share_one_budget(config, botbox_script, chat_provider, no_retry_wait):
-    config.u_mode = 'chat'
     botbox_script.advice.extend([{'status': 503}, length_reply()] * 4 + [length_reply(100)])
     async with open_u_session(config) as session:
         with pytest.raises(RuntimeError, match=r'U hit its output token limit.*100 completion tokens.*8 retries exhausted'):

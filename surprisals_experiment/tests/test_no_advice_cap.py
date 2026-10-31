@@ -22,6 +22,5 @@ def describe_no_advice_cap():
         assert 'unrecognized arguments: ' + flag in capsys.readouterr().err
 
     async def it_has_no_cap_in_the_system_prompt(config):
-        config.u_mode = 'chat'
         async with open_u_session(config) as session:
             assert 'cap' not in session.messages[0]['content'].lower()

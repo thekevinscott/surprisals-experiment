@@ -16,7 +16,6 @@ def describe_chat_compaction():
     async def it_keeps_measured_best_and_streak_across_repeated_compactions(
         config, botbox_script, chat_provider,
     ):
-        config.u_mode = 'chat'
         config.u_compact_chars = 1
         config.max_u_turns = 4
         # First success; then shorter but failing; then a new best; then no improvement.
@@ -48,14 +47,13 @@ def describe_chat_compaction():
             best, 'Failures: none. Best length is 999 (incorrect summary).', 'x',
             'Do not print zero.', 'double', 'Remember integer parsing.', 'longer advice',
         ]
-        assert len(botbox_script.t_sessions) == 4
+        assert len(botbox_script.sessions) == 4
         assert not botbox_script.advice
 
     @pytest.mark.parametrize('compact_chars', [0, 400000])
     async def it_leaves_history_intact_when_disabled_or_below_threshold(
         config, botbox_script, chat_provider, compact_chars,
     ):
-        config.u_mode = 'chat'
         config.u_compact_chars = compact_chars
         botbox_script.advice.extend(['first', 'second'])
         async with open_u_session(config) as session:
@@ -68,7 +66,6 @@ def describe_chat_compaction():
     async def it_counts_reasoning_and_pending_feedback_at_the_threshold(
         config, botbox_script, chat_provider, over_by, expected_requests,
     ):
-        config.u_mode = 'chat'
         botbox_script.advice.extend(['first', 'summary', 'second'])
         async with open_u_session(config) as session:
             await session.prompt('question')
@@ -83,7 +80,6 @@ def describe_chat_compaction():
 
 
     async def it_keeps_a_summary_over_2000_characters(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
         config.u_compact_chars = 1
         config.max_u_turns = 2
         botbox_script.advice.extend(['good', 'x' * 2500, 'better'])
@@ -95,7 +91,6 @@ def describe_chat_compaction():
     async def it_compacts_with_the_measured_state_when_the_summary_request_fails(
         config, botbox_script, chat_provider,
     ):
-        config.u_mode = 'chat'
         config.u_compact_chars = 1
         config.max_u_turns = 2
         botbox_script.advice.extend(['good', {'status': 400}, 'better'])
@@ -106,15 +101,6 @@ def describe_chat_compaction():
         assert '<best_successful_advice>\ngood\n</best_successful_advice>' in preamble
         assert json.loads(config.result_file.read_text())['attempts'] == 2
         assert all(session.closed for session in botbox_script.sessions)
-
-    async def it_leaves_agent_mode_unchanged(config, botbox_script, chat_provider):
-        config.u_compact_chars = 1
-        config.max_u_turns = 2
-        botbox_script.advice.extend(['long', 'ok'])
-        botbox_script.solutions.extend([PASS, PASS])
-        await run_experiment(config, on_delta=None)
-        assert not chat_provider
-        assert len(botbox_script.u_sessions[0].messages) == 2
 
     def it_defaults_to_400000_and_rejects_negative_values(config):
         assert config.u_compact_chars == 400000
@@ -142,7 +128,6 @@ def describe_chat_compaction():
 async def test_compaction_counts_reasoning_once(
     config, botbox_script, chat_provider, reasoning_chars, expected_requests,
 ):
-    config.u_mode = 'chat'
     reasoning = 'r' * reasoning_chars
     details = [{'type': 'reasoning.text', 'index': 0, 'text': reasoning, 'format': 'unknown'}]
     botbox_script.advice.extend([
