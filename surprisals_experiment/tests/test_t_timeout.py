@@ -12,6 +12,7 @@ from conftest import FakeSession
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.cli.main import main
+from surprisals_experiment.sdk.utils.u_chat import ChatSession
 
 
 def describe_t_sample_timeout():
@@ -33,25 +34,21 @@ def describe_t_sample_timeout():
         hung = []
 
         async def message(self, text):
-            if not self.is_u and self.mounts['/solution'].parent.name == '1' and not hung:
+            if self.mounts['/solution'].parent.name == '1' and not hung:
                 hung.append(self)
                 await asyncio.Event().wait()
             return await original(self, text)
 
         monkeypatch.setattr(FakeSession, 'message', message)
         await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-        assert len(botbox_script.t_sessions) == 4
+        assert len(botbox_script.sessions) == 4
         assert all(s.closed for s in botbox_script.sessions)
         assert json.loads(config.result_file.read_text())['success']
         assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T sample 1 exceeded 0.1 seconds\n'
         assert not (config.attempt_dir(0) / 'error.txt').exists()
         assert 'timed out' not in (config.attempt_dir(0) / 'feedback.txt').read_text()
 
-    @pytest.mark.parametrize("mode", ["chat", "agent"])
-    async def it_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(
-        config, botbox_script, monkeypatch, mode,
-    ):
-        config.u_mode = mode
+    async def it_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(config, botbox_script, monkeypatch):
         config.max_u_turns = 2
         config.t_samples = 3
         config.t_sample_timeout = .1
@@ -61,24 +58,21 @@ def describe_t_sample_timeout():
         original = FakeSession.message
 
         async def message(self, text):
-            output = self.mounts['/solution'] if not self.is_u else None
-            if output is not None and output.parents[2].name == '1' and output.parent.name == '2':
+            output = self.mounts['/solution']
+            if output.parents[2].name == '1' and output.parent.name == '2':
                 await asyncio.Event().wait()
             return await original(self, text)
 
         monkeypatch.setattr(FakeSession, 'message', message)
         await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-        assert len(botbox_script.t_sessions) == 7
+        assert len(botbox_script.sessions) == 7
         assert all(s.closed for s in botbox_script.sessions)
         assert not (config.attempt_dir(1) / 'error.txt').exists()
         assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
         tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
         assert tests['passed'] == 0 and not tests['all_passed']
         feedback = (config.attempt_dir(1) / 'feedback.txt').read_text()
-        location = 'solution in /solutions/1/2; ' if mode == 'agent' else ''
-        assert f'T 2: {location}passed 0 of 2 tests; timed out on every try and wrote no solution.' in feedback
-        if mode == 'chat':
-            assert '/solutions/' not in feedback
+        assert 'T 2: passed 0 of 2 tests; timed out on every try and wrote no solution.' in feedback
         for line in feedback.splitlines():
             if line.startswith(('T 0:', 'T 1:')):
                 assert 'timed out' not in line
@@ -95,8 +89,7 @@ def describe_t_sample_timeout():
         original = FakeSession.message
 
         async def message(self, text):
-            if not self.is_u:
-                await asyncio.sleep(.1)
+            await asyncio.sleep(.1)
             return await original(self, text)
 
         monkeypatch.setattr(FakeSession, 'message', message)
@@ -111,15 +104,13 @@ def describe_t_sample_timeout():
         monkeypatch.setattr(module, 'dotenv_values', lambda *a, **kw: {'OPENROUTER_API_KEY': 'test-key'})
         botbox_script.advice.append('Double.')
         started = asyncio.Event()
-        original = FakeSession.message
+        owner, method = (ChatSession, 'prompt') if phase == 'U' else (FakeSession, 'message')
 
-        async def message(self, text):
-            if self.is_u == (phase == 'U'):
-                started.set()
-                await asyncio.Event().wait()
-            return await original(self, text)
+        async def block(self, *args, **kwargs):
+            started.set()
+            await asyncio.Event().wait()
 
-        monkeypatch.setattr(FakeSession, 'message', message)
+        monkeypatch.setattr(owner, method, block)
         task = asyncio.create_task(main([
             '--output', str(config.output), '--t-samples', '1', '--t-sample-timeout', '1.5',
             'problem', str(config.problem_dir),
@@ -130,7 +121,7 @@ def describe_t_sample_timeout():
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(task, 5)
             assert all(s.closed for s in botbox_script.sessions)
-            assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
+            assert not botbox_script.u_workspaces[0].exists()
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
@@ -157,17 +148,16 @@ def describe_t_sample_retries():
 
         async def message(self, text):
             nonlocal calls
-            if not self.is_u:
-                calls += 1
-                assert not list(self.mounts['/solution'].iterdir())
-                if calls <= hangs:
-                    (self.mounts['/solution'] / 'partial.py').write_text('partial')
-                    await asyncio.Event().wait()
+            calls += 1
+            assert not list(self.mounts['/solution'].iterdir())
+            if calls <= hangs:
+                (self.mounts['/solution'] / 'partial.py').write_text('partial')
+                await asyncio.Event().wait()
             return await original(self, text)
 
         monkeypatch.setattr(FakeSession, 'message', message)
         await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-        assert len(botbox_script.t_sessions) == tries
+        assert len(botbox_script.sessions) == tries
         assert all(s.closed for s in botbox_script.sessions)
         assert json.loads(config.result_file.read_text())['success'] is success
         assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == min(hangs, tries)

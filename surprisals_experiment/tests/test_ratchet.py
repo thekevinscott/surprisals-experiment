@@ -6,9 +6,14 @@ import json
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.utils.u_chat import ChatSession
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
+
+
+def implementations(sources):
+    return json.dumps({f'T {index}': {'main.py': source} for index, source in enumerate(sources)}, indent=2)
 
 
 def describe_advice_improvement():
@@ -19,7 +24,7 @@ def describe_advice_improvement():
         botbox_script.advice.extend(['advice'] * 21)
         botbox_script.solutions.extend([FAIL] * 21)
         assert await run_experiment(config, on_delta=None) is None
-        assert len(botbox_script.t_sessions) == limit
+        assert len(botbox_script.sessions) == limit
         assert json.loads(config.result_file.read_text())['attempts'] == limit
 
     @pytest.mark.parametrize('advices,outcomes,best_attempt', [
@@ -30,7 +35,7 @@ def describe_advice_improvement():
          [[FAIL, PASS], [PASS, PASS], [PASS, PASS], [FAIL, PASS], [PASS, FAIL]], 2),
     ])
     async def it_resets_only_for_strictly_shorter_all_pass_advice(
-        config, botbox_script, advices, outcomes, best_attempt,
+        config, botbox_script, chat_provider, advices, outcomes, best_attempt,
     ):
         config.max_u_turns = None
         config.max_turns_without_improvement = 2
@@ -39,7 +44,7 @@ def describe_advice_improvement():
         botbox_script.solutions.extend(source for batch in outcomes for source in batch)
         result = await run_experiment(config, on_delta=None)
         assert result == config.t_dir(best_attempt, 0) / 'src'
-        assert len(botbox_script.t_sessions) == 2 * len(advices)
+        assert len(botbox_script.sessions) == 2 * len(advices)
         assert json.loads(config.result_file.read_text()) == {
             'success': True, 'attempts': len(advices), 'solution': str(result),
         }
@@ -49,15 +54,14 @@ def describe_advice_improvement():
             assert json.loads((candidates / '0/metadata.json').read_text()) == {
                 'rejected': False, 'measurement': len(advice),
             }
-            assert botbox_script.t_sessions[attempt * 2].messages == [advice]
+            assert botbox_script.sessions[attempt * 2].messages == [advice]
         feedback = (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text()
         assert 'Turns without improvement: 2 of 2' in feedback
         assert f'Shortest successful advice so far: {len(advices[best_attempt])} characters' in feedback
-        history = botbox_script.snapshots[-1]
+        history = chat_provider[-1]['messages']
         for attempt, advice in enumerate(advices[:-1]):
-            assert history[f'{attempt}/advice.txt'] == advice
-            for sample in range(2):
-                assert history[f'{attempt}/{sample}/main.py'] == outcomes[attempt][sample]
+            assert history[2 * attempt + 2]['content'] == advice
+            assert implementations(outcomes[attempt]) in history[2 * attempt + 3]['content']
         assert all(session.closed for session in botbox_script.sessions)
 
 
@@ -68,18 +72,19 @@ def describe_advice_improvement():
         config.max_u_turns = None
         botbox_script.advice.extend(['long advice', 'short'])
         botbox_script.solutions.append(PASS)
-        original = FakeSession.message
+        owner, method = (ChatSession, 'prompt') if actor == 'U' else (FakeSession, 'message')
+        original = getattr(owner, method)
 
-        async def cancel_later(session, text):
-            if config.result_file.exists() and session.is_u == (actor == 'U'):
+        async def cancel_later(session, *args, **kwargs):
+            if config.result_file.exists():
                 raise asyncio.CancelledError
-            return await original(session, text)
+            return await original(session, *args, **kwargs)
 
-        monkeypatch.setattr(FakeSession, 'message', cancel_later)
+        monkeypatch.setattr(owner, method, cancel_later)
         with pytest.raises(asyncio.CancelledError):
             await run_experiment(config, on_delta=None)
         assert json.loads(config.result_file.read_text()) == {
             'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'src'),
         }
         assert all(session.closed for session in botbox_script.sessions)
-        assert (config.u_transcripts / 'session.jsonl').exists()
+        assert (config.u_transcripts / 'messages.jsonl').exists()

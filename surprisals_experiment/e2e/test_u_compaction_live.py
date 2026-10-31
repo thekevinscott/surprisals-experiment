@@ -21,7 +21,7 @@ def live_config(tmp_path):
     problem.mkdir()
     (problem / 'question.txt').write_text(QUESTION)
     return Config(
-        api_key=key, problem_dir=problem, output=tmp_path / 'run', u_mode='chat',
+        api_key=key, problem_dir=problem, output=tmp_path / 'run',
         u_model=U_MODEL, t_model=T_MODEL, u_thinking='low', t_samples=1,
     )
 

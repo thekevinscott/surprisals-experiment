@@ -8,12 +8,12 @@ The current MVP implements the advice, execution, and test-feedback loop with op
 
 ## How it works
 
-Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `xiaomi/mimo-v2.6-pro` and T uses `openai/gpt-oss-120b`, accessed through OpenRouter. U defaults to a Pi agent with tools (`--u-mode agent`). Use `--u-mode chat` for a persistent OpenRouter chat conversation. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
+Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `xiaomi/mimo-v2.6-pro` and T uses `openai/gpt-oss-120b`, accessed through OpenRouter. U is a persistent OpenRouter chat conversation. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
 3. Give that same advice to `--t-samples` fresh T sessions (default 5), with up to `--t-pool-size` generating code concurrently (default 3).
-4. Once generation finishes, test every T solution against every case in `input_output.json`. Chat U receives every T’s pre-test source files and per-T passing-test counts in the next feedback message. Agent U can inspect the same snapshots through its tools.
+4. Once generation finishes, test every T solution against every case in `input_output.json`. U receives every T’s pre-test source files and per-T passing-test counts in the next feedback message.
 5. Ask U for the shortest possible advice, allowing candidates of any length. Track the shortest advice that makes every T pass every test. U receives each turn’s length, test outcomes, best successful length, and no-improvement counter.
 6. Stop after 20 consecutive turns without improvement, Ctrl-C, or an explicit `--max-u-turns` limit. The first all-pass advice establishes the baseline; only strictly shorter all-pass advice resets the counter afterward. Failed tests, longer successes, and equal-length successes increment it. Infrastructure errors abort rather than counting as completed turns.
 
@@ -33,7 +33,7 @@ See the [five-phase experiment plan](plan/readme.md):
 
 Install [uv](https://docs.astral.sh/uv/) and Docker, then follow the [APPS download instructions](scripts/README.md). The Python project requires Python 3.14 or newer.
 
-Select `--u-mode agent` (default) for the tool-using U or `--u-mode chat` for direct chat. Docker is still required for T.
+Docker is required for T.
 
 Create a `.env` file in this repository with your `OPENROUTER_API_KEY`. It is ignored by Git. From the repository root:
 
@@ -73,7 +73,7 @@ Tests execute generated Python on the host, outside the agent containers, with a
 Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experiments/<experiment>/files/`. Both are ignored by Git. `runs/` is one clone of the [surprisals-experiment-runs dataset on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs), with a folder per experiment. Runs from before the current configurations are under `runs/development/`.
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, updated after every evaluated batch.
-- `u_transcripts/`: U’s conversation. Chat mode writes `messages.jsonl` with system, user, and assistant messages (including returned reasoning); agent mode retains Pi session files.
+- `u_transcripts/`: U’s conversation in `messages.jsonl`, with system, user, and assistant messages (including returned reasoning).
 - `attempts/<attempt>/advices/0/advice.txt`: the advice for that turn.
 - Adjacent `metadata.json`: measured character count and `rejected: false` for compatibility with existing readers.
 - `settings.json`: the U mode, requested T count, timeout retry count, explicitly selected by `Config.save_settings()`.
@@ -114,7 +114,7 @@ Review the advice-minimization behavior, then evaluate it in live runs before ad
 
 Chat U compacts its history before a request when message content plus reasoning (counted once) plus the pending request exceed `--u-compact-chars` (default 400000; 0 disables). It asks U for a summary under 2,000 characters, then keeps the original system prompt and question, that summary, and the exact best successful advice, length, and no-improvement count from the experiment. The pending request is sent unchanged. Agent mode keeps Pi’s own compaction. The full history, summary request/reply, and new preamble remain in `u_transcripts/messages.jsonl`. A summary over 2,000 characters is kept as is. If the summary request fails, compaction goes ahead with the error in place of the summary; the measured state is still exact. This is a soft character trigger, not a token limit: the preserved question, best advice, and latest feedback can themselves exceed it.
 
-Use `--u-mode chat --u-flush 1` to clear U back to its system prompt after every turn. Each fresh user message contains the original problem, every previous advice attempt (oldest first, each with its length and every T's test results; if the message would exceed `--u-compact-chars`, the oldest failing attempts are dropped first, then the oldest passing ones). T code is included only for the latest attempt and the most recent attempt where every T passed. 0 (the default) keeps the conversation. Without this flag, chat U keeps its conversation and the compaction behavior above.
+Use `--u-flush 1` to clear U back to its system prompt after every turn. Each fresh user message contains the original problem, every previous advice attempt (oldest first, each with its length and every T's test results; if the message would exceed `--u-compact-chars`, the oldest failing attempts are dropped first, then the oldest passing ones). T code is included only for the latest attempt and the most recent attempt where every T passed. 0 (the default) keeps the conversation. Without this flag, chat U keeps its conversation and the compaction behavior above.
 
 ## Shared RunPod scorer
 

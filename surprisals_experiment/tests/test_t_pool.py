@@ -62,7 +62,7 @@ def describe_t_pool():
             assert peak == capacity
             assert completion[:capacity] == list(reversed(range(capacity)))
             assert [result.all_passed for result in results] == [True, False, True, False, True]
-            assert [session.messages for session in botbox_script.t_sessions] == [['double it']] * 5
+            assert [session.messages for session in botbox_script.sessions] == [['double it']] * 5
             for sample, result in enumerate(results):
                 saved = json.loads((config.t_dir(0, sample) / 'tests.json').read_text())
                 assert saved['all_passed'] == result.all_passed
@@ -77,12 +77,9 @@ def describe_t_pool():
         full = asyncio.Event()
         fail = asyncio.Event()
         started = 0
-        original = FakeSession.message
 
         async def message(self, text):
             nonlocal started
-            if self.is_u:
-                return await original(self, text)
             started += 1
             if started == 3:
                 full.set()
@@ -92,7 +89,7 @@ def describe_t_pool():
                     raise RuntimeError('provider unavailable')
                 await asyncio.Event().wait()
             finally:
-                assert not botbox_script.u_sessions[0].closed
+                assert botbox_script.u_workspaces[0].exists()
 
         monkeypatch.setattr(FakeSession, 'message', message)
         task = asyncio.create_task(run_experiment(config, on_delta=None))
@@ -110,7 +107,7 @@ def describe_t_pool():
             assert all(session.closed for session in botbox_script.sessions)
             assert not config.result_file.exists()
             assert not (config.attempt_dir(0) / 'feedback.txt').exists()
-            assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
+            assert not botbox_script.u_workspaces[0].exists()
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

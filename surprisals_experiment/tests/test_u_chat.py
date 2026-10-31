@@ -5,7 +5,6 @@ from contextlib import nullcontext
 
 import pytest
 
-from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.utils.u_session import open_u_session
 
@@ -21,7 +20,6 @@ def describe_chat_u():
     async def it_preserves_conversation_and_streams_advice(
         config, botbox_script, chat_provider, thinking, reasoning,
     ):
-        config.u_mode = 'chat'
         config.u_thinking = thinking
         botbox_script.advice.extend(['first\nadvice', 'next'])
         deltas = []
@@ -48,7 +46,6 @@ def describe_chat_u():
     ):
         from conftest import FakeSession
 
-        config.u_mode = 'chat'
         config.t_samples = 2
         config.max_u_turns = 2
         botbox_script.advice.extend(['long advice', 'short'])
@@ -68,8 +65,7 @@ def describe_chat_u():
 
         monkeypatch.setattr(FakeSession, 'message', write_helpers)
         assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
-        assert not botbox_script.u_sessions
-        assert len(botbox_script.t_sessions) == 4
+        assert len(botbox_script.sessions) == 4
         feedback = chat_provider[1]['messages'][-1]['content']
         assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
         assert '/solutions/' not in feedback
@@ -90,30 +86,22 @@ def describe_chat_u():
     async def it_rejects_incomplete_advice_but_retains_the_transcript(
         config, botbox_script, finish,
     ):
-        config.u_mode = 'chat'
         botbox_script.advice.extend([{
             'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': finish,
         }] * 9)
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
-        assert not botbox_script.t_sessions
+        assert not botbox_script.sessions
         assert 'partial' in (config.u_transcripts / 'messages.jsonl').read_text()
 
     async def it_preserves_the_prompt_on_provider_failure(config, botbox_script):
-        config.u_mode = 'chat'
         botbox_script.advice.append({'status': 400})
         with pytest.raises(RuntimeError, match='provider failed'):
             await run_experiment(config, on_delta=None)
-        assert not botbox_script.t_sessions
+        assert not botbox_script.sessions
         assert config.question_file.read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
 
-    def it_defaults_to_agent(config):
-        values = config.model_dump()
-        values.pop('u_mode')
-        assert Config(**values).u_mode == 'agent'
-
     async def it_keeps_reasoning_details_in_the_next_request(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
         details = {'type': 'reasoning.text', 'text': 'Reasoning', 'index': 0}
         botbox_script.advice.extend([
             {'deltas': [{'role': 'assistant', 'reasoning_details': [details], 'content': 'advice'}]},
@@ -129,7 +117,6 @@ def describe_chat_u():
     async def it_stops_without_improvement_and_retains_all_prior_batches(
         config, botbox_script, chat_provider,
     ):
-        config.u_mode = 'chat'
         config.max_u_turns = None
         config.max_turns_without_improvement = 2
         botbox_script.advice.extend(['tiny', 'long advice', 'longer advice'])
@@ -139,31 +126,16 @@ def describe_chat_u():
         history = chat_provider[-1]['messages']
         assert [m['content'] for m in history if m['role'] == 'assistant'] == ['tiny', 'long advice']
         assert sum(json.dumps(PASS) in m['content'] for m in history if m['role'] == 'user') == 2
-        assert json.loads((config.output / 'settings.json').read_text())['u_mode'] == 'chat'
 
-    @pytest.mark.parametrize('args,mode', [
-        (['--u-mode', 'chat'], 'chat'), (['--u-mode', 'agent'], 'agent'), ([], 'agent'),
-    ])
-    async def it_wires_the_cli_mode(monkeypatch, tmp_path, args, mode):
+    async def it_has_no_u_mode_option(tmp_path):
         import importlib
         cli = importlib.import_module('surprisals_experiment.cli.main')
-        received = []
-
-        async def run(config, **kwargs):
-            received.append(config.u_mode)
-
-        monkeypatch.setattr(cli, 'find_dotenv', lambda **kwargs: '/unused/.env')
-        monkeypatch.setattr(cli, 'dotenv_values', lambda *args, **kwargs: {'OPENROUTER_API_KEY': 'test'})
-        monkeypatch.setattr(cli, 'run_experiment', run)
-        await cli.main([
-            '--output', str(tmp_path / 'run'), 'problem', str(tmp_path), *args,
-        ])
-        assert received == [mode]
+        with pytest.raises(SystemExit):
+            await cli.main(['--output', str(tmp_path / 'run'), 'problem', str(tmp_path), '--u-mode', 'chat'])
 
     async def it_saves_partial_output_on_cancellation(config, botbox_script):
         import asyncio
 
-        config.u_mode = 'chat'
         botbox_script.advice.append('advice')
 
         def cancel(kind, text):
@@ -178,11 +150,10 @@ def describe_chat_u():
 
     @pytest.mark.parametrize('deltas', [[], [{'role': 'assistant'}]])
     async def it_does_not_accept_empty_replies(config, botbox_script, deltas):
-        config.u_mode = 'chat'
         botbox_script.advice.extend([{'deltas': deltas, 'finish': None}] * 9)
         with pytest.raises(RuntimeError, match='U chat'):
             await run_experiment(config, on_delta=None)
-        assert not botbox_script.t_sessions
+        assert not botbox_script.sessions
 
 
 ROLES = {'system', 'user', 'assistant'}
@@ -192,7 +163,6 @@ def describe_chat_u_roles():
     async def it_sends_and_records_exact_roles_when_every_chunk_repeats_the_role(
         config, botbox_script, chat_provider,
     ):
-        config.u_mode = 'chat'
         config.max_u_turns = 3
         chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
         botbox_script.advice.extend([chunked('long advice'), chunked('shorter'), chunked('short')])
@@ -211,7 +181,6 @@ def describe_chat_u_roles():
         ]
 
     async def it_records_an_exact_role_for_reasoning_chunks(config, botbox_script, chat_provider):
-        config.u_mode = 'chat'
         botbox_script.advice.append({'deltas': [
             {'role': 'assistant', 'reasoning': 'Thinking.'},
             {'role': 'assistant', 'reasoning': ' More.'},
@@ -223,7 +192,6 @@ def describe_chat_u_roles():
         assert session.messages[-1]['reasoning'] == 'Thinking. More.'
 
     async def it_streams_no_empty_text_alongside_reasoning(config, botbox_script):
-        config.u_mode = 'chat'
         botbox_script.advice.append({'deltas': [
             {'role': 'assistant', 'reasoning': 'Thinking.', 'content': ''},
             {'role': 'assistant', 'reasoning': ' More.', 'content': ''},
@@ -236,7 +204,6 @@ def describe_chat_u_roles():
 
     @pytest.mark.parametrize('finish', [None, 'length'])
     async def it_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, finish):
-        config.u_mode = 'chat'
         botbox_script.advice.extend([{
             'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
             'finish': finish,
@@ -259,7 +226,6 @@ def no_retry_wait(monkeypatch):
 async def test_reasoning_format_preserves_latest_provider_value(
     config, botbox_script, chat_provider, final_format, finish,
 ):
-    config.u_mode = 'chat'
     reply = {
         'deltas': [
             {'role': 'assistant', 'reasoning_details': [

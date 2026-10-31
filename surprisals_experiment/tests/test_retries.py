@@ -8,7 +8,6 @@ import pytest
 from botbox import PiAgent
 from surprisals_experiment.retry_policy import DELAYS
 from surprisals_experiment.sdk.utils.u_session import open_u_session
-from surprisals_experiment.sdk.utils.u_agent import UAgent
 from surprisals_experiment.sdk.utils.t_agent import TAgent
 
 
@@ -32,7 +31,6 @@ def no_retry_wait(monkeypatch):
       for code in (429, 500, 502, 503)],
 ])
 async def test_chat_retries_transient_calls(config, botbox_script, chat_provider, no_retry_wait, failure):
-    config.u_mode = 'chat'
     botbox_script.advice.extend([failure, 'advice'])
     async with open_u_session(config) as session:
         assert await session.prompt('question') == 'advice'
@@ -54,7 +52,6 @@ async def test_chat_retries_transient_calls(config, botbox_script, chat_provider
     *[{'deltas': [], 'finish': None, 'stream_error': {'code': code, 'message': 'provider failed'}}
       for code in (400, 401, 403)]])
 async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provider, no_retry_wait, failure):
-    config.u_mode = 'chat'
     botbox_script.advice.extend([failure, 'unused'])
     with pytest.raises(RuntimeError, match='provider failed'):
         async with open_u_session(config) as session:
@@ -65,7 +62,6 @@ async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provi
 
 @pytest.mark.parametrize('failure_kind', ['http-error', 'dropped-stream', 'provider-error'])
 async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_wait, failure_kind):
-    config.u_mode = 'chat'
     retries = len(DELAYS)
     failure = ({'deltas': [{'role': 'assistant', 'content': 'partial'}],
                 'finish': None, 'drop_stream': True} if failure_kind == 'dropped-stream' else {'status': 503})
@@ -92,22 +88,13 @@ async def test_chat_retry_limit(config, botbox_script, chat_provider, no_retry_w
     assert sum(c.args[0] for c in no_retry_wait.await_args_list) == 3600
 
 
-@pytest.mark.parametrize('agent_type', [UAgent, TAgent])
-def test_pi_agents_share_retry_settings(monkeypatch, agent_type):
+def test_t_agent_stages_retry_settings(monkeypatch):
     monkeypatch.setattr(PiAgent, 'stage_auth', Mock())
-    kwargs = {'thinking': 'high'} if agent_type is UAgent else {'instructions': 'Do it.', 'on_delta': None}
-    agent = agent_type('openrouter', 'u', api_key='unused', **kwargs)
+    agent = TAgent('openrouter', 't', api_key='unused', instructions='Do it.', on_delta=None)
     home = Mock()
     agent.stage_auth(home)
     settings = json.loads(next(c.args[1] for c in home.write.call_args_list if c.args[0] == '.pi/agent/settings.json'))
     assert settings['retry'] == {
         'enabled': True, 'maxRetries': 60, 'baseDelayMs': 5000, 'maxAgentDelayMs': 60000,
     }
-    assert settings['compaction'] == (
-        {'enabled': True, 'reserveTokens': 917504} if agent_type is UAgent else {'enabled': True}
-    )
-    if agent_type is UAgent:
-        from importlib.resources import files
-        model = json.loads(files('surprisals_experiment').joinpath('docker/U/models.json').read_text())
-        window = model['providers']['openrouter']['models'][0]['contextWindow']
-        assert window - settings['compaction']['reserveTokens'] == 131072
+    assert settings['compaction'] == {'enabled': True}

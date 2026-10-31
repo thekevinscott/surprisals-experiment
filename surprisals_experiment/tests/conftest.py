@@ -6,12 +6,12 @@ from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
 from botbox import Botbox, RunResult
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.utils.u_agent import UAgent
 
 
 @dataclass
@@ -19,15 +19,7 @@ class Script:
     advice: deque = field(default_factory=deque)
     solutions: deque = field(default_factory=deque)
     sessions: list = field(default_factory=list)
-    snapshots: list = field(default_factory=list)
-
-    @property
-    def u_sessions(self):
-        return [session for session in self.sessions if session.is_u]
-
-    @property
-    def t_sessions(self):
-        return [session for session in self.sessions if not session.is_u]
+    u_workspaces: list = field(default_factory=list)
 
 
 class FakeSession:
@@ -36,7 +28,6 @@ class FakeSession:
         self.output = Path(output)
         self.mounts = {target: Path(source) for source, target, _ in mounts}
         self.script = script
-        self.is_u = isinstance(agent, UAgent)
         self.messages = []
         self.closed = False
         self.result = None
@@ -50,22 +41,13 @@ class FakeSession:
 
     async def message(self, text):
         self.messages.append(text)
-        if self.is_u:
-            self.script.snapshots.append({
-                str(path.relative_to(self.mounts['/solutions'])): path.read_text()
-                for path in self.mounts['/solutions'].rglob('*') if path.is_file()
-            })
-            reply = self.script.advice.popleft()
-        else:
-            reply = self.script.solutions.popleft()
+        reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
-        if not self.is_u:
-            (self.mounts['/solution'] / 'main.py').write_text(reply)
-            reply = 'Solution written.'
+        (self.mounts['/solution'] / 'main.py').write_text(reply)
         return [{'type': 'agent_end', 'willRetry': False, 'messages': [{
             'role': 'assistant', 'stopReason': 'stop',
-            'content': [{'type': 'text', 'text': reply}],
+            'content': [{'type': 'text', 'text': 'Solution written.'}],
         }]}, {'type': 'agent_settled', 'aborted': False}]
 
     def close(self):
@@ -109,7 +91,7 @@ def config(tmp_path):
     (problem / 'input_output.json').write_text(json.dumps({
         'inputs': ['3\n', '7\n'], 'outputs': ['6\n', '14\n'],
     }))
-    return Config(u_mode='agent', api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
+    return Config(api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
                   u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1)
 
 
@@ -170,6 +152,12 @@ def chat_provider(monkeypatch, botbox_script):
         return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.u_session.open_u_session'),
-                        'AsyncOpenAI', client)
+    class RecordedTemporaryDirectory(TemporaryDirectory):
+        def __enter__(self):
+            botbox_script.u_workspaces.append(Path(self.name))
+            return super().__enter__()
+
+    module = importlib.import_module('surprisals_experiment.sdk.utils.u_session.open_u_session')
+    monkeypatch.setattr(module, 'AsyncOpenAI', client)
+    monkeypatch.setattr(module, 'TemporaryDirectory', RecordedTemporaryDirectory)
     return requests

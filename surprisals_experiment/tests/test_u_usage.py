@@ -21,7 +21,6 @@ def response(text):
 async def test_usage_preserved_separately_for_each_call(
     config, botbox_script, chat_provider, compact_chars, calls,
 ):
-    config.u_mode = 'chat'
     config.u_compact_chars = compact_chars
     botbox_script.advice.extend(response(f'reply-{i}') for i in range(calls))
     async with open_u_session(config) as session:
@@ -40,7 +39,6 @@ async def test_usage_preserved_separately_for_each_call(
 
 
 async def test_absent_usage_is_unknown_not_zero(config, botbox_script):
-    config.u_mode = 'chat'
     botbox_script.advice.append('advice')
     async with open_u_session(config) as session:
         await session.prompt('question')
@@ -49,7 +47,6 @@ async def test_absent_usage_is_unknown_not_zero(config, botbox_script):
 
 
 async def test_failed_call_retains_reported_usage(config, botbox_script):
-    config.u_mode = 'chat'
     botbox_script.advice.extend([response('partial') | {'finish': 'length'}] * 9)
     async with open_u_session(config) as session:
         with pytest.raises(RuntimeError, match='U chat request failed'):

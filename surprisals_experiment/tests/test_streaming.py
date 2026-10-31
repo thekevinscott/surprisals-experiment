@@ -19,12 +19,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from botbox import Session, RunResult
-from surprisals_experiment.sdk.utils.u_agent import UAgent
-from surprisals_experiment.sdk.utils.u_session import USession
 from surprisals_experiment.sdk import prompt_t
 
 root = Path(sys.argv[1])
-actor = sys.argv[2]
 child = r"""
 import json, sys, time
 from pathlib import Path
@@ -54,32 +51,24 @@ async def session(agent):
     live.result = RunResult(code)
 
 async def experiment(config, *, on_delta, on_t_delta):
-    if actor == 'T':
-        class Box:
-            def __init__(self, agent, **kwargs):
-                self.agent = agent
-            async def __aenter__(self):
-                return self
-            async def __aexit__(self, *args):
-                pass
-            def session(self, *, mounts, workdir, output):
-                import shlex
-                args = shlex.split(self.agent.session_command())
-                assert args[args.index('--mode') + 1] == 'rpc'
-                assert '--append-system-prompt' in args
-                assert workdir == '/solution'
-                assert output == root/'logs'
-                return session(self.agent)
-        with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
-            result = await prompt_t(config, 'question', output=root/'solution', logs=root/'logs', on_delta=on_t_delta)
-        assert result.exit_code == 0
-        return
-    agent = UAgent('openrouter', 'unused', api_key='dummy', thinking='high')
-    async with session(agent) as pi_session:
-        advice = await USession(pi_session, root).prompt('question', on_delta=on_delta)
-        assert advice == 'TEXT_BEFORE_END'
-        assert agent.on_event is None
-    assert pi_session.result.exit_code == 0
+    class Box:
+        def __init__(self, agent, **kwargs):
+            self.agent = agent
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            pass
+        def session(self, *, mounts, workdir, output):
+            import shlex
+            args = shlex.split(self.agent.session_command())
+            assert args[args.index('--mode') + 1] == 'rpc'
+            assert '--append-system-prompt' in args
+            assert workdir == '/solution'
+            assert output == root/'logs'
+            return session(self.agent)
+    with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
+        result = await prompt_t(config, 'question', output=root/'solution', logs=root/'logs', on_delta=on_t_delta)
+    assert result.exit_code == 0
 
 cli = importlib.import_module('surprisals_experiment.cli.main')
 with patch.object(cli, 'find_dotenv', return_value='unused'), \
@@ -92,19 +81,13 @@ with patch.object(cli, 'find_dotenv', return_value='unused'), \
 
 
 class StreamingTest(unittest.TestCase):
-    def test_u_stdout_is_flushed_before_agent_end(self):
-        self.check_stream('U')
-
     def test_t_stdout_is_flushed_before_agent_end(self):
-        self.check_stream('T')
-
-    def check_stream(self, actor):
         with tempfile.TemporaryDirectory(prefix='spar-stream-test-') as directory:
             root = Path(directory)
             env = dict(os.environ)
             env.pop('PYTHONUNBUFFERED', None)
             with (root/'stdout.log').open('w') as stdout, (root/'stderr.log').open('w') as stderr:
-                process = subprocess.Popen([sys.executable, '-c', RUNNER, str(root), actor],
+                process = subprocess.Popen([sys.executable, '-c', RUNNER, str(root)],
                                            stdout=stdout, stderr=stderr, env=env)
                 try:
                     deadline = time.monotonic() + 10
@@ -115,8 +98,8 @@ class StreamingTest(unittest.TestCase):
                         time.sleep(.01)
                     self.assertIsNone(process.poll(), (root/'stderr.log').read_text())
                     self.assertFalse((root/'release').exists())
-                    self.assertIn(f'[{actor} thinking]\nTHINKING_BEFORE_END', text)
-                    self.assertIn(f'[{actor} text]\nTEXT_BEFORE_END', text)
+                    self.assertIn('[T thinking]\nTHINKING_BEFORE_END', text)
+                    self.assertIn('[T text]\nTEXT_BEFORE_END', text)
                 finally:
                     (root/'release').touch()
                     try:

@@ -15,19 +15,15 @@ from surprisals_experiment.sdk.run_experiment.prepare_feedback import prepare_fe
 SNAPSHOTS = Path(__file__).with_name("snapshots")
 
 
-@pytest.mark.parametrize("mode", ["chat", "agent"])
-async def test_character_prompt_and_feedback_unchanged(config, mode, botbox_script):
-    config.u_mode = mode
+async def test_character_prompt_and_feedback_unchanged(config):
     async with open_u_session(config) as session:
-        prompt = (session.messages[0]["content"] if mode == "chat" else
-                  botbox_script.u_sessions[0].mounts["/u-config/u.txt"].read_text())
-        assert prompt == (SNAPSHOTS / f"u-{mode}.txt").read_text()
+        assert session.messages[0]["content"] == (SNAPSHOTS / "u-chat.txt").read_text()
     config.attempt_dir(0).mkdir(parents=True)
     snapshot = config.output / "snapshot"
     snapshot.mkdir()
     feedback = prepare_feedback(config, 0, [], snapshot=snapshot, advice_length=12,
                                 best_length=None, turns_without_improvement=1)
-    assert feedback == (SNAPSHOTS / f"feedback-{mode}.txt").read_text()
+    assert feedback == (SNAPSHOTS / "feedback-chat.txt").read_text()
 
 
 def test_surprisal_requires_endpoint(config):
@@ -35,15 +31,14 @@ def test_surprisal_requires_endpoint(config):
         Config(**(config.model_dump() | {"cap_strategy": "surprisal"}))
 
 
-@pytest.mark.parametrize("mode", ["chat", "agent"])
-async def test_bits_drive_improvement_feedback_and_result(config, botbox_script, monkeypatch, mode):
+async def test_bits_drive_improvement_feedback_and_result(config, botbox_script, monkeypatch):
     module = importlib.import_module("surprisals_experiment.sdk.advice_measure")
     scorer = AsyncMock(side_effect=[
         [("tiny", 10.5)], [("much longer but fewer bits", 8.25)], [("equal bits", 8.25)],
     ])
     monkeypatch.setattr(module, "measure_surprisal", scorer)
     config = Config(**(config.model_dump() | {
-        "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1", "u_mode": mode,
+        "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1",
         "max_u_turns": 3, "max_turns_without_improvement": 1,
     }))
     botbox_script.advice.extend(["tiny", "much longer but fewer bits", "equal bits"])
@@ -81,7 +76,7 @@ async def test_cli_cap_strategy_flags(config, monkeypatch):
 
 async def test_surprisal_system_prompt_defines_the_measure(config):
     config = Config(**(config.model_dump() | {
-        "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1", "u_mode": "chat",
+        "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1",
     }))
     async with open_u_session(config) as session:
         prompt = session.messages[0]["content"]
@@ -104,8 +99,7 @@ async def test_failed_lower_bits_do_not_replace_success(config, botbox_script, m
     assert json.loads(config.result_file.read_text())["best_measurement"] == 10.0
 
 
-@pytest.mark.parametrize("mode", ["chat", "agent"])
-async def test_per_token_feedback_and_metadata(config, botbox_script, chat_provider, monkeypatch, mode):
+async def test_per_token_feedback_and_metadata(config, botbox_script, chat_provider, monkeypatch):
     pairs = [("Use", 2.123456789), (" a", 0.4), (" two", 3.0),
              ("-pointer", 5.2), ("\n sweep", 7.9)]
     advice = "".join(token for token, _ in pairs)
@@ -114,7 +108,7 @@ async def test_per_token_feedback_and_metadata(config, botbox_script, chat_provi
     monkeypatch.setattr(module, "measure_surprisal", scorer)
     config = Config(**(config.model_dump() | {
         "cap_strategy": "surprisal", "scorer_base_url": "http://scorer/v1",
-        "u_mode": mode, "max_u_turns": 2,
+        "max_u_turns": 2,
     }))
     botbox_script.advice.extend([advice, advice])
     botbox_script.solutions.extend(["print(int(input())*2)"] * 2)
@@ -131,11 +125,7 @@ async def test_per_token_feedback_and_metadata(config, botbox_script, chat_provi
                         "tokens": [list(pair) for pair in pairs]}
     assert (config.advice_dir(0, 0) / "advice.txt").read_text() == advice
     scorer.assert_awaited_with(advice, client=config.advice_measure.client)
-    # Both U implementations receive the rendered feedback on their next turn.
-    if mode == "agent":
-        assert expected in botbox_script.u_sessions[0].messages[1]
-    else:
-        assert expected in chat_provider[1]["messages"][-1]["content"]
+    assert expected in chat_provider[1]["messages"][-1]["content"]
 
 
 async def test_character_metadata_has_no_tokens(config, botbox_script, monkeypatch):

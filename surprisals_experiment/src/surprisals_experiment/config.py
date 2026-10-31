@@ -18,7 +18,6 @@ class Config(BaseModel):
     api_key: SecretStr
     problem_dir: Path
     output: Path
-    u_mode: Literal["chat", "agent"] = "agent"
     u_model: str
     u_thinking: ThinkingLevel
     u_compact_chars: int = Field(default=400000, ge=0)
@@ -39,15 +38,9 @@ class Config(BaseModel):
             raise ValueError("scorer_base_url is required for surprisal")
         return self
 
-    @model_validator(mode="after")
-    def require_chat_for_flush(self):
-        if self.u_flush and self.u_mode != "chat":
-            raise ValueError("u_flush requires chat U")
-        return self
-
     @property
     def u_context(self) -> str:
-        return "flush" if self.u_flush else self.u_mode
+        return "flush" if self.u_flush else "chat"
 
     @cached_property
     def advice_measure(self):
@@ -56,10 +49,9 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
-        """Save the U mode and fields needed by run summaries."""
+        """Save the fields needed by run summaries."""
         self.output.mkdir(parents=True, exist_ok=True)
         (self.output / "settings.json").write_text(json.dumps({
-            "u_mode": self.u_mode,
             **({"u_flush": True} if self.u_flush else {}),
             "t_samples": self.t_samples,
             "t_sample_retries": self.t_sample_retries,
@@ -88,10 +80,6 @@ class Config(BaseModel):
     @property
     def u_transcripts(self) -> Path:
         return self.u_dir / "transcripts"
-
-    @property
-    def u_proxy_log(self) -> Path:
-        return self.u_dir / "proxy.log"
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.output / "attempts" / str(attempt)

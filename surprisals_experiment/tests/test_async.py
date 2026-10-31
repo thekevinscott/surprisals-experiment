@@ -8,6 +8,7 @@ import pytest
 
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.utils.u_chat import ChatSession
 
 
 def describe_async_orchestration():
@@ -18,27 +19,28 @@ def describe_async_orchestration():
         botbox_script.advice.append('double it')
         botbox_script.solutions.append('print(int(input()) * 2)\n')
         started = asyncio.Event()
-        method = '__aenter__' if phase == 'startup' else 'message'
-        original = getattr(FakeSession, method)
+        owner, method = {
+            'startup': (FakeSession, '__aenter__'), 'u_message': (ChatSession, 'prompt'),
+            't_message': (FakeSession, 'message'),
+        }[phase]
+        original = getattr(owner, method)
 
-        async def block(self, *args):
-            if phase == 'startup' or self.is_u == (phase == 'u_message'):
-                started.set()
-                await asyncio.Event().wait()
-            return await original(self, *args)
+        async def block(self, *args, **kwargs):
+            started.set()
+            await asyncio.Event().wait()
+            return await original(self, *args, **kwargs)
 
-        monkeypatch.setattr(FakeSession, method, block)
+        monkeypatch.setattr(owner, method, block)
         task = asyncio.create_task(run_experiment(config, on_delta=None))
         await asyncio.wait_for(started.wait(), timeout=2)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(task, timeout=2)
         assert not config.result_file.exists()
-        assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
+        assert not botbox_script.u_workspaces[0].exists()
+        assert (config.u_transcripts / 'messages.jsonl').exists()
         if phase != 'startup':
             assert all(session.closed for session in botbox_script.sessions)
-            assert (config.u_transcripts / 'session.jsonl').exists()
-            assert config.u_proxy_log.exists()
 
     @pytest.mark.parametrize('outcome', ['cancel', 'timeout'])
     async def it_reaps_evaluation_before_session_cleanup(config, botbox_script, monkeypatch, outcome):
@@ -73,6 +75,5 @@ def describe_async_orchestration():
                 with pytest.raises(asyncio.CancelledError):
                     await task
         assert all(session.closed for session in botbox_script.sessions)
-        assert not botbox_script.u_sessions[0].mounts['/solutions'].exists()
-        assert (config.u_transcripts / 'session.jsonl').exists()
-        assert config.u_proxy_log.exists()
+        assert not botbox_script.u_workspaces[0].exists()
+        assert (config.u_transcripts / 'messages.jsonl').exists()
