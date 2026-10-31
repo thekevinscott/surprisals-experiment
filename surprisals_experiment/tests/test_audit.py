@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import get_args
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock
 
 from botbox import RunResult
 from pydantic import ValidationError
@@ -86,11 +86,9 @@ class AuditTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_prompt_t_has_no_sibling_artifact_writes(self):
         result = RunResult(1)
-        with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox') as box:
-            live = MagicMock(result=result)
-            box.return_value.__aenter__.return_value.session = MagicMock()
-            box.return_value.__aenter__.return_value.session.return_value.__aenter__.return_value = live
-            live.message = AsyncMock()
+        with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox') as box:
+            box.return_value.__aenter__.return_value.build = AsyncMock()
+            box.return_value.__aenter__.return_value.run = AsyncMock(return_value=result)
             for name in ['first', 'second']:
                 self.assertIs(await prompt_t(self.config, 'advice', output=self.root/name, logs=self.root/f'{name}-logs'), result)
                 self.assertTrue((self.root/name).is_dir())
