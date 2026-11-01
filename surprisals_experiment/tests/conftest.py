@@ -1,7 +1,8 @@
-"""Script Botbox sessions globally; keep orchestration and evaluation real."""
+"""Script Botbox runs globally; keep orchestration and evaluation real."""
 
 import importlib
 import json
+import shlex
 from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
@@ -45,17 +46,19 @@ class FakeSession:
         if isinstance(reply, Exception):
             raise reply
         (self.mounts['/solution'] / 'main.py').write_text(reply)
-        return [{'type': 'agent_end', 'willRetry': False, 'messages': [{
+        events = [{'type': 'agent_end', 'willRetry': False, 'messages': [{
             'role': 'assistant', 'stopReason': 'stop',
             'content': [{'type': 'text', 'text': 'Solution written.'}],
         }]}, {'type': 'agent_settled', 'aborted': False}]
+        with (self.output / 'stdout.txt').open('a') as stdout:
+            stdout.writelines(json.dumps(event) + '\n' for event in events)
 
     def close(self):
         self.closed = True
         (self.output / 'transcripts').mkdir(parents=True, exist_ok=True)
         (self.output / 'transcripts/session.jsonl').write_text('\n'.join(
             json.dumps({'prompt': text}) for text in self.messages))
-        for name in ('stdout.txt', 'stderr.txt', 'proxy.log'):
+        for name in ('stderr.txt', 'proxy.log'):
             (self.output / name).write_text('')
         return RunResult(exit_code=0)
 
@@ -75,10 +78,19 @@ def botbox_script(monkeypatch):
         async def __aexit__(self, *args):
             pass
 
-        def session(self, *, mounts, workdir, output):
-            return FakeSession(self.agent, mounts, output, script)
+        async def build(self):
+            return 'fake'
 
-    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_session'),
+        async def run(self, command, *, mounts, workdir, output):
+            args = shlex.split(command)
+            assert workdir == '/solution'
+            Path(output).mkdir(parents=True, exist_ok=True)
+            (Path(output) / 'stdout.txt').write_text('')
+            async with FakeSession(self.agent, mounts, output, script) as session:
+                await session.message(args[args.index('-p') + 1])
+            return session.result
+
+    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_run'),
                         'Botbox', FakeBotbox)
     return script
 

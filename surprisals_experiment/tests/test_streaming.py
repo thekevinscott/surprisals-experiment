@@ -1,4 +1,4 @@
-"""Prove the real botbox reader reaches redirected CLI stdout before turn end."""
+"""Prove T events tailed from stdout.txt reach redirected CLI stdout before the run ends."""
 
 import os
 import subprocess
@@ -14,41 +14,13 @@ import asyncio
 import importlib
 import json
 import sys
-from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-from botbox import Session, RunResult
+from botbox import RunResult
 from surprisals_experiment.sdk import prompt_t
 
 root = Path(sys.argv[1])
-child = r"""
-import json, sys, time
-from pathlib import Path
-sys.stdin.readline()
-for kind, text in [('thinking_delta', 'THINKING_BEFORE_END'), ('text_delta', 'TEXT_BEFORE_END')]:
-    print(json.dumps({'type':'message_update', 'assistantMessageEvent':{'type':kind, 'delta':text}}), flush=True)
-while not Path(sys.argv[1]).exists():
-    time.sleep(.01)
-print(json.dumps({'type':'agent_end', 'willRetry':False, 'messages':[{'role':'assistant', 'stopReason':'stop', 'content':[{'type':'text','text':'TEXT_BEFORE_END'}]}]}), flush=True)
-print(json.dumps({'type':'agent_settled', 'aborted':False}), flush=True)
-sys.stdin.read()
-"""
-
-@asynccontextmanager
-async def session(agent):
-    process = await asyncio.create_subprocess_exec(
-        sys.executable, '-c', child, str(root/'release'),
-        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-    )
-    client = asyncio.create_task(process.wait())
-    live = Session(agent, process.stdin, client, process.stdout.readline)
-    try:
-        yield live
-    finally:
-        process.stdin.close()
-        code = await client
-    live.result = RunResult(code)
 
 async def experiment(config, *, on_delta, on_t_delta):
     class Box:
@@ -58,15 +30,25 @@ async def experiment(config, *, on_delta, on_t_delta):
             return self
         async def __aexit__(self, *args):
             pass
-        def session(self, *, mounts, workdir, output):
+        async def build(self):
+            return 'tag'
+        async def run(self, command, *, mounts, workdir, output):
             import shlex
-            args = shlex.split(self.agent.session_command())
-            assert args[args.index('--mode') + 1] == 'rpc'
+            args = shlex.split(command)
+            assert args[args.index('--mode') + 1] == 'json'
             assert '--append-system-prompt' in args
             assert workdir == '/solution'
             assert output == root/'logs'
-            return session(self.agent)
-    with patch('surprisals_experiment.sdk.utils.botbox_session.Botbox', Box):
+            output.mkdir(parents=True, exist_ok=True)
+            with (output/'stdout.txt').open('w') as stdout:
+                for kind, text in [('thinking_delta', 'THINKING_BEFORE_END'), ('text_delta', 'TEXT_BEFORE_END')]:
+                    stdout.write(json.dumps({'type':'message_update', 'assistantMessageEvent':{'type':kind, 'delta':text}}) + '\n')
+                    stdout.flush()
+                while not (root/'release').exists():
+                    await asyncio.sleep(.01)
+                stdout.write(json.dumps({'type':'agent_end', 'messages':[]}) + '\n')
+            return RunResult(0)
+    with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', Box):
         result = await prompt_t(config, 'question', output=root/'solution', logs=root/'logs', on_delta=on_t_delta)
     assert result.exit_code == 0
 
@@ -81,7 +63,7 @@ with patch.object(cli, 'find_dotenv', return_value='unused'), \
 
 
 class StreamingTest(unittest.TestCase):
-    def test_t_stdout_is_flushed_before_agent_end(self):
+    def test_t_stdout_is_flushed_before_run_end(self):
         with tempfile.TemporaryDirectory(prefix='spar-stream-test-') as directory:
             root = Path(directory)
             env = dict(os.environ)

@@ -47,15 +47,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.1.75"
+version = "0.1.83"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "json5" },
     { name = "posix-tools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/5e/e825fcb0a1216bb756f3815494fcfdad5394eb4909204311a09523f3eb06/botbox-0.1.75.tar.gz", hash = "sha256:c3da377e5beedcafdb3a679d7a767d79a0c92f3efea31bc2ad07854627f5feb2", size = 69584, upload-time = "2026-10-28T00:45:43.291Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/63/aee0efd5067e572281875624b6e4ed95a9e36c61204ed5326233ff3473fc/botbox-0.1.83.tar.gz", hash = "sha256:055e8154bb3af4bda8e2a05ca46d29554fa0fc13a1cbe6efb015e52b8e3abd34", size = 66883, upload-time = "2026-10-30T20:32:41.658Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/eb/adc24d57158185ded58cdca1dad356b811ff9e6520a8738fb7573de533a5/botbox-0.1.75-py3-none-any.whl", hash = "sha256:8cd6eb2530c4f4a6ca8590ab90e6ab94341de1d4686548b4fcea968f8ecd1dbf", size = 63003, upload-time = "2026-10-28T00:45:41.827Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/a8/57c6892e88a320012562736cbb7780e9b27cc547c4dceedafcda8b28bd8d/botbox-0.1.83-py3-none-any.whl", hash = "sha256:888beb3c035821947f72c92f67e205d2c6af9506e3012e118a217b6bc1b54b8c", size = 58837, upload-time = "2026-10-30T20:32:40.14Z" },
 ]
 
 [[package]]
