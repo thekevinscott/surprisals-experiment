@@ -71,7 +71,7 @@ def describe_t_pool():
             await asyncio.gather(task, return_exceptions=True)
 
     @pytest.mark.parametrize('outcome', ['error', 'cancel'])
-    async def it_closes_all_t_sessions_before_u_on_failure(config, botbox_script, monkeypatch, outcome):
+    async def it_closes_all_t_sessions_before_u_on_failure(config, botbox_script, monkeypatch, no_retry_wait, outcome):
         config.t_samples = 5
         botbox_script.advice.append('double it')
         full = asyncio.Event()

@@ -50,10 +50,10 @@ def describe_u_to_t_loop():
 def describe_combined_loops():
 
     @pytest.mark.parametrize('actor', ['U', 'T'])
-    async def it_keeps_infrastructure_errors_separate_from_test_failures(config, botbox_script, actor):
+    async def it_keeps_infrastructure_errors_separate_from_test_failures(config, botbox_script, no_retry_wait, actor):
         error = RuntimeError('provider unavailable')
-        botbox_script.advice.append(error if actor == 'U' else 'double it')
-        botbox_script.solutions.append(error)
+        botbox_script.advice.extend([error] * 9 if actor == 'U' else ['double it'])
+        botbox_script.solutions.extend([error] * 9)
         with pytest.raises(RuntimeError, match='provider unavailable'):
             await run_experiment(config, on_delta=None)
         assert not config.result_file.exists()

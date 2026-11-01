@@ -3,7 +3,7 @@
 from measure_surprisal import Client, measure_surprisal
 
 from surprisals_experiment.prompt import Prompt
-from surprisals_experiment.retry_policy import DELAYS, retried, transient
+from surprisals_experiment.retry_policy import DELAYS, retried
 
 SURPRISAL_WORDING = Prompt("u/measure_surprisal.txt")
 
@@ -26,7 +26,7 @@ class AdviceMeasure:
                     on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
                                       f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
-            @retried(transient, operation="Scorer request", before_sleep=before_sleep)
+            @retried(operation="Scorer request", before_sleep=before_sleep)
             async def score():
                 return await measure_surprisal(advice, client=self.client)
 

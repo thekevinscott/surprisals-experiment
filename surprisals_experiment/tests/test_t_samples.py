@@ -71,11 +71,11 @@ def describe_n_of_t():
         assert summary['completed_t_evaluations'] == 6
         assert summary['evaluation_attempts_to_success'] == 2
 
-    async def it_preserves_partial_batches_without_claiming_success(config, botbox_script):
+    async def it_preserves_partial_batches_without_claiming_success(config, botbox_script, no_retry_wait):
         config.t_samples = 3
         config.t_pool_size = 1
         botbox_script.advice.append('double it')
-        botbox_script.solutions.extend([PASS, RuntimeError('provider unavailable'), PASS])
+        botbox_script.solutions.extend([PASS, *[RuntimeError('provider unavailable')] * 18])
         with pytest.raises(RuntimeError, match='provider unavailable'):
             await run_experiment(config, on_delta=None)
         assert len(botbox_script.sessions) >= 2

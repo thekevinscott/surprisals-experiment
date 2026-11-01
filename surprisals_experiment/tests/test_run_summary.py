@@ -41,9 +41,9 @@ def describe_run_summary():
         assert all(row['accepted_characters'] == 2 for row in attempts)
         assert [row['tests_passed'] for row in attempts] == [0] * failures + ([2] if failures < 5 else [])
 
-    async def it_does_not_count_missing_evaluations_as_failed_ts(config, botbox_script):
+    async def it_does_not_count_missing_evaluations_as_failed_ts(config, botbox_script, no_retry_wait):
         botbox_script.advice.append('ok')
-        botbox_script.solutions.append(RuntimeError('provider unavailable'))
+        botbox_script.solutions.extend([RuntimeError('provider unavailable')] * 9)
         with pytest.raises(RuntimeError):
             await run_experiment(config, on_delta=None)
         summary, attempt = report(config.output)

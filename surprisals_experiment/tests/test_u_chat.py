@@ -95,7 +95,7 @@ def describe_chat_u():
         assert 'partial' in (config.u_transcripts / 'messages.jsonl').read_text()
 
     async def it_preserves_the_prompt_on_provider_failure(config, botbox_script):
-        botbox_script.advice.append({'status': 400})
+        botbox_script.advice.extend([{'status': 400}] * 9)
         with pytest.raises(RuntimeError, match='provider failed'):
             await run_experiment(config, on_delta=None)
         assert not botbox_script.sessions

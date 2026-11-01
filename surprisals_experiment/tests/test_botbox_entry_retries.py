@@ -58,15 +58,12 @@ def describe_botbox_entry():
         state['sleep'].assert_awaited_once_with(10)
 
     @pytest.mark.parametrize('text', ['permission denied', 'context deadline exceeded'])
-    async def it_does_not_retry_other_docker_errors(entry_harness, text):
-        error = docker_error(text)
-        entry_harness['failures'] = [error]
-        with pytest.raises(DockerException) as caught:
-            async with session():
-                pytest.fail('body must not run')
-        assert caught.value is error
-        assert entry_harness['entries'] == 1
-        entry_harness['sleep'].assert_not_awaited()
+    async def it_retries_other_docker_errors(entry_harness, text):
+        entry_harness['failures'] = [docker_error(text)]
+        async with session():
+            entry_harness['bodies'] += 1
+        assert (entry_harness['entries'], entry_harness['bodies']) == (2, 1)
+        entry_harness['sleep'].assert_awaited_once_with(10)
 
     async def it_never_retries_a_body_failure(entry_harness):
         with pytest.raises(DockerException):

@@ -3,17 +3,12 @@
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
 
-from adocker import DockerException
 from botbox import Botbox, Session
 
 from surprisals_experiment.retry_policy import retried
 
 
-def entry_retryable(error):
-    return isinstance(error, DockerException) and "DeadlineExceeded" in error.stderr
-
-
-@retried(entry_retryable, operation="botbox image build/session entry")
+@retried(operation="botbox image build/session entry")
 async def enter_session(agent, *, dockerfile, mounts, workdir, output):
     async with AsyncExitStack() as stack:
         box = await stack.enter_async_context(Botbox(agent, dockerfile=dockerfile))

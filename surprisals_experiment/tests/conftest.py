@@ -1,5 +1,6 @@
 """Script Botbox sessions globally; keep orchestration and evaluation real."""
 
+import asyncio
 import importlib
 import json
 from inspect import signature
@@ -7,6 +8,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import AsyncMock
 
 import pytest
 from botbox import Botbox, RunResult
@@ -81,6 +83,13 @@ def botbox_script(monkeypatch):
     monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_session'),
                         'Botbox', FakeBotbox)
     return script
+
+
+@pytest.fixture
+def no_retry_wait(monkeypatch):
+    sleep = AsyncMock()
+    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    return sleep
 
 
 @pytest.fixture
