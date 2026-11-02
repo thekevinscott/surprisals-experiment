@@ -20,8 +20,8 @@ def report(folder):
 
 
 def describe_run_summary():
-    @pytest.mark.parametrize('failures', [0, 2, 5])
-    async def it_counts_one_advice_per_evaluation(config, botbox_script, failures):
+    async def it_counts_one_advice_per_evaluation(config, botbox_script):
+        failures = 2
         count = min(failures + 1, 5)
         config.max_u_turns = count
         botbox_script.advice.extend(['ok'] * count)

@@ -190,3 +190,50 @@ def chat_provider(monkeypatch, botbox_script):
     monkeypatch.setattr(module, 'AsyncOpenAI', client)
     monkeypatch.setattr(module, 'TemporaryDirectory', RecordedTemporaryDirectory)
     return requests
+
+
+@pytest.fixture
+async def scorer_provider(monkeypatch):
+    """Serve prompt logprobs over mocked HTTP, keeping measurement and retries real."""
+    import math
+    from types import SimpleNamespace
+
+    import httpx2
+    from openai import AsyncOpenAI
+
+    script = SimpleNamespace(replies=deque(), requests=[])
+    clients = []
+
+    def respond(request):
+        body = json.loads(request.content)
+        script.requests.append(body)
+        reply = script.replies.popleft()
+        if callable(reply):
+            reply = reply(request)
+        if isinstance(reply, Exception):
+            raise reply
+        if isinstance(reply, httpx2.Response):
+            return reply
+        tokens, bits = zip(*reply)
+        offsets = []
+        offset = 0
+        for token in tokens:
+            offsets.append(offset)
+            offset += len(token)
+        return httpx2.Response(200, json={
+            'id': 'score', 'object': 'text_completion', 'created': 1, 'model': body['model'],
+            'choices': [{'index': 0, 'text': '', 'finish_reason': 'stop', 'logprobs': {
+                'tokens': tokens, 'token_logprobs': [-value * math.log(2) for value in bits],
+                'text_offset': offsets,
+            }}],
+        })
+
+    def client(**kwargs):
+        http = httpx2.AsyncClient(transport=httpx2.MockTransport(respond))
+        clients.append(http)
+        return AsyncOpenAI(**kwargs, http_client=http)
+
+    monkeypatch.setattr(importlib.import_module('measure_surprisal.utils.client'), 'AsyncOpenAI', client)
+    yield script
+    for client in clients:
+        await client.aclose()
