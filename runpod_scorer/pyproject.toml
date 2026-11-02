@@ -17,3 +17,6 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv.sources]
+labnotes = { git = "https://github.com/thekevinscott/labnotes.git", subdirectory = "packages/python", rev = "8b7cb5a7dceccdea82ad12bef857b8b0a812850a" }
