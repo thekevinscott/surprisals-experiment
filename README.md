@@ -62,8 +62,8 @@ Each experiment has its own TOML and `files/` directory under `experiments/`, an
 Labnotes reads the paths in `.labnotes.toml` and executes commands from this repository root. `uv --directory surprisals_experiment` then selects the Python project, so APPS paths remain relative to that directory. Run either experiment from the repository root:
 
 ```bash
-uvx --no-config --from labnotes labnotes experiments sanity-check run
-uvx --no-config --from labnotes labnotes experiments advice-minimization run --concurrency 3
+uvx --no-config --from 'git+https://github.com/thekevinscott/labnotes#subdirectory=packages/python' labnotes experiments sanity-check run
+uvx --no-config --from 'git+https://github.com/thekevinscott/labnotes#subdirectory=packages/python' labnotes experiments advice-minimization run --concurrency 3
 ```
 
 Tests execute generated Python on the host, outside the agent containers, with a fixed five-second limit per test case. Each sample’s `tests.json` includes the suite’s wall-clock `duration_seconds`, rounded to three decimal places. The evaluator currently supports stdin/stdout APPS problems, not function-based suites.

@@ -10,7 +10,7 @@ uv run \
   --output "{run_dir}" \
   problem'''
 repeats = 1
-mode = "adhoc"
+continues = false
 concurrency = 1
 
 [params]
