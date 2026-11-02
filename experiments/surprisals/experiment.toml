@@ -14,7 +14,7 @@ runpod_scorer/run-cell.sh \
   problem'''
 teardown = "uv run --project runpod_scorer runpod-scorer down"
 repeats = 2
-mode = "adhoc"
+continues = false
 concurrency = 2
 
 [params]

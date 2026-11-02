@@ -10,7 +10,7 @@ uv run \
   --output "{run_dir}" \
   problem'''
 repeats = 6
-mode = "adhoc"
+continues = false
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
