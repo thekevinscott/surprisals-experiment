@@ -47,15 +47,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c093783
 
 [[package]]
 name = "botbox"
-version = "0.1.83"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.90.dev7+g4fed2b153"
+source = { git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819#4fed2b153f15e216d9b07109355b83a6d7bdf819" }
 dependencies = [
     { name = "json5" },
     { name = "posix-tools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/63/aee0efd5067e572281875624b6e4ed95a9e36c61204ed5326233ff3473fc/botbox-0.1.83.tar.gz", hash = "sha256:055e8154bb3af4bda8e2a05ca46d29554fa0fc13a1cbe6efb015e52b8e3abd34", size = 66883, upload-time = "2026-10-30T20:32:41.658Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/a8/57c6892e88a320012562736cbb7780e9b27cc547c4dceedafcda8b28bd8d/botbox-0.1.83-py3-none-any.whl", hash = "sha256:888beb3c035821947f72c92f67e205d2c6af9506e3012e118a217b6bc1b54b8c", size = 58837, upload-time = "2026-10-30T20:32:40.14Z" },
 ]
 
 [[package]]
@@ -355,11 +351,11 @@ wheels = [
 
 [[package]]
 name = "posix-tools"
-version = "0.0.10"
+version = "0.0.14"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4b/85/c7fa03485a6a5bf1ea148ab4311c692755bc0549736f0983f8ab5320d20b/posix_tools-0.0.10.tar.gz", hash = "sha256:b8235614ccec1a8ed8f3ec85532a666203d72dcd33ac838c2c6a5493d41bf290", size = 28590, upload-time = "2026-10-26T01:53:26.772Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/61/9e/a0ac030596db5898221bd4d51d842f1333d03b664768bf9384c591c87a07/posix_tools-0.0.14.tar.gz", hash = "sha256:344fe1bd63ec03061df4763acbcc09a0731de13075a9dfc4b8e2ecfbfc54a4e5", size = 28882, upload-time = "2026-11-01T17:09:20.065Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/4c/aee0336f197751dfecdcbd7082bd582121248848e17b75cd550695010e56/posix_tools-0.0.10-py3-none-any.whl", hash = "sha256:c73d07b754a8f3942b1b98a671c30f57785f8445785917f94e883c3cc492da7c", size = 5421, upload-time = "2026-10-26T01:53:25.43Z" },
+    { url = "https://files.pythonhosted.org/packages/57/03/8b3b6feaa2dfd6973b9afc81e675061b15c882904dd389ca654bbd7b69c3/posix_tools-0.0.14-py3-none-any.whl", hash = "sha256:1abb38eaa1d3011814e8bc2cf597dd69845bfec2ffa5721aa76598c921774fa2", size = 6006, upload-time = "2026-11-01T17:09:18.806Z" },
 ]
 
 [[package]]
@@ -540,7 +536,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "botbox", specifier = ">=0.1.75" },
+    { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
     { name = "openai", specifier = ">=3.37.0" },
