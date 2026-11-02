@@ -2,7 +2,7 @@
 
 RUNPOD_E2E=1 RUNPOD_SCRIPTS=/path/to/scripts/runpod \
 RUNPOD_ADVICE_ROOT=/path/to/runs/sanity-check \
-uv run pytest -s e2e/test_surprisal_live.py
+uv run pytest -s tests/e2e/test_surprisal_live.py
 """
 
 import asyncio
@@ -20,7 +20,7 @@ from dotenv import dotenv_values
 
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture
