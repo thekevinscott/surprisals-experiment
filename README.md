@@ -90,22 +90,28 @@ See the [implementation documentation](surprisals_experiment/README.md) for sess
 From the repository root:
 
 ```bash
-uv run --directory surprisals_experiment pytest
+uv run --directory surprisals_experiment pytest tests/integration
 ```
 
-The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/conftest.py` replaces Botbox with scripted runs. Loop integration tests exercise real advice generation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. Chat tests mock the HTTP transport globally while exercising the real SDK streaming parser, conversation history, feedback, and transcripts. They cover provider retries, recovery across T attempts, and advice minimization.
+The integration tier mocks model calls and Botbox and is intended to run all other first-party code for real. CI runs this tier. Some existing tests still patch first-party seams; this layout change preserves them, and integration-lint is not enabled. The suite uses pytest and pytest-describe. An `autouse=True` fixture in `surprisals_experiment/tests/integration/conftest.py` replaces Botbox with scripted runs. Loop integration tests exercise real advice generation, feedback, artifact persistence, and subprocess evaluation without Docker or model calls. Chat tests mock the HTTP transport globally while exercising the real SDK streaming parser, conversation history, feedback, and transcripts. They cover provider retries, recovery across T attempts, and advice minimization.
 
-Real Docker/Pi startup tests are separate and opt-in:
+E2E tests mock nothing and hit real endpoints. They run locally, never in CI. A branch that changes
+`surprisals_experiment/src` must carry a receipt from a local e2e run, which CI checks. From `surprisals_experiment`:
 
 ```bash
-uv run --directory surprisals_experiment pytest e2e
+pnpx testing-conventions e2e attest 'uv run pytest tests/e2e'
 ```
 
-These use the actual T container, verify startup and host-owned
-file writes, and require Docker but no API key or model calls. They are excluded
-from default test discovery and skipped in CI. They test startup and mounts, not
-live model generation. Containers run with the invoking host process's UID/GID.
+Run `attest` from the package directory so it commits a branch-keyed receipt under
+`surprisals_experiment/e2e-attestations/`. Push that receipt with the branch. CI runs
+only `e2e verify`, never the live command. A diff with no changes under `src` owes no receipt.
 
+The startup test uses the actual T container to verify startup and host-owned
+file writes. It requires Docker but no API key or model calls. Containers run with
+the invoking host process's UID/GID. All e2e tests are excluded from default test
+discovery and have a CI skip guard.
+
+The scorer e2e test requires saved advice and explicit `RUNPOD_E2E=1` opt-in for a paid RunPod pod.
 The chat U compaction e2e test makes live OpenRouter calls (requires `OPENROUTER_API_KEY` in `.env`) and checks that compaction summarizes, then keeps advising from the measured best advice, length, and streak.
 
 ## Next steps

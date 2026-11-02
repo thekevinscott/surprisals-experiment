@@ -8,7 +8,7 @@ import pytest
 
 from surprisals_experiment.sdk import run_experiment
 
-SQL = (Path(__file__).resolve().parents[2] / 'scripts/run-summary.sql').read_text()
+SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 

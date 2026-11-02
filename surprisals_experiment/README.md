@@ -81,7 +81,7 @@ stores the measurement; surprisal-mode `result.json` also records
 `cap_strategy`, `best_measurement`, `scorer_model`, and `scorer_base_url`.
 Character-mode artifacts retain their existing shape.
 
-The manual paid check in `e2e/test_surprisal_live.py` starts one GPT-OSS-120B
+The manual paid check in `tests/e2e/test_surprisal_live.py` starts one GPT-OSS-120B
 H100 80GB pod, scores three saved advice strings, and deletes the pod in a
 fixture's finally path. It requires `RUNPOD_E2E=1`, saved runs under
 `RUNPOD_ADVICE_ROOT`, and the standalone RunPod scripts at `RUNPOD_SCRIPTS`
