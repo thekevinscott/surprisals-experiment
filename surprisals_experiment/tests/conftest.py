@@ -1,5 +1,6 @@
 """Script Botbox runs globally; keep orchestration and evaluation real."""
 
+import asyncio
 import importlib
 import json
 import shlex
@@ -8,6 +9,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import AsyncMock
 
 import pytest
 from botbox import Botbox, RunResult
@@ -93,6 +95,21 @@ def botbox_script(monkeypatch):
     monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_run'),
                         'Botbox', FakeBotbox)
     return script
+
+
+@pytest.fixture
+def no_retry_wait(monkeypatch):
+    waits = AsyncMock()
+    real_sleep = asyncio.sleep
+
+    # Retry waits are 10 s and up; shorter sleeps are polls that must yield.
+    async def sleep(delay, *args, **kwargs):
+        if delay >= 1:
+            return await waits(delay)
+        return await real_sleep(delay, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    return waits
 
 
 @pytest.fixture

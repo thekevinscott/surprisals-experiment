@@ -23,12 +23,12 @@ def no_retry_wait(monkeypatch):
     {'deltas': [{'role': 'assistant', 'content': 'partial', 'reasoning': 'partial reasoning'}], 'finish': 'error'},
     {'deltas': [{'role': 'assistant', 'content': 'partial', 'reasoning': 'partial reasoning'}],
      'finish': 'error', 'finish_choice': {'error': {'message': 'upstream failed', 'code': 502}}},
-    {'status': 429}, {'status': 500}, {'status': 503},
+    *[{'status': code} for code in (400, 401, 403, 429, 500, 503)],
     httpx2.ConnectError('Connection error'),
     {'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None},
     *[{'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': None,
        'stream_error': {'code': code, 'message': 'Provider returned error'}}
-      for code in (429, 500, 502, 503)],
+      for code in (400, 401, 403, 429, 500, 502, 503)],
 ])
 async def test_chat_retries_transient_calls(config, botbox_script, chat_provider, no_retry_wait, failure):
     botbox_script.advice.extend([failure, 'advice'])
@@ -46,18 +46,6 @@ async def test_chat_retries_transient_calls(config, botbox_script, chat_provider
             assert partial['reasoning'] == 'partial reasoning'
             if 'finish_choice' in failure:
                 assert partial['provider_error']['choices'][0]['error'] == failure['finish_choice']['error']
-
-
-@pytest.mark.parametrize('failure', [{'status': 400}, {'status': 401}, {'status': 403},
-    *[{'deltas': [], 'finish': None, 'stream_error': {'code': code, 'message': 'provider failed'}}
-      for code in (400, 401, 403)]])
-async def test_chat_permanent_errors_fail_fast(config, botbox_script, chat_provider, no_retry_wait, failure):
-    botbox_script.advice.extend([failure, 'unused'])
-    with pytest.raises(RuntimeError, match='provider failed'):
-        async with open_u_session(config) as session:
-            await session.prompt('question')
-    assert len(chat_provider) == 1
-    no_retry_wait.assert_not_awaited()
 
 
 @pytest.mark.parametrize('failure_kind', ['http-error', 'dropped-stream', 'provider-error'])

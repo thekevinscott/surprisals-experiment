@@ -33,9 +33,9 @@ def scoring_config(config):
 @pytest.mark.parametrize("failure", [
     APIConnectionError(request=httpx2.Request("POST", "http://scorer")),
     APITimeoutError(request=httpx2.Request("POST", "http://scorer")),
-    *[status_error(code) for code in (429, 500, 502, 503)],
+    *[status_error(code) for code in (400, 401, 403, 404, 422, 429, 500, 502, 503)],
 ])
-async def test_transient_scorer_failure_retries_with_advice_saved(
+async def test_scorer_failure_retries_with_advice_saved(
     scoring_config, botbox_script, monkeypatch, no_retry_wait, failure,
 ):
     config = scoring_config
@@ -61,21 +61,6 @@ async def test_transient_scorer_failure_retries_with_advice_saved(
     assert json.loads((config.advice_dir(0, 0) / "metadata.json").read_text()) == {
         "rejected": False, "measurement": 10.0, "tokens": [["Use a loop", 10.0]],
     }
-
-
-@pytest.mark.parametrize("code", [400, 401, 403, 404, 422])
-async def test_permanent_scorer_error_preserves_advice(
-    scoring_config, botbox_script, monkeypatch, no_retry_wait, code,
-):
-    scorer = AsyncMock(side_effect=status_error(code))
-    monkeypatch.setattr(importlib.import_module("surprisals_experiment.sdk.advice_measure"),
-                        "measure_surprisal", scorer)
-    botbox_script.advice.append("preserve me")
-    with pytest.raises(APIStatusError):
-        await run_experiment(scoring_config, on_delta=None)
-    assert (scoring_config.advice_dir(0, 0) / "advice.txt").read_text() == "preserve me"
-    assert scorer.await_count == 1
-    no_retry_wait.assert_not_awaited()
 
 
 async def test_scorer_exhaustion_uses_fixed_budget(
@@ -130,8 +115,8 @@ async def test_character_scoring_unchanged(config, botbox_script, monkeypatch):
     scorer.assert_not_awaited()
 
 
-@pytest.mark.parametrize("code, expected_calls", [(408, 1), (409, 1), (429, 9), (503, 9)])
-async def test_real_scorer_sdk_does_not_add_retries(scoring_config, monkeypatch, no_retry_wait, code, expected_calls):
+@pytest.mark.parametrize("code", [408, 409, 429, 503])
+async def test_real_scorer_sdk_does_not_add_retries(scoring_config, monkeypatch, no_retry_wait, code):
     client = scoring_config.advice_measure.client
     calls = []
 
@@ -141,7 +126,7 @@ async def test_real_scorer_sdk_does_not_add_retries(scoring_config, monkeypatch,
 
     async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as http:
         monkeypatch.setattr(client._openai, "_client", http)
-        with pytest.raises(RuntimeError if code in (429, 503) else APIStatusError):
+        with pytest.raises(RuntimeError):
             await scoring_config.advice_measure.score("advice")
-    assert len(calls) == expected_calls
-    assert no_retry_wait.await_count == expected_calls - 1
+    assert len(calls) == 9
+    assert no_retry_wait.await_count == 8

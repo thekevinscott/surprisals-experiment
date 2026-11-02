@@ -89,11 +89,11 @@ def describe_chat_compaction():
         assert json.loads(config.result_file.read_text())['attempts'] == 2
 
     async def it_compacts_with_the_measured_state_when_the_summary_request_fails(
-        config, botbox_script, chat_provider,
+        config, botbox_script, chat_provider, no_retry_wait,
     ):
         config.u_compact_chars = 1
         config.max_u_turns = 2
-        botbox_script.advice.extend(['good', {'status': 400}, 'better'])
+        botbox_script.advice.extend(['good', *[{'status': 400}] * 9, 'better'])
         botbox_script.solutions.extend([PASS, PASS])
         await run_experiment(config, on_delta=None)
         preamble = chat_provider[-1]['messages'][1]['content']

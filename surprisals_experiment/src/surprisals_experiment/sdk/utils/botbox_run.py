@@ -1,23 +1,11 @@
-"""Run a command in Botbox, retrying the image build and following stdout.txt live."""
+"""Run a command in Botbox, following stdout.txt live."""
 
 import asyncio
 import json
 from collections.abc import Callable
 from pathlib import Path
 
-from adocker import DockerException
 from botbox import Botbox, RunResult
-
-from surprisals_experiment.retry_policy import retried
-
-
-def build_retryable(error):
-    return isinstance(error, DockerException) and "DeadlineExceeded" in error.stderr
-
-
-@retried(build_retryable, operation="botbox image build")
-async def build(box):
-    return await box.build()
 
 
 async def follow(path: Path, done: asyncio.Event, on_event: Callable[[dict], None]) -> None:
@@ -45,7 +33,7 @@ async def follow(path: Path, done: asyncio.Event, on_event: Callable[[dict], Non
 async def botbox_run(agent, command, *, dockerfile, mounts, workdir, output: Path,
                      on_event: Callable[[dict], None]) -> RunResult:
     async with Botbox(agent, dockerfile=dockerfile) as box:
-        await build(box)
+        await box.build()
         done = asyncio.Event()
         follower = asyncio.create_task(follow(output / "stdout.txt", done, on_event))
         try:
