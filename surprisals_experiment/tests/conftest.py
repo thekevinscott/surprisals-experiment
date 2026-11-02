@@ -99,9 +99,17 @@ def botbox_script(monkeypatch):
 
 @pytest.fixture
 def no_retry_wait(monkeypatch):
-    sleep = AsyncMock()
+    waits = AsyncMock()
+    real_sleep = asyncio.sleep
+
+    # Retry waits are 10 s and up; shorter sleeps are polls that must yield.
+    async def sleep(delay, *args, **kwargs):
+        if delay >= 1:
+            return await waits(delay)
+        return await real_sleep(delay, *args, **kwargs)
+
     monkeypatch.setattr(asyncio, 'sleep', sleep)
-    return sleep
+    return waits
 
 
 @pytest.fixture
