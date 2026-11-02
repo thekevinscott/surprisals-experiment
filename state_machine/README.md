@@ -15,5 +15,5 @@ await state_machine(
 2. Look up its action and run it to completion, or return if it is `Stop`.
 3. Repeat from step 1.
 
-Action keys must be strings; an unknown state raises `KeyError`.
+An unknown state raises `KeyError`.
 Actions must change what `state()` reads, or the same action runs again.
