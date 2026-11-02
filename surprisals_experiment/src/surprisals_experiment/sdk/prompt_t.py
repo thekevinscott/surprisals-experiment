@@ -9,7 +9,7 @@ from botbox import RunResult
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
 from .utils.t_agent import TAgent
-from .utils.botbox_session import botbox_session
+from .utils.botbox_run import botbox_run
 
 
 RESOURCES = files("surprisals_experiment")
@@ -24,9 +24,7 @@ async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
         provider="openrouter", model=config.t_model, api_key=config.api_key.get_secret_value(),
         instructions=INSTRUCTIONS(), on_delta=on_delta,
     )
-    async with botbox_session(
-        agent, dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),
-        mounts=[(output, "/solution", "rw")], workdir="/solution", output=logs,
-    ) as t_session:
-        await t_session.message(advice)
-    return t_session.result
+    return await botbox_run(
+        agent, agent.command(advice), dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),
+        mounts=[(output, "/solution", "rw")], workdir="/solution", output=logs, on_event=agent.receive,
+    )

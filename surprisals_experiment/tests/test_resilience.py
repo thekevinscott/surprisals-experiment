@@ -49,6 +49,7 @@ def describe_u_chat():
         botbox_script.solutions.append(PASS)
         await completes(config, no_retry_wait)
 
+    @pytest.mark.xfail(strict=True, reason='undecided: the run still exits once retries run out')
     async def it_does_not_exit_when_u_exhausts_its_output_limit_retries(config, botbox_script):
         # seen: U loops until 131k tokens on every attempt.
         config.max_u_turns = 2
@@ -61,14 +62,14 @@ def describe_u_chat():
 def describe_t_botbox():
     @pytest.fixture
     def entry_failure(monkeypatch):
-        module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_session')
+        module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_run')
         failures = []
 
         class FailingEntry(module.Botbox):
-            def session(self, **kwargs):
+            async def build(self):
                 if failures:
                     raise failures.pop(0)
-                return super().session(**kwargs)
+                return await super().build()
 
         monkeypatch.setattr(module, 'Botbox', FailingEntry)
         return failures

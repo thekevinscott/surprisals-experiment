@@ -405,8 +405,8 @@ wheels = [
 
 [[package]]
 name = "labnotes"
-version = "0.0.133"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.4.dev7"
+source = { git = "https://github.com/thekevinscott/labnotes.git?subdirectory=packages%2Fpython&rev=8b7cb5a7dceccdea82ad12bef857b8b0a812850a#8b7cb5a7dceccdea82ad12bef857b8b0a812850a" }
 dependencies = [
     { name = "click" },
     { name = "dirsql" },
@@ -423,10 +423,6 @@ dependencies = [
     { name = "starlette" },
     { name = "textual" },
     { name = "uvicorn" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/af/b7/b1900c4117796509e738d1e10cd2678fc61fae5d7a9869f2d5f905799487/labnotes-0.0.133.tar.gz", hash = "sha256:d205bdfe4a002d5698ceefc9153b580f6e0c77ed21af6def67ef479cfc2d00a4", size = 158150, upload-time = "2026-10-28T22:42:51.941Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/6a/08c8ee405329dbc8396fb865ea2ab59e16796220879b5b6ef1d95120cfec/labnotes-0.0.133-py3-none-any.whl", hash = "sha256:8fccfc96f97b9916c1b583fe7875933e561ad037ab3a7d73f09f9fc21b3493d5", size = 142320, upload-time = "2026-10-28T22:42:50.442Z" },
 ]
 
 [[package]]
@@ -820,7 +816,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "httpx" },
-    { name = "labnotes", specifier = ">=0.0.133" },
+    { name = "labnotes", git = "https://github.com/thekevinscott/labnotes.git?subdirectory=packages%2Fpython&rev=8b7cb5a7dceccdea82ad12bef857b8b0a812850a" },
     { name = "python-dotenv" },
 ]
 
