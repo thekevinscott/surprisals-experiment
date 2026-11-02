@@ -112,13 +112,11 @@ async def test_compacts_with_the_measured_state_when_the_summary_request_fails(
 async def test_compaction_counts_reasoning_once(
     config, botbox_script, chat_provider,
 ):
-    expected_requests = 2
     reasoning = 'r' * 210000
     details = [{'type': 'reasoning.text', 'index': 0, 'text': reasoning, 'format': 'unknown'}]
     botbox_script.advice.extend([
         {'deltas': [{'role': 'assistant', 'content': 'advice',
                      'reasoning': reasoning, 'reasoning_details': details}]},
-        'summary' if expected_requests == 3 else 'next',
         'next',
     ])
     async with open_u_session(config) as session:
@@ -126,8 +124,8 @@ async def test_compaction_counts_reasoning_once(
         assert session.compact_chars == 400000
         assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000
         await session.prompt('feedback')
-    assert len(chat_provider) == expected_requests
-    # Even when compaction summarizes history, its request retains both reasoning fields.
+    assert len(chat_provider) == 2
+    # Counting reasoning once must not strip either field from the next request.
     assistant = chat_provider[1]['messages'][2]
     assert assistant['reasoning'] == reasoning
     assert assistant['reasoning_details'] == details
