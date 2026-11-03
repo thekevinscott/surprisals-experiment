@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793708876,
+  "exit_code": 0,
+  "commit": "35ef3631c64fe2271c63ae996b287a0a20210b4f",
+  "branch": "refactor/u-session-into-u-chat"
+}
