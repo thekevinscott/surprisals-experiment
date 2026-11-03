@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .read_implementations import read_implementations
+from ..atomic import write_text
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
@@ -42,5 +43,5 @@ def prepare_feedback(
         turns_without_improvement=turns_without_improvement,
         max_turns_without_improvement=config.max_turns_without_improvement,
     )
-    (config.attempt_dir(attempt) / "feedback.txt").write_text(feedback)
+    write_text(config.attempt_dir(attempt) / "feedback.txt", feedback)
     return feedback

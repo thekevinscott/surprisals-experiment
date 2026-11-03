@@ -7,6 +7,7 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from .results import TestSuiteResult
+from ..atomic import write_text
 from .run_test_suite import run_test_suite
 
 
@@ -18,7 +19,7 @@ async def run_test_suite_for_ts(
         started = time.monotonic()
         result = await run_test_suite(test_suite, solution)
         duration = round(time.monotonic() - started, 3)
-        (solution.parent / "tests.json").write_text(json.dumps({
+        write_text(solution.parent / "tests.json", json.dumps({
             "duration_seconds": duration,
             "passed": result.passed,
             "failed": result.failed,
