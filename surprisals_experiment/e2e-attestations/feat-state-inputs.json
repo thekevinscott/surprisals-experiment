@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_state_inputs.py -q",
+  "ran_at": 1793744034,
+  "exit_code": 0,
+  "commit": "60aa39ded8bf7eab2d9f7bf01fdf06e8649ff775",
+  "branch": "feat/state-inputs"
+}
