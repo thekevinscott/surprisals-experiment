@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793709052,
+  "ran_at": 1793709327,
   "exit_code": 0,
-  "commit": "288c70ec69133add0d43dc3c5aa6258f3597d58b",
+  "commit": "17dadd6633a54d2beaac8d2570b269fff57084f9",
   "branch": "feat/transcript-rebuild"
 }
