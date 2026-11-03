@@ -141,7 +141,7 @@ async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_scri
     with pytest.raises(RuntimeError, match='U chat'):
         await run_experiment(config, on_delta=None)
     transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
-    assert transcript[-1] == {'role': 'assistant', 'content': 'partial'}
+    assert transcript[-1] == {'role': 'assistant', 'content': 'partial', '_complete': False}
     usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
     assert len(usage) == 9
     assert all(entry['usage'] == USAGE for entry in usage)
@@ -197,3 +197,109 @@ async def test_reasoning_format_preserves_latest_provider_value(
         if finish == 'stop':
             await session.prompt('feedback')
             assert chat_provider[-1]['messages'][2]['reasoning_details'] == expected
+
+
+@pytest.mark.parametrize('mode', ['plain', 'flush', 'compaction', 'partial'])
+async def test_rebuilt_transcript_matches_live_session(
+    config, botbox_script, chat_provider, no_retry_wait, mode,
+):
+    config.u_flush = mode == 'flush'
+    config.u_compact_chars = 1 if mode == 'compaction' else 0
+    replies = ['first']
+    if mode == 'compaction':
+        replies.append('summary of the first turn')
+    if mode == 'partial':
+        replies.append({'deltas': [{'role': 'assistant', 'content': 'unfinished'}],
+                        'finish': 'length'})
+    replies.append('second')
+    botbox_script.advice.extend(replies)
+    async with open_u_session(config) as live:
+        live.attempt = 0
+        assert await live.prompt('question') == 'first'
+        live.attempt = 1
+        assert await live.prompt('feedback') == 'second'
+        expected = (live.messages, live.turn_attempt, live.turn_reply,
+                    live.compacting, live.summary)
+    transcript = config.u_transcripts / 'messages.jsonl'
+    entries = [json.loads(line) for line in transcript.read_text().splitlines()]
+    if mode == 'flush':
+        assert entries[-2]['_reset'] is True
+        assert len(live.messages) == 3
+    if mode == 'compaction':
+        assert any(entry.get('_compact') for entry in entries)
+        assert any(entry.get('_reset') for entry in entries)
+        assert len(live.messages) == 4
+    before_replay = transcript.read_bytes()
+    if mode == 'partial':
+        assert any(entry.get('_complete') is False for entry in entries)
+        assert all(message.get('content') != 'unfinished' for message in live.messages)
+        # A process can stop midway through the next appended transcript entry.
+        with transcript.open('a') as output:
+            output.write('{"role": "assistant", "content":')
+    requests = len(chat_provider)
+    async with open_u_session(config) as rebuilt:
+        assert (rebuilt.messages, rebuilt.turn_attempt, rebuilt.turn_reply,
+                rebuilt.compacting, rebuilt.summary) == expected
+        rebuilt.attempt = 1
+        assert await rebuilt.prompt('feedback') == 'second'
+    assert len(chat_provider) == requests
+    assert transcript.read_bytes() == before_replay
+    if mode == 'partial':
+        botbox_script.advice.append('third')
+        async with open_u_session(config) as resumed:
+            resumed.attempt = 2
+            assert await resumed.prompt('next feedback') == 'third'
+        async with open_u_session(config) as rebuilt:
+            assert rebuilt.messages == resumed.messages
+            assert rebuilt.turn_attempt == 2
+            assert rebuilt.turn_reply == 'third'
+
+
+@pytest.mark.parametrize('boundary', ['request', 'compact_request', 'compact_summary'])
+async def test_rebuilt_transcript_resumes_pending_turn(
+    config, botbox_script, chat_provider, boundary,
+):
+    config.u_compact_chars = 0 if boundary == 'request' else 1
+    replies = ['first', 'second'] if boundary == 'request' else ['first', 'summary', 'second']
+    botbox_script.advice.extend(replies)
+    async with open_u_session(config) as live:
+        live.attempt = 0
+        assert await live.prompt('question') == 'first'
+        live.attempt = 1
+        assert await live.prompt('feedback') == 'second'
+    transcript = config.u_transcripts / 'messages.jsonl'
+    entries = [json.loads(line) for line in transcript.read_text().splitlines()]
+    if boundary == 'request':
+        end = next(i for i, entry in enumerate(entries) if entry.get('_attempt') == 1) + 1
+    else:
+        end = next(i for i, entry in enumerate(entries) if entry.get('_compact')) + 1
+        end += boundary == 'compact_summary'
+    transcript.write_text(''.join(json.dumps(entry) + '\n' for entry in entries[:end]))
+    botbox_script.advice.extend(['summary', 'second'] if boundary == 'compact_request' else ['second'])
+    requests = len(chat_provider)
+    async with open_u_session(config) as rebuilt:
+        rebuilt.attempt = 1
+        assert await rebuilt.prompt('feedback') == 'second'
+        assert rebuilt.messages == live.messages
+        assert rebuilt.turn_attempt == 1
+        assert rebuilt.turn_reply == 'second'
+    assert len(chat_provider) - requests == (2 if boundary == 'compact_request' else 1)
+    restored = [json.loads(line) for line in transcript.read_text().splitlines()]
+    assert sum(entry.get('_attempt') == 1 for entry in restored) == 1
+    if boundary != 'request':
+        reset = next(entry for entry in restored if entry.get('_reset'))
+        assert 'summary' in reset['content']
+        assert chat_provider[-1]['messages'][-2]['content'] == reset['content']
+        assert chat_provider[-1]['messages'][-1]['content'] == 'feedback'
+
+
+async def test_rebuilt_transcript_rejects_invalid_interior_line(config, chat_provider):
+    async with open_u_session(config) as session:
+        transcript = session.transcript
+    with transcript.open('a') as output:
+        output.write('not json\n' + json.dumps({'role': 'user', 'content': 'question', '_attempt': 0}) + '\n')
+    requests = len(chat_provider)
+    with pytest.raises(json.JSONDecodeError):
+        async with open_u_session(config):
+            pass
+    assert len(chat_provider) == requests

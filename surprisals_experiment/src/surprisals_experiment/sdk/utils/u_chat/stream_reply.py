@@ -32,6 +32,7 @@ def output_limit_error(completion):
 async def stream_reply(self, *, on_delta=None) -> str:
     reasoning = {"enabled": False} if self.thinking == "off" else {"effort": self.thinking}
     snapshot = None
+    completion = None
     provider_error = None
     reasoning_formats = {}
     try:
@@ -84,7 +85,9 @@ async def stream_reply(self, *, on_delta=None) -> str:
             for detail in message.get("reasoning_details") or []:
                 if detail["index"] in reasoning_formats:
                     detail["format"] = reasoning_formats[detail["index"]]
-            self.record(message)
+            complete = (completion is not None and completion.choices[0].finish_reason == "stop"
+                        and bool(completion.choices[0].message.content) and provider_error is None)
+            self.record(message, complete=complete)
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")

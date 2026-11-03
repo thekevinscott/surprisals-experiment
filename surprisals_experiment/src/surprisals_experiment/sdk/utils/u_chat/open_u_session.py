@@ -1,5 +1,6 @@
 """Open a persistent chat U session with temporary source snapshots."""
 
+import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,6 +10,7 @@ from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
 from .chat_session import ChatSession
+from .record import restore
 
 SYSTEM = Prompt("u/system.txt")
 CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
@@ -34,6 +36,21 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
                 client, config.u_model, config.u_thinking, solutions,
                 config.u_transcripts / "messages.jsonl",
                 compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
+                flush=config.u_flush,
             )
-            u_session.record({"role": "system", "content": prompt})
+            if u_session.transcript.exists():
+                with u_session.transcript.open('r+b') as transcript:
+                    lines = transcript.readlines()
+                    for index, line in enumerate(lines):
+                        try:
+                            entry = json.loads(line)
+                        except (json.JSONDecodeError, UnicodeDecodeError):
+                            if index != len(lines) - 1:
+                                raise
+                            # Remove a torn suffix so the next append starts a valid line.
+                            transcript.truncate(sum(map(len, lines[:index])))
+                            break
+                        restore(u_session, entry)
+            else:
+                u_session.record({"role": "system", "content": prompt})
             yield u_session

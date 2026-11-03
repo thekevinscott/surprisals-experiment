@@ -7,9 +7,10 @@ COMPACTED = Prompt("u/chat/compacted.txt")
 
 
 async def compact(self, *, on_delta=None) -> None:
-    self.record({"role": "user", "content": COMPACT()})
+    if not self.compacting:
+        self.record({"role": "user", "content": COMPACT()}, compact=True)
     try:
-        summary = await self.reply(on_delta=on_delta)
+        summary = self.summary if self.summary is not None else await self.reply(on_delta=on_delta)
     except RuntimeError as error:
         summary = f"(summary unavailable: {error})"
     none = "(none yet)"
@@ -19,5 +20,4 @@ async def compact(self, *, on_delta=None) -> None:
         best_length=none if self.best_length is None else self.best_length,
         turns_without_improvement=self.turns_without_improvement,
     )
-    self.messages = self.messages[:1]
-    self.record({"role": "user", "content": preamble})
+    self.record({"role": "user", "content": preamble}, reset=True)

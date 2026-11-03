@@ -20,6 +20,12 @@ class ChatSession:
     transcript: Path
     messages: list[dict] = field(default_factory=list)
 
+    attempt: int | None = None
+    turn_attempt: int | None = None
+    turn_reply: str | None = None
+    flush: bool = False
+    compacting: bool = False
+    summary: str | None = None
     compact_chars: int = 400000
     question: str = ""
     best_advice: str | None = None
