@@ -513,22 +513,36 @@ wheels = [
 ]
 
 [[package]]
+name = "state-machine"
+version = "0.1.0"
+source = { directory = "../state_machine" }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[[package]]
 name = "surprisals-experiment"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "botbox" },
+    { name = "dirsql" },
     { name = "jinja2" },
     { name = "measure-surprisal" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
+    { name = "state-machine" },
     { name = "tenacity" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "dirsql" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-describe" },
@@ -537,17 +551,18 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819" },
+    { name = "dirsql", specifier = ">=0.4.119" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
     { name = "openai", specifier = ">=3.37.0" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
+    { name = "state-machine", directory = "../state_machine" },
     { name = "tenacity", specifier = ">=9.2.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dirsql", specifier = ">=0.4.119" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-describe", specifier = ">=3.2.0" },
