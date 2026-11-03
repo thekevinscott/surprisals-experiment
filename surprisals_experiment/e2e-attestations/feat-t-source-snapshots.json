@@ -1,7 +1,0 @@
-{
-  "command": "uv run pytest tests/integration/test_t_sources.py -q",
-  "ran_at": 1793744271,
-  "exit_code": 0,
-  "commit": "df7080e2a493502bbcfad1dd4a00b0759d6890e5",
-  "branch": "feat/t-source-snapshots"
-}
