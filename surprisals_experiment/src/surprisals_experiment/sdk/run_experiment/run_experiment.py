@@ -13,7 +13,7 @@ from .prepare_advice import prepare_advice
 from .prepare_feedback import describe_result, prepare_feedback
 from .prepare_flush import Attempt, prepare_flush
 from .read_implementations import read_sources
-from ..utils.u_session import open_u_session
+from ..utils.u_chat import open_u_session
 
 
 async def run_experiment(
