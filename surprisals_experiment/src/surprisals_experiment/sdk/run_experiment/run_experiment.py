@@ -9,8 +9,9 @@ from pathlib import Path
 from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
 from ..run_test_suite import run_test_suite_for_ts
-from .prepare_advice import prepare_advice
 from .actions.write_result import write_result
+from .actions.write_advice import write_advice
+from .actions.score_advice import score_advice
 from .prepare_feedback import describe_result, prepare_feedback
 from .prepare_flush import Attempt, prepare_flush
 from .read_implementations import read_sources
@@ -39,8 +40,11 @@ async def run_experiment(
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_session(config) as u_session:
         for attempt in attempts:
-            advice, measurement = await prepare_advice(
+            advice = await write_advice(
                 config, u_session, prompt, attempt=attempt, on_delta=on_delta,
+            )
+            measurement = await score_advice(
+                config, advice, attempt=attempt, on_delta=on_delta,
             )
             solutions = await write_solutions(
                 config, attempt=attempt, advice=advice,
