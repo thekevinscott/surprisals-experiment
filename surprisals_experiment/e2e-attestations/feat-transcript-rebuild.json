@@ -1,7 +1,7 @@
 {
-  "command": "uv run pytest tests/integration/test_u_chat.py -q",
-  "ran_at": 1793670942,
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793709052,
   "exit_code": 0,
-  "commit": "454860952b4401fedc8a7f14015a3d0c2571028d",
+  "commit": "288c70ec69133add0d43dc3c5aa6258f3597d58b",
   "branch": "feat/transcript-rebuild"
 }
