@@ -50,8 +50,9 @@ class Config(BaseModel):
 
     def save_settings(self) -> None:
         """Save the fields needed by run summaries."""
-        self.output.mkdir(parents=True, exist_ok=True)
-        (self.output / "settings.json").write_text(json.dumps({
+        from .sdk.utils.write_text import write_text
+
+        write_text(self.output / "settings.json", json.dumps({
             **({"u_flush": True} if self.u_flush else {}),
             "t_samples": self.t_samples,
             "t_sample_retries": self.t_sample_retries,
