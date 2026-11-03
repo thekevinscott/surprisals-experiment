@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_t_samples.py -q && uv run pytest tests/integration/test_t_timeout.py -q",
+  "ran_at": 1793716225,
+  "exit_code": 0,
+  "commit": "875dd5b7532c404122a3458bba78cb575491c070",
+  "branch": "refactor/action-solutions"
+}
