@@ -7,7 +7,7 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from ..prompt_t import prompt_t
-from ..atomic import write_text
+from ..utils.write_text import write_text
 
 
 async def produce_code(config: Config, *, attempt: int, sample: int, advice: str, snapshot: Path,

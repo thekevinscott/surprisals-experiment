@@ -7,7 +7,7 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from .results import TestSuiteResult
-from ..atomic import write_text
+from ..utils.write_text import write_text
 from .run_test_suite import run_test_suite
 
 

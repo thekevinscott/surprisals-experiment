@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .read_implementations import read_implementations
-from ..atomic import write_text
+from ..utils.write_text import write_text
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt

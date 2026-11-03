@@ -50,7 +50,7 @@ class Config(BaseModel):
 
     def save_settings(self) -> None:
         """Save the fields needed by run summaries."""
-        from .sdk.atomic import write_text
+        from .sdk.utils.write_text import write_text
 
         write_text(self.output / "settings.json", json.dumps({
             **({"u_flush": True} if self.u_flush else {}),
