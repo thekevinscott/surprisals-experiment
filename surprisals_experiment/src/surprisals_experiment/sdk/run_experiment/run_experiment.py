@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from .prompt_t_to_produce_code import prompt_t_to_produce_code
+from .actions.write_solutions import write_solutions
 from ..run_test_suite import run_test_suite_for_ts
 from .prepare_advice import prepare_advice
 from .actions.write_result import write_result
@@ -42,11 +42,11 @@ async def run_experiment(
             advice, measurement = await prepare_advice(
                 config, u_session, prompt, attempt=attempt, on_delta=on_delta,
             )
+            solutions = await write_solutions(
+                config, attempt=attempt, advice=advice,
+                snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
+            )
             try:
-                solutions = await prompt_t_to_produce_code(
-                    config, attempt=attempt, advice=advice,
-                    snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
-                )
                 results = await run_test_suite_for_ts(config, solutions, test_suite)
             except Exception:
                 (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
