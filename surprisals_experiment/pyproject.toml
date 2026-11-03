@@ -8,6 +8,8 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "state-machine",
+    "dirsql>=0.4.119",
     "botbox>=0.1.75",
     "jinja2>=3.1.6",
     "measure-surprisal>=0.2.0",
@@ -26,7 +28,6 @@ exclude-newer = "0 seconds"
 
 [dependency-groups]
 dev = [
-    "dirsql>=0.4.119",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-describe>=3.2.0",
@@ -37,5 +38,6 @@ testpaths = ["tests/integration"]
 asyncio_mode = "auto"
 
 [tool.uv.sources]
+state-machine = { path = "../state_machine" }
 measure-surprisal = { git = "https://github.com/thekevinscott/measure-surprisal.git", rev = "7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" }
 botbox = { git = "https://github.com/thekevinscott/botbox.git", subdirectory = "packages/python", rev = "4fed2b153f15e216d9b07109355b83a6d7bdf819" }
