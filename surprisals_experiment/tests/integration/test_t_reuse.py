@@ -1,63 +1,83 @@
-"""T generation follows the supplied sample selection and attempt budgets."""
+"""One-folder generation owns its timeout budget without sample naming."""
 import asyncio
 import json
 
+import pytest
 from conftest import FakeSession
+from surprisals_experiment.sdk.run_experiment.produce_code import produce_code
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
 
 SOURCE = 'print(int(input()) * 2)\n'
 
 
-async def test_generates_exactly_selected_samples_in_supplied_order(config, botbox_script):
-    config.t_samples = 4
-    config.t_pool_size = 1
-    botbox_script.solutions.extend([SOURCE, 'print(0)\n'])
-    snapshot = config.output / 'snapshot'
-    outputs = await write_solutions(
-        config, attempt=0, advice='Double.', snapshot=snapshot,
-        samples=[3, 1], retry_budgets={3: 1, 1: 1},
-    )
-    assert outputs == [config.t_dir(0, sample) / 'src' for sample in [3, 1]]
-    assert len(botbox_script.sessions) == 2
-    assert all(session.closed for session in botbox_script.sessions)
-    assert not config.t_dir(0, 0).exists()
-    assert not config.t_dir(0, 2).exists()
-    for sample, source in [(3, SOURCE), (1, 'print(0)\n')]:
-        assert (snapshot / str(sample) / 'main.py').read_text() == source
-        assert (config.t_dir(0, sample) / 'src/main.py').read_text() == source
-        assert json.loads((config.t_dir(0, sample) / 'run.json').read_text()) == {'exit_code': 0}
+async def test_writes_to_arbitrary_output_folder(config, botbox_script, tmp_path):
+    botbox_script.solutions.append(SOURCE)
+    folder = tmp_path / 'arbitrary output' / 'solution'
+    source = await produce_code(config, output=folder, advice='Double.')
+    assert source == folder / 'src'
+    assert (source / 'main.py').read_text() == SOURCE
+    assert json.loads((folder / 'run.json').read_text()) == {'exit_code': 0}
+    assert (folder / 'transcripts/session.jsonl').exists()
+    assert botbox_script.sessions[0].messages == ['Double.']
+    assert botbox_script.sessions[0].closed
+    assert not config.output.exists()
 
 
-async def test_supplied_budgets_bound_each_samples_attempts(config, botbox_script, monkeypatch):
-    config.t_sample_retries = 5
+@pytest.mark.parametrize('retries', [0, 2])
+async def test_each_call_gets_full_timeout_budget(config, botbox_script, monkeypatch, tmp_path, retries):
+    config.t_sample_retries = retries
     config.t_sample_timeout = .01
+    folder = tmp_path / 'unnumbered'
 
     async def message(self, text):
+        assert not list(self.mounts['/solution'].iterdir())
         (self.mounts['/solution'] / 'partial.py').write_text('partial')
         await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', message)
+    for call in range(2):
+        source = await produce_code(config, output=folder, advice='Double.')
+        assert len(botbox_script.sessions) == (call + 1) * (retries + 1)
+        assert all(session.closed for session in botbox_script.sessions)
+        assert list(source.iterdir()) == []
+        assert len((folder / 'timeouts.txt').read_text().splitlines()) == retries + 1
+
+
+async def test_caller_generates_all_folders_with_pool_cap(config, botbox_script, monkeypatch):
+    config.t_samples = 4
+    config.t_pool_size = 2
+    botbox_script.solutions.extend([SOURCE] * 4)
+    original = FakeSession.message
+    started = asyncio.Event()
+    release = asyncio.Event()
+    active = peak = 0
+
+    async def message(self, text):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        if active == config.t_pool_size:
+            started.set()
+        try:
+            await release.wait()
+            return await original(self, text)
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(FakeSession, 'message', message)
     snapshot = config.output / 'snapshot'
-    outputs = await write_solutions(
-        config, attempt=0, advice='Double.', snapshot=snapshot,
-        samples=[2, 0, 1], retry_budgets={2: 0, 0: 1, 1: 2},
-    )
-    assert outputs == [config.t_dir(0, sample) / 'src' for sample in [2, 0, 1]]
-    assert len(botbox_script.sessions) == 3
+    task = asyncio.create_task(write_solutions(config, attempt=0, advice='Double.', snapshot=snapshot))
+    try:
+        await asyncio.wait_for(started.wait(), 5)
+        assert len(botbox_script.sessions) == config.t_pool_size
+        release.set()
+        sources = await asyncio.wait_for(task, 5)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    assert sources == [config.t_dir(0, sample) / 'src' for sample in range(4)]
+    assert peak == config.t_pool_size
+    assert len(botbox_script.sessions) == 4
     assert all(session.closed for session in botbox_script.sessions)
-    assert not (config.t_dir(0, 2) / 'timeouts.txt').exists()
-    for sample, budget in [(0, 1), (1, 2)]:
-        assert len((config.t_dir(0, sample) / 'timeouts.txt').read_text().splitlines()) == budget
-    for sample, output in zip([2, 0, 1], outputs):
-        assert list(output.iterdir()) == []
-        assert list((snapshot / str(sample)).iterdir()) == []
-
-
-async def test_empty_selection_runs_no_samples(config, botbox_script):
-    snapshot = config.output / 'snapshot'
-    assert await write_solutions(
-        config, attempt=0, advice='Double.', snapshot=snapshot,
-        samples=[], retry_budgets={},
-    ) == []
-    assert botbox_script.sessions == []
-    assert (snapshot / 'advice.txt').read_text() == 'Double.'
+    for sample in range(4):
+        assert (snapshot / str(sample) / 'main.py').read_text() == SOURCE

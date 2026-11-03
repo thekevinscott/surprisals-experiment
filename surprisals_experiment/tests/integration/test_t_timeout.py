@@ -32,7 +32,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     assert len(botbox_script.sessions) == 4
     assert all(s.closed for s in botbox_script.sessions)
     assert json.loads(config.result_file.read_text())['success']
-    assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T sample 1 exceeded 0.1 seconds\n'
+    assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
     assert not (config.attempt_dir(0) / 'error.txt').exists()
     assert 'timed out' not in (config.attempt_dir(0) / 'feedback.txt').read_text()
 
