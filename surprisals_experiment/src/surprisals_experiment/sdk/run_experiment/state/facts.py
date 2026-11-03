@@ -40,6 +40,7 @@ def sample_facts(config, attempt):
           coalesce(max(CASE WHEN kind = 'run.json' THEN json_extract(content, '$.exit_code') >= 0 END), 0)
           OR coalesce(max(CASE WHEN kind = 'timeouts.txt' THEN length(content) - length(replace(content, char(10), '')) END), 0)
               >= {config.t_sample_retries + 1} AS has_solution,
+          max(0, {config.t_sample_retries + 1} - coalesce(max(CASE WHEN kind = 'timeouts.txt' THEN length(content) - length(replace(content, char(10), '')) END), 0)) AS retries_left,
           coalesce(max(kind = 'tests.json'), 0) AS has_results
         FROM samples LEFT JOIN artifacts ON artifacts.sample = samples.sample AND attempt = {attempt}
         GROUP BY samples.sample
