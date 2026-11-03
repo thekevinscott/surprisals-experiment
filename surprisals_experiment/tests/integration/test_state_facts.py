@@ -38,14 +38,16 @@ async def test_sample_completion_uses_exit_status_retry_budget_and_saved_tests(c
     save(config.t_dir(2, 3) / 'run.json', {'exit_code': 1})
     save(config.t_dir(1, 4) / 'run.json', {'exit_code': 0})
     assert await query(config, sample_facts(config, 2)) == [
-        dict(sample=0, has_solution=1, has_results=1),
-        dict(sample=1, has_solution=0, has_results=0),
-        dict(sample=2, has_solution=1, has_results=0),
-        dict(sample=3, has_solution=1, has_results=0),
-        dict(sample=4, has_solution=0, has_results=0),
+        dict(sample=0, retries_left=2, has_solution=1, has_results=1),
+        dict(sample=1, retries_left=1, has_solution=0, has_results=0),
+        dict(sample=2, retries_left=0, has_solution=1, has_results=0),
+        dict(sample=3, retries_left=2, has_solution=1, has_results=0),
+        dict(sample=4, retries_left=2, has_solution=0, has_results=0),
     ]
     save(config.t_dir(2, 1) / 'timeouts.txt', 'timeout\ntimeout\n')
     assert (await query(config, sample_facts(config, 2)))[1]['has_solution'] == 1
+    save(config.t_dir(2, 1) / 'timeouts.txt', 'timeout\n' * 3)
+    assert (await query(config, sample_facts(config, 2)))[1]['retries_left'] == 0
 
 
 async def test_best_stale_and_publication_require_complete_attempts(config):
