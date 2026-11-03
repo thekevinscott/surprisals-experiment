@@ -6,7 +6,7 @@ from ..prepare_feedback import describe_result
 from ..prepare_flush import Attempt
 from ..read_implementations import read_sources, read_source
 from .artifacts import query
-from .facts import attempts_sql, run_facts
+from .facts import attempts_sql, run_facts, sample_facts
 
 
 def solutions(config, attempt):
@@ -21,18 +21,19 @@ def results(config, attempt):
 
 def snapshot(config, session, attempt):
     path = session.solutions / str(attempt)
-    if not path.exists():
-        path.mkdir(parents=True)
-        for sample, source in enumerate(solutions(config, attempt)):
-            run = config.t_dir(attempt, sample) / 'run.json'
-            metadata = json.loads(run.read_text()) if run.exists() else {}
-            sources = metadata['sources'] if 'sources' in metadata else read_source(source)
-            target = path / str(sample)
-            target.mkdir()
-            for name, content in sources.items():
-                output = target / name
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_text(content)
+    path.mkdir(parents=True, exist_ok=True)
+    for sample, source in enumerate(solutions(config, attempt)):
+        if (path / str(sample)).exists():
+            continue
+        run = config.t_dir(attempt, sample) / 'run.json'
+        metadata = json.loads(run.read_text()) if run.exists() else {}
+        sources = metadata['sources'] if 'sources' in metadata else read_source(source)
+        target = path / str(sample)
+        target.mkdir()
+        for name, content in sources.items():
+            output = target / name
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(content)
     return path
 
 
@@ -71,7 +72,10 @@ async def action_inputs(config, session, action):
     if action == 'score_advice':
         return dict(advice=advice, attempt=attempt)
     if action == 'write_solutions':
-        return dict(advice=advice, attempt=attempt, snapshot=session.solutions / str(attempt))
+        pending = [row for row in await query(config, sample_facts(config, attempt)) if not row['has_solution']]
+        return dict(advice=advice, attempt=attempt, snapshot=session.solutions / str(attempt),
+                    samples=[row['sample'] for row in pending],
+                    retry_budgets={row['sample']: row['retries_left'] for row in pending})
     previous = (await query(config, run_facts(config, before=attempt)))[0]
     history = []
     if config.u_flush:

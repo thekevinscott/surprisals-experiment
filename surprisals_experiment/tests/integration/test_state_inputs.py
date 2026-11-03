@@ -36,7 +36,7 @@ async def test_scoring_and_generation_read_saved_advice(config, tmp_path):
     write(config.advice_dir(0, 0) / 'advice.txt', 'Saved.')
     session = SimpleNamespace(solutions=tmp_path / 'snapshots')
     assert await action_inputs(config, session, 'score_advice') == dict(advice='Saved.', attempt=0)
-    assert await action_inputs(config, session, 'write_solutions') == dict(advice='Saved.', attempt=0, snapshot=session.solutions / '0')
+    assert await action_inputs(config, session, 'write_solutions') == dict(advice='Saved.', attempt=0, snapshot=session.solutions / '0', samples=[0], retry_budgets={0: config.t_sample_retries + 1})
 
 
 async def test_tests_skip_finished_samples_and_clear_timed_out_sources(config):
@@ -59,6 +59,7 @@ async def test_feedback_uses_prior_counters_and_original_sources(config, tmp_pat
     write(config.attempt_dir(0) / 'feedback.txt', 'Try again.')
     completed(config, 1, 'Second.', 7, False)
     session = SimpleNamespace(solutions=tmp_path / 'snapshots')
+    (session.solutions / '1').mkdir(parents=True)
     inputs = await action_inputs(config, session, 'write_feedback')
     assert (inputs['attempt'], inputs['measurement'], inputs['best_length'], inputs['turns_without_improvement']) == (1, 7, 6, 0)
     assert inputs['best_solution'] == config.t_dir(0, 0) / 'src'
@@ -69,3 +70,17 @@ async def test_feedback_uses_prior_counters_and_original_sources(config, tmp_pat
         assert not (session.solutions / str(attempt) / '0' / 'main.py').exists()
     result = await action_inputs(config, session, 'write_result')
     assert result == dict(attempt=1, best_length=6, best_solution=config.t_dir(0, 0) / 'src')
+
+
+async def test_generation_inputs_select_pending_samples_and_remaining_budget(config, tmp_path):
+    config.t_samples = 4
+    config.t_sample_retries = 2
+    write(config.advice_dir(0, 0) / 'advice.txt', 'Saved.')
+    write(config.t_dir(0, 0) / 'run.json', {'exit_code': 0})
+    write(config.t_dir(0, 1) / 'run.json', {'exit_code': -1})
+    write(config.t_dir(0, 1) / 'timeouts.txt', 'timeout\n')
+    write(config.t_dir(0, 2) / 'timeouts.txt', 'timeout\n' * 3)
+    session = SimpleNamespace(solutions=tmp_path / 'snapshots')
+    inputs = await action_inputs(config, session, 'write_solutions')
+    assert inputs['samples'] == [1, 3]
+    assert inputs['retry_budgets'] == {1: 2, 3: 3}

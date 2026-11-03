@@ -1,7 +1,6 @@
 """Prompt a pool of fresh Ts and return their source directories in sample order."""
 
 import asyncio
-import json
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -15,6 +14,7 @@ async def prompt_t_to_produce_code(
     config: Config, *, attempt: int, advice: str, snapshot: Path,
     on_delta: Callable[[str, str], None] | None = None,
     samples: list[int] | None = None,
+    retry_budgets: dict[int, int] | None = None,
 ) -> list[Path]:
     snapshot.mkdir(parents=True, exist_ok=True)
     (snapshot / "advice.txt").write_text(advice)
@@ -22,9 +22,7 @@ async def prompt_t_to_produce_code(
 
     def before_sleep(state):
         sample = state.args[0]
-        run = config.t_dir(attempt, sample) / "run.json"
-        if not run.exists() or json.loads(run.read_text())["exit_code"] < 0:
-            shutil.rmtree(config.t_dir(attempt, sample) / "src", ignore_errors=True)
+        shutil.rmtree(config.t_dir(attempt, sample) / "src", ignore_errors=True)
         if on_delta is not None:
             on_delta("retry", f"T sample {sample} {state.attempt_number}/{len(DELAYS)} "
                               f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
@@ -33,16 +31,10 @@ async def prompt_t_to_produce_code(
     async def generate_once(sample: int) -> Path:
         directory = config.t_dir(attempt, sample)
         output = directory / "src"
-        run = directory / "run.json"
-        if run.exists() and json.loads(run.read_text())["exit_code"] >= 0:
-            shutil.rmtree(snapshot / str(sample), ignore_errors=True)
-            shutil.copytree(output, snapshot / str(sample), symlinks=True)
-            return output
         shutil.rmtree(output, ignore_errors=True)
         shutil.rmtree(snapshot / str(sample), ignore_errors=True)
-        timeouts = directory / "timeouts.txt"
-        used = len(timeouts.read_text().splitlines()) if timeouts.exists() else 0
-        for _ in range(used, config.t_sample_retries + 1):
+        budget = config.t_sample_retries + 1 if retry_budgets is None else retry_budgets[sample]
+        for _ in range(budget):
             try:
                 async with asyncio.timeout(config.t_sample_timeout):
                     return await produce_code(
@@ -53,7 +45,7 @@ async def prompt_t_to_produce_code(
                 with (config.t_dir(attempt, sample) / "timeouts.txt").open("a") as log:
                     log.write(f"T sample {sample} exceeded {config.t_sample_timeout:g} seconds\n")
                 shutil.rmtree(output)
-        output.mkdir()
+        output.mkdir(parents=True)
         (snapshot / str(sample)).mkdir()
         return output
 
