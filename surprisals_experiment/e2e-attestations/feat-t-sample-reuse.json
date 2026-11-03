@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration/test_t_reuse.py -q && uv run pytest tests/integration/test_t_samples.py -q && uv run pytest tests/integration/test_t_timeout.py -q",
-  "ran_at": 1793745343,
+  "ran_at": 1793745354,
   "exit_code": 0,
-  "commit": "ed1e71f5fe9191f4187786692074a29013d68aa2",
+  "commit": "ba4d1f44b2a2b85ca5f3c9306b22ec53cfbc49af",
   "branch": "feat/t-sample-reuse"
 }
