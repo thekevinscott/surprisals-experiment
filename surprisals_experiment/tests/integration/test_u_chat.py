@@ -253,3 +253,53 @@ async def test_rebuilt_transcript_matches_live_session(
             assert rebuilt.messages == resumed.messages
             assert rebuilt.turn_attempt == 2
             assert rebuilt.turn_reply == 'third'
+
+
+@pytest.mark.parametrize('boundary', ['request', 'compact_request', 'compact_summary'])
+async def test_rebuilt_transcript_resumes_pending_turn(
+    config, botbox_script, chat_provider, boundary,
+):
+    config.u_compact_chars = 0 if boundary == 'request' else 1
+    replies = ['first', 'second'] if boundary == 'request' else ['first', 'summary', 'second']
+    botbox_script.advice.extend(replies)
+    async with open_u_session(config) as live:
+        live.attempt = 0
+        assert await live.prompt('question') == 'first'
+        live.attempt = 1
+        assert await live.prompt('feedback') == 'second'
+    transcript = config.u_transcripts / 'messages.jsonl'
+    entries = [json.loads(line) for line in transcript.read_text().splitlines()]
+    if boundary == 'request':
+        end = next(i for i, entry in enumerate(entries) if entry.get('_attempt') == 1) + 1
+    else:
+        end = next(i for i, entry in enumerate(entries) if entry.get('_compact')) + 1
+        end += boundary == 'compact_summary'
+    transcript.write_text(''.join(json.dumps(entry) + '\n' for entry in entries[:end]))
+    botbox_script.advice.extend(['summary', 'second'] if boundary == 'compact_request' else ['second'])
+    requests = len(chat_provider)
+    async with open_u_session(config) as rebuilt:
+        rebuilt.attempt = 1
+        assert await rebuilt.prompt('feedback') == 'second'
+        assert rebuilt.messages == live.messages
+        assert rebuilt.turn_attempt == 1
+        assert rebuilt.turn_reply == 'second'
+    assert len(chat_provider) - requests == (2 if boundary == 'compact_request' else 1)
+    restored = [json.loads(line) for line in transcript.read_text().splitlines()]
+    assert sum(entry.get('_attempt') == 1 for entry in restored) == 1
+    if boundary != 'request':
+        reset = next(entry for entry in restored if entry.get('_reset'))
+        assert 'summary' in reset['content']
+        assert chat_provider[-1]['messages'][-2]['content'] == reset['content']
+        assert chat_provider[-1]['messages'][-1]['content'] == 'feedback'
+
+
+async def test_rebuilt_transcript_rejects_invalid_interior_line(config, chat_provider):
+    async with open_u_session(config) as session:
+        transcript = session.transcript
+    with transcript.open('a') as output:
+        output.write('not json\n' + json.dumps({'role': 'user', 'content': 'question', '_attempt': 0}) + '\n')
+    requests = len(chat_provider)
+    with pytest.raises(json.JSONDecodeError):
+        async with open_u_session(config):
+            pass
+    assert len(chat_provider) == requests
