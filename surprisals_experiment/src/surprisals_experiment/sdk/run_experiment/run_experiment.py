@@ -10,6 +10,7 @@ from surprisals_experiment.config import Config
 from .prompt_t_to_produce_code import prompt_t_to_produce_code
 from ..run_test_suite import run_test_suite_for_ts
 from .prepare_advice import prepare_advice
+from .actions.write_result import write_result
 from .prepare_feedback import describe_result, prepare_feedback
 from .prepare_flush import Attempt, prepare_flush
 from .read_implementations import read_sources
@@ -76,12 +77,7 @@ async def run_experiment(
                     advice_length=measurement,
                     best_length=best_length, turns_without_improvement=turns_without_improvement,
                 )
-            config.result_file.write_text(json.dumps({
-                **config.advice_measure.result_fields(best_length),
-                "success": best_solution is not None,
-                "attempts": attempt + 1,
-                "solution": str(best_solution) if best_solution is not None else None,
-            }, indent=2) + "\n")
+            write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
