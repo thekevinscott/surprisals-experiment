@@ -35,5 +35,3 @@ def surprisal_tables(root: Path):
 async def query(config, sql):
     db = DirSQL(str(config.output), tables=surprisal_tables(config.output))
     return await db.query(sql)
-
-

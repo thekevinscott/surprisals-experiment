@@ -44,5 +44,3 @@ def sample_facts(config, attempt):
         FROM samples LEFT JOIN artifacts ON artifacts.sample = samples.sample AND attempt = {attempt}
         GROUP BY samples.sample
     """
-
-
