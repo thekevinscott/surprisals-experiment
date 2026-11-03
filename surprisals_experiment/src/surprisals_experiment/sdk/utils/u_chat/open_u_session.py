@@ -39,15 +39,18 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
                 flush=config.u_flush,
             )
             if u_session.transcript.exists():
-                lines = u_session.transcript.read_text().splitlines()
-                for index, line in enumerate(lines):
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        if index != len(lines) - 1:
-                            raise
-                        break
-                    restore(u_session, entry)
+                with u_session.transcript.open('r+b') as transcript:
+                    lines = transcript.readlines()
+                    for index, line in enumerate(lines):
+                        try:
+                            entry = json.loads(line)
+                        except (json.JSONDecodeError, UnicodeDecodeError):
+                            if index != len(lines) - 1:
+                                raise
+                            # Remove a torn suffix so the next append starts a valid line.
+                            transcript.truncate(sum(map(len, lines[:index])))
+                            break
+                        restore(u_session, entry)
             else:
                 u_session.record({"role": "system", "content": prompt})
             yield u_session

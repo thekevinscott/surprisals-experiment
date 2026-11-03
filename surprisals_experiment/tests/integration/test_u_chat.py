@@ -229,13 +229,13 @@ async def test_rebuilt_transcript_matches_live_session(
         assert any(entry.get('_compact') for entry in entries)
         assert any(entry.get('_reset') for entry in entries)
         assert len(live.messages) == 4
+    before_replay = transcript.read_bytes()
     if mode == 'partial':
         assert any(entry.get('_complete') is False for entry in entries)
         assert all(message.get('content') != 'unfinished' for message in live.messages)
         # A process can stop midway through the next appended transcript entry.
         with transcript.open('a') as output:
             output.write('{"role": "assistant", "content":')
-    before_replay = transcript.read_bytes()
     requests = len(chat_provider)
     async with open_u_session(config) as rebuilt:
         assert (rebuilt.messages, rebuilt.turn_attempt, rebuilt.turn_reply,
@@ -244,3 +244,12 @@ async def test_rebuilt_transcript_matches_live_session(
         assert await rebuilt.prompt('feedback') == 'second'
     assert len(chat_provider) == requests
     assert transcript.read_bytes() == before_replay
+    if mode == 'partial':
+        botbox_script.advice.append('third')
+        async with open_u_session(config) as resumed:
+            resumed.attempt = 2
+            assert await resumed.prompt('next feedback') == 'third'
+        async with open_u_session(config) as rebuilt:
+            assert rebuilt.messages == resumed.messages
+            assert rebuilt.turn_attempt == 2
+            assert rebuilt.turn_reply == 'third'
