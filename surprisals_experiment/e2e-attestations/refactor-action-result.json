@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_run_summary.py -q",
+  "ran_at": 1793716261,
+  "exit_code": 0,
+  "commit": "7d41b3d234ea5c738d2057973eb1128466d3f124",
+  "branch": "refactor/action-result"
+}
