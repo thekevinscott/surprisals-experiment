@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration/test_state_selection.py -q",
-  "ran_at": 1793744023,
+  "ran_at": 1793744297,
   "exit_code": 0,
-  "commit": "5d1e0e9d41c2537a2c8a7216d618e50ee644eff4",
+  "commit": "afff915e499c5629a988d6018e17cf010953d3f6",
   "branch": "feat/state-selection"
 }
