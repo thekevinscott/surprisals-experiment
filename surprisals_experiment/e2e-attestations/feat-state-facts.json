@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_state_facts.py -q",
+  "ran_at": 1793744006,
+  "exit_code": 0,
+  "commit": "36a144e6a45a9c4e0189b5158631e2aae1ea3687",
+  "branch": "feat/state-facts"
+}
