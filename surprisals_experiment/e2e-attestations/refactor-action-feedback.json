@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_u_flush.py -q && uv run pytest tests/integration/test_u_compaction.py -q",
+  "ran_at": 1793743042,
+  "exit_code": 0,
+  "commit": "0bc059b187e562edaed496652fcd71897fbce716",
+  "branch": "refactor/action-feedback"
+}
