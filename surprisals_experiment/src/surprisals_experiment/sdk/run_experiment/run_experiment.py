@@ -12,9 +12,7 @@ from ..run_test_suite import run_test_suite_for_ts
 from .actions.write_result import write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
-from .prepare_feedback import describe_result, prepare_feedback
-from .prepare_flush import Attempt, prepare_flush
-from .read_implementations import read_sources
+from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
 
 
@@ -55,32 +53,10 @@ async def run_experiment(
             except Exception:
                 (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
                 raise
-            if (all(result.all_passed for result in results)
-                    and (best_length is None or measurement < best_length)):
-                turns_without_improvement = 0
-                best_solution = solutions[0]
-                best_length = measurement
-                u_session.best_advice = advice
-            else:
-                turns_without_improvement += 1
-            u_session.best_length = best_length
-            u_session.turns_without_improvement = turns_without_improvement
-            if config.u_flush:
-                history.append(Attempt(
-                    attempt, advice, measurement,
-                    [describe_result(config, attempt, index, sample) for index, sample in enumerate(results)],
-                    all(result.all_passed for result in results), read_sources(u_session.solutions / str(attempt)),
-                    config.advice_measure.scores.get(advice),
-                ))
-                u_session.messages = u_session.messages[:1]
-                prompt = prepare_flush(config, history)
-                (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
-            else:
-                prompt = prepare_feedback(
-                    config, attempt, results, snapshot=u_session.solutions / str(attempt),
-                    advice_length=measurement,
-                    best_length=best_length, turns_without_improvement=turns_without_improvement,
-                )
+            prompt, best_length, best_solution, turns_without_improvement = write_feedback(
+                config, u_session, attempt, advice, measurement, solutions, results,
+                best_length, best_solution, turns_without_improvement, history,
+            )
             write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
