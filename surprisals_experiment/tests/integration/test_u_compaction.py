@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_session import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_session
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'

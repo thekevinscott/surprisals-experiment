@@ -6,7 +6,7 @@ from contextlib import nullcontext
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_session import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_session
 
 PASS = 'print(int(input()) * 2)\n'
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,

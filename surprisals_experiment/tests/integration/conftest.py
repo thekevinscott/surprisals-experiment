@@ -186,7 +186,7 @@ def chat_provider(monkeypatch, botbox_script):
             botbox_script.u_workspaces.append(Path(self.name))
             return super().__enter__()
 
-    module = importlib.import_module('surprisals_experiment.sdk.utils.u_session.open_u_session')
+    module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_session')
     monkeypatch.setattr(module, 'AsyncOpenAI', client)
     monkeypatch.setattr(module, 'TemporaryDirectory', RecordedTemporaryDirectory)
     return requests

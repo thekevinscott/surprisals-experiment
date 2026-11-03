@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
-from ..u_chat import ChatSession
+from .chat_session import ChatSession
 
 SYSTEM = Prompt("u/system.txt")
 CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
