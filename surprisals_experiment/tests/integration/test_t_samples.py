@@ -100,7 +100,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
     turn.attempt_dir.mkdir(parents=True)
     write_advice(config, turn.attempt_dir, 'double it', 9)
     (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
-    task = asyncio.create_task(write_solutions(turn, QuestionDatabase(config.problem_dir)))
+    task = asyncio.create_task(write_solutions(turn, database, QuestionDatabase(config.problem_dir)))
     try:
         async with asyncio.timeout(5):
             capacity = min(size, 5)
