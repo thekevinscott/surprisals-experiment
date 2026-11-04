@@ -2,6 +2,7 @@ import traceback
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....utils.write import write
 from ....database import QuestionDatabase
 from ....run_test_suite import run_test_suite
 
@@ -10,5 +11,5 @@ async def run_tests(config: Config, solutions: list[Path], problem: QuestionData
     try:
         await run_test_suite(config, solutions, problem)
     except Exception:
-        (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
+        write(config.attempt_dir(attempt) / "error.txt", traceback.format_exc())
         raise
