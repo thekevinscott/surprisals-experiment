@@ -46,6 +46,7 @@ async def run_experiment(
             solutions = await write_solutions(
                 config, attempt=attempt, advice=advice,
                 snapshot=u_session.solutions / str(attempt), on_delta=on_t_delta,
+                folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
             results = await run_tests(config, solutions, test_suite, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = write_feedback(

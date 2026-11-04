@@ -9,7 +9,7 @@ from ..prompt_t_to_produce_code import prompt_t_to_produce_code
 async def write_solutions(
     config: Config, *, attempt: int, advice: str, snapshot: Path,
     on_delta: Callable[[str, str], None] | None = None,
-    folders: list[Path] | None = None,
+    folders: list[Path],
 ) -> list[Path]:
     try:
         return await prompt_t_to_produce_code(

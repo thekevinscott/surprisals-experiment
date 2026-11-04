@@ -66,7 +66,8 @@ async def test_caller_generates_all_folders_with_pool_cap(config, botbox_script,
 
     monkeypatch.setattr(FakeSession, 'message', message)
     snapshot = config.output / 'snapshot'
-    task = asyncio.create_task(write_solutions(config, attempt=0, advice='Double.', snapshot=snapshot))
+    task = asyncio.create_task(write_solutions(config, attempt=0, advice='Double.', snapshot=snapshot,
+        folders=[config.t_dir(0, s) for s in range(config.t_samples)]))
     try:
         await asyncio.wait_for(started.wait(), 5)
         assert len(botbox_script.sessions) == config.t_pool_size
