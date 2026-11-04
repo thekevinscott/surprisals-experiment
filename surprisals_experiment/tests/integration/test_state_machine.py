@@ -1,202 +1,128 @@
-"""Folder-derived sequential state, stopping budgets, and real process restart."""
+"""Disk-derived fork rounds and restart behavior."""
 
+import asyncio
 import json
+from pathlib import Path
 
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.advice import Advice
-from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.database import ExperimentDatabase
+from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.run_experiment import state, turn_state
+from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.write import write
 
 PASS = 'print(int(input()) * 2)\n'
 
 
-def saved_turn(config, turn=0, *, score=100, passed=True, stage='complete'):
-    write(config.window_dir / 'window.json', '{}')
-    write(config.fork_dir / 'fork.json', '{}')
+def saved_turn(config, window=0, fork=0, turn=0, *, score=100, passed=True, stage='complete'):
+    owned = Turn(config, turn, window, fork)
+    write(config.output / 'windows' / str(window) / 'window.json', '{}')
+    write(owned.attempt_dir.parent.parent / 'fork.json', '{}')
     if stage == 'advice_missing':
-        return
-    advice = Advice(f'{turn}: {score}', config.advice_measure, config.output)
+        return owned
+    advice = Advice(f'{window}/{fork}/{turn}: {score}', config.advice_measure, config.output)
     advice.save()
-    write(config.attempt_dir(turn) / 'metadata.json', json.dumps({'advice': str(advice.directory.relative_to(config.output))}))
+    write(owned.attempt_dir / 'metadata.json', json.dumps({'advice': str(advice.directory.relative_to(config.output))}))
     if stage == 'unscored':
-        return
+        return owned
     write(advice.directory / 'advice.json', json.dumps({'score': score}))
     if stage == 'solutions_missing':
-        return
+        return owned
     for sample in range(config.t_samples):
-        folder = config.t_dir(turn, sample)
+        folder = owned.t_dir(sample)
         write(folder / 'src/main.py', PASS)
         write(folder / 'run.json', '{"exit_code":0}')
         if stage != 'untested':
             write(folder / 'tests.json', json.dumps({'cases': [dict(index=0, passed=passed, status='passed' if passed else 'wrong_answer', stdout='', stderr='')]}))
     if stage == 'complete':
-        write(config.attempt_dir(turn) / 'feedback.txt', 'feedback')
+        write(owned.attempt_dir / 'feedback.txt', 'feedback')
+    return owned
+
+
+def saved_window(config, window, *, score=100, winner=0, passed=True):
+    for fork in range(4):
+        for turn in range(10):
+            saved_turn(config, window, fork, turn, score=score if fork == winner else score + 10, passed=passed)
+    for turn in range(10, 40):
+        saved_turn(config, window, winner if passed else 0, turn, score=score, passed=passed)
 
 
 @pytest.mark.parametrize('stage', ['advice_missing', 'unscored', 'solutions_missing', 'untested', 'feedback_missing', 'complete'])
 async def test_folder_classifies_each_turn_stage(config, stage):
-    saved_turn(config, stage=stage)
+    owned = saved_turn(config, stage=stage)
     database = ExperimentDatabase(config.output)
-    assert (await turn_state(Turn(config, 0), database))['state'] == stage
-    actual = await state(config, database)
-    assert actual == dict(state='stopped' if stage == 'complete' else 'turn', turn=1 if stage == 'complete' else 0)
+    assert (await turn_state(owned, database))['state'] == stage
+    assert (await state(config, database))['state'] == 'fork_round'
 
 
-@pytest.mark.parametrize('scores,passed,expected', [
-    ([10,10], [False,False], 'stopped'),
-    ([10,10], [False,True], 'turn'),
-    ([10,10,11], [True,True,True], 'stopped'),
-    ([10,9,8], [True,False,False], 'stopped'),
-    ([10,10,9], [True,False,True], 'turn'),
-])
-async def test_stale_budget_counts_only_strict_passing_improvements(config, scores, passed, expected):
-    config.max_u_turns = None
-    config.max_turns_without_improvement = 2
-    for turn, (score, success) in enumerate(zip(scores, passed)):
-        saved_turn(config, turn, score=score, passed=success)
-    assert await state(config, ExperimentDatabase(config.output)) == dict(state=expected, turn=len(scores))
+@pytest.mark.parametrize('winner,passed', [(3, True), (0, True), (0, False)])
+async def test_round_winner_and_no_pass_default(config, winner, passed):
+    config.max_u_turns = 40
+    for fork in range(4):
+        for turn in range(10):
+            saved_turn(config, fork=fork, turn=turn, score=10 if fork == winner else 20, passed=passed)
+    assert await state(config, ExperimentDatabase(config.output)) == dict(state='solo', window=0, fork=winner)
 
 
-async def test_partial_turn_is_finished_before_stopping(config):
-    config.max_u_turns = 2
-    config.max_turns_without_improvement = 1
-    saved_turn(config, 0, passed=False)
-    saved_turn(config, 1, stage='untested')
-    assert await state(config, ExperimentDatabase(config.output)) == dict(state='turn', turn=1)
+async def test_tie_uses_lowest_fork_position(config):
+    config.max_u_turns = 40
+    for fork in range(4):
+        for turn in range(10):
+            saved_turn(config, fork=fork, turn=turn, score=10)
+    assert (await state(config, ExperimentDatabase(config.output)))['fork'] == 0
 
 
-async def test_no_forty_turn_limit_or_window_rollover(config):
-    config.max_u_turns = 42
+async def test_window_rollover_and_partial_turn(config):
+    config.max_u_turns = 80
     config.max_turns_without_improvement = 100
-    for turn in range(41):
-        saved_turn(config, turn)
-    assert await state(config, ExperimentDatabase(config.output)) == dict(state='turn', turn=41)
-    saved_turn(config, 41)
-    assert await state(config, ExperimentDatabase(config.output)) == dict(state='stopped', turn=42)
-    assert [p.name for p in (config.output/'windows').iterdir()] == ['0']
-    assert [p.name for p in (config.window_dir/'forks').iterdir()] == ['0']
-
-
-async def test_completed_run_restart_makes_no_calls(config, botbox_script, chat_provider):
-    botbox_script.advice.append('double')
-    botbox_script.solutions.append(PASS)
-    first = await run_experiment(config, on_delta=None)
-    assert await run_experiment(config, on_delta=None) == first
-    assert len(chat_provider) == len(botbox_script.sessions) == 1
-
-
-async def test_missing_generation_file_prevents_completed_turn(config):
-    saved_turn(config)
-    (config.t_dir(0,0) / 'run.json').rename(config.t_dir(0,0) / '.unpublished-run')
+    saved_window(config, 0)
     database = ExperimentDatabase(config.output)
-    assert (await turn_state(Turn(config, 0), database))['state'] == 'solutions_missing'
-    assert (await state(config, database))['state'] == 'turn'
+    assert (await state(config, database))['state'] == 'window_missing'
+    owned = saved_turn(config, 1, 0, 0, stage='untested')
+    assert (await state(config, database))['state'] == 'fork_round'
+    assert (await turn_state(owned, database))['state'] == 'untested'
 
 
-async def test_restart_warns_on_commit_change_without_rewriting_settings(config):
-    config.save_settings()
-    path = config.output / 'settings.json'
-    data = json.loads(path.read_text())
-    data['git_commit'] = 'old-commit'
-    write(path, json.dumps(data))
-    with pytest.warns(UserWarning, match='different git commit'):
-        config.save_settings()
-    assert json.loads(path.read_text())['git_commit'] == 'old-commit'
+async def test_fork_best_is_isolated_until_solo(config):
+    from surprisals_experiment.sdk.run_experiment.prepare_flush.prepare_flush import prepare_flush
+    query_file = Path(__file__).parents[2] / 'src/surprisals_experiment/sdk/run_experiment/prepare_flush/fork_best.sql'
+    saved_window(config, 0, score=100)
+    saved_turn(config, 1, 0, 0, score=20)
+    saved_turn(config, 1, 1, 0, score=80)
+    problem = QuestionDatabase(config.problem_dir)
+    database = ExperimentDatabase(config.output)
+    own = await prepare_flush(config, problem, database, query_file=query_file, window=1, fork=1, cutoff=1)
+    solo = await prepare_flush(config, problem, database, query_file=query_file, window=1, fork=1, cutoff=11)
+    assert '1/1/0: 80' in own
+    assert '1/0/0: 20' not in own
+    assert '1/0/0: 20' in solo
 
 
-def test_process_exit_mid_ts_resumes_without_repeated_calls(config, tmp_path):
-    """Kill the interpreter after two published Ts; resume in a new interpreter."""
-    import subprocess
-    import sys
-    worker = tmp_path / 'worker.py'
-    worker.write_text(r'''
-import asyncio
-import importlib
-import os
-import sys
-from pathlib import Path
-from types import SimpleNamespace
-from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.advice_measure import AdviceMeasure
-from surprisals_experiment.sdk.utils.u_chat.chat_session import ChatSession
-from surprisals_experiment.sdk.utils.write import write
-
-root = Path(sys.argv[1])
-config = Config(api_key='unused', problem_dir=root/'problem', output=root/'run',
-                u_model='fake', t_model='fake', u_thinking='off', t_samples=5,
-                t_pool_size=1, max_u_turns=1)
-
-def record_call(path):
-    count = int(path.read_text()) if path.exists() else 0
-    write(path, str(count+1))
-
-async def reply(self, *, on_delta=None):
-    record_call(root/'calls/U'/self.transcript.relative_to(config.output))
-    self.record({'role':'assistant', 'content':'double'}, complete=True)
-    return 'double'
-
-async def score(self, text, *, on_delta=None):
-    record_call(root/'calls/score')
-    return 6, None
-
-async def prompt_t(config, advice, *, output, logs, on_delta=None):
-    if sys.argv[2] == 'crash' and len(list(config.output.glob('windows/*/forks/*/turns/*/ts/*/run.json'))) >= 2:
-        os._exit(17)
-    record_call(root/'calls/T'/logs.relative_to(config.output)/'count')
-    write(output/'main.py', 'print(int(input()) * 2)\n')
-    return SimpleNamespace(exit_code=0)
-
-ChatSession.reply = reply
-AdviceMeasure.score = score
-importlib.import_module('surprisals_experiment.sdk.run_experiment.actions.write_solutions.produce_code').prompt_t = prompt_t
-asyncio.run(run_experiment(config, on_delta=None))
-''')
-    interrupted = subprocess.run([sys.executable, str(worker), str(tmp_path), 'crash'], capture_output=True, text=True, timeout=15)
-    assert interrupted.returncode == 17, interrupted.stderr
-    assert len(list(config.output.glob('windows/*/forks/*/turns/*/ts/*/run.json'))) == 2
-    resumed = subprocess.run([sys.executable, str(worker), str(tmp_path), 'resume'], capture_output=True, text=True, timeout=15)
-    assert resumed.returncode == 0, resumed.stderr
-    u_calls = list((tmp_path/'calls/U').rglob('messages.jsonl'))
-    t_calls = list((tmp_path/'calls/T').rglob('count'))
-    assert len(u_calls) == 1 and len(t_calls) == 5
-    assert all(path.read_text() == '1' for path in [*u_calls, *t_calls, tmp_path/'calls/score'])
-
-
-async def test_restart_keeps_completed_test_results(config, botbox_script, chat_provider, monkeypatch):
-    import asyncio
-    import importlib
-    from collections import Counter
-
-    config.t_samples = 3
-    botbox_script.advice.append('double')
+async def test_parallel_forks_and_restart_mid_round(config, botbox_script, chat_provider, monkeypatch):
+    from conftest import FakeSession
+    config.max_u_turns = 1
+    original = saved_turn(config, fork=0, turn=0).attempt_dir / 'metadata.json'
+    before = original.stat().st_mtime_ns
+    botbox_script.advice.extend(['double it'] * 3)
     botbox_script.solutions.extend([PASS] * 3)
-    module = importlib.import_module('surprisals_experiment.sdk.run_test_suite.run_test_suite')
-    original = module.run_test_suite_for_t
-    calls = Counter()
-    interrupted = False
+    entered = set()
+    barrier = asyncio.Event()
+    reply = FakeSession.message
 
-    async def evaluate(suite, solution):
-        nonlocal interrupted
-        calls[solution] += 1
-        if solution == config.t_dir(0,1) / 'src' and not interrupted:
-            interrupted = True
-            raise asyncio.CancelledError
-        return await original(suite, solution)
+    async def concurrent(self, text):
+        entered.add(str(self.output))
+        if len(entered) == 3:
+            barrier.set()
+        await asyncio.wait_for(barrier.wait(), 5)
+        await reply(self, text)
 
-    monkeypatch.setattr(module, 'run_test_suite_for_t', evaluate)
-    with pytest.raises(asyncio.CancelledError):
-        await run_experiment(config, on_delta=None)
-    completed = config.t_dir(0,0) / 'tests.json'
-    before = completed.stat().st_mtime_ns
+    monkeypatch.setattr(FakeSession, 'message', concurrent)
     await run_experiment(config, on_delta=None)
-    assert len(chat_provider) == 1
-    assert len(botbox_script.sessions) == 3
-    assert calls[config.t_dir(0,0) / 'src'] == 1
-    assert calls[config.t_dir(0,1) / 'src'] == 2
-    assert calls[config.t_dir(0,2) / 'src'] == 1
-    assert completed.stat().st_mtime_ns == before
+    assert len(chat_provider) == len(botbox_script.sessions) == 3
+    assert original.stat().st_mtime_ns == before
+    assert json.loads(config.result_file.read_text())['attempts'] == 1
+    await run_experiment(config, on_delta=None)
+    assert len(chat_provider) == 3
