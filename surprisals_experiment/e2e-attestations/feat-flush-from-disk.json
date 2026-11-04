@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration/test_database.py -q && uv run pytest tests/integration/test_u_flush.py -q && uv run pytest tests/integration/test_flush_from_disk.py -q && uv run pytest tests/integration/test_u_chat.py -q && uv run pytest tests/integration/test_streaming.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_u_compaction.py -q",
-  "ran_at": 1793760648,
+  "ran_at": 1793798890,
   "exit_code": 0,
-  "commit": "cb650eeffd692079193de489d07c4dfc007fd886",
+  "commit": "1fad98847151607e0879a64f42165e4f7c04836c",
   "branch": "feat/flush-from-disk"
 }
