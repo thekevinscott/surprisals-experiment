@@ -3,27 +3,33 @@
 import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
 from ...turn import Turn
+from ...database import ExperimentDatabase
 from .chat_session import ChatSession
 from .record import restore
 from ..write import write
 
 SYSTEM = Prompt("u/system.txt")
 CONTEXT = Prompt("u/flush/context.txt")
+NUMBERS = Path(__file__).with_name("prompt_numbers.sql")
 
 
 @asynccontextmanager
 async def open_u_chat(turn: Turn) -> AsyncGenerator[ChatSession]:
     config = turn.config
+    numbers, = await ExperimentDatabase(config.output).query(
+        NUMBERS, window=turn.window, turn=turn.position, samples=config.t_samples,
+    )
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
         t_samples=config.t_samples,
-        max_turns_without_improvement=config.max_turns_without_improvement,
+        **numbers,
     )
     async with AsyncOpenAI(
         base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
