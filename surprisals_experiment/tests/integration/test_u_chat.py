@@ -7,7 +7,7 @@ from contextlib import nullcontext
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)\n'

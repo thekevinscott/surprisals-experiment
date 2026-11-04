@@ -7,7 +7,7 @@ from importlib.resources import files
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 

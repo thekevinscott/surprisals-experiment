@@ -10,6 +10,7 @@ from ....database import ExperimentDatabase, QuestionDatabase
 from ...prepare_flush import prepare_flush
 
 FORK_BEST = Path(__file__).parents[2] / "prepare_flush/fork_best.sql"
+ADVICE_INDEXED = Path(__file__).with_name("advice_indexed.sql")
 
 
 async def write_advice(
@@ -23,5 +24,6 @@ async def write_advice(
         chat.attempt = turn.position
         advice = Advice(await chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
     advice.save()
+    await database.query(ADVICE_INDEXED, advice=advice.text)
     write(turn.attempt_dir / "metadata.json",
           json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n")

@@ -7,7 +7,7 @@ import httpx2
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.advice import Advice
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
 
