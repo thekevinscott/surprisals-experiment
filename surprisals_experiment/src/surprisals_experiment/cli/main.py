@@ -35,12 +35,10 @@ async def main(argv: list[str] | None = None) -> None:
                         help="Time limit per active T sample in seconds (default: 900)")
     parser.add_argument("--t-sample-retries", type=int, default=3,
                         help="Retries per timed-out T sample; 0 disables retries (default: 3)")
-    parser.add_argument("--max-turns-without-improvement", type=int, default=20,
-                        help="Stop after this many turns without shorter all-pass advice (default: 20)")
     parser.add_argument(
-        "--max-u-turns", type=int, help="Optional total iteration limit (default: stop after no improvement or interruption)",
+        "--max-u-turns", type=int, help="Optional total iteration limit (default: stop after a window improves less than 5%% or interruption)",
     )
-    parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
+    parser.add_argument("--output", type=Path, required=True, help="Run directory (existing directories resume)")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
     source = problem.add_mutually_exclusive_group(required=True)
@@ -83,7 +81,6 @@ async def main(argv: list[str] | None = None) -> None:
             t_sample_timeout=args.t_sample_timeout,
             t_sample_retries=args.t_sample_retries,
             max_u_turns=args.max_u_turns,
-            max_turns_without_improvement=args.max_turns_without_improvement,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))

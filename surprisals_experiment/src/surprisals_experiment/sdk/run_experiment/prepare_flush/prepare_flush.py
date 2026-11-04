@@ -6,14 +6,19 @@ from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
 from ...database import ExperimentDatabase, QuestionDatabase
 from ..read_implementations import read_sources
+from ..queries import query
 
 TURN = Prompt("u/flush/turn.txt")
 BEST_ATTEMPT = Path(__file__).parent / "best_attempt.sql"
 
 
 async def prepare_flush(config: Config, problem: QuestionDatabase, database: ExperimentDatabase) -> str:
+    return await render_flush(config, problem, database, BEST_ATTEMPT)
+
+
+async def render_flush(config: Config, problem: QuestionDatabase, database: ExperimentDatabase, sql: Path) -> str:
+    best = await query(database, config, sql)
     question = await problem.question
-    best = await database.query(BEST_ATTEMPT, samples=config.t_samples)
     if not best:
         return question
     turn = config.output / best[0]["turn_id"]

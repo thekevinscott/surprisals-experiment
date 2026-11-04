@@ -7,17 +7,19 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....advice import Advice
 from surprisals_experiment.retry_policy import DELAYS, retried
 from ....prompt_t import prompt_t
 from ....utils.write import write
 
 
 async def produce_code(
-    config: Config, *, output: Path, advice: str,
+    config: Config, *, output: Path, advice: Advice,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     source = output / "src"
+    shutil.rmtree(source, ignore_errors=True)
 
     def before_sleep(state):
         shutil.rmtree(source, ignore_errors=True)
@@ -36,10 +38,12 @@ async def produce_code(
                         raise RuntimeError("T infrastructure failed: botbox could not obtain an exit code")
                     return source
             except TimeoutError:
-                with (output / "timeouts.txt").open("a") as log:
-                    log.write(f"T exceeded {config.t_sample_timeout:g} seconds\n")
+                log = output / "timeouts.txt"
+                previous = log.read_text() if log.exists() else ""
+                write(log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n")
                 shutil.rmtree(source)
         source.mkdir()
+        write(output / "run.json", json.dumps({"timed_out": True}) + "\n")
         return source
 
     return await generate()

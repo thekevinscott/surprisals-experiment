@@ -1,10 +1,13 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
+import json
+import subprocess
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, SecretStr, field_validator, model_validator
 
 ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
@@ -26,8 +29,20 @@ class Config(BaseModel):
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
     t_sample_retries: int = Field(default=3, ge=0)
-    max_turns_without_improvement: int = Field(default=20, ge=1)
     max_u_turns: int | None = Field(default=None, ge=1)
+
+    _window: int = PrivateAttr(default=0)
+    _fork: int = PrivateAttr(default=0)
+    _turn: int = PrivateAttr(default=0)
+
+    def at(self, *, window: int, fork: int = 0, turn: int = 0):
+        scoped = self.model_copy()
+        scoped._window, scoped._fork, scoped._turn = window, fork, turn
+        return scoped
+
+    @property
+    def position(self) -> dict:
+        return dict(window=self._window, fork=self._fork, turn=self._turn)
 
     @model_validator(mode="after")
     def require_scorer(self):
@@ -44,7 +59,16 @@ class Config(BaseModel):
     def save_settings(self) -> None:
         from .sdk.utils.write import write
 
-        write(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        path = self.output / "settings.json"
+        if path.exists():
+            if json.loads(path.read_text()).get("git_commit") != commit:
+                warnings.warn("Run was started with a different git commit", stacklevel=2)
+            return
+        write(path, json.dumps(self.model_dump(mode="json", exclude={"api_key"}) | {"git_commit": commit}, indent=2) + "\n")
 
     @property
     def result_file(self) -> Path:
@@ -56,7 +80,7 @@ class Config(BaseModel):
 
     @property
     def u_dir(self) -> Path:
-        return self.output / "u"
+        return self.attempt_dir(self._turn) / "u"
 
     @property
     def u_transcripts(self) -> Path:
@@ -64,11 +88,11 @@ class Config(BaseModel):
 
     @property
     def window_dir(self) -> Path:
-        return self.output / "windows" / "0"
+        return self.output / "windows" / str(self._window)
 
     @property
     def fork_dir(self) -> Path:
-        return self.window_dir / "forks" / "0"
+        return self.window_dir / "forks" / str(self._fork)
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.fork_dir / "turns" / str(attempt)

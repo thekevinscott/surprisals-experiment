@@ -20,7 +20,7 @@ CREATE TABLE turns (
 CREATE TABLE advices (
   id         TEXT PRIMARY KEY,          -- 'advices/<sha256>'
   text       TEXT NOT NULL UNIQUE,
-  score      NUMERIC NOT NULL,          -- chars, or total bits
+  score      NUMERIC,                   -- chars, or total bits
   score_text TEXT                       -- per-token bits rendering, NULL in chars mode
 );
 
@@ -53,4 +53,14 @@ CREATE TABLE test_results (
   passed INTEGER NOT NULL,
   status TEXT NOT NULL,
   UNIQUE (t_id, test)
+);
+
+CREATE TABLE generations (
+  id TEXT PRIMARY KEY,
+  turn_id TEXT NOT NULL REFERENCES turns(id),
+  position INTEGER NOT NULL
+);
+
+CREATE TABLE feedback (
+  turn_id TEXT PRIMARY KEY REFERENCES turns(id)
 );

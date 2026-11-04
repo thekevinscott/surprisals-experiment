@@ -5,11 +5,12 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....advice import Advice
 from .produce_code import produce_code
 
 
 async def prompt_t_to_produce_code(
-    config: Config, *, advice: str,
+    config: Config, *, advice: Advice,
     on_delta: Callable[[str, str], None] | None = None,
     folders: list[Path],
 ) -> list[Path]:
