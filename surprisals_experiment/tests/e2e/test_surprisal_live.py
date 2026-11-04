@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parents[3]
 @pytest.fixture
 def advice_paths():
     root = Path(os.environ.get("RUNPOD_ADVICE_ROOT", REPO / "runs/sanity-check"))
-    paths = sorted(root.glob("**/attempts/*/advices/*/advice.txt"))[:3]
+    paths = sorted(root.glob("**/advices/*/advice.txt"))[:3]
     if len(paths) < 3:
         pytest.skip("needs three saved advice strings under RUNPOD_ADVICE_ROOT")
     return paths
@@ -79,7 +79,7 @@ async def test_saved_advice_scores_on_real_scorer(runpod_scorer, advice_paths):
     scores = []
     async with asyncio.timeout(600):
         for path in advice_paths:
-            advice = path.read_text()
+            advice = path.read_bytes().decode("utf-8")
             bits, _ = await measure.score(advice)
             assert math.isfinite(bits) and bits > 0
             scores.append(bits)

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from advice_artifacts import advice_directory, read_score
 
 import pytest
 
@@ -74,7 +75,7 @@ def describe_advice_improvement():
         }
         for attempt, advice in enumerate(advices):
             assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {
-                'measurement': len(advice),
+                'advice': advice_directory(config, advice).name,
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]
         feedback = (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text()
@@ -120,8 +121,8 @@ def describe_run_layout():
         assert sorted(path.name for path in (fork / 'turns').iterdir()) == ['0', '1']
         for turn, advice in enumerate(['long advice', 'short']):
             directory = fork / 'turns' / str(turn)
-            assert (directory / 'advice.txt').read_text() == advice
-            assert json.loads((directory / 'metadata.json').read_text())['measurement'] == len(advice)
+            assert (advice_directory(config, advice) / 'advice.txt').read_text() == advice
+            assert read_score(config, turn)['score'] == len(advice)
             assert (directory / 'ts/0/tests.json').exists()
             assert (directory / 'ts/0/src/main.py').read_text() == PASS
         assert (fork / 'turns/0/feedback.txt').exists()

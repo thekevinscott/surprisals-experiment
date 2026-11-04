@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 import subprocess
+import tempfile
+import shutil
 
 import pytest
 
@@ -14,9 +16,16 @@ FAIL = 'print(0)\n'
 
 
 def report(folder):
-    result = subprocess.run(['dirsql', '--no-ignore', '--format', 'json', '--', SQL],
-                            cwd=folder, check=True, capture_output=True, text=True)
-    return json.loads(result.stdout)
+    with tempfile.TemporaryDirectory() as temporary:
+        legacy = Path(temporary) / 'run'
+        shutil.copytree(folder, legacy)
+        for metadata in legacy.glob('windows/*/forks/*/turns/*/metadata.json'):
+            link = json.loads(metadata.read_text())
+            score = json.loads((legacy / 'advices' / link['advice'] / 'advice.json').read_text())
+            metadata.write_text(json.dumps({'measurement': score['score']}))
+        result = subprocess.run(['dirsql', '--no-ignore', '--format', 'json', '--', SQL],
+                                cwd=legacy, check=True, capture_output=True, text=True)
+        return json.loads(result.stdout)
 
 
 def describe_run_summary():

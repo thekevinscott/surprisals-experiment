@@ -29,18 +29,22 @@ class ExperimentDatabase(Database):
             return [{"id": str(turn), "fork_id": str(turn.parent.parent), "position": int(turn.name)}]
 
         def advice(path):
-            turn = relative(path).parent
+            directory = relative(path).parent
             metadata = json.loads(Path(path).read_text())
             tokens = metadata.get("tokens")
             return [{
-                "id": str(turn / "advice.txt"), "turn_id": str(turn),
-                "text": (Path(path).parent / "advice.txt").read_text(), "score": metadata["measurement"],
+                "id": str(directory),
+                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata["score"],
                 "score_text": tokens and "".join(f"{token}<{bits:.1f}>" for token, bits in tokens),
             }]
 
+        def turn_advice(path):
+            metadata = json.loads(Path(path).read_text())
+            return [{"turn_id": str(relative(path).parent), "advice_id": f"advices/{metadata["advice"]}"}]
+
         def t(path):
             t = relative(path).parent
-            return [{"id": str(t), "advice_id": str(t.parent.parent / "advice.txt"), "position": int(t.name)}]
+            return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
 
         def test_results(path):
             tests = relative(path)
@@ -54,7 +58,8 @@ class ExperimentDatabase(Database):
             "windows": ("windows/*/window.json", window),
             "forks": ("windows/*/forks/*/fork.json", fork),
             "turns": (f"{TURN}/metadata.json", turn),
-            "advice": (f"{TURN}/metadata.json", advice),
+            "advices": ("advices/*/advice.json", advice),
+            "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/tests.json", t),
             "test_results": (f"{TURN}/ts/*/tests.json", test_results),
         }

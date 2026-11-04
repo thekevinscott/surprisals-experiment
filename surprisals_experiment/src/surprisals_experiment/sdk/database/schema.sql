@@ -17,19 +17,23 @@ CREATE TABLE turns (
   UNIQUE (fork_id, position)
 );
 
-CREATE TABLE advice (
-  id         TEXT PRIMARY KEY,          -- 'windows/W/forks/F/turns/N/advice.txt'
-  turn_id    TEXT NOT NULL UNIQUE REFERENCES turns(id),
-  text       TEXT NOT NULL,
+CREATE TABLE advices (
+  id         TEXT PRIMARY KEY,          -- 'advices/<sha256>'
+  text       TEXT NOT NULL UNIQUE,
   score      NUMERIC NOT NULL,          -- chars, or total bits
   score_text TEXT                       -- per-token bits rendering, NULL in chars mode
 );
 
+CREATE TABLE turn_advice (
+  turn_id   TEXT NOT NULL UNIQUE REFERENCES turns(id),
+  advice_id TEXT NOT NULL REFERENCES advices(id)
+);
+
 CREATE TABLE ts (
   id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S'
-  advice_id TEXT NOT NULL REFERENCES advice(id),
+  turn_id   TEXT NOT NULL REFERENCES turns(id),
   position  INTEGER NOT NULL,           -- S
-  UNIQUE (advice_id, position)
+  UNIQUE (turn_id, position)
 );
 
 CREATE TABLE files (

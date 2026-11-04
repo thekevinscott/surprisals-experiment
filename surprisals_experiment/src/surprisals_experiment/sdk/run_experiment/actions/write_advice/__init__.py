@@ -11,5 +11,6 @@ async def write_advice(
 ) -> str:
     advice = await u_chat.prompt(prompt, on_delta=on_delta)
     directory = config.attempt_dir(attempt)
-    save_advice(directory, advice)
+    directory.mkdir(parents=True, exist_ok=True)
+    save_advice(config, advice)
     return advice

@@ -1,8 +1,14 @@
-"""Preserve advice before calling the scorer."""
+"""Preserve exact advice bytes in their content-addressed folder."""
 
+from hashlib import sha256
 from pathlib import Path
-from ....utils.write_text import write_text
+
+from surprisals_experiment.config import Config
 
 
-def save_advice(directory: Path, advice: str) -> None:
-    write_text(directory / "advice.txt", advice)
+def save_advice(config: Config, advice: str) -> Path:
+    content = advice.encode("utf-8")
+    directory = config.output / "advices" / sha256(content).hexdigest()
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "advice.txt").write_bytes(content)
+    return directory
