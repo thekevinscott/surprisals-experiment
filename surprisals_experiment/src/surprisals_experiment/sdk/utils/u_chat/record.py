@@ -18,6 +18,7 @@ def restore(self, entry):
         self.turn_attempt = entry['_attempt']
         self.turn_reply = None
     if message['role'] == 'assistant':
+        message = {'role': 'assistant', 'content': message.get('content')}
         if self.compacting:
             self.summary = message.get('content')
         else:
@@ -38,6 +39,6 @@ def record(self, message: dict, *, reset=False, compact=False, attempt=None, com
     with self.transcript.open('a') as transcript:
         transcript.write(json.dumps(entry, ensure_ascii=False) + '\n')
     if complete is False:
-        self.messages.append(message)
+        self.messages.append({'role': 'assistant', 'content': message.get('content')})
     else:
         restore(self, entry)

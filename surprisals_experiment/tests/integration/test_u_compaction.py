@@ -1,4 +1,4 @@
-"""Compaction preserves measured state and accounts for reasoning once."""
+"""Compaction preserves measured state and counts only the content sent to U."""
 
 import json
 from datetime import datetime
@@ -78,7 +78,7 @@ async def test_leaves_history_intact_when_disabled(
 
 
 @pytest.mark.parametrize('over_by,expected_requests', [(0, 2), (1, 3)])
-async def test_counts_reasoning_and_pending_feedback_at_the_threshold(
+async def test_counts_content_and_pending_feedback_at_the_threshold(
     config, botbox_script, chat_provider, over_by, expected_requests,
 ):
     botbox_script.advice.extend(['first', 'summary', 'second'])
@@ -86,7 +86,7 @@ async def test_counts_reasoning_and_pending_feedback_at_the_threshold(
         await session.prompt('question')
         pending = 'feedback' * 100
         session.compact_chars = sum(
-            len(m.get('content') or '') + len(m.get('reasoning') or '')
+            len(m.get('content') or '')
             for m in session.messages
         ) + len(pending) - over_by
         await session.prompt(pending)
@@ -109,10 +109,10 @@ async def test_compacts_with_the_measured_state_when_the_summary_request_fails(
     assert all(session.closed for session in botbox_script.sessions)
 
 
-async def test_compaction_counts_reasoning_once(
+async def test_compaction_excludes_reasoning_from_history_and_size(
     config, botbox_script, chat_provider,
 ):
-    reasoning = 'r' * 210000
+    reasoning = 'r' * 410000
     details = [{'type': 'reasoning.text', 'index': 0, 'text': reasoning, 'format': 'unknown'}]
     botbox_script.advice.extend([
         {'deltas': [{'role': 'assistant', 'content': 'advice',
@@ -122,11 +122,13 @@ async def test_compaction_counts_reasoning_once(
     async with open_u_session(config) as session:
         await session.prompt('question')
         assert session.compact_chars == 400000
-        assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000
+        assert sum(len(m.get('content') or '') for m in session.messages) < 400000
         await session.prompt('feedback')
     assert len(chat_provider) == 2
-    # Counting reasoning once must not strip either field from the next request.
     assistant = chat_provider[1]['messages'][2]
-    assert assistant['reasoning'] == reasoning
-    assert assistant['reasoning_details'] == details
+    assert assistant == {'role': 'assistant', 'content': 'advice'}
+    transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
+    logged = next(m for m in transcript if m['role'] == 'assistant')
+    assert logged['reasoning'] == reasoning
+    assert logged['reasoning_details'] == details
     assert chat_provider[-1]['messages'][-1]['content'] == 'feedback'

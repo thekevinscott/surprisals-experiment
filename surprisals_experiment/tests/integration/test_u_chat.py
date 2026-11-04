@@ -30,7 +30,7 @@ async def test_preserves_conversation_and_streams_advice(
         'system', 'user', 'assistant', 'user',
     ]
     assert chat_provider[1]['messages'][2]['content'] == 'first\nadvice'
-    assert chat_provider[1]['messages'][2]['reasoning'] == 'Thinking.'
+    assert chat_provider[1]['messages'][2] == {'role': 'assistant', 'content': 'first\nadvice'}
     assert ''.join(text for kind, text in deltas if kind == 'text') == 'first\nadvice'
     assert ('thinking', 'Thinking.') in deltas
     transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
@@ -128,8 +128,9 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
     async with open_u_session(config) as session:
         await session.prompt('question', on_delta=lambda *delta: deltas.append(delta))
     assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
-    assert session.messages[-1]['role'] == 'assistant'
-    assert session.messages[-1]['reasoning'] == 'Thinking. More.'
+    assert session.messages[-1] == {'role': 'assistant', 'content': 'advice'}
+    transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
+    assert transcript[-1]['reasoning'] == 'Thinking. More.'
 
 
 async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, no_retry_wait):
@@ -189,13 +190,13 @@ async def test_reasoning_format_preserves_latest_provider_value(
     async with open_u_session(config) as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
             await session.prompt('question')
-        assert session.messages[-1]['reasoning_details'] == expected
+        assert session.messages[-1] == {'role': 'assistant', 'content': 'advice'}
         transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
         assert transcript[-1]['reasoning_details'] == expected
         assert transcript[-1]['content'] == 'advice'
         if finish == 'stop':
             await session.prompt('feedback')
-            assert chat_provider[-1]['messages'][2]['reasoning_details'] == expected
+            assert chat_provider[-1]['messages'][2] == {'role': 'assistant', 'content': 'advice'}
 
 
 @pytest.mark.parametrize('mode', ['plain', 'flush', 'compaction', 'partial'])
@@ -217,6 +218,7 @@ async def test_rebuilt_transcript_matches_live_session(
         assert await live.prompt('question') == 'first'
         live.attempt = 1
         assert await live.prompt('feedback') == 'second'
+        assert all(set(m) == {'role', 'content'} for m in live.messages if m['role'] == 'assistant')
         expected = (live.messages, live.turn_attempt, live.turn_reply,
                     live.compacting, live.summary)
     transcript = config.u_transcripts / 'messages.jsonl'
