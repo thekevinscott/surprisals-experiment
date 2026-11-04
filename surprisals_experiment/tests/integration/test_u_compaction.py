@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -70,7 +70,7 @@ async def test_leaves_history_intact_when_disabled(
 ):
     config.u_compact_chars = 0
     botbox_script.advice.extend(['first', 'second'])
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         await session.prompt('question')
         await session.prompt('feedback')
     assert len(chat_provider) == 2
@@ -82,7 +82,7 @@ async def test_counts_reasoning_and_pending_feedback_at_the_threshold(
     config, botbox_script, chat_provider, over_by, expected_requests,
 ):
     botbox_script.advice.extend(['first', 'summary', 'second'])
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         await session.prompt('question')
         pending = 'feedback' * 100
         session.compact_chars = sum(
@@ -119,7 +119,7 @@ async def test_compaction_counts_reasoning_once(
                      'reasoning': reasoning, 'reasoning_details': details}]},
         'next',
     ])
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         await session.prompt('question')
         assert session.compact_chars == 400000
         assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000

@@ -12,7 +12,7 @@ from botbox import RunResult
 from conftest import FakeSession
 from surprisals_experiment.retry_policy import DELAYS
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)'
 PROVIDER_ERROR = {
@@ -88,7 +88,7 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
 ):
     botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
     with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
-        async with open_u_session(config) as session:
+        async with open_u_chat(config) as session:
             await session.prompt('question')
     assert 'U chat provider error' in str(raised.value)
     assert 'upstream failed' in str(raised.value)
