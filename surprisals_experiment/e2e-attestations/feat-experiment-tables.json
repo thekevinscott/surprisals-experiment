@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793809552,
+  "exit_code": 0,
+  "commit": "7a4da4ee38f4b74ef2135180532be6c892a0054a",
+  "branch": "feat/experiment-tables"
+}
