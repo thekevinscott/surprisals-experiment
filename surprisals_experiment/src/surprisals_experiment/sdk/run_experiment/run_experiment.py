@@ -1,6 +1,5 @@
 """Run the experiment through the Python SDK."""
 
-import json
 from itertools import count
 from collections.abc import Callable
 from pathlib import Path
@@ -13,7 +12,7 @@ from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
-from ..database import Database
+from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write_text import write_text
 
 
@@ -22,14 +21,14 @@ async def run_experiment(
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
-    problem = Database(config.problem_dir)
-    question = (await problem.query("SELECT content FROM './question.txt'"))[0]["content"]
-    test_suite = json.loads((await problem.query("SELECT content FROM './input_output.json'"))[0]["content"])
+    problem = QuestionDatabase(config.problem_dir)
+    question = await problem.question
+    test_suite = await problem.test_suite
     prompt = question
     config.save_settings()
     write_text(config.window_dir / "window.json", "{}\n")
     write_text(config.fork_dir / "fork.json", "{}\n")
-    database = Database(config.output)
+    database = ExperimentDatabase(config.output)
     best_length = None
     best_solution = None
     turns_without_improvement = 0
