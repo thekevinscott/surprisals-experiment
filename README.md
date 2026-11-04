@@ -79,7 +79,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 - Adjacent `advice.json`: `score`, plus `tokens` in surprisal mode.
 - `windows/0/forks/0/turns/<turn>/metadata.json`: the relative advice path (`advices/<sha256>`) for that turn; `feedback.txt` and any `error.txt` remain alongside it.
 - `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
-- Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
+- Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `generation.json`, and `tests.json`, including when `--t-samples 1`.
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 

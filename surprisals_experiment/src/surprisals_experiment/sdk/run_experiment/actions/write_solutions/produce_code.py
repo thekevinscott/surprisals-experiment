@@ -31,7 +31,7 @@ async def produce_code(
             try:
                 async with asyncio.timeout(config.t_sample_timeout):
                     t_run = await prompt_t(config, advice, output=source, logs=output, on_delta=on_delta)
-                    write(output / "run.json", json.dumps({"exit_code": t_run.exit_code}, indent=2) + "\n")
+                    write(output / "generation.json", json.dumps({"exit_code": t_run.exit_code}, indent=2) + "\n")
                     if t_run.exit_code == -1:
                         raise RuntimeError("T infrastructure failed: botbox could not obtain an exit code")
                     return source

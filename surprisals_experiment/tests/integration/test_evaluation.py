@@ -40,7 +40,7 @@ async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, bo
     assert result['all_passed']
     assert isinstance(result['duration_seconds'], float)
     assert result['duration_seconds'] >= 0
-    assert json.loads((config.t_dir(0, 0) / 'run.json').read_text())['exit_code'] == 1
+    assert json.loads((config.t_dir(0, 0) / 'generation.json').read_text())['exit_code'] == 1
 
 
 async def test_case_exceeding_five_seconds_fails(config, botbox_script):

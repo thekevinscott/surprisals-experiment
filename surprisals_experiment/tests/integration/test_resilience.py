@@ -201,4 +201,4 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
         assert 'Traceback' in diagnostics
         assert not (config.t_dir(0, 0) / 'tests.json').exists()
         if failure == 'infrastructure':
-            assert json.loads((config.t_dir(0, 0) / 'run.json').read_text())['exit_code'] == -1
+            assert json.loads((config.t_dir(0, 0) / 'generation.json').read_text())['exit_code'] == -1
