@@ -8,22 +8,21 @@ from ..utils.write_text import write_text
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from ..run_test_suite import TestSuiteResult
 
 FEEDBACK = Prompt("u/feedback.txt")
 CONTEXT = Prompt("u/chat/context.txt")
 
 
-def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
+def describe_result(config: Config, attempt: int, index: int, sample: dict) -> str:
     t_dir = config.t_dir(attempt, index)
     timed_out = (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
-    return f"passed {sample.passed} of {sample.total} tests" + (
+    return f"passed {sample["passed"]} of {sample["total"]} tests" + (
         "; timed out on every try and wrote no solution" if timed_out else ""
     )
 
 
 def prepare_feedback(
-    config: Config, attempt: int, results: list[TestSuiteResult], *,
+    config: Config, attempt: int, results: list[dict], *,
     solutions: list[Path], advice_length: int | float, best_length: int | float | None, turns_without_improvement: int,
 ) -> str:
     evaluations = []
@@ -38,7 +37,7 @@ def prepare_feedback(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
         implementations=read_implementations(solutions),
-        evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
+        evaluations="\n".join(evaluations), passed=sum(result["all_passed"] for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,
         turns_without_improvement=turns_without_improvement,
         max_turns_without_improvement=config.max_turns_without_improvement,

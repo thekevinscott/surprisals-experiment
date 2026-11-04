@@ -1,4 +1,4 @@
-"""Evaluate every generated solution on every testcase and preserve results."""
+"""Evaluate every generated solution on every testcase and leave results in tests.json."""
 
 import json
 import time
@@ -7,16 +7,14 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from ..database import QuestionDatabase
-from .results import TestSuiteResult
 from ..utils.write_text import write_text
 from .run_test_suite_for_t import run_test_suite_for_t
 
 
 async def run_test_suite(
     config: Config, solutions: list[Path], problem: QuestionDatabase,
-) -> list[TestSuiteResult]:
+) -> None:
     test_suite = await problem.test_suite
-    results = []
     for solution in solutions:
         started = time.monotonic()
         result = await run_test_suite_for_t(test_suite, solution)
@@ -29,5 +27,3 @@ async def run_test_suite(
             "all_passed": result.all_passed,
             "cases": [asdict(case) for case in result.cases],
         }, indent=2) + "\n")
-        results.append(result)
-    return results
