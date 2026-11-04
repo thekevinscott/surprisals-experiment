@@ -1,7 +1,6 @@
 """One sample resumes testing without repeating its completed generation."""
 
 import asyncio
-import importlib
 import json
 
 import pytest
@@ -11,6 +10,7 @@ from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatab
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.run_sample import run_sample
+from surprisals_experiment.sdk.run_experiment.actions.write_solutions.run_sample import machine
 
 PASS = 'print(int(input()) * 2)\n'
 
@@ -42,12 +42,11 @@ async def test_interrupted_after_generation_resumes_at_testing(config, botbox_sc
     async def interrupt(*args, **kwargs):
         raise asyncio.CancelledError
 
-    module = importlib.import_module('surprisals_experiment.sdk.run_experiment.actions.write_solutions.run_sample.run_sample')
-    original = module.run_tests
-    monkeypatch.setattr(module, 'run_tests', interrupt)
+    original = machine.run_tests
+    monkeypatch.setattr(machine, 'run_tests', interrupt)
     with pytest.raises(asyncio.CancelledError):
         await run_sample(turn, 0, database, problem)
-    monkeypatch.setattr(module, 'run_tests', original)
+    monkeypatch.setattr(machine, 'run_tests', original)
     generation = turn.t_dir(0) / 'generation.json'
     source = turn.t_dir(0) / 'src/main.py'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns,

@@ -1,1 +1,1 @@
-from .run_sample import run_sample
+from .machine import run_sample
