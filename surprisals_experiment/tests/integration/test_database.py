@@ -44,6 +44,7 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     import json
     from hashlib import sha256
     from surprisals_experiment.sdk.advice import Advice
+    from surprisals_experiment.sdk.turn import Turn
     from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
 
     text = 'Use café.\r\nThen double.\r\n'
@@ -54,7 +55,7 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
         config.attempt_dir(attempt).mkdir(parents=True)
         advice = Advice(text, config.advice_measure, config.output)
         advice.save()
-        assert await score_advice(config, advice, attempt=attempt) == len(text)
+        assert await score_advice(Turn(config, attempt), advice) == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()
     database = ExperimentDatabase(config.output)
     assert await database.query('SELECT * FROM advices') == [{

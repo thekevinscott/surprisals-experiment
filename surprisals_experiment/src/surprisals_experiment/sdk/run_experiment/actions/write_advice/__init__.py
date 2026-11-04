@@ -1,16 +1,19 @@
 from collections.abc import Callable
 
-from surprisals_experiment.config import Config
+from ....turn import Turn
 from ....utils.u_chat import ChatSession
 from ....advice import Advice
+from ....database import ExperimentDatabase, QuestionDatabase
+from ...prepare_flush import prepare_flush
 
 
 async def write_advice(
-    config: Config, u_chat: ChatSession, prompt: str, *, attempt: int,
+    turn: Turn, u_chat: ChatSession, database: ExperimentDatabase, problem: QuestionDatabase, *,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> Advice:
+    config = turn.config
+    prompt = await prepare_flush(config, problem, database)
     advice = Advice(await u_chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
-    directory = config.attempt_dir(attempt)
-    directory.mkdir(parents=True, exist_ok=True)
+    turn.attempt_dir.mkdir(parents=True, exist_ok=True)
     advice.save()
     return advice
