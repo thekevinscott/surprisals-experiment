@@ -10,7 +10,7 @@ SQL = Path(__file__).parents[2] / 'src/surprisals_experiment/sdk/run_experiment/
 @pytest.mark.parametrize(('files', 'expected'), [
     ([], True),
     (['windows/0/window.json'], True),
-    (['windows/0/forks/0/fork.json'], True),
+    (['windows/1/window.json', 'windows/1/forks/0/fork.json'], True),
     (['windows/0/window.json', 'windows/0/forks/1/fork.json'], True),
     (['windows/0/window.json', 'windows/1/window.json', 'windows/1/forks/0/fork.json'], True),
     (['windows/0/window.json', 'windows/0/forks/0/fork.json'], False),
