@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793808437,
+  "ran_at": 1793808609,
   "exit_code": 0,
-  "commit": "7358d4a4e567452c05e1476ec1dd608fed04b5d8",
+  "commit": "f1262309f51ddc10107f7a6261fb114c0e7906e4",
   "branch": "refactor/test-output-on-disk"
 }
