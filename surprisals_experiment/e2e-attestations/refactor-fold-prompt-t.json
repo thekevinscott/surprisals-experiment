@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793833713,
+  "exit_code": 0,
+  "commit": "7ff997ff4095b3913c1f7cb27a0d16975aa76a73",
+  "branch": "refactor/fold-prompt-t"
+}

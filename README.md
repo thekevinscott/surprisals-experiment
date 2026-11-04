@@ -17,7 +17,7 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 5. Ask U for the shortest possible advice, allowing candidates of any length. Track the shortest advice that makes every T pass every test.
 6. Stop after 20 consecutive turns without improvement, Ctrl-C, or an explicit `--max-u-turns` limit. The first all-pass advice establishes the baseline; only strictly shorter all-pass advice resets the counter afterward. Failed tests, longer successes, and equal-length successes increment it. Infrastructure errors abort rather than counting as completed turns.
 
-U and T both start fresh each turn. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `prompt_t_to_produce_code`, and `run_test_suite` in that order for each batch.
+U and T both start fresh each turn. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `write_solutions`, and `run_test_suite` in that order for each batch.
 
 ## Plan
 

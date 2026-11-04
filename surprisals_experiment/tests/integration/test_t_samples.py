@@ -4,8 +4,11 @@ import json
 import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
-from surprisals_experiment.sdk.database import QuestionDatabase
+from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
+from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.run_experiment.run_experiment import actions
+from advice_artifacts import write_advice
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
 from test_run_summary import report
 
@@ -91,9 +94,13 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             finished[sample].set()
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    task = asyncio.create_task(prompt_t_to_produce_code(
-        config, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
-    ))
+    actions["not_started"](config)
+    database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
+    turn = Turn(config, 0)
+    turn.attempt_dir.mkdir(parents=True)
+    write_advice(config, turn.attempt_dir, 'double it', 9)
+    task = asyncio.create_task(write_solutions(turn))
     try:
         async with asyncio.timeout(5):
             capacity = min(size, 5)
