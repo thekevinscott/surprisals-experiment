@@ -115,3 +115,24 @@ def describe_advice_improvement():
         }
         assert all(session.closed for session in botbox_script.sessions)
         assert (config.u_transcripts / 'messages.jsonl').exists()
+
+
+def describe_run_layout():
+    async def it_nests_each_turn_under_window_and_fork(config, botbox_script):
+        config.max_u_turns = 2
+        botbox_script.advice.extend(['long advice', 'short'])
+        botbox_script.solutions.extend([PASS, PASS])
+        await run_experiment(config, on_delta=None)
+        window = config.output / 'windows/0'
+        fork = window / 'forks/0'
+        assert json.loads((window / 'window.json').read_text()) == {}
+        assert json.loads((fork / 'fork.json').read_text()) == {}
+        assert sorted(path.name for path in (fork / 'turns').iterdir()) == ['0', '1']
+        for turn, advice in enumerate(['long advice', 'short']):
+            directory = fork / 'turns' / str(turn)
+            assert (directory / 'advice.txt').read_text() == advice
+            assert json.loads((directory / 'metadata.json').read_text())['measurement'] == len(advice)
+            assert (directory / 'ts/0/tests.json').exists()
+            assert (directory / 'ts/0/src/main.py').read_text() == PASS
+        assert (fork / 'turns/0/feedback.txt').exists()
+        assert not (config.output / 'attempts').exists()
