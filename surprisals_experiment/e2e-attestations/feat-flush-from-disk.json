@@ -1,7 +1,7 @@
 {
-  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_flush_from_disk.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_streaming.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_compaction.py -q",
-  "ran_at": 1793759921,
+  "command": "uv run pytest tests/integration/test_database.py -q && uv run pytest tests/integration/test_u_flush.py -q && uv run pytest tests/integration/test_flush_from_disk.py -q && uv run pytest tests/integration/test_u_chat.py -q && uv run pytest tests/integration/test_streaming.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_u_compaction.py -q",
+  "ran_at": 1793760648,
   "exit_code": 0,
-  "commit": "785bfcf4031bceef4fcc6ee07c7d1535bd3ac56e",
+  "commit": "cb650eeffd692079193de489d07c4dfc007fd886",
   "branch": "feat/flush-from-disk"
 }
