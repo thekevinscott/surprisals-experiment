@@ -12,12 +12,11 @@
 </advice>
 {% if unit != "characters" %}
 <bits>
-{% for token, bits in attempt.tokens %}{{ token }}<{{ '%.1f' % bits }}>{% endfor %}
-
+{{ attempt.score_text }}
 </bits>
 {% endif %}
 <code>
-{% for index in range(attempt.results | length) %}
+{% for index in range(t_samples) %}
 <T-{{ index }}>
 {% for path, source in attempt.sources.get(index | string, {}).items() %}
 <file path="{{ path }}">

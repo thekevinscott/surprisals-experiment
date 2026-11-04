@@ -6,7 +6,7 @@ from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
 from surprisals_experiment.sdk.database import QuestionDatabase
-from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
+from surprisals_experiment.sdk.run_test_suite import run_test_suite
 from test_run_summary import report
 
 PASS = 'print(int(input()) * 2)\n'
@@ -55,11 +55,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
-    assert '2 of 3 solutions passed every test' in feedback
-    for i, passed in enumerate([2, 0, 2]):
-        assert f'T {i}: passed {passed} of 2 tests.' in feedback
-    assert json.dumps({f'T {i}': {'main.py': source} for i, source in enumerate([PASS, FAIL, PASS])},
-                      indent=2) in feedback
+    assert feedback == await QuestionDatabase(config.problem_dir).question
     assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     summary, *_ = report(config.output)
@@ -112,14 +108,12 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             solutions = await task
         assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
         (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
-        results = await run_test_suite_for_ts(config, solutions, QuestionDatabase(config.problem_dir))
+        await run_test_suite(config, solutions, QuestionDatabase(config.problem_dir))
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
-        assert [result.all_passed for result in results] == [True, False, True, False, True]
+        assert [json.loads((config.t_dir(0, sample) / 'tests.json').read_text())['all_passed']
+                for sample in range(5)] == [True, False, True, False, True]
         assert [session.messages for session in botbox_script.sessions] == [['double it']] * 5
-        for sample, result in enumerate(results):
-            saved = json.loads((config.t_dir(0, sample) / 'tests.json').read_text())
-            assert saved['all_passed'] == result.all_passed
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

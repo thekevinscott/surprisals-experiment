@@ -1,1 +1,1 @@
-from .score_advice import score_advice, scored_tokens
+from .score_advice import score_advice

@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793809415,
+  "exit_code": 0,
+  "commit": "2b04a7b2cc0d4b73d261735c9bcb55347cfcbcb3",
+  "branch": "feat/database-tables"
+}

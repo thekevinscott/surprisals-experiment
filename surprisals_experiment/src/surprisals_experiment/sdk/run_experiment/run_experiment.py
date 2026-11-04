@@ -30,9 +30,8 @@ async def run_experiment(
     best_length = None
     best_solution = None
     turns_without_improvement = 0
-    history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
-    async with open_u_chat(config, problem) as u_chat:
+    async with open_u_chat(config) as u_chat:
         for attempt in attempts:
             advice = await write_advice(
                 config, u_chat, prompt, attempt=attempt, on_delta=on_delta,
@@ -45,10 +44,10 @@ async def run_experiment(
                 on_delta=on_t_delta,
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
-            results = await run_tests(config, solutions, problem, attempt=attempt)
+            await run_tests(config, solutions, problem, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = await write_feedback(
-                config, u_chat, attempt, advice, measurement, solutions, results,
-                best_length, best_solution, turns_without_improvement, history, problem, database,
+                config, database, attempt, advice, measurement, solutions,
+                best_length, best_solution, turns_without_improvement, problem,
             )
             write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
             if turns_without_improvement >= config.max_turns_without_improvement:

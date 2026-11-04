@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793807063,
+  "exit_code": 0,
+  "commit": "e0e207cce6f29e5a9f7a1e431b3a3e2b63752f34",
+  "branch": "refactor/rename-run-test-suite"
+}
