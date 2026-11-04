@@ -2,14 +2,15 @@
 WITH
 candidates AS (
     SELECT substr(path, 1, length(path) - length('/metadata.json')) AS attempt_path,
+           coalesce(content ->> 'rejected', 0) AS rejected,
            content ->> 'measurement' AS measurement
     FROM './windows/*/forks/*/turns/*/metadata.json'
 ),
 advice AS (
     SELECT attempt_path, count(*) AS candidates,
            count(*) - 1 AS rewrites,
-           0 AS rejected_candidates,
-           max(measurement) AS accepted_characters
+           sum(rejected = 1) AS rejected_candidates,
+           max(CASE WHEN rejected = 0 THEN measurement END) AS accepted_characters
     FROM candidates
     GROUP BY attempt_path
 ),
