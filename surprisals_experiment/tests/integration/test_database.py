@@ -68,5 +68,5 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     assert (config.output / 'advices' / digest / 'advice.txt').read_bytes() == text.encode('utf-8')
     assert len(list((config.output / 'advices').iterdir())) == 1
     for attempt in range(2):
-        assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {'advice': digest}
+        assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {'advice': f'advices/{digest}'}
         assert not (config.attempt_dir(attempt) / 'advice.txt').exists()

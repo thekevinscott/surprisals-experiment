@@ -12,6 +12,6 @@ async def characters_score(
     measurement = len(advice.text)
     advice.write_score(measurement)
     (config.attempt_dir(attempt) / "metadata.json").write_text(
-        json.dumps({"advice": advice.hash}, indent=2) + "\n"
+        json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n"
     )
     return measurement

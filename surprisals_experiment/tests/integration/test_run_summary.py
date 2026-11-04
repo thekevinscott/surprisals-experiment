@@ -21,7 +21,7 @@ def report(folder):
         shutil.copytree(folder, legacy)
         for metadata in legacy.glob('windows/*/forks/*/turns/*/metadata.json'):
             link = json.loads(metadata.read_text())
-            score = json.loads((legacy / 'advices' / link['advice'] / 'advice.json').read_text())
+            score = json.loads((legacy / link['advice'] / 'advice.json').read_text())
             metadata.write_text(json.dumps({'measurement': score['score']}))
         result = subprocess.run(['dirsql', '--no-ignore', '--format', 'json', '--', SQL],
                                 cwd=legacy, check=True, capture_output=True, text=True)

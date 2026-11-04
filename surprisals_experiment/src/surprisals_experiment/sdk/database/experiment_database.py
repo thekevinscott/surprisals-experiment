@@ -40,7 +40,7 @@ class ExperimentDatabase(Database):
 
         def turn_advice(path):
             metadata = json.loads(Path(path).read_text())
-            return [{"turn_id": str(relative(path).parent), "advice_id": f"advices/{metadata["advice"]}"}]
+            return [{"turn_id": str(relative(path).parent), "advice_id": metadata["advice"]}]
 
         def t(path):
             t = relative(path).parent

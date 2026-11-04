@@ -77,7 +77,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 - `windows/0/window.json` and `windows/0/forks/0/fork.json`: `{}` placeholders; every turn is in window 0, fork 0.
 - `advices/<sha256>/advice.txt`: exact UTF-8 advice bytes, shared by identical texts.
 - Adjacent `advice.json`: `score`, plus `tokens` in surprisal mode.
-- `windows/0/forks/0/turns/<turn>/metadata.json`: the advice hash for that turn; `feedback.txt` and any `error.txt` remain alongside it.
+- `windows/0/forks/0/turns/<turn>/metadata.json`: the relative advice path (`advices/<sha256>`) for that turn; `feedback.txt` and any `error.txt` remain alongside it.
 - `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
 - Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 

@@ -9,8 +9,7 @@ from surprisals_experiment.config import Config
 class Advice:
     def __init__(self, config: Config, text: str):
         self.text = text
-        self.hash = sha256(text.encode("utf-8")).hexdigest()
-        self.directory = config.output / "advices" / self.hash
+        self.directory = config.output / "advices" / sha256(text.encode("utf-8")).hexdigest()
 
     def save(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
