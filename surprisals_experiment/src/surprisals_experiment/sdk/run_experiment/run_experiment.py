@@ -30,7 +30,6 @@ async def run_experiment(
     best_length = None
     best_solution = None
     turns_without_improvement = 0
-    history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config, problem) as u_chat:
         for attempt in attempts:
@@ -48,7 +47,7 @@ async def run_experiment(
             await run_tests(config, solutions, problem, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = await write_feedback(
                 config, u_chat, database, attempt, advice, measurement, solutions,
-                best_length, best_solution, turns_without_improvement, history, problem,
+                best_length, best_solution, turns_without_improvement, problem,
             )
             write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
             if turns_without_improvement >= config.max_turns_without_improvement:

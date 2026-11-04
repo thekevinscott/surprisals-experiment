@@ -21,7 +21,7 @@ CREATE TABLE advice (
   id         TEXT PRIMARY KEY,          -- 'windows/W/forks/F/turns/N/advice.txt'
   turn_id    TEXT NOT NULL UNIQUE REFERENCES turns(id),
   text       TEXT NOT NULL,
-  score      REAL NOT NULL,             -- chars, or total bits
+  score      NUMERIC NOT NULL,          -- chars, or total bits
   score_text TEXT,                      -- per-token bits rendering, NULL in chars mode
   rejected   INTEGER NOT NULL
 );
