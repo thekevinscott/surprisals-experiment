@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from surprisals_experiment.config import Config
 from ....advice import Advice
+from ....utils.write import write
 
 
 async def characters_score(
@@ -11,7 +12,7 @@ async def characters_score(
 ) -> int | float:
     measurement = len(advice.text)
     advice.write_score(measurement)
-    (config.attempt_dir(attempt) / "metadata.json").write_text(
+    write(config.attempt_dir(attempt) / "metadata.json",
         json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n"
     )
     return measurement

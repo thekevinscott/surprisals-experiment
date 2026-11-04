@@ -9,7 +9,7 @@ from pathlib import Path
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy import DELAYS, retried
 from ....prompt_t import prompt_t
-from ....utils.write_text import write_text
+from ....utils.write import write
 
 
 async def produce_code(
@@ -31,7 +31,7 @@ async def produce_code(
             try:
                 async with asyncio.timeout(config.t_sample_timeout):
                     t_run = await prompt_t(config, advice, output=source, logs=output, on_delta=on_delta)
-                    write_text(output / "run.json", json.dumps({"exit_code": t_run.exit_code}, indent=2) + "\n")
+                    write(output / "run.json", json.dumps({"exit_code": t_run.exit_code}, indent=2) + "\n")
                     if t_run.exit_code == -1:
                         raise RuntimeError("T infrastructure failed: botbox could not obtain an exit code")
                     return source

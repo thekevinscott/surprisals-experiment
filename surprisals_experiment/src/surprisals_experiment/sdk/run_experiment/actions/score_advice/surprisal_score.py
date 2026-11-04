@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from surprisals_experiment.config import Config
 from ....advice import Advice
+from ....utils.write import write
 
 
 async def surprisal_score(
@@ -11,7 +12,7 @@ async def surprisal_score(
 ) -> int | float:
     measurement, tokens = await config.advice_measure.score(advice.text, on_delta=on_delta)
     advice.write_score(measurement, tokens)
-    (config.attempt_dir(attempt) / "metadata.json").write_text(
+    write(config.attempt_dir(attempt) / "metadata.json",
         json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n"
     )
     return measurement

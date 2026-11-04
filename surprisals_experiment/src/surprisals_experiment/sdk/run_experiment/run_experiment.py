@@ -13,7 +13,7 @@ from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_chat
 from ..database import ExperimentDatabase, QuestionDatabase
-from ..utils.write_text import write_text
+from ..utils.write import write
 
 
 async def run_experiment(
@@ -24,8 +24,8 @@ async def run_experiment(
     problem = QuestionDatabase(config.problem_dir)
     prompt = await problem.question
     config.save_settings()
-    write_text(config.window_dir / "window.json", "{}\n")
-    write_text(config.fork_dir / "fork.json", "{}\n")
+    write(config.window_dir / "window.json", "{}\n")
+    write(config.fork_dir / "fork.json", "{}\n")
     database = ExperimentDatabase(config.output)
     best_length = None
     best_solution = None
@@ -53,5 +53,5 @@ async def run_experiment(
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
-        config.error_file.write_text(f"No passing solution after {attempt + 1} U turns\n")
+        write(config.error_file, f"No passing solution after {attempt + 1} U turns\n")
     return best_solution

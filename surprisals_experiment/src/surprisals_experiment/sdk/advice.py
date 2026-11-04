@@ -4,6 +4,7 @@ import json
 from hashlib import sha256
 
 from surprisals_experiment.config import Config
+from .utils.write import write
 
 
 class Advice:
@@ -13,9 +14,9 @@ class Advice:
 
     def save(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
-        (self.directory / "advice.txt").write_bytes(self.text.encode("utf-8"))
+        write(self.directory / "advice.txt", self.text.encode("utf-8"))
 
     def write_score(self, score: int | float, tokens=None) -> None:
-        (self.directory / "advice.json").write_text(json.dumps({
+        write(self.directory / "advice.json", json.dumps({
             "score": score, **({"tokens": tokens} if tokens is not None else {}),
         }, indent=2) + "\n")
