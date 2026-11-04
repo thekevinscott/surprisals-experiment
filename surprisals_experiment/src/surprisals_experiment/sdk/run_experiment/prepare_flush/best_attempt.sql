@@ -12,7 +12,7 @@ JOIN turns ON turns.fork_id = forks.id
 JOIN advice ON advice.turn_id = turns.id
 JOIN passing ON passing.advice_id = advice.id
 GROUP BY advice.id
-HAVING count(*) = {samples}
+HAVING count(*) = :samples
 -- Ties go to the earliest turn.
 ORDER BY advice.score, windows.position, turns.position, forks.position
 LIMIT 1
