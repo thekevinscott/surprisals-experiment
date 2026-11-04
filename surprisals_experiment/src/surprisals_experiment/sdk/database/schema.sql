@@ -68,3 +68,7 @@ JOIN turn_advice ON turn_advice.turn_id = turns.id
 JOIN advices ON advices.id = turn_advice.advice_id
 JOIN tested ON tested.turn_id = turns.id
 GROUP BY turns.id;
+
+CREATE TABLE feedback (
+  turn_id TEXT PRIMARY KEY REFERENCES turns(id)
+);

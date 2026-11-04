@@ -46,6 +46,9 @@ class ExperimentDatabase(Database):
             t = relative(path).parent
             return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
 
+        def feedback(path):
+            return [{"turn_id": str(relative(path).parent)}]
+
         def test_results(path):
             tests = relative(path)
             return [{
@@ -61,6 +64,7 @@ class ExperimentDatabase(Database):
             "advices": ("advices/*/advice.json", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/tests.json", t),
+            "feedback": (f"{TURN}/feedback.txt", feedback),
             "test_results": (f"{TURN}/ts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]
