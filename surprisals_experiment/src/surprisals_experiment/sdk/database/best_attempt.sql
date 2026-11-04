@@ -1,14 +1,8 @@
-WITH attempts AS (
-  SELECT CAST(substr(path, 25, instr(substr(path, 25), '/') - 1) AS INTEGER) AS attempt,
-    max(CASE WHEN kind = 'metadata.json' THEN content ->> 'measurement' END) AS measurement,
-    sum(kind = 'tests.json') = {samples} AS tested,
-    sum(CASE WHEN kind = 'tests.json' THEN content ->> 'all_passed' ELSE 0 END) = {samples} AS passed
-  FROM (
-    SELECT path, content, 'metadata.json' AS kind FROM './windows/0/forks/0/turns/*/metadata.json'
-    UNION ALL
-    SELECT path, content, 'tests.json' FROM './windows/0/forks/0/turns/*/ts/*/tests.json'
-  ) GROUP BY attempt
-)
-SELECT attempt, measurement FROM attempts
-WHERE tested AND passed AND measurement IS NOT NULL
-ORDER BY measurement, attempt LIMIT 1
+SELECT metadata.dir, metadata.content ->> 'measurement' AS measurement
+FROM './windows/0/forks/0/turns/*/metadata.json' AS metadata
+JOIN './windows/0/forks/0/turns/*/ts/*/tests.json' AS tests ON tests.dir LIKE metadata.dir || '/ts/%'
+GROUP BY metadata.dir
+HAVING count(*) = {samples} AND min(tests.content ->> 'all_passed')
+-- Ties go to the earliest turn: shorter dir, then lexical, is numeric order.
+ORDER BY measurement, length(metadata.dir), metadata.dir
+LIMIT 1

@@ -17,7 +17,7 @@ async def prepare_flush(config: Config, database: Database) -> str:
     best = await database.query(BEST_ATTEMPT, samples=config.t_samples)
     if not best:
         return question
-    number, measurement = best[0]["attempt"], best[0]["measurement"]
+    number, measurement = int(Path(best[0]["dir"]).name), best[0]["measurement"]
     directory = config.attempt_dir(number)
     surprisal = config.cap_strategy == "surprisal"
     return TURN(
