@@ -12,7 +12,7 @@ def write_feedback(
     measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
     best_length: int | float | None, best_solution: Path | None,
     turns_without_improvement: int, history: list[Attempt],
-) -> tuple[str, int | float | None, Path | None, int]:
+) -> tuple[int | float | None, Path | None, int]:
     if (all(result.all_passed for result in results)
             and (best_length is None or measurement < best_length)):
         turns_without_improvement = 0
@@ -30,9 +30,9 @@ def write_feedback(
         prompt = prepare_flush(config, history)
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:
-        prompt = prepare_feedback(
+        prepare_feedback(
             config, attempt, results, solutions=solutions,
             advice_length=measurement,
             best_length=best_length, turns_without_improvement=turns_without_improvement,
         )
-    return prompt, best_length, best_solution, turns_without_improvement
+    return best_length, best_solution, turns_without_improvement

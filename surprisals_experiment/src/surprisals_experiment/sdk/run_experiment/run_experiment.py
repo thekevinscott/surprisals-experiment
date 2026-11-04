@@ -60,7 +60,7 @@ async def run_experiment(
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
             results = await run_tests(config, solutions, test_suite, attempt=attempt)
-            _, best_length, best_solution, turns_without_improvement = write_feedback(
+            best_length, best_solution, turns_without_improvement = write_feedback(
                 config, attempt, advice, measurement, solutions, results,
                 best_length, best_solution, turns_without_improvement, history,
             )
