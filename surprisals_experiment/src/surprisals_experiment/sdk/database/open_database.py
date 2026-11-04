@@ -4,9 +4,7 @@ from pathlib import Path
 
 from dirsql import DirSQL
 
-from .tables import tables
-
 
 def open_database(root: Path) -> DirSQL:
-    # Runs live under gitignored runs/.
-    return DirSQL(str(root), tables=tables(str(root)), no_ignore=True)
+    # Runs live under gitignored runs/. Query path tables: declared tables index only at construction.
+    return DirSQL(str(root), no_ignore=True)
