@@ -1,0 +1,7 @@
+{
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_compaction.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_resilience.py -q",
+  "ran_at": 1793758772,
+  "exit_code": 0,
+  "commit": "fbefc177bf56f3ca12b862cb3ecab6827cdf818b",
+  "branch": "refactor/u-content-history"
+}
