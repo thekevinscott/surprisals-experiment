@@ -10,6 +10,8 @@ import surprisals_experiment
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.database import open_database
 
+ADVICE_POSITIONS = (Path(__file__).parent / 'advice_positions.sql').read_text()
+FILE_TEST_COUNTS = (Path(__file__).parent / 'file_test_counts.sql').read_text()
 TABLES = ['windows', 'forks', 'turns', 'advice', 'ts', 'files', 'test_results']
 
 
@@ -56,18 +58,11 @@ async def test_tables_index_a_short_run(config, botbox_script):
     await db.ready()
     counts = {table: (await db.query(f'SELECT count(*) AS n FROM {table}'))[0]['n'] for table in TABLES}
     assert counts == {'windows': 1, 'forks': 1, 'turns': 2, 'advice': 2, 'ts': 4, 'files': 4, 'test_results': 8}
-    assert await db.query("""
-        SELECT windows.position AS window, forks.position AS fork, turns.position AS turn,
-               advice.text, advice.score, advice.score_text, advice.rejected
-        FROM advice JOIN turns ON advice.turn_id = turns.id JOIN forks ON turns.fork_id = forks.id
-        JOIN windows ON forks.window_id = windows.id ORDER BY turns.position""") == [
+    assert await db.query(ADVICE_POSITIONS) == [
         {'window': 0, 'fork': 0, 'turn': 0, 'text': 'double it', 'score': 9.0, 'score_text': None, 'rejected': 0},
         {'window': 0, 'fork': 0, 'turn': 1, 'text': 'double', 'score': 6.0, 'score_text': None, 'rejected': 0},
     ]
-    assert await db.query("""
-        SELECT files.id, files.path, count(test_results.id) AS tests, sum(test_results.passed) AS passed
-        FROM files JOIN ts ON files.t_id = ts.id JOIN test_results ON test_results.t_id = ts.id
-        WHERE ts.advice_id = '0/0/1' GROUP BY files.id ORDER BY files.id""") == [
+    assert await db.query(FILE_TEST_COUNTS) == [
         {'id': '0/0/1/0/main.py', 'path': 'main.py', 'tests': 2, 'passed': 2},
         {'id': '0/0/1/1/main.py', 'path': 'main.py', 'tests': 2, 'passed': 2},
     ]
