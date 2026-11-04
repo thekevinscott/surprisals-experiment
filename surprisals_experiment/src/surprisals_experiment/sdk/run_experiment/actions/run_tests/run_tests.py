@@ -6,9 +6,9 @@ from ....database import QuestionDatabase
 from ....run_test_suite import run_test_suite
 
 
-async def run_tests(turn: Turn, problem: QuestionDatabase):
+async def run_tests(turn: Turn, problem: QuestionDatabase, *, sample: int):
     try:
-        await run_test_suite(turn.config, [turn.t_dir(sample) / "src" for sample in range(turn.config.t_samples)], problem)
+        await run_test_suite(turn.config, [turn.t_dir(sample) / "src"], problem)
     except Exception:
         write(turn.attempt_dir / "error.txt", traceback.format_exc())
         raise

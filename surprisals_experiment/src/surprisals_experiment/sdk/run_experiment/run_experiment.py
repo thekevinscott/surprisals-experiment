@@ -6,7 +6,6 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
-from .actions.run_tests import run_tests
 from .actions.write_result import write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
@@ -33,7 +32,6 @@ actions = {
     "advice_missing": write_advice,
     "unscored": score_advice,
     "solutions_missing": write_solutions,
-    "untested": run_tests,
     "feedback_missing": feedback,
 }
 
@@ -54,8 +52,7 @@ async def run_experiment(
             turn = Turn(config, attempt)
             advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
             await actions["unscored"](turn, advice, on_delta=on_delta)
-            await actions["solutions_missing"](turn, on_delta=on_t_delta)
-            await actions["untested"](turn, problem)
+            await actions["solutions_missing"](turn, problem, on_delta=on_t_delta)
             best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
