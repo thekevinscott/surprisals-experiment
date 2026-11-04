@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793835605,
+  "ran_at": 1793835628,
   "exit_code": 0,
-  "commit": "6853b228cfca2c5a6a8759198d669f2b004a0c2b",
+  "commit": "3a261c25a80c7cb332f01d0c8c95429acdfc5a20",
   "branch": "feat/sample-state"
 }
