@@ -1,0 +1,7 @@
+{
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_measure.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q",
+  "ran_at": 1793798860,
+  "exit_code": 0,
+  "commit": "9d25cd6992afc739f511fc66bf272058808a722e",
+  "branch": "refactor/scores-from-disk"
+}
