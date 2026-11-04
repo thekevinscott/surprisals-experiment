@@ -13,6 +13,6 @@ async def surprisal_score(
     (directory / "metadata.json").write_text(json.dumps({
         "rejected": False,
         "measurement": measurement,
-        **({"tokens": tokens} if tokens is not None else {}),
+        "tokens": tokens,
     }, indent=2) + "\n")
     return measurement
