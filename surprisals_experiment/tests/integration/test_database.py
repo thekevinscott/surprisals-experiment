@@ -1,6 +1,6 @@
 from dirsql import Table
 
-from surprisals_experiment.sdk.database import Database, QuestionDatabase
+from surprisals_experiment.sdk.database import Database, ExperimentDatabase, QuestionDatabase
 
 
 async def test_query_runs_a_string_or_loads_a_path(tmp_path):
@@ -32,3 +32,9 @@ async def test_question_database_reads_question_and_test_suite(tmp_path):
     problem = QuestionDatabase(tmp_path)
     assert await problem.question == 'Double it.'
     assert await problem.test_suite == [{'input': '1\n', 'output': '2\n'}]
+
+
+async def test_experiment_database_creates_schema_tables(tmp_path):
+    database = ExperimentDatabase(tmp_path)
+    for table in ['windows', 'forks', 'turns', 'advice', 'ts', 'files', 'test_results']:
+        assert await database.query(f'SELECT * FROM {table}') == []
