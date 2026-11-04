@@ -140,7 +140,6 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(task, 5)
         assert all(s.closed for s in botbox_script.sessions)
-        assert not botbox_script.u_workspaces[0].exists()
         assert config.u_transcripts.joinpath('messages.jsonl').exists()
     finally:
         task.cancel()

@@ -41,7 +41,6 @@ def describe_u_to_t_loop():
         assert config.error_file.exists() == (failures == 5)
         assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
-        assert not botbox_script.u_workspaces[0].exists()
 
 
 def implementations(sources):

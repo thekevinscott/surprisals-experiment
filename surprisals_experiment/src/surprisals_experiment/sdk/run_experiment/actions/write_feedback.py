@@ -28,7 +28,7 @@ def write_feedback(
         history.append(Attempt(
             attempt, advice, measurement,
             [describe_result(config, attempt, index, sample) for index, sample in enumerate(results)],
-            all(result.all_passed for result in results), read_sources(u_session.solutions / str(attempt)),
+            all(result.all_passed for result in results), read_sources(solutions),
             config.advice_measure.scores.get(advice),
         ))
         u_session.messages = u_session.messages[:1]
@@ -36,7 +36,7 @@ def write_feedback(
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:
         prompt = prepare_feedback(
-            config, attempt, results, snapshot=u_session.solutions / str(attempt),
+            config, attempt, results, solutions=solutions,
             advice_length=measurement,
             best_length=best_length, turns_without_improvement=turns_without_improvement,
         )

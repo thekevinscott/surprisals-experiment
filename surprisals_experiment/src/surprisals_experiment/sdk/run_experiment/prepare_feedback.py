@@ -1,4 +1,4 @@
-"""Prepare feedback for the next U turn from the preserved submission."""
+"""Prepare feedback for the next U turn from the solution directories."""
 
 import json
 from pathlib import Path
@@ -24,7 +24,7 @@ def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteR
 
 def prepare_feedback(
     config: Config, attempt: int, results: list[TestSuiteResult], *,
-    snapshot: Path, advice_length: int | float, best_length: int | float | None, turns_without_improvement: int,
+    solutions: list[Path], advice_length: int | float, best_length: int | float | None, turns_without_improvement: int,
 ) -> str:
     evaluations = []
     for index, sample in enumerate(results):
@@ -37,7 +37,7 @@ def prepare_feedback(
     feedback = FEEDBACK(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
-        implementations=read_implementations(snapshot),
+        implementations=read_implementations(solutions),
         evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
         advice_measurement=advice_measurement, best_length=best_length,
         turns_without_improvement=turns_without_improvement,

@@ -91,8 +91,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     monkeypatch.setattr(FakeSession, 'message', message)
     task = asyncio.create_task(prompt_t_to_produce_code(
-        config, attempt=0, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
-        snapshot=config.output / 'snapshots',
+        config, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
     ))
     try:
         async with asyncio.timeout(5):
@@ -119,7 +118,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
         await asyncio.gather(task, return_exceptions=True)
 
 
-async def test_closes_all_t_sessions_before_u_on_cancellation(config, botbox_script, monkeypatch):
+async def test_closes_all_t_sessions_on_cancellation(config, botbox_script, monkeypatch):
     config.t_samples = 5
     botbox_script.advice.append('double it')
     full = asyncio.Event()
@@ -130,10 +129,7 @@ async def test_closes_all_t_sessions_before_u_on_cancellation(config, botbox_scr
         started += 1
         if started == 3:
             full.set()
-        try:
-            await asyncio.Event().wait()
-        finally:
-            assert botbox_script.u_workspaces[0].exists()
+        await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', message)
     task = asyncio.create_task(run_experiment(config, on_delta=None))
@@ -145,7 +141,6 @@ async def test_closes_all_t_sessions_before_u_on_cancellation(config, botbox_scr
         assert all(session.closed for session in botbox_script.sessions)
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
-        assert not botbox_script.u_workspaces[0].exists()
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

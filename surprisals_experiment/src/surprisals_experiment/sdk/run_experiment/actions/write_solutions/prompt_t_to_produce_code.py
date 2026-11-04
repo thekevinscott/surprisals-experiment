@@ -1,7 +1,6 @@
 """Prompt a pool of fresh Ts and return their source directories in sample order."""
 
 import asyncio
-import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,19 +9,15 @@ from .produce_code import produce_code
 
 
 async def prompt_t_to_produce_code(
-    config: Config, *, attempt: int, advice: str, snapshot: Path,
+    config: Config, *, advice: str,
     on_delta: Callable[[str, str], None] | None = None,
     folders: list[Path],
 ) -> list[Path]:
-    snapshot.mkdir(parents=True)
-    (snapshot / "advice.txt").write_text(advice)
     pool = asyncio.Semaphore(config.t_pool_size)
 
     async def generate(folder: Path) -> Path:
         async with pool:
-            source = await produce_code(config, output=folder, advice=advice, on_delta=on_delta)
-            shutil.copytree(source, snapshot / folder.name, symlinks=True)
-            return source
+            return await produce_code(config, output=folder, advice=advice, on_delta=on_delta)
 
     tasks = [asyncio.create_task(generate(folder)) for folder in folders]
     try:

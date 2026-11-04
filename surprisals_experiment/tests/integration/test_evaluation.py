@@ -23,7 +23,6 @@ async def test_invalid_suites_fail_before_starting_models(config, botbox_script,
         await run_experiment(config, on_delta=None)
     assert not chat_provider
     assert not botbox_script.sessions
-    assert not botbox_script.u_workspaces
 
 
 async def test_evaluator_cannot_drop_unmatched_cases(tmp_path):
