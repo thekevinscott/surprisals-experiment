@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from surprisals_experiment.sdk.database import open_database
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
 
@@ -12,7 +13,8 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     config.cap_strategy = measure
     config.t_samples = 2
     config.output.mkdir()
-    assert await prepare_flush(config) == config.question_file.read_text()
+    database = open_database(config.output)
+    assert await prepare_flush(config, database) == config.question_file.read_text()
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
     for number, measurement, results in [
@@ -34,7 +36,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         (src / 'nested').mkdir(parents=True)
         (src / 'main.py').write_text(f'print({sample})\n')
         (src / 'nested/helper.py').write_text(f'VALUE = {sample}\n')
-    prompt = await prepare_flush(config)
+    prompt = await prepare_flush(config, database)
     assert prompt.count('<attempt>') == 1
     assert '<index>2</index>' in prompt
     assert '<advice>\nadvice 2\n</advice>' in prompt
@@ -52,6 +54,6 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     # Files, not a retained Attempt instance, supply each call's text and code.
     (config.advice_dir(2, 0) / 'advice.txt').write_text('updated advice')
     (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
-    updated = await prepare_flush(config)
+    updated = await prepare_flush(config, database)
     assert '<advice>\nupdated advice\n</advice>' in updated
     assert 'print("updated")' in updated

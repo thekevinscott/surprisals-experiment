@@ -2,17 +2,19 @@
 
 import json
 
+from dirsql import DirSQL
+
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from ..artifacts import best_sql, query
+from ..database import best_sql
 from .read_implementations import read_sources
 
 TURN = Prompt("u/flush/turn.txt")
 
 
-async def prepare_flush(config: Config) -> str:
+async def prepare_flush(config: Config, database: DirSQL) -> str:
     question = config.question_file.read_text()
-    best = await query(config, best_sql(config.t_samples))
+    best = await database.query(best_sql(config.t_samples))
     if not best:
         return question
     number, measurement = best[0]["attempt"], best[0]["measurement"]
