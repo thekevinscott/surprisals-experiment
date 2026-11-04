@@ -15,7 +15,7 @@ Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `
 3. Give that same advice to `--t-samples` fresh T sessions (default 5), with up to `--t-pool-size` generating code concurrently (default 3).
 4. Once generation finishes, test every T solution against every case in `input_output.json`. U's next turn shows the original problem and the shortest all-pass attempt so far: its advice, measurement, and every T's source files. Before any all-pass attempt, U sees only the problem.
 5. Ask U for the shortest possible advice, allowing candidates of any length. Track the shortest advice that makes every T pass every test.
-6. Stop after 20 consecutive turns without improvement, Ctrl-C, or an explicit `--max-u-turns` limit. The first all-pass advice establishes the baseline; only strictly shorter all-pass advice resets the counter afterward. Failed tests, longer successes, and equal-length successes increment it. Infrastructure errors abort rather than counting as completed turns.
+6. At the end of each 40-turn window after the first, stop if the best all-pass score improved by less than 5% over the best at the previous window end. Exactly 5% continues. Only completed turns count. `--max-u-turns` remains an optional hard cap; parallel fork turns count once, not once per fork.
 
 U and T both start fresh each turn. Source snapshots for U live in a temporary directory and are removed when its session closes. `run_experiment` calls `prepare_advice`, `prompt_t_to_produce_code`, and `run_test_suite` in that order for each batch.
 
@@ -48,13 +48,15 @@ uv run python -m surprisals_experiment.cli.run \
   problem ../data/APPS/test/2286
 ```
 
-Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. Use `--max-turns-without-improvement` (replacing `--max-consecutive-failures`) to change the stopping threshold (default 20). `--max-u-turns` optionally limits total batches. Use a new output directory for each run. U and T thinking and text stream to the terminal.
+Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. The fixed 5% window rule replaces `--max-turns-without-improvement`. `--max-u-turns` optionally limits elapsed turns, with parallel fork turns counted once. Reuse an output directory to resume its unfinished work. U and T thinking and text stream to the terminal.
 
 Chat U, scorer requests, and each T sample retry any failure up to 8 times (9 attempts), on the cumulative schedule 10 s, 30 s, 60 s, 2 m, 5 m, 10 m, 30 m, and 60 m. The derived waits are 10, 20, 30, 60, 180, 300, 1200, and 1800 seconds: one hour of waiting total, plus request time. A T sample retry starts a fresh T, including its Botbox build and containers. Pi separately retries transient model failures for T up to 60 times with 5, 10, 20, 40, then 60-second waits. Exhausted retries report the operation, cause, and retry count. Existing per-T-sample timeouts still apply. Chat U also retries output-token-limit stops on this same budget. Agent U reports the output token limit without retrying. Limit errors include the last response's completion and reasoning token counts when available.
 
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. Each timeout is logged in `timeouts.txt`. `--t-sample-retries` sets the retry count (default 3, up to 4 tries; 0 means no retry), with a fresh T and empty source directory each time. If all tries time out, the empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
 
 Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
+
+These existing experiment configurations still use the removed stale-turn option and need a separate migration before launching with this version.
 
 - [sanity-check](experiments/sanity-check/experiment.toml): problem 2286, stop after 50 turns without improvement, agent and chat U.
 - [advice-minimization](experiments/advice-minimization/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
