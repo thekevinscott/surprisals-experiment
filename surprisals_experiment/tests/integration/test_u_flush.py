@@ -7,6 +7,7 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.prepare_flush import Attempt, prepare_flush
 
 PASS = 'print(int(input()) * 2)\n'
@@ -25,8 +26,8 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
     config.u_flush = True
     config.t_samples = 2
     config.max_u_turns = len(advices) + 1
-    config.question_file.write_text(config.question_file.read_text() + '\n')
-    question = config.question_file.read_text()
+    (config.problem_dir / 'question.txt').write_text((config.problem_dir / 'question.txt').read_text() + '\n')
+    question = (config.problem_dir / 'question.txt').read_text()
     botbox_script.advice.extend([*advices, 'final'])
     for all_passed in [*passed, True]:
         botbox_script.solutions.extend([PASS, OTHER_PASS if all_passed else FAIL])
@@ -69,10 +70,10 @@ async def test_accumulates_chat_when_flush_is_disabled(
         assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
 
 
-def test_keeps_best_attempt_even_above_old_size_budget(config):
+async def test_keeps_best_attempt_even_above_old_size_budget(config):
     config.u_compact_chars = 1
     history = [Attempt(0, 'double it', 9, ['passed 2 of 2 tests'], True, {'0': {'main.py': PASS}})]
-    prompt = prepare_flush(config, history)
+    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), history)
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
     assert PASS.rstrip() in prompt

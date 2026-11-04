@@ -1,10 +1,29 @@
-"""Evaluate each T and leave its results in tests.json."""
+"""Evaluate every generated solution on every testcase and leave results in tests.json."""
 
+import json
+import time
+from dataclasses import asdict
 from pathlib import Path
 
+from surprisals_experiment.config import Config
+from ..database import QuestionDatabase
+from ..utils.write_text import write_text
 from .run_test_suite import run_test_suite
 
 
-async def run_test_suite_for_ts(solutions: list[Path], test_suite: dict) -> None:
+async def run_test_suite_for_ts(
+    config: Config, solutions: list[Path], problem: QuestionDatabase,
+) -> None:
+    test_suite = await problem.test_suite
     for solution in solutions:
-        await run_test_suite(test_suite, solution)
+        started = time.monotonic()
+        result = await run_test_suite(test_suite, solution)
+        duration = round(time.monotonic() - started, 3)
+        write_text(solution.parent / "tests.json", json.dumps({
+            "duration_seconds": duration,
+            "passed": result.passed,
+            "failed": result.failed,
+            "total": result.total,
+            "all_passed": result.all_passed,
+            "cases": [asdict(case) for case in result.cases],
+        }, indent=2) + "\n")

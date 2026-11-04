@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_evaluation.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_t_samples.py -q",
+  "ran_at": 1793804617,
+  "exit_code": 0,
+  "commit": "a505424e86aae3dad8fbe5fd9fabf998b041d0a6",
+  "branch": "refactor/test-suite-at-use"
+}

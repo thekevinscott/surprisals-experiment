@@ -1,35 +1,25 @@
-"""The run queries its folder through one DirSQL instance."""
-
-from pathlib import Path
-
-import surprisals_experiment
-from surprisals_experiment.sdk import database, run_experiment
-from surprisals_experiment.sdk.database import open_database
+from surprisals_experiment.sdk.database import Database, QuestionDatabase
 
 
-def test_only_database_module_constructs_dirsql():
-    src = Path(surprisals_experiment.__file__).parent
-    assert [path.relative_to(src).as_posix() for path in src.rglob('*.py')
-            if 'DirSQL(' in path.read_text()] == ['sdk/database.py']
+async def test_query_runs_a_string_or_loads_a_path(tmp_path):
+    (tmp_path / 'a.txt').write_text('hello')
+    (tmp_path / 'query.sql').write_text("SELECT content FROM './a.txt'")
+    database = Database(tmp_path)
+    assert await database.query("SELECT content FROM './a.txt'") == [{'content': 'hello'}]
+    assert await database.query(tmp_path / 'query.sql') == [{'content': 'hello'}]
 
 
-async def test_run_opens_database_once(config, botbox_script, chat_provider, monkeypatch):
-    opened = []
-    real = database.DirSQL
-    monkeypatch.setattr(database, 'DirSQL', lambda *args, **kwargs: opened.append(args) or real(*args, **kwargs))
-    config.max_u_turns = 3
-    botbox_script.advice.extend(['double it', 'double', 'ok'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)\n'] * 3)
-    await run_experiment(config, on_delta=None)
-    assert opened == [(str(config.output),)]
+async def test_query_fills_placeholders_as_escaped_literals(tmp_path):
+    (tmp_path / 'a.txt').write_text("it's")
+    (tmp_path / 'query.sql').write_text("SELECT content FROM './a.txt' WHERE content = {text} AND {n} = 2")
+    database = Database(tmp_path)
+    assert await database.query(tmp_path / 'query.sql', text="it's", n=2) == [{'content': "it's"}]
+    assert await database.query(tmp_path / 'query.sql', text="x' OR '1'='1", n=2) == []
 
 
-async def test_sees_files_written_after_open(config):
-    config.output.mkdir()
-    db = open_database(config.output)
-    sql = "SELECT path, content ->> 'all_passed' AS passed FROM './windows/*/forks/*/turns/*/ts/*/tests.json'"
-    assert await db.query(sql) == []
-    sample = config.t_dir(0, 0)
-    sample.mkdir(parents=True)
-    (sample / 'tests.json').write_text('{"all_passed": true}')
-    assert await db.query(sql) == [{'path': 'windows/0/forks/0/turns/0/ts/0/tests.json', 'passed': 1}]
+async def test_question_database_reads_question_and_test_suite(tmp_path):
+    (tmp_path / 'question.txt').write_text('Double it.')
+    (tmp_path / 'input_output.json').write_text('{"inputs": ["1\\n"], "outputs": ["2\\n"]}')
+    problem = QuestionDatabase(tmp_path)
+    assert await problem.question == 'Double it.'
+    assert await problem.test_suite == [{'input': '1\n', 'output': '2\n'}]

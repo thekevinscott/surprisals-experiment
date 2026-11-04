@@ -1,6 +1,5 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
-import json
 from functools import cached_property
 from pathlib import Path
 from typing import Literal
@@ -49,22 +48,9 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
-        """Save the fields needed by run summaries."""
         from .sdk.utils.write_text import write_text
 
-        write_text(self.output / "settings.json", json.dumps({
-            **({"u_flush": True} if self.u_flush else {}),
-            "t_samples": self.t_samples,
-            "t_sample_retries": self.t_sample_retries,
-        }, indent=2) + "\n")
-
-    @property
-    def question_file(self) -> Path:
-        return self.problem_dir / "question.txt"
-
-    @property
-    def test_suite_file(self) -> Path:
-        return self.problem_dir / "input_output.json"
+        write_text(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
 
     @property
     def result_file(self) -> Path:

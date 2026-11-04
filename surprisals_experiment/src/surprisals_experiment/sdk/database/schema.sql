@@ -1,34 +1,38 @@
--- Run database schema. ids are path-derived TEXT: dirsql children must compute FKs from their own path; generated ids are not stable.
 CREATE TABLE windows (
   id       TEXT PRIMARY KEY,            -- 'W'
   position INTEGER NOT NULL UNIQUE      -- W, for ordering
 );
+
 CREATE TABLE forks (
   id        TEXT PRIMARY KEY,           -- 'W/F'
   window_id TEXT NOT NULL REFERENCES windows(id),
   position  INTEGER NOT NULL,           -- F
   UNIQUE (window_id, position)
 );
+
 CREATE TABLE turns (
   id       TEXT PRIMARY KEY,            -- 'W/F/N'
   fork_id  TEXT NOT NULL REFERENCES forks(id),
   position INTEGER NOT NULL,            -- N
   UNIQUE (fork_id, position)
 );
+
 CREATE TABLE advice (
   id         TEXT PRIMARY KEY,          -- 'W/F/N'
   turn_id    TEXT NOT NULL UNIQUE REFERENCES turns(id),
   text       TEXT NOT NULL,
   score      REAL NOT NULL,             -- chars, or total bits
-  score_text TEXT,                      -- per-token bits rendering; NULL in chars mode
+  score_text TEXT,                      -- per-token bits rendering, NULL in chars mode
   rejected   INTEGER NOT NULL
 );
+
 CREATE TABLE ts (
   id        TEXT PRIMARY KEY,           -- 'W/F/N/S'
   advice_id TEXT NOT NULL REFERENCES advice(id),
   position  INTEGER NOT NULL,           -- S
   UNIQUE (advice_id, position)
 );
+
 CREATE TABLE files (
   id      TEXT PRIMARY KEY,             -- 'W/F/N/S/<path>'
   t_id    TEXT NOT NULL REFERENCES ts(id),
@@ -36,6 +40,7 @@ CREATE TABLE files (
   content TEXT NOT NULL,
   UNIQUE (t_id, path)
 );
+
 CREATE TABLE test_results (
   id     TEXT PRIMARY KEY,              -- 'W/F/N/S/<test>'
   t_id   TEXT NOT NULL REFERENCES ts(id),
