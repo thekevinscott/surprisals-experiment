@@ -13,6 +13,7 @@ from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
+from ..database import open_database
 
 
 async def run_experiment(
@@ -30,6 +31,7 @@ async def run_experiment(
             or not all(isinstance(value, str) for value in inputs + outputs)):
         raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
     config.save_settings()
+    database = open_database(config.output)
     best_length = None
     best_solution = None
     turns_without_improvement = 0
