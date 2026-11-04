@@ -29,7 +29,7 @@ def output_limit_error(completion):
     ))
 
 
-async def stream_reply(self, *, on_delta=None) -> str:
+async def stream_reply(self, messages: list[dict], *, on_delta=None) -> dict:
     reasoning = {"enabled": False} if self.thinking == "off" else {"effort": self.thinking}
     snapshot = None
     completion = None
@@ -37,7 +37,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
     reasoning_formats = {}
     try:
         async with self.client.chat.completions.stream(
-            model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
+            model=self.model, messages=messages, extra_body={"reasoning": reasoning},
         ) as stream:
             async for event in stream:
                 snapshot = stream.current_completion_snapshot
@@ -85,9 +85,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
             for detail in message.get("reasoning_details") or []:
                 if detail["index"] in reasoning_formats:
                     detail["format"] = reasoning_formats[detail["index"]]
-            complete = (completion is not None and completion.choices[0].finish_reason == "stop"
-                        and bool(completion.choices[0].message.content) and provider_error is None)
-            self.record(message, complete=complete)
+            self.record(message)
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
@@ -97,4 +95,4 @@ async def stream_reply(self, *, on_delta=None) -> str:
         raise IncompleteStreamError("U chat stream ended before completion")
     if choice.finish_reason != "stop" or not choice.message.content:
         raise RuntimeError(f"U chat did not produce complete advice ({choice.finish_reason})")
-    return choice.message.content
+    return message

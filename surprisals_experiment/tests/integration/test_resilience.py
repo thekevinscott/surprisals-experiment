@@ -89,13 +89,12 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
     with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
         async with open_u_session(config) as session:
-            await session.prompt('question')
+            await session.prompt([{'role': 'user', 'content': 'question'}])
     assert 'U chat provider error' in str(raised.value)
     assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == len(DELAYS) + 1
     assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
     assert [m['content'] for m in transcript(config) if m['role'] == 'assistant'] == ['partial'] * 9
-    assert session.messages[-1]['content'] == 'partial'
     assert no_retry_wait.await_count == len(DELAYS)
 
 

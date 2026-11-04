@@ -2,14 +2,13 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from ...run_test_suite import TestSuiteResult
-from ...utils.u_chat import ChatSession
 from ..prepare_feedback import describe_result, prepare_feedback
 from ..prepare_flush import Attempt, prepare_flush
 from ..read_implementations import read_sources
 
 
 def write_feedback(
-    config: Config, u_session: ChatSession, attempt: int, advice: str,
+    config: Config, attempt: int, advice: str,
     measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
     best_length: int | float | None, best_solution: Path | None,
     turns_without_improvement: int, history: list[Attempt],
@@ -19,11 +18,8 @@ def write_feedback(
         turns_without_improvement = 0
         best_solution = solutions[0]
         best_length = measurement
-        u_session.best_advice = advice
     else:
         turns_without_improvement += 1
-    u_session.best_length = best_length
-    u_session.turns_without_improvement = turns_without_improvement
     if config.u_flush:
         history.append(Attempt(
             attempt, advice, measurement,
@@ -31,7 +27,6 @@ def write_feedback(
             all(result.all_passed for result in results), read_sources(solutions),
             config.advice_measure.scores.get(advice),
         ))
-        u_session.messages = u_session.messages[:1]
         prompt = prepare_flush(config, history)
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:

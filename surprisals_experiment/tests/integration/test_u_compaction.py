@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat.history import build_messages
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -69,10 +69,10 @@ async def test_leaves_history_intact_when_disabled(
     config, botbox_script, chat_provider,
 ):
     config.u_compact_chars = 0
+    config.max_u_turns = 2
     botbox_script.advice.extend(['first', 'second'])
-    async with open_u_session(config) as session:
-        await session.prompt('question')
-        await session.prompt('feedback')
+    botbox_script.solutions.extend([PASS] * 2)
+    await run_experiment(config, on_delta=None)
     assert len(chat_provider) == 2
     assert len(chat_provider[-1]['messages']) == 4
 
@@ -81,17 +81,23 @@ async def test_leaves_history_intact_when_disabled(
 async def test_counts_reasoning_and_pending_feedback_at_the_threshold(
     config, botbox_script, chat_provider, over_by, expected_requests,
 ):
-    botbox_script.advice.extend(['first', 'summary', 'second'])
-    async with open_u_session(config) as session:
-        await session.prompt('question')
-        pending = 'feedback' * 100
-        session.compact_chars = sum(
-            len(m.get('content') or '') + len(m.get('reasoning') or '')
-            for m in session.messages
-        ) + len(pending) - over_by
-        await session.prompt(pending)
+    config.max_u_turns = 2
+    config.u_compact_chars = 0
+    botbox_script.advice.extend(['first', 'second'])
+    botbox_script.solutions.extend([PASS] * 2)
+    await run_experiment(config, on_delta=None)
+    pending = build_messages(config, 1)
+    config.u_compact_chars = sum(
+        len(m.get('content') or '') + len(m.get('reasoning') or '') for m in pending
+    ) - over_by
+    # Same experiment in a fresh folder, with the measured boundary as its limit.
+    config.output = config.output.parent / 'threshold-run'
+    chat_provider.clear()
+    botbox_script.advice.extend(['first', 'summary', 'second'] if over_by else ['first', 'second'])
+    botbox_script.solutions.extend([PASS] * 2)
+    await run_experiment(config, on_delta=None)
     assert len(chat_provider) == expected_requests
-    assert chat_provider[-1]['messages'][-1]['content'] == pending
+    assert chat_provider[-1]['messages'][-1] == pending[-1]
 
 
 async def test_compacts_with_the_measured_state_when_the_summary_request_fails(
@@ -119,14 +125,14 @@ async def test_compaction_counts_reasoning_once(
                      'reasoning': reasoning, 'reasoning_details': details}]},
         'next',
     ])
-    async with open_u_session(config) as session:
-        await session.prompt('question')
-        assert session.compact_chars == 400000
-        assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000
-        await session.prompt('feedback')
+    config.max_u_turns = 2
+    botbox_script.solutions.extend([PASS] * 2)
+    await run_experiment(config, on_delta=None)
+    assert config.u_compact_chars == 400000
+    assert sum(len(json.dumps(m)) for m in chat_provider[1]['messages']) > 400000
     assert len(chat_provider) == 2
     # Counting reasoning once must not strip either field from the next request.
     assistant = chat_provider[1]['messages'][2]
     assert assistant['reasoning'] == reasoning
     assert assistant['reasoning_details'] == details
-    assert chat_provider[-1]['messages'][-1]['content'] == 'feedback'
+    assert chat_provider[-1]['messages'][-1]['content'] == (config.attempt_dir(0) / 'feedback.txt').read_text()

@@ -8,6 +8,8 @@ from dotenv import dotenv_values, find_dotenv
 
 from surprisals_experiment.config import Config, U_MODEL, T_MODEL
 from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat.history import build_messages
+from surprisals_experiment.sdk.utils.u_chat.compact import preamble
 
 QUESTION = 'Read an integer n from standard input and print 2 * n.'
 
@@ -29,11 +31,18 @@ def live_config(tmp_path):
 def describe_live_chat_compaction():
     async def it_summarizes_then_keeps_advising_from_the_measured_state(live_config):
         async with asyncio.timeout(600), open_u_session(live_config) as session:
-            first = await session.prompt(QUESTION)
-            session.best_advice, session.best_length, session.turns_without_improvement = first, len(first), 3
-            session.compact_chars = 1
+            messages = build_messages(live_config, 0)
+            first_reply = await session.prompt(messages)
+            first = first_reply['content']
+            state = dict(best_advice=first, best_length=len(first), turns_without_improvement=3)
+            summary_file = live_config.attempt_dir(1) / 'summary.txt'
+            await session.compact([*messages, first_reply], summary_file, question=QUESTION, **state)
             feedback = 'All T samples passed. Try shorter advice.'
-            second = await session.prompt(feedback)
+            second = await session.prompt([
+                messages[0],
+                {'role': 'user', 'content': preamble(QUESTION, summary_file.read_text(), **state)},
+                {'role': 'user', 'content': feedback},
+            ])
 
         transcript = [json.loads(line) for line in live_config.u_transcripts.joinpath('messages.jsonl').read_text().splitlines()]
         roles = [m['role'] for m in transcript]
@@ -48,5 +57,4 @@ def describe_live_chat_compaction():
         assert 'Turns without improvement: 3' in preamble
         assert QUESTION in preamble
         assert transcript[6]['content'] == feedback
-        assert [m['role'] for m in session.messages] == ['system', 'user', 'user', 'assistant']
-        assert second.strip()
+        assert second['content'].strip()
