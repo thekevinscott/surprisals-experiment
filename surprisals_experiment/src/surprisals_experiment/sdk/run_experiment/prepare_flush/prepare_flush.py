@@ -13,9 +13,10 @@ BEST_ATTEMPT = Path(__file__).parent / "best_attempt.sql"
 
 async def prepare_flush(
     config: Config, problem: QuestionDatabase, database: ExperimentDatabase, *, query_file: Path = BEST_ATTEMPT,
+    **params,
 ) -> str:
     question = await problem.question
-    best = await database.query(query_file, samples=config.t_samples)
+    best = await database.query(query_file, samples=config.t_samples, **params)
     if not best:
         return question
     turn = config.output / best[0]["turn_id"]
