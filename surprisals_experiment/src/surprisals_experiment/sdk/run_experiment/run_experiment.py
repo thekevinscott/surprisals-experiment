@@ -27,6 +27,8 @@ async def run_experiment(
     write(config.window_dir / "window.json", "{}\n")
     write(config.fork_dir / "fork.json", "{}\n")
     database = ExperimentDatabase(config.output)
+    # Finish the initial scan before publishing linked advice artifacts.
+    await database.dirsql.ready()
     best_length = None
     best_solution = None
     turns_without_improvement = 0
