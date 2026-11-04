@@ -3,7 +3,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ..prompt_t_to_produce_code import prompt_t_to_produce_code
+from .prompt_t_to_produce_code import prompt_t_to_produce_code
 
 
 async def write_solutions(

@@ -1,8 +1,8 @@
 from collections.abc import Callable
 
 from surprisals_experiment.config import Config
-from ...utils.u_chat import ChatSession
-from ..save_advice import save_advice
+from ....utils.u_chat import ChatSession
+from .save_advice import save_advice
 
 
 async def write_advice(

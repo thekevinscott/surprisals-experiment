@@ -8,8 +8,8 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy import DELAYS, retried
-from ..prompt_t import prompt_t
-from ..utils.write_text import write_text
+from ....prompt_t import prompt_t
+from ....utils.write_text import write_text
 
 
 async def produce_code(
