@@ -33,7 +33,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
     settings_text = (config.output / 'settings.json').read_text()
     settings = json.loads(settings_text)
-    assert settings.keys() == type(config).model_fields.keys() - {'api_key'}
+    assert settings.keys() == (type(config).model_fields.keys() - {'api_key'}) | {'git_commit'}
     assert settings['t_samples'] == n
     assert settings['t_sample_retries'] == 3
     assert settings['problem_dir'] == str(config.problem_dir)
