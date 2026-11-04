@@ -164,3 +164,23 @@ asyncio.run(run_experiment(config, on_delta=None))
     t_calls = list((tmp_path/'calls/T').rglob('count'))
     assert len(u_calls) == 1 and len(t_calls) == 5
     assert all(path.read_text() == '1' for path in [*u_calls, *t_calls, tmp_path/'calls/score'])
+
+
+@pytest.mark.parametrize('missing_git', [False, True], ids=['not-a-checkout', 'git-unavailable'])
+async def test_git_lookup_failure_does_not_abort_run(config, botbox_script, monkeypatch, missing_git):
+    import subprocess
+
+    original = subprocess.run
+
+    def run(args, **kwargs):
+        if args == ['git', 'rev-parse', 'HEAD']:
+            if missing_git:
+                raise FileNotFoundError('git unavailable')
+            raise subprocess.CalledProcessError(128, args)
+        return original(args, **kwargs)
+
+    monkeypatch.setattr(subprocess, 'run', run)
+    botbox_script.advice.append('double')
+    botbox_script.solutions.append(PASS)
+    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert json.loads((config.output / 'settings.json').read_text())['git_commit'] is None

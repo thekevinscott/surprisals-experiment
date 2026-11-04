@@ -58,10 +58,13 @@ class Config(BaseModel):
     def save_settings(self) -> None:
         from .sdk.utils.write import write
 
-        commit = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent,
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
+        try:
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent,
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            commit = None
         path = self.output / "settings.json"
         if path.exists():
             if json.loads(path.read_text()).get("git_commit") != commit:
