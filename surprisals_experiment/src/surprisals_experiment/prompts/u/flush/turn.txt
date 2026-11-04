@@ -4,20 +4,20 @@
 
 <attempt>
 <index>{{ attempt.number }}</index>
-{% if unit == "characters" %}
-<length>{{ attempt.length }} {{ unit }}</length>
+{% if not surprisal %}
+<length>{{ attempt.length }} characters</length>
 {% endif %}
 <advice>
 {{ attempt.advice }}
 </advice>
-{% if unit != "characters" %}
+{% if surprisal %}
 <bits>
 {% for token, bits in attempt.tokens %}{{ token }}<{{ '%.1f' % bits }}>{% endfor %}
 
 </bits>
 {% endif %}
 <code>
-{% for index in range(attempt.results | length) %}
+{% for index in range(t_samples) %}
 <T-{{ index }}>
 {% for path, source in attempt.sources.get(index | string, {}).items() %}
 <file path="{{ path }}">
