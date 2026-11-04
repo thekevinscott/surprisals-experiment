@@ -52,7 +52,7 @@ async def run_experiment(
             turn = Turn(config, attempt)
             advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
             await actions["unscored"](turn, advice, on_delta=on_delta)
-            await actions["solutions_missing"](turn, problem, on_delta=on_t_delta)
+            await actions["solutions_missing"](turn, database, problem, on_delta=on_t_delta)
             best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break

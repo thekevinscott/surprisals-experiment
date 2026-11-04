@@ -58,7 +58,7 @@ CREATE TABLE test_results (
 CREATE VIEW evaluated_turns AS
 WITH tested AS (
   SELECT ts.turn_id, ts.position, coalesce(min(test_results.passed), 0) AS passed
-  FROM ts LEFT JOIN test_results ON test_results.t_id = ts.id GROUP BY ts.id
+  FROM ts JOIN test_results ON test_results.t_id = ts.id GROUP BY ts.id
 )
 SELECT turns.id, windows.position AS window, forks.position AS fork, turns.position AS turn,
        advices.text, advices.score, advices.score_text, count(*) AS samples, min(tested.passed) AS passed
