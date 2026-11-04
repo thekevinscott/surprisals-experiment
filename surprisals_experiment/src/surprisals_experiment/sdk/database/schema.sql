@@ -68,3 +68,23 @@ JOIN turn_advice ON turn_advice.turn_id = turns.id
 JOIN advices ON advices.id = turn_advice.advice_id
 JOIN tested ON tested.turn_id = turns.id
 GROUP BY turns.id;
+
+CREATE TABLE generations (
+  id TEXT PRIMARY KEY,
+  turn_id TEXT NOT NULL REFERENCES turns(id),
+  position INTEGER NOT NULL
+);
+
+CREATE TABLE feedback (
+  turn_id TEXT PRIMARY KEY REFERENCES turns(id)
+);
+
+CREATE VIEW ready_turns AS
+SELECT evaluated_turns.* FROM evaluated_turns
+WHERE score IS NOT NULL AND NOT EXISTS (
+  SELECT 1 FROM ts LEFT JOIN generations ON generations.id = ts.id
+  WHERE ts.turn_id = evaluated_turns.id AND generations.id IS NULL
+);
+
+CREATE VIEW complete_turns AS
+SELECT ready_turns.* FROM ready_turns JOIN feedback ON feedback.turn_id = ready_turns.id;
