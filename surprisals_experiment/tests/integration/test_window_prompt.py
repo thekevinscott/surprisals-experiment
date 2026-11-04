@@ -40,7 +40,7 @@ async def test_initial_window_has_no_target(config, position):
 
 
 @pytest.mark.parametrize('strategy,score,target', [
-    ('chars', 412, '391.4'), ('surprisal', 412.5, '391.875'), ('chars', 0, '0.0'),
+    ('characters', 412, '391'), ('surprisal', 412.5, '391.875'), ('characters', 0, '0'),
 ])
 async def test_baseline_uses_all_prior_windows_and_only_complete_passes(
     config, strategy, score, target,
@@ -82,7 +82,7 @@ async def test_restart_preserves_prompt_and_new_turn_uses_same_window_baseline(
         assert resumed.messages == expected
     async with open_u_chat(Turn(config, 5, window=1, fork=2)) as fresh:
         assert 'turn 6 of 40' in fresh.messages[0]['content']
-        assert 'Best at window start: 412; target: 391.4' in fresh.messages[0]['content']
+        assert 'Best at window start: 412; target: 391' in fresh.messages[0]['content']
     assert len(chat_provider) == 1
     assert chat_provider[0]['messages'][0]['content'] == expected[0]['content']
 
@@ -105,6 +105,6 @@ async def test_rollover_sends_window_start_target_to_each_fork(
     for request in chat_provider:
         prompt = request['messages'][0]['content']
         assert 'Window 1, turn 1 of 40.' in prompt
-        assert 'Best at window start: 412; target: 391.4 (5% improvement).' in prompt
+        assert 'Best at window start: 412; target: 391 (5% improvement).' in prompt
     await run_experiment(config, on_delta=None)
     assert len(chat_provider) == 4

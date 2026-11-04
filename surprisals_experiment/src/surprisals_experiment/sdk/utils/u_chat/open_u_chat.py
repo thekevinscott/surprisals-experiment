@@ -24,6 +24,7 @@ async def open_u_chat(turn: Turn) -> AsyncGenerator[ChatSession]:
     config = turn.config
     numbers, = await ExperimentDatabase(config.output).query(
         NUMBERS, window=turn.window, turn=turn.position, samples=config.t_samples,
+        strategy=config.cap_strategy,
     )
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
