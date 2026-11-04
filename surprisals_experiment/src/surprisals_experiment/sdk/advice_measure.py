@@ -11,16 +11,17 @@ SURPRISAL_WORDING = Prompt("u/measure_surprisal.txt")
 class AdviceMeasure:
     def __init__(self, name: str, *, base_url: str | None, model: str):
         self.name = name
-        self.scores: dict[str, list[tuple[str, float]]] = {}
         self.client = Client(base_url=base_url, model=model) if name == "surprisal" else None
         if self.client is not None:
             # The shared policy owns retries; the scorer currently exposes no public retry option.
             self.client._openai.max_retries = 0
 
-    async def score(self, advice: str, *, on_delta=None) -> tuple[int | float, list[tuple[str, float]] | None]:
+    async def score(
+        self, advice: str, *, tokens: list[tuple[str, float]] | None = None, on_delta=None,
+    ) -> tuple[int | float, list[tuple[str, float]] | None]:
         if self.client is None:
             return len(advice), None
-        if advice not in self.scores:
+        if tokens is None:
             def before_sleep(state):
                 if on_delta is not None:
                     on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
@@ -30,8 +31,7 @@ class AdviceMeasure:
             async def score():
                 return await measure_surprisal(advice, client=self.client)
 
-            self.scores[advice] = await score()
-        tokens = self.scores[advice]
+            tokens = await score()
         return sum(bits for _, bits in tokens), tokens
 
     @property

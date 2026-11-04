@@ -7,6 +7,8 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
+from surprisals_experiment.sdk.run_experiment.actions.write_advice.save_advice import save_advice
 
 PASS = 'print(int(input()) * 2)'
 
@@ -109,6 +111,17 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         assert metadata['measurement'] == pytest.approx(10.0)
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
     assert 'Turns without improvement: 1 of 1.' in (config.attempt_dir(1) / 'feedback.txt').read_text()
+
+
+async def test_repeated_advice_reuses_tokens_from_disk(scoring_config, scorer_provider):
+    scorer_provider.replies.append([("it's", 4.0), (' same', 6.0)])
+    for attempt in range(2):
+        config = Config(**scoring_config.model_dump())
+        save_advice(config.advice_dir(attempt, 0), "it's same")
+        assert await score_advice(config, "it's same", attempt=attempt) == pytest.approx(10.0)
+    assert len(scorer_provider.requests) == 1
+    assert ((config.advice_dir(0, 0) / 'metadata.json').read_text()
+            == (config.advice_dir(1, 0) / 'metadata.json').read_text())
 
 
 async def test_real_scorer_sdk_does_not_add_retries(scoring_config, scorer_provider, no_retry_wait):

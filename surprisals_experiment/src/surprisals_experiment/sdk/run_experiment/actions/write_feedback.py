@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from surprisals_experiment.config import Config
@@ -29,7 +30,7 @@ def write_feedback(
             attempt, advice, measurement,
             [describe_result(config, attempt, index, sample) for index, sample in enumerate(results)],
             all(result.all_passed for result in results), read_sources(solutions),
-            config.advice_measure.scores.get(advice),
+            json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text()).get("tokens"),
         ))
         u_session.messages = u_session.messages[:1]
         prompt = prepare_flush(config, history)
