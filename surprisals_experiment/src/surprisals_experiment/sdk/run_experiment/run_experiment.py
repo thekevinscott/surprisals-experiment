@@ -27,6 +27,7 @@ async def run_experiment(
     write(config.window_dir / "window.json", "{}\n")
     write(config.fork_dir / "fork.json", "{}\n")
     database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
     best_solution = None
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
