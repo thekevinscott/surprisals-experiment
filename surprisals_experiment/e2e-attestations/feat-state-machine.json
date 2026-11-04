@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration/test_state_facts.py -q && uv run pytest tests/integration/test_state_selection.py -q && uv run pytest tests/integration/test_state_inputs.py -q && uv run pytest tests/integration/test_restart.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_u_flush.py -q && uv run pytest tests/integration/test_u_compaction.py -q && uv run pytest tests/integration/test_t_timeout.py -q && uv run pytest tests/integration/test_t_samples.py -q",
-  "ran_at": 1793755570,
+  "ran_at": 1793756255,
   "exit_code": 0,
-  "commit": "94e6dbcf8e12044c79b7d02a9be373253e4876c7",
+  "commit": "328e26d34c2f38d6649fd930a98a7a43bc370030",
   "branch": "feat/state-machine"
 }
