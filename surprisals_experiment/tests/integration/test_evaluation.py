@@ -50,7 +50,7 @@ async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, bo
 
 
 async def test_case_exceeding_five_seconds_fails(config, botbox_script):
-    config.test_suite_file.write_text(json.dumps({'inputs': [''], 'outputs': ['done']}))
+    (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': [''], 'outputs': ['done']}))
     botbox_script.advice.append('Print done.')
     botbox_script.solutions.append('import time; time.sleep(6); print("done")')
     assert await run_experiment(config, on_delta=None) is None

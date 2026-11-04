@@ -41,7 +41,7 @@ async def test_keeps_measured_best_and_streak_across_repeated_compactions(
         assert len(messages) == 3
         assert messages[0] == system
         preamble = messages[1]['content']
-        assert config.question_file.read_text() in preamble
+        assert (config.problem_dir / 'question.txt').read_text() in preamble
         assert f'<best_successful_advice>\n{advice}\n</best_successful_advice>' in preamble
         assert f'Best successful advice length: {length}' in preamble
         assert f'Turns without improvement: {streak}' in preamble
@@ -70,7 +70,7 @@ async def test_leaves_history_intact_when_disabled(
 ):
     config.u_compact_chars = 0
     botbox_script.advice.extend(['first', 'second'])
-    async with open_u_session(config) as session:
+    async with open_u_session(config, 'question') as session:
         await session.prompt('question')
         await session.prompt('feedback')
     assert len(chat_provider) == 2
@@ -82,7 +82,7 @@ async def test_counts_reasoning_and_pending_feedback_at_the_threshold(
     config, botbox_script, chat_provider, over_by, expected_requests,
 ):
     botbox_script.advice.extend(['first', 'summary', 'second'])
-    async with open_u_session(config) as session:
+    async with open_u_session(config, 'question') as session:
         await session.prompt('question')
         pending = 'feedback' * 100
         session.compact_chars = sum(
@@ -119,7 +119,7 @@ async def test_compaction_counts_reasoning_once(
                      'reasoning': reasoning, 'reasoning_details': details}]},
         'next',
     ])
-    async with open_u_session(config) as session:
+    async with open_u_session(config, 'question') as session:
         await session.prompt('question')
         assert session.compact_chars == 400000
         assert sum(len(json.dumps(m, ensure_ascii=False)) for m in session.messages) > 400000

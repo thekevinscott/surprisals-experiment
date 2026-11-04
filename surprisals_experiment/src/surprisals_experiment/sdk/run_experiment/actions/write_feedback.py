@@ -32,7 +32,7 @@ def write_feedback(
             config.advice_measure.scores.get(advice),
         ))
         u_session.messages = u_session.messages[:1]
-        prompt = prepare_flush(config, history)
+        prompt = prepare_flush(config, u_session.question, history)
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:
         prompt = prepare_feedback(

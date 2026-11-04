@@ -15,7 +15,7 @@ CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
 
 
 @asynccontextmanager
-async def open_u_session(config) -> AsyncGenerator[ChatSession]:
+async def open_u_session(config, question: str) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXTS[config.u_context](),
@@ -30,7 +30,7 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
         u_session = ChatSession(
             client, config.u_model, config.u_thinking,
             config.u_transcripts / "messages.jsonl",
-            compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
+            compact_chars=config.u_compact_chars, question=question,
             flush=config.u_flush,
         )
         if u_session.transcript.exists():

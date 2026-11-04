@@ -19,8 +19,7 @@ class Attempt:
     tokens: list[tuple[str, float]] | None = None
 
 
-def prepare_flush(config: Config, history: list[Attempt]) -> str:
-    question = config.question_file.read_text()
+def prepare_flush(config: Config, question: str, history: list[Attempt]) -> str:
     best = min((attempt for attempt in history if attempt.passed),
                key=lambda attempt: (attempt.length, attempt.number), default=None)
     if best is None:
