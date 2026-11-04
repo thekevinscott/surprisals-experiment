@@ -6,7 +6,7 @@ best=None;tw=0;prev=None;first=None;rows=[]
 for a in atts:
     d=f'{A}/{a}'
     cands=[J(f'{d}/advices/{c}/metadata.json') for c in sorted(os.listdir(d+'/advices'),key=int)]
-    acc=cands
+    acc=[c for c in cands if not c['rejected']]
     ln=acc[-1]['measurement'] if acc else None
     ts=[]
     for k in sorted(os.listdir(d+'/t_samples'),key=int):
