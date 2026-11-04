@@ -1,4 +1,4 @@
-"""Seed a cleared chat U with its previous attempts and their test results."""
+"""Seed a cleared chat U with the question and its shortest all-pass attempt."""
 
 from dataclasses import dataclass
 
@@ -19,20 +19,10 @@ class Attempt:
     tokens: list[tuple[str, float]] | None = None
 
 
-def render(config: Config, history: list[Attempt]) -> str:
-    latest = history[-1:]
-    latest_pass = next(([attempt] for attempt in reversed(history) if attempt.passed), [])
-    return TURN(
-        question=config.question_file.read_text().rstrip("\n"),
-        history=history,
-        shown={attempt.number for attempt in latest + latest_pass},
-        unit=config.advice_measure.unit,
-    )
-
-
 def prepare_flush(config: Config, history: list[Attempt]) -> str:
-    kept = list(history)
-    while kept and config.u_compact_chars and len(render(config, kept)) > config.u_compact_chars:
-        failed = [attempt for attempt in kept if not attempt.passed]
-        kept.remove(failed[0] if failed else kept[0])
-    return render(config, kept)
+    question = config.question_file.read_text()
+    best = min((attempt for attempt in history if attempt.passed),
+               key=lambda attempt: (attempt.length, attempt.number), default=None)
+    if best is None:
+        return question
+    return TURN(question=question.rstrip("\n"), attempt=best, unit=config.advice_measure.unit)
