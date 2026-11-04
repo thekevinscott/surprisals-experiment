@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from surprisals_experiment.prompt import Prompt
 from .chat_session import ChatSession
 from .record import restore
+from ..write import write
 
 SYSTEM = Prompt("u/system.txt")
 CONTEXT = Prompt("u/flush/context.txt")
@@ -32,18 +33,17 @@ async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
             config.u_transcripts / "messages.jsonl",
         )
         if u_chat.transcript.exists():
-            with u_chat.transcript.open('r+b') as transcript:
-                lines = transcript.readlines()
-                for index, line in enumerate(lines):
-                    try:
-                        entry = json.loads(line)
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        if index != len(lines) - 1:
-                            raise
-                        # Remove a torn suffix so the next append starts a valid line.
-                        transcript.truncate(sum(map(len, lines[:index])))
-                        break
-                    restore(u_chat, entry)
+            lines = u_chat.transcript.read_bytes().splitlines(keepends=True)
+            for index, line in enumerate(lines):
+                try:
+                    entry = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    if index != len(lines) - 1:
+                        raise
+                    # Remove a torn suffix so the next append starts a valid line.
+                    write(u_chat.transcript, b"".join(lines[:index]))
+                    break
+                restore(u_chat, entry)
         else:
             u_chat.record({"role": "system", "content": prompt})
         yield u_chat

@@ -208,6 +208,7 @@ async def test_rebuilt_transcript_matches_live_session(
         assert entries[-2]['_reset'] is True
     assert len(live.messages) == 3
     before_replay = transcript.read_bytes()
+    before_inode = transcript.stat().st_ino
     if mode == 'partial':
         assert any(entry.get('_complete') is False for entry in entries)
         assert all(message.get('content') != 'unfinished' for message in live.messages)
@@ -222,6 +223,7 @@ async def test_rebuilt_transcript_matches_live_session(
     assert len(chat_provider) == requests
     assert transcript.read_bytes() == before_replay
     if mode == 'partial':
+        assert transcript.stat().st_ino != before_inode
         botbox_script.advice.append('third')
         async with open_u_chat(config) as resumed:
             resumed.attempt = 2
