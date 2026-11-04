@@ -27,9 +27,9 @@ async def test_run_opens_database_once(config, botbox_script, chat_provider, mon
 async def test_sees_files_written_after_open(config):
     config.output.mkdir()
     db = open_database(config.output)
-    sql = "SELECT path, content ->> 'all_passed' AS passed FROM './attempts/*/t_samples/*/tests.json'"
+    sql = "SELECT path, content ->> 'all_passed' AS passed FROM './windows/*/forks/*/turns/*/ts/*/tests.json'"
     assert await db.query(sql) == []
     sample = config.t_dir(0, 0)
     sample.mkdir(parents=True)
     (sample / 'tests.json').write_text('{"all_passed": true}')
-    assert await db.query(sql) == [{'path': 'attempts/0/t_samples/0/tests.json', 'passed': 1}]
+    assert await db.query(sql) == [{'path': 'windows/0/forks/0/turns/0/ts/0/tests.json', 'passed': 1}]

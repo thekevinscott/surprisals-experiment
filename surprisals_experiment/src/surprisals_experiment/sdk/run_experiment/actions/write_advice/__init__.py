@@ -10,6 +10,6 @@ async def write_advice(
     on_delta: Callable[[str, str], None] | None = None,
 ) -> str:
     advice = await u_session.prompt(prompt, on_delta=on_delta)
-    directory = config.advice_dir(attempt, 0)
+    directory = config.attempt_dir(attempt)
     save_advice(directory, advice)
     return advice

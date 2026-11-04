@@ -82,14 +82,19 @@ class Config(BaseModel):
     def u_transcripts(self) -> Path:
         return self.u_dir / "transcripts"
 
+    @property
+    def window_dir(self) -> Path:
+        return self.output / "windows" / "0"
+
+    @property
+    def fork_dir(self) -> Path:
+        return self.window_dir / "forks" / "0"
+
     def attempt_dir(self, attempt: int) -> Path:
-        return self.output / "attempts" / str(attempt)
+        return self.fork_dir / "turns" / str(attempt)
 
     def t_dir(self, attempt: int, sample: int) -> Path:
-        return self.attempt_dir(attempt) / "t_samples" / str(sample)
-
-    def advice_dir(self, attempt: int, candidate: int) -> Path:
-        return self.attempt_dir(attempt) / "advices" / str(candidate)
+        return self.attempt_dir(attempt) / "ts" / str(sample)
 
     @field_validator("problem_dir", "output")
     @classmethod
