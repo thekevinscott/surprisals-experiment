@@ -1,0 +1,7 @@
+{
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_evaluation_bytes.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_evaluation.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_samples.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_compaction.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_timeout.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_measure.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q",
+  "ran_at": 1793766678,
+  "exit_code": 0,
+  "commit": "77daf6d9646f622f22120b442c0cab959f9a4c60",
+  "branch": "refactor/test-output-on-disk"
+}
