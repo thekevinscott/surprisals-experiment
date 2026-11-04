@@ -1,7 +1,6 @@
 """Script Botbox runs globally; keep orchestration and evaluation real."""
 
 import asyncio
-import importlib
 import json
 import shlex
 from inspect import signature
@@ -11,6 +10,10 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
+
+from surprisals_experiment.sdk.utils import botbox_run
+from surprisals_experiment.sdk.utils.u_chat import opener
+from measure_surprisal.utils import client as surprisal_client
 from botbox import Botbox, RunResult
 
 from surprisals_experiment.config import Config
@@ -90,7 +93,7 @@ def botbox_script(monkeypatch):
                 await session.message(args[args.index('-p') + 1])
             return session.result
 
-    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_run'),
+    monkeypatch.setattr(botbox_run,
                         'Botbox', FakeBotbox)
     return script
 
@@ -179,8 +182,7 @@ def chat_provider(monkeypatch, botbox_script):
         return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-    module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_chat')
-    monkeypatch.setattr(module, 'AsyncOpenAI', client)
+    monkeypatch.setattr(opener, 'AsyncOpenAI', client)
     return requests
 
 
@@ -225,7 +227,7 @@ async def scorer_provider(monkeypatch):
         clients.append(http)
         return AsyncOpenAI(**kwargs, http_client=http)
 
-    monkeypatch.setattr(importlib.import_module('measure_surprisal.utils.client'), 'AsyncOpenAI', client)
+    monkeypatch.setattr(surprisal_client, 'AsyncOpenAI', client)
     yield script
     for client in clients:
         await client.aclose()

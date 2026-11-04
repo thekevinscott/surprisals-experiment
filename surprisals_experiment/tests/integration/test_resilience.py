@@ -1,12 +1,13 @@
 """Observed provider failures, bounded retries, and interrupted-run diagnostics."""
 
 import asyncio
-import importlib
 import json
 import os
 
 import httpx2
 import pytest
+
+from surprisals_experiment.sdk.utils import botbox_run
 from botbox import RunResult
 
 from conftest import FakeSession
@@ -65,17 +66,16 @@ async def test_failed_reply_retries_original_history(
 
 
 async def test_credential_proxy_startup_retries(config, botbox_script, monkeypatch, no_retry_wait):
-    module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_run')
     builds = []
 
-    class FailingEntry(module.Botbox):
+    class FailingEntry(botbox_run.Botbox):
         async def build(self):
             builds.append(self)
             if len(builds) == 1:
                 raise RuntimeError('botbox credential proxy did not start:\n')
             return await super().build()
 
-    monkeypatch.setattr(module, 'Botbox', FailingEntry)
+    monkeypatch.setattr(botbox_run, 'Botbox', FailingEntry)
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
     assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
@@ -181,8 +181,7 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
 async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     config, botbox_script, monkeypatch, no_retry_wait,
 ):
-    module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_run')
-    original = module.Botbox
+    original = botbox_run.Botbox
     root = config.output
     for failure in ('infrastructure', 'disk failure'):
         class BrokenBotbox(original):
@@ -191,7 +190,7 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
                     raise OSError('disk failure')
                 return RunResult(exit_code=-1)
 
-        monkeypatch.setattr(module, 'Botbox', BrokenBotbox)
+        monkeypatch.setattr(botbox_run, 'Botbox', BrokenBotbox)
         config.output = root / failure.replace(' ', '-')
         botbox_script.advice.append('Use a loop')
         with pytest.raises(RuntimeError, match=failure):

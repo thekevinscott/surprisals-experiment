@@ -1,10 +1,11 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
-import importlib
 import json
 import signal
 import httpx2
 import pytest
+
+from surprisals_experiment.sdk.utils.u_chat import opener
 from openai import AsyncOpenAI
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
@@ -121,8 +122,7 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         def client(**kwargs):
             return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(
                 transport=httpx2.MockTransport(block)))
-        module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_chat')
-        monkeypatch.setattr(module, 'AsyncOpenAI', client)
+        monkeypatch.setattr(opener, 'AsyncOpenAI', client)
     else:
         monkeypatch.setattr(FakeSession, 'message', block)
     task = asyncio.create_task(main([
