@@ -17,15 +17,34 @@ from ..utils.write import write
 from ..turn import Turn
 
 
+def start(config: Config) -> None:
+    config.save_settings()
+    write(config.window_dir / "window.json", "{}\n")
+    write(config.fork_dir / "fork.json", "{}\n")
+
+
+async def feedback(turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase):
+    await write_feedback(turn, database, problem)
+    return await write_result(turn, database)
+
+
+actions = {
+    "not_started": start,
+    "advice_missing": write_advice,
+    "unscored": score_advice,
+    "solutions_missing": write_solutions,
+    "untested": run_tests,
+    "feedback_missing": feedback,
+}
+
+
 async def run_experiment(
     config: Config, *, on_delta: Callable[[str, str], None] | None,
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     problem = QuestionDatabase(config.problem_dir)
-    config.save_settings()
-    write(config.window_dir / "window.json", "{}\n")
-    write(config.fork_dir / "fork.json", "{}\n")
+    actions["not_started"](config)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
     best_solution = None
@@ -33,12 +52,11 @@ async def run_experiment(
     async with open_u_chat(config) as u_chat:
         for attempt in attempts:
             turn = Turn(config, attempt)
-            advice = await write_advice(turn, u_chat, database, problem, on_delta=on_delta)
-            await score_advice(turn, advice, on_delta=on_delta)
-            await write_solutions(turn, on_delta=on_t_delta)
-            await run_tests(turn, problem)
-            await write_feedback(turn, database, problem)
-            best_solution, turns_without_improvement = await write_result(turn, database)
+            advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
+            await actions["unscored"](turn, advice, on_delta=on_delta)
+            await actions["solutions_missing"](turn, on_delta=on_t_delta)
+            await actions["untested"](turn, problem)
+            best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
