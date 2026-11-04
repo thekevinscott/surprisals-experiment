@@ -2,19 +2,24 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from ....database import ExperimentDatabase, QuestionDatabase
-from ....run_test_suite import TestSuiteResult
 from ....utils.u_chat import ChatSession
 from ...prepare_feedback import prepare_feedback
 from ...prepare_flush import prepare_flush
 
+TURN_TESTS = Path(__file__).parent / "turn_tests.sql"
+
 
 async def write_feedback(
-    config: Config, u_chat: ChatSession, attempt: int, advice: str,
-    measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
+    config: Config, u_chat: ChatSession, database: ExperimentDatabase, attempt: int, advice: str,
+    measurement: int | float, solutions: list[Path],
     best_length: int | float | None, best_solution: Path | None,
-    turns_without_improvement: int, problem: QuestionDatabase, database: ExperimentDatabase,
+    turns_without_improvement: int, problem: QuestionDatabase,
 ) -> tuple[str, int | float | None, Path | None, int]:
-    if (all(result.all_passed for result in results)
+    results = await database.query(
+        TURN_TESTS, window=int(config.window_dir.name), fork=int(config.fork_dir.name), turn=attempt,
+    )
+    all_passed = len(results) == config.t_samples and all(result["all_passed"] for result in results)
+    if (all_passed
             and (best_length is None or measurement < best_length)):
         turns_without_improvement = 0
         best_solution = solutions[0]

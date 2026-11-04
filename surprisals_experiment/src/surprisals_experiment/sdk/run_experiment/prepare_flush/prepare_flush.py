@@ -1,6 +1,5 @@
 """Build the flush prompt from the shortest all-pass attempt on disk."""
 
-import json
 from pathlib import Path
 
 from surprisals_experiment.config import Config
@@ -17,12 +16,11 @@ async def prepare_flush(config: Config, problem: QuestionDatabase, database: Exp
     best = await database.query(BEST_ATTEMPT, samples=config.t_samples)
     if not best:
         return question
-    turn = config.output / best[0]["dir"]
+    turn = config.output / best[0]["turn_id"]
     return TURN(
         question=question.rstrip("\n"), unit=config.advice_measure.unit, t_samples=config.t_samples,
         attempt=dict(
-            number=int(turn.name), length=best[0]["measurement"], advice=best[0]["advice"],
-            tokens=json.loads(best[0]["tokens"]) if best[0]["tokens"] else None,
+            number=best[0]["turn"], length=best[0]["score"], advice=best[0]["text"], score_text=best[0]["score_text"],
             sources=read_sources([turn / "ts" / str(sample) / "src" for sample in range(config.t_samples)]),
         ),
     )

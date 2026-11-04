@@ -1,13 +1,18 @@
-SELECT metadata.dir, metadata.content ->> 'measurement' AS measurement,
-  metadata.content -> 'tokens' AS tokens, advice.content AS advice
-FROM './windows/*/forks/*/turns/*/metadata.json' AS metadata
-JOIN './windows/*/forks/*/turns/*/advice.txt' AS advice ON advice.dir = metadata.dir
-JOIN './windows/*/forks/*/turns/*/ts/*/tests.json' AS tests ON tests.dir LIKE metadata.dir || '/ts/%'
-GROUP BY metadata.dir, metadata.content, advice.content
-HAVING count(*) = {samples} AND min(tests.content ->> 'all_passed')
--- Ties go to the earliest turn. CAST reads the leading digits after each segment.
-ORDER BY measurement,
-  CAST(substr(metadata.dir, instr(metadata.dir, 'windows/') + 8) AS INTEGER),
-  CAST(substr(metadata.dir, instr(metadata.dir, '/turns/') + 7) AS INTEGER),
-  CAST(substr(metadata.dir, instr(metadata.dir, '/forks/') + 7) AS INTEGER)
+WITH passing AS (
+  SELECT ts.id, ts.advice_id
+  FROM ts
+  JOIN test_results ON test_results.t_id = ts.id
+  GROUP BY ts.id
+  HAVING min(test_results.passed) = 1
+)
+SELECT turns.id AS turn_id, turns.position AS turn, advice.text, advice.score, advice.score_text
+FROM windows
+JOIN forks ON forks.window_id = windows.id
+JOIN turns ON turns.fork_id = forks.id
+JOIN advice ON advice.turn_id = turns.id
+JOIN passing ON passing.advice_id = advice.id
+GROUP BY advice.id
+HAVING count(*) = {samples}
+-- Ties go to the earliest turn.
+ORDER BY advice.score, windows.position, turns.position, forks.position
 LIMIT 1
