@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793806369,
+  "ran_at": 1793807172,
   "exit_code": 0,
-  "commit": "a6e2bdec62f911b7d422015c0d7100d0b3676813",
+  "commit": "cc139c1e61cff29db08953008baf4c85b48be4a6",
   "branch": "feat/flush-from-disk"
 }
