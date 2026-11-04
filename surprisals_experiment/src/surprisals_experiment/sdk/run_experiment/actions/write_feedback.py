@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ...database import QuestionDatabase
 from ...run_test_suite import TestSuiteResult
 from ...utils.u_chat import ChatSession
 from ..prepare_feedback import describe_result, prepare_feedback
@@ -8,11 +9,11 @@ from ..prepare_flush import Attempt, prepare_flush
 from ..read_implementations import read_sources
 
 
-def write_feedback(
+async def write_feedback(
     config: Config, u_chat: ChatSession, attempt: int, advice: str,
     measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
     best_length: int | float | None, best_solution: Path | None,
-    turns_without_improvement: int, history: list[Attempt],
+    turns_without_improvement: int, history: list[Attempt], problem: QuestionDatabase,
 ) -> tuple[str, int | float | None, Path | None, int]:
     if (all(result.all_passed for result in results)
             and (best_length is None or measurement < best_length)):
@@ -32,7 +33,7 @@ def write_feedback(
             config.advice_measure.scores.get(advice),
         ))
         u_chat.messages = u_chat.messages[:1]
-        prompt = prepare_flush(config, u_chat.question, history)
+        prompt = await prepare_flush(config, problem, history)
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:
         prompt = prepare_feedback(

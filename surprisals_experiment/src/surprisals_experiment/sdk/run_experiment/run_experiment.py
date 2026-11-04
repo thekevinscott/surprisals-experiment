@@ -22,8 +22,7 @@ async def run_experiment(
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     problem = QuestionDatabase(config.problem_dir)
-    question = await problem.question
-    prompt = question
+    prompt = await problem.question
     config.save_settings()
     write_text(config.window_dir / "window.json", "{}\n")
     write_text(config.fork_dir / "fork.json", "{}\n")
@@ -33,7 +32,7 @@ async def run_experiment(
     turns_without_improvement = 0
     history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
-    async with open_u_chat(config, question) as u_chat:
+    async with open_u_chat(config, prompt) as u_chat:
         for attempt in attempts:
             advice = await write_advice(
                 config, u_chat, prompt, attempt=attempt, on_delta=on_delta,
@@ -47,9 +46,9 @@ async def run_experiment(
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
             results = await run_tests(config, solutions, problem, attempt=attempt)
-            prompt, best_length, best_solution, turns_without_improvement = write_feedback(
+            prompt, best_length, best_solution, turns_without_improvement = await write_feedback(
                 config, u_chat, attempt, advice, measurement, solutions, results,
-                best_length, best_solution, turns_without_improvement, history,
+                best_length, best_solution, turns_without_improvement, history, problem,
             )
             write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
             if turns_without_improvement >= config.max_turns_without_improvement:

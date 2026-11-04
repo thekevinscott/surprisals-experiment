@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
+from ..database import QuestionDatabase
 
 TURN = Prompt("u/flush/turn.txt")
 
@@ -19,7 +20,8 @@ class Attempt:
     tokens: list[tuple[str, float]] | None = None
 
 
-def prepare_flush(config: Config, question: str, history: list[Attempt]) -> str:
+async def prepare_flush(config: Config, problem: QuestionDatabase, history: list[Attempt]) -> str:
+    question = await problem.question
     best = min((attempt for attempt in history if attempt.passed),
                key=lambda attempt: (attempt.length, attempt.number), default=None)
     if best is None:

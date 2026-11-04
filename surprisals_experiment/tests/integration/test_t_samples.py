@@ -5,6 +5,7 @@ import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
+from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 from test_run_summary import report
 
@@ -110,7 +111,8 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
                 event.set()
             solutions = await task
         assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-        results = await run_test_suite_for_ts(config, solutions, [{"input": "3\n", "output": "6\n"}])
+        (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
+        results = await run_test_suite_for_ts(config, solutions, QuestionDatabase(config.problem_dir))
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
         assert [result.all_passed for result in results] == [True, False, True, False, True]
