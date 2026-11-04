@@ -2,10 +2,6 @@
 {{ question }}
 </original_question>
 
-{% for attempt in history %}
-{% if not loop.first %}
-
-{% endif %}
 <attempt>
 <index>{{ attempt.number }}</index>
 <length>{{ attempt.length }} {{ unit }}</length>
@@ -23,7 +19,6 @@
 T-{{ loop.index0 }}: {{ result }}
 {% endfor %}
 </results>
-{% if attempt.number in shown %}
 <code>
 {% for index in range(attempt.results | length) %}
 <T-{{ index }}>
@@ -35,6 +30,4 @@ T-{{ loop.index0 }}: {{ result }}
 </T-{{ index }}>
 {% endfor %}
 </code>
-{% endif %}
 </attempt>
-{%- endfor %}
