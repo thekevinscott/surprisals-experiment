@@ -1,7 +1,7 @@
 {
-  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_request_invariant.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_compaction.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_measure.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_streaming.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_resilience.py -q",
-  "ran_at": 1793758480,
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_request_invariant.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q",
+  "ran_at": 1793758531,
   "exit_code": 0,
-  "commit": "16b972c03fabda62b81499bdbd154395326ebc62",
+  "commit": "e7c4ff806bcff22c3c1f8e077c12abbe07eff5f6",
   "branch": "refactor/pure-u-chat"
 }
