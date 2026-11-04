@@ -53,14 +53,6 @@ class Config(BaseModel):
         write_text(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
 
     @property
-    def question_file(self) -> Path:
-        return self.problem_dir / "question.txt"
-
-    @property
-    def test_suite_file(self) -> Path:
-        return self.problem_dir / "input_output.json"
-
-    @property
     def result_file(self) -> Path:
         return self.output / "result.json"
 
