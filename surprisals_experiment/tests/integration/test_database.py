@@ -52,7 +52,7 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     (config.fork_dir / 'fork.json').write_text('{}')
     for attempt in range(2):
         config.attempt_dir(attempt).mkdir(parents=True)
-        advice = Advice(config, text)
+        advice = Advice(text, config.advice_measure, config.output)
         advice.save()
         assert await score_advice(config, advice, attempt=attempt) == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()

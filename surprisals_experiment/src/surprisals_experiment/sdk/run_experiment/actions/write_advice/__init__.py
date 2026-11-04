@@ -9,7 +9,7 @@ async def write_advice(
     config: Config, u_chat: ChatSession, prompt: str, *, attempt: int,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> Advice:
-    advice = Advice(config, await u_chat.prompt(prompt, on_delta=on_delta))
+    advice = Advice(await u_chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
     directory = config.attempt_dir(attempt)
     directory.mkdir(parents=True, exist_ok=True)
     advice.save()

@@ -8,6 +8,8 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.advice import Advice
+from surprisals_experiment.sdk.advice_measure import AdviceMeasure
 
 PASS = 'print(int(input()) * 2)'
 
@@ -110,6 +112,10 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         assert metadata['score'] == pytest.approx(10.0)
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
     assert '<index>0</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
+    fresh_measure = AdviceMeasure("surprisal", base_url=config.scorer_base_url, model=config.t_model)
+    assert await Advice("same advice", fresh_measure, config.output).score() == pytest.approx(10.0)
+    assert len(scorer_provider.requests) == 1
+
 
 
 async def test_real_scorer_sdk_does_not_add_retries(scoring_config, scorer_provider, no_retry_wait):
