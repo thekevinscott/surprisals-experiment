@@ -6,7 +6,7 @@ WITH bests AS (
   WHERE window <= :window AND samples = :samples AND passed = 1
 )
 SELECT :window > 0 AND (
-  current IS NULL OR previous = 0
+  current IS NULL OR coalesce(previous = 0, 0)
   OR (previous IS NOT NULL AND current > previous * 0.95)
 ) AS stopped
 FROM bests

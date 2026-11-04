@@ -83,8 +83,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
 async def test_sends_and_records_exact_roles(
     config, botbox_script, chat_provider,
 ):
-    config.max_u_turns = None
-    config.max_turns_without_improvement = 2
+    config.max_u_turns = 3
     chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
     botbox_script.advice.extend(map(chunked, ['tiny', 'long advice', 'longer advice']))
     botbox_script.solutions.extend([PASS] * 3)

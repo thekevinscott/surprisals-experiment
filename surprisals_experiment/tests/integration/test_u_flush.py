@@ -87,7 +87,7 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, botbox_s
     scorer_provider.replies.extend(scores)
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-        'max_u_turns': 3, 'max_turns_without_improvement': 3,
+        'max_u_turns': 3,
     }))
     botbox_script.advice.extend(['Use a two-pointer', 'Sweep.', 'done'])
     botbox_script.solutions.extend([PASS] * 3)

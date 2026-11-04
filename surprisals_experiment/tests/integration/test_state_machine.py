@@ -46,24 +46,8 @@ async def test_folder_classifies_each_turn_stage(config, stage):
     assert actual == dict(state='stopped' if stage == 'complete' else 'turn', turn=1 if stage == 'complete' else 0)
 
 
-@pytest.mark.parametrize('scores,passed,expected', [
-    ([10,10], [False,False], 'stopped'),
-    ([10,10], [False,True], 'turn'),
-    ([10,10,11], [True,True,True], 'stopped'),
-    ([10,9,8], [True,False,False], 'stopped'),
-    ([10,10,9], [True,False,True], 'turn'),
-])
-async def test_stale_budget_counts_only_strict_passing_improvements(config, scores, passed, expected):
-    config.max_u_turns = None
-    config.max_turns_without_improvement = 2
-    for turn, (score, success) in enumerate(zip(scores, passed)):
-        saved_turn(config, turn, score=score, passed=success)
-    assert await state(config, ExperimentDatabase(config.output)) == dict(state=expected, turn=len(scores))
-
-
 async def test_partial_turn_is_finished_before_stopping(config):
     config.max_u_turns = 2
-    config.max_turns_without_improvement = 1
     saved_turn(config, 0, passed=False)
     saved_turn(config, 1, stage='untested')
     assert await state(config, ExperimentDatabase(config.output)) == dict(state='turn', turn=1)
@@ -71,7 +55,6 @@ async def test_partial_turn_is_finished_before_stopping(config):
 
 async def test_no_forty_turn_limit_or_window_rollover(config):
     config.max_u_turns = 42
-    config.max_turns_without_improvement = 100
     for turn in range(41):
         saved_turn(config, turn)
     assert await state(config, ExperimentDatabase(config.output)) == dict(state='turn', turn=41)

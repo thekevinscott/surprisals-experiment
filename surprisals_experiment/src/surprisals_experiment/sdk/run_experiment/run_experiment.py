@@ -21,8 +21,13 @@ async def state(config: Config, database: ExperimentDatabase) -> dict:
     result, = await database.query(
         QUERIES / "run.sql", samples=config.t_samples,
         cap=config.max_u_turns if config.max_u_turns is not None else -1,
-        max_stale=config.max_turns_without_improvement,
     )
+    if result["state"] == "window_missing" and result["window"] > 0:
+        stop, = await database.query(
+            QUERIES / "window_stop.sql", window=result["window"] - 1, samples=config.t_samples,
+        )
+        if stop["stopped"]:
+            result["state"] = "stopped"
     return result
 
 
