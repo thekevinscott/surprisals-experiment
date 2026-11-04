@@ -1,0 +1,7 @@
+{
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_streaming.py -q",
+  "ran_at": 1793759084,
+  "exit_code": 0,
+  "commit": "bb2ea1ab07ddee202417b4546faa0ce7c8406079",
+  "branch": "feat/flush-best-attempt"
+}
