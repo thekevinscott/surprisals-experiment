@@ -4,7 +4,7 @@ Keyword arguments fill {name} placeholders as SQL literals. DirSQL has no bind p
 
 from pathlib import Path
 
-from dirsql import DirSQL
+from dirsql import DirSQL, Table
 
 
 def literal(value: str | int | float) -> str:
@@ -16,9 +16,9 @@ def literal(value: str | int | float) -> str:
 
 
 class Database:
-    def __init__(self, root: Path):
-        # Runs live under gitignored runs/. Query path tables: declared tables index only at construction.
-        self.dirsql = DirSQL(str(root), no_ignore=True)
+    def __init__(self, root: Path, tables: list[Table] | None = None):
+        # Runs live under gitignored runs/. Declared tables miss later writes until dirsql#1572 ships.
+        self.dirsql = DirSQL(str(root), no_ignore=True, tables=tables)
 
     async def query(self, query: str | Path, **kwargs: str | int | float) -> list[dict]:
         sql = query.read_text() if isinstance(query, Path) else query

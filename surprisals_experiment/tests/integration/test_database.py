@@ -1,3 +1,5 @@
+from dirsql import Table
+
 from surprisals_experiment.sdk.database import Database, QuestionDatabase
 
 
@@ -7,6 +9,13 @@ async def test_query_runs_a_string_or_loads_a_path(tmp_path):
     database = Database(tmp_path)
     assert await database.query("SELECT content FROM './a.txt'") == [{'content': 'hello'}]
     assert await database.query(tmp_path / 'query.sql') == [{'content': 'hello'}]
+
+
+async def test_queries_declared_tables(tmp_path):
+    (tmp_path / 'a.txt').write_text('hello')
+    table = Table(name='notes', ddl='CREATE TABLE notes (text TEXT)', glob='*.txt',
+                  on_file=lambda path: [{'text': open(path).read()}])
+    assert await Database(tmp_path, [table]).query('SELECT text FROM notes') == [{'text': 'hello'}]
 
 
 async def test_query_fills_placeholders_as_escaped_literals(tmp_path):
