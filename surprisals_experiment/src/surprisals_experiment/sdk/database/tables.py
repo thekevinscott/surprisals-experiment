@@ -1,4 +1,4 @@
-"""Declared tables over the run folder, schema in plan/run-database.sql. Ids are path-derived."""
+"""Declared tables over the run folder, schema in schema.sql. Ids are path-derived."""
 
 import json
 from pathlib import Path
