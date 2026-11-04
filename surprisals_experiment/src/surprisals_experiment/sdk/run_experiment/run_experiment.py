@@ -74,7 +74,7 @@ async def run_experiment(
         window = current["window"]
         fork = current["fork"]
         if current["state"] == "stopped":
-            solution, _ = await write_result(Turn(config, 39, window - 1, fork), database)
+            solution = await write_result(Turn(config, 39, window - 1, fork), database)
             if solution is None:
                 write(config.error_file, "No passing solution before the stop rule or turn cap\n")
             return solution
