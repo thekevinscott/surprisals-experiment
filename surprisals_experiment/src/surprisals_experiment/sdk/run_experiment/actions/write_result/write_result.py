@@ -18,4 +18,4 @@ async def write_result(turn: Turn, database: ExperimentDatabase):
         "attempts": result["attempts"],
         "solution": str(solution) if solution else None,
     }, indent=2) + "\n")
-    return solution, result["stale"]
+    return solution

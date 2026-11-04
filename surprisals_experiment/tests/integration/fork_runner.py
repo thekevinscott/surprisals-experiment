@@ -19,7 +19,7 @@ async def run_fork(config, *, on_delta, on_t_delta=None):
     for position in range(limit):
         await drive_fork(config, database, problem, 0, 0, position, position + 1,
                          on_delta=on_delta, on_t_delta=on_t_delta)
-        solution, _ = await write_result(Turn(config, position), database)
+        solution = await write_result(Turn(config, position), database)
     if solution is None:
         write(config.error_file, 'No passing solution\n')
     return solution
