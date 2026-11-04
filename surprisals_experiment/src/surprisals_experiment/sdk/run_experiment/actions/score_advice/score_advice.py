@@ -3,9 +3,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ...database import ExperimentDatabase
+from ....database import ExperimentDatabase
 
-SCORED_TOKENS = Path(__file__).parents[2] / "database" / "scored_tokens.sql"
+SCORED_TOKENS = Path(__file__).parent / "scored_tokens.sql"
 
 
 async def scored_tokens(database: ExperimentDatabase, advice: str) -> list[tuple[str, float]] | None:
