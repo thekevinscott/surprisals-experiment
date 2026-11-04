@@ -15,7 +15,6 @@ async def write_solutions(turn: Turn, problem: QuestionDatabase, *, on_delta: Ca
     async def generate(sample: int) -> None:
         async with pool:
             await produce_code(turn.config, output=turn.t_dir(sample), advice=turn.advice.text, on_delta=on_delta)
-
             await run_tests(turn, problem, sample=sample)
 
     tasks = [asyncio.create_task(generate(sample)) for sample in range(turn.config.t_samples)]
