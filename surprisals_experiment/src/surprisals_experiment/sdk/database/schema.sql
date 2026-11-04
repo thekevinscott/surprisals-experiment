@@ -36,6 +36,13 @@ CREATE TABLE ts (
   UNIQUE (turn_id, position)
 );
 
+CREATE TABLE generations (
+  id TEXT PRIMARY KEY,
+  turn_id TEXT NOT NULL REFERENCES turns(id),
+  position INTEGER NOT NULL,
+  UNIQUE (turn_id, position)
+);
+
 CREATE TABLE files (
   id      TEXT PRIMARY KEY,             -- 'windows/W/forks/F/turns/N/ts/S/src/<path>'
   t_id    TEXT NOT NULL REFERENCES ts(id),

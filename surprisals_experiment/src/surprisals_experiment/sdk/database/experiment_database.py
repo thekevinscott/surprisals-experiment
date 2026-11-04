@@ -53,6 +53,9 @@ class ExperimentDatabase(Database):
                 "stdout": case["stdout"], "stderr": case["stderr"], "passed": case["passed"], "status": case["status"],
             } for case in json.loads(Path(path).read_text())["cases"]]
 
+        def generation(path):
+            return [] if json.loads(Path(path).read_text()).get("exit_code") == -1 else t(path)
+
         # Tables without an entry start empty until a query needs their rows.
         sources = {
             "windows": ("windows/*/window.json", window),
@@ -61,6 +64,7 @@ class ExperimentDatabase(Database):
             "advices": ("advices/*/advice.json", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/tests.json", t),
+            "generations": (f"{TURN}/ts/*/run.json", generation),
             "test_results": (f"{TURN}/ts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]

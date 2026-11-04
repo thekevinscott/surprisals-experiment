@@ -5,7 +5,10 @@ import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
-from surprisals_experiment.sdk.database import QuestionDatabase
+from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.run_experiment.run_experiment import actions
+from advice_artifacts import write_advice
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
 from test_run_summary import report
 
@@ -91,8 +94,15 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             finished[sample].set()
 
     monkeypatch.setattr(FakeSession, 'message', message)
+    (config.problem_dir / "input_output.json").write_text(json.dumps({"inputs": ["3\n"], "outputs": ["6\n"]}))
+    actions["not_started"](config)
+    database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
+    turn = Turn(config, 0)
+    turn.attempt_dir.mkdir(parents=True)
+    write_advice(config, turn.attempt_dir, 'double it', 9)
     task = asyncio.create_task(prompt_t_to_produce_code(
-        config, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
+        turn, database, QuestionDatabase(config.problem_dir), actions,
     ))
     try:
         async with asyncio.timeout(5):
@@ -105,9 +115,6 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             for event in release:
                 event.set()
             solutions = await task
-        assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-        (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
-        await run_test_suite(config, solutions, QuestionDatabase(config.problem_dir))
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
         assert [json.loads((config.t_dir(0, sample) / 'tests.json').read_text())['all_passed']
@@ -170,14 +177,15 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
         assert all(session.closed for session in botbox_script.sessions)
         assert (config.t_dir(0, 0) / 'src/main.py').read_text() == PASS
         assert (config.t_dir(0, 0) / 'transcripts/session.jsonl').exists()
-        assert not (config.t_dir(0, 0) / 'tests.json').exists()
+        assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
+        assert not (config.t_dir(0, 1) / 'tests.json').exists()
         assert not config.result_file.exists()
         assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         summary, attempt = report(config.output)
         assert summary['completed_evaluation_attempts'] == 0
-        assert summary['completed_t_evaluations'] == 0
+        assert summary['completed_t_evaluations'] == 1
         assert summary['evaluation_attempts_to_success'] is None
-        assert attempt['outcome'] == 'not_evaluated'
+        assert attempt['outcome'] == 'incomplete_batch'
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

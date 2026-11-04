@@ -41,6 +41,7 @@ async def produce_code(
                 write(log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n")
                 shutil.rmtree(source)
         source.mkdir()
+        write(output / "run.json", json.dumps({"timed_out": True}) + "\n")
         return source
 
     return await generate()

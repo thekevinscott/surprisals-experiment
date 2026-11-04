@@ -1,25 +1,26 @@
-"""Prompt a pool of fresh Ts and return their source directories in sample order."""
+"""Run each T sample through generation and testing, preserving sample order."""
 
 import asyncio
 from collections.abc import Callable
 from pathlib import Path
 
-from surprisals_experiment.config import Config
-from .produce_code import produce_code
+from ....turn import Turn
+from ....database import ExperimentDatabase, QuestionDatabase
+from ...run_sample import run_sample
 
 
 async def prompt_t_to_produce_code(
-    config: Config, *, advice: str,
+    turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase, actions: dict, *,
     on_delta: Callable[[str, str], None] | None = None,
-    folders: list[Path],
 ) -> list[Path]:
-    pool = asyncio.Semaphore(config.t_pool_size)
+    pool = asyncio.Semaphore(turn.config.t_pool_size)
 
-    async def generate(folder: Path) -> Path:
+    async def sample(position: int) -> Path:
         async with pool:
-            return await produce_code(config, output=folder, advice=advice, on_delta=on_delta)
+            await run_sample(turn, position, database, problem, actions, on_delta=on_delta)
+            return turn.t_dir(position) / "src"
 
-    tasks = [asyncio.create_task(generate(folder)) for folder in folders]
+    tasks = [asyncio.create_task(sample(position)) for position in range(turn.config.t_samples)]
     try:
         return await asyncio.gather(*tasks)
     finally:
