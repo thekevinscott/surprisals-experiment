@@ -12,7 +12,7 @@ async def test_writes_to_arbitrary_output_folder(config, botbox_script, tmp_path
     source = await produce_code(config, output=folder, advice='Double.')
     assert source == folder / 'src'
     assert (source / 'main.py').read_text() == SOURCE
-    assert json.loads((folder / 'run.json').read_text()) == {'exit_code': 0}
+    assert json.loads((folder / 'generation.json').read_text()) == {'exit_code': 0}
     assert (folder / 'transcripts/session.jsonl').exists()
     assert botbox_script.sessions[0].messages == ['Double.']
     assert botbox_script.sessions[0].closed

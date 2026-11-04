@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793833128,
+  "exit_code": 0,
+  "commit": "6030e531294121102cc240e1a20da7810477be32",
+  "branch": "fix/t-generation-json"
+}
