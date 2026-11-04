@@ -30,8 +30,13 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
         assert (directory / 'src/main.py').read_text() == source
         assert (directory / 'transcripts/session.jsonl').exists()
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
-    settings = json.loads((config.output / 'settings.json').read_text())
-    assert settings == {'t_samples': n, 't_sample_retries': 3}
+    settings_text = (config.output / 'settings.json').read_text()
+    settings = json.loads(settings_text)
+    assert settings.keys() == type(config).model_fields.keys() - {'api_key'}
+    assert settings['t_samples'] == n
+    assert settings['t_sample_retries'] == 3
+    assert settings['problem_dir'] == str(config.problem_dir)
+    assert 'test-key' not in settings_text
     summary, attempt = report(config.output)
     assert summary['ts_per_advice'] == n
     assert summary['completed_t_evaluations'] == n
