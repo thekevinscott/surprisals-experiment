@@ -1,14 +1,11 @@
 WITH completed AS (
-  SELECT * FROM complete_turns
-  WHERE window = :window AND fork = :fork AND turn <= :turn AND samples = :samples
-), improvements AS (
-  SELECT current.turn FROM completed current
-  WHERE current.passed = 1 AND NOT EXISTS (
-    SELECT 1 FROM completed previous
-    WHERE previous.turn < current.turn AND previous.passed = 1 AND previous.score <= current.score
-  )
+  SELECT * FROM complete_turns WHERE samples = :samples
+), best AS (
+  SELECT id, score, window * 40 + turn AS time FROM completed WHERE passed = 1
+  ORDER BY score, window, turn, fork LIMIT 1
 )
-SELECT (SELECT score FROM completed WHERE passed = 1 ORDER BY score, turn LIMIT 1) AS score,
-       (SELECT id FROM completed WHERE passed = 1 ORDER BY score, turn LIMIT 1) AS turn_id,
-       (SELECT count(*) FROM completed) AS attempts,
-       (SELECT count(*) FROM completed WHERE turn > coalesce((SELECT max(turn) FROM improvements), -1)) AS stale
+SELECT (SELECT score FROM best) AS score,
+       (SELECT id FROM best) AS turn_id,
+       coalesce((SELECT max(window * 40 + turn) + 1 FROM completed), 0) AS attempts,
+       coalesce((SELECT max(window * 40 + turn) FROM completed), 0)
+         - coalesce((SELECT time FROM best), 0) AS stale
