@@ -1,7 +1,7 @@
 {
   "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_flush.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_u_chat.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_measure.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_samples.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_timeout.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_cli.py -q",
-  "ran_at": 1793766758,
+  "ran_at": 1793804521,
   "exit_code": 0,
-  "commit": "ee4f94fb2f645fdcb373d1ffffca313f989f6ffd",
+  "commit": "5f3f70b078aae601bbd4ce5b77e8f13a69be57dc",
   "branch": "refactor/flush-only"
 }
