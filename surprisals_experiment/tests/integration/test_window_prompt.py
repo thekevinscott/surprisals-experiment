@@ -85,3 +85,26 @@ async def test_restart_preserves_prompt_and_new_turn_uses_same_window_baseline(
         assert 'Best at window start: 412; target: 391.4' in fresh.messages[0]['content']
     assert len(chat_provider) == 1
     assert chat_provider[0]['messages'][0]['content'] == expected[0]['content']
+
+
+async def test_rollover_sends_window_start_target_to_each_fork(
+    config, botbox_script, chat_provider,
+):
+    from surprisals_experiment.sdk import run_experiment
+
+    config.max_u_turns = 41
+    for fork in range(4):
+        for position in range(10):
+            completed(Turn(config, position, fork=fork), 412)
+    for position in range(10, 40):
+        completed(Turn(config, position), 412)
+    botbox_script.advice.extend(['double the input'] * 4)
+    botbox_script.solutions.extend(['print(int(input()) * 2)\n'] * 4)
+    await run_experiment(config, on_delta=None)
+    assert len(chat_provider) == 4
+    for request in chat_provider:
+        prompt = request['messages'][0]['content']
+        assert 'Window 1, turn 1 of 40.' in prompt
+        assert 'Best at window start: 412; target: 391.4 (5% improvement).' in prompt
+    await run_experiment(config, on_delta=None)
+    assert len(chat_provider) == 4
