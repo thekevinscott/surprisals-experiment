@@ -9,7 +9,7 @@ import httpx2
 import pytest
 from openai import AsyncOpenAI
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.cli.main import main
 
 async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):

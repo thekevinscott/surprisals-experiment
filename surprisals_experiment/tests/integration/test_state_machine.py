@@ -101,28 +101,31 @@ async def test_fork_best_is_isolated_until_solo(config):
     assert '1/0/0: 20' in solo
 
 
-async def test_parallel_forks_and_restart_mid_round(config, botbox_script, chat_provider, monkeypatch):
+@pytest.mark.parametrize('seed', [False, True])
+async def test_parallel_forks_and_restart_mid_round(config, botbox_script, chat_provider, monkeypatch, seed):
     from conftest import FakeSession
     config.max_u_turns = 1
-    original = saved_turn(config, fork=0, turn=0).attempt_dir / 'metadata.json'
-    before = original.stat().st_mtime_ns
-    botbox_script.advice.extend(['double it'] * 3)
-    botbox_script.solutions.extend([PASS] * 3)
+    original = saved_turn(config, fork=0, turn=0).attempt_dir / 'metadata.json' if seed else None
+    before = original.stat().st_mtime_ns if original else None
+    expected = 3 if seed else 4
+    botbox_script.advice.extend(['double it'] * expected)
+    botbox_script.solutions.extend([PASS] * expected)
     entered = set()
     barrier = asyncio.Event()
     reply = FakeSession.message
 
     async def concurrent(self, text):
         entered.add(str(self.output))
-        if len(entered) == 3:
+        if len(entered) == expected:
             barrier.set()
         await asyncio.wait_for(barrier.wait(), 5)
         await reply(self, text)
 
     monkeypatch.setattr(FakeSession, 'message', concurrent)
     await run_experiment(config, on_delta=None)
-    assert len(chat_provider) == len(botbox_script.sessions) == 3
-    assert original.stat().st_mtime_ns == before
+    assert len(chat_provider) == len(botbox_script.sessions) == expected
+    if original:
+        assert original.stat().st_mtime_ns == before
     assert json.loads(config.result_file.read_text())['attempts'] == 1
     await run_experiment(config, on_delta=None)
-    assert len(chat_provider) == 3
+    assert len(chat_provider) == expected

@@ -5,7 +5,7 @@ import pytest
 from botbox import RunResult
 
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_t
 
 
