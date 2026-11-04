@@ -11,7 +11,6 @@ async def score_advice(
     directory = config.attempt_dir(attempt)
     measurement, tokens = await config.advice_measure.score(advice, on_delta=on_delta)
     (directory / "metadata.json").write_text(json.dumps({
-        "rejected": False,
         "measurement": measurement,
         **({"tokens": tokens} if tokens is not None else {}),
     }, indent=2) + "\n")

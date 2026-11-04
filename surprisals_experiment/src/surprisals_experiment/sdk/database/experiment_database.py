@@ -36,7 +36,6 @@ class ExperimentDatabase(Database):
                 "id": str(turn / "advice.txt"), "turn_id": str(turn),
                 "text": (Path(path).parent / "advice.txt").read_text(), "score": metadata["measurement"],
                 "score_text": tokens and "".join(f"{token}<{bits:.1f}>" for token, bits in tokens),
-                "rejected": metadata["rejected"],
             }]
 
         def t(path):

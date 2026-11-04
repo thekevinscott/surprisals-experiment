@@ -94,7 +94,7 @@ def convert(run):
                 "agent": "T",
                 "attempt": int(attempt.name),
                 "sample": int(sample.name),
-                "advice_chars": metadata["measurement"] if metadata and not metadata["rejected"] else None,
+                "advice_chars": metadata["measurement"] if metadata else None,
                 "tests_passed": tests and tests["passed"],
                 "tests_total": tests and tests["total"],
                 "scores": {"all_passed": bool(tests and tests["all_passed"])},

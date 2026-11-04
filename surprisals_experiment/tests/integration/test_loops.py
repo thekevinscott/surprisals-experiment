@@ -74,7 +74,7 @@ def describe_advice_improvement():
         }
         for attempt, advice in enumerate(advices):
             assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {
-                'rejected': False, 'measurement': len(advice),
+                'measurement': len(advice),
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]
         feedback = (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text()

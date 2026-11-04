@@ -55,9 +55,9 @@ uvx dirsql --no-ignore --format json -- "$(cat /path/to/repo/scripts/run-summary
 ```
 
 - `advice_candidates` includes the initial response; `advice_rewrites` counts subsequent saved responses per attempt. Infrastructure retries are excluded.
-- `rejected_candidates` counts responses rejected for length. This differs from rewrites when the rewrite allowance is exhausted: one initial response plus ten rejected rewrites means eleven rejected candidates.
+- `rejected_candidates` remains a report column and is zero for recorded advice; the metadata no longer has a rejection field.
 - `completed_t_evaluations` counts individual T solutions with saved test results; `completed_evaluation_attempts` counts completed advice batches. `evaluation_attempts_to_success` is null until an evaluation passes; it does not treat an interrupted run as a failed solution.
 - Per-attempt rows include accepted advice length, tests passed/total, and outcome. Attempt indices are zero-based.
-- The requested sample count comes from `settings.json`. New runs have one advice per turn, always marked `rejected: false`, and no advice cap; cap/rewrite fields remain in this report for historical runs. For older runs, the cap may be present in settings; the query falls back to labnotes `run.json` cap parameters for older runs. Missing cap metadata is reported as unknown, not inferred to mean uncapped. Missing advice metadata yields null counts; counts reflect only recorded artifacts.
+- The requested sample count comes from `settings.json`. New runs have one advice per turn and no advice cap; cap/rewrite columns remain in the report. For older runs, the cap may be present in settings; the query falls back to labnotes `run.json` cap parameters for older runs. Missing cap metadata is reported as unknown, not inferred to mean uncapped. Missing advice metadata yields null counts; counts reflect only recorded artifacts.
 
 The query derives completed and passing T counts directly from each sample's `tests.json`. The requested count in settings distinguishes a complete batch from an interrupted one. Per-attempt test counts sum the tests from all completed samples. Advice minimization evaluates one advice per turn without enforcing a character cap.

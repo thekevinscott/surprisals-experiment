@@ -22,8 +22,7 @@ CREATE TABLE advice (
   turn_id    TEXT NOT NULL UNIQUE REFERENCES turns(id),
   text       TEXT NOT NULL,
   score      NUMERIC NOT NULL,          -- chars, or total bits
-  score_text TEXT,                      -- per-token bits rendering, NULL in chars mode
-  rejected   INTEGER NOT NULL
+  score_text TEXT                       -- per-token bits rendering, NULL in chars mode
 );
 
 CREATE TABLE ts (

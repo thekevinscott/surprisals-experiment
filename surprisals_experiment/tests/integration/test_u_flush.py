@@ -69,7 +69,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     (config.window_dir / 'window.json').write_text('{}')
     (config.fork_dir / 'fork.json').write_text('{}')
     (advice / 'advice.txt').write_text('double it')
-    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9, 'rejected': False}))
+    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9}))
     sample = config.t_dir(0, 0)
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
