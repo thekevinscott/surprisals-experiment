@@ -1,13 +1,13 @@
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ...database import ExperimentDatabase, QuestionDatabase
-from ...utils.u_chat import ChatSession
-from ..prepare_feedback import describe_result, prepare_feedback
-from ..prepare_flush import Attempt, prepare_flush
-from ..read_implementations import read_sources
+from ....database import ExperimentDatabase, QuestionDatabase
+from ....utils.u_chat import ChatSession
+from ...prepare_feedback import describe_result, prepare_feedback
+from ...prepare_flush import Attempt, prepare_flush
+from ...read_implementations import read_sources
 
-TURN_TESTS = Path(__file__).parents[2] / "database" / "turn_tests.sql"
+TURN_TESTS = Path(__file__).parent / "turn_tests.sql"
 
 
 async def write_feedback(
