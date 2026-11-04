@@ -11,14 +11,14 @@ from .chat_session import ChatSession
 from .record import restore
 
 SYSTEM = Prompt("u/system.txt")
-CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
+CONTEXT = Prompt("u/flush/context.txt")
 
 
 @asynccontextmanager
 async def open_u_session(config) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
-        implementation_access=CONTEXTS[config.u_context](),
+        implementation_access=CONTEXT(),
         t_samples=config.t_samples,
         max_turns_without_improvement=config.max_turns_without_improvement,
     )
@@ -30,8 +30,6 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
         u_session = ChatSession(
             client, config.u_model, config.u_thinking,
             config.u_transcripts / "messages.jsonl",
-            compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
-            flush=config.u_flush,
         )
         if u_session.transcript.exists():
             with u_session.transcript.open('r+b') as transcript:

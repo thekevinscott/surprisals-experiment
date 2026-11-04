@@ -60,11 +60,6 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
     tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
     assert tests['passed'] == 0 and not tests['all_passed']
-    feedback = (config.attempt_dir(1) / 'feedback.txt').read_text()
-    assert 'T 2: passed 0 of 2 tests; timed out on every try and wrote no solution.' in feedback
-    for line in feedback.splitlines():
-        if line.startswith(('T 0:', 'T 1:')):
-            assert 'timed out' not in line
     result = json.loads(config.result_file.read_text())
     assert result['success'] and result['attempts'] == 2
     assert result['solution'] == str(config.t_dir(0, 0) / 'src')

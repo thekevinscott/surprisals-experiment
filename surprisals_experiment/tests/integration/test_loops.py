@@ -35,16 +35,11 @@ def describe_u_to_t_loop():
             assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = (attempt / 'feedback.txt').read_text()
-                assert 'passed 0 of 2 tests' in feedback
-                assert '"main.py": "print(0)\\n"' in feedback
+                assert feedback == config.question_file.read_text()
                 assert chat_provider[i + 1]['messages'][-1]['content'] == feedback
         assert config.error_file.exists() == (failures == 5)
         assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
-
-
-def implementations(sources):
-    return json.dumps({f'T {index}': {'main.py': source} for index, source in enumerate(sources)}, indent=2)
 
 
 def describe_advice_improvement():
@@ -82,12 +77,8 @@ def describe_advice_improvement():
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]
         feedback = (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text()
-        assert 'Turns without improvement: 2 of 2' in feedback
-        assert f'Shortest successful advice so far: {len(advices[best_attempt])} characters' in feedback
-        history = chat_provider[-1]['messages']
-        for attempt, advice in enumerate(advices[:-1]):
-            assert history[2 * attempt + 2]['content'] == advice
-            assert implementations(outcomes[attempt]) in history[2 * attempt + 3]['content']
+        assert f'<index>{best_attempt}</index>' in feedback
+        assert f'<length>{len(advices[best_attempt])} characters</length>' in feedback
         assert all(session.closed for session in botbox_script.sessions)
 
 
