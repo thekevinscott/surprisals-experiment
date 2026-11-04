@@ -1,7 +1,7 @@
 """One-folder generation owns its timeout budget without sample naming."""
 import json
 
-from surprisals_experiment.sdk.run_experiment.produce_code import produce_code
+from surprisals_experiment.sdk.run_experiment.actions.write_solutions.produce_code import produce_code
 
 SOURCE = 'print(int(input()) * 2)\n'
 

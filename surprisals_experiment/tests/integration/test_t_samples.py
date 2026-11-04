@@ -4,7 +4,7 @@ import json
 import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.prompt_t_to_produce_code import prompt_t_to_produce_code
+from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
 from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 from test_run_summary import report
 
