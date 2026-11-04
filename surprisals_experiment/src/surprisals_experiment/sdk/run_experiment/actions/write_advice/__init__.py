@@ -1,19 +1,23 @@
+import json
 from collections.abc import Callable
 
 from ....turn import Turn
-from ....utils.u_chat import ChatSession
+from ....utils.u_chat import open_u_chat
+from ....utils.write import write
 from ....advice import Advice
 from ....database import ExperimentDatabase, QuestionDatabase
 from ...prepare_flush import prepare_flush
 
 
 async def write_advice(
-    turn: Turn, u_chat: ChatSession, database: ExperimentDatabase, problem: QuestionDatabase, *,
+    turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase, *,
     on_delta: Callable[[str, str], None] | None = None,
-) -> Advice:
+) -> None:
     config = turn.config
     prompt = await prepare_flush(config, problem, database)
-    advice = Advice(await u_chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
-    turn.attempt_dir.mkdir(parents=True, exist_ok=True)
+    async with open_u_chat(turn) as chat:
+        chat.attempt = turn.position
+        advice = Advice(await chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
     advice.save()
-    return advice
+    write(turn.attempt_dir / "metadata.json",
+          json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n")

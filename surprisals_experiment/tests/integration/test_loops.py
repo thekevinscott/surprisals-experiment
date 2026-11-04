@@ -1,5 +1,7 @@
 """Integration tests through the real U/T adapters and local evaluator."""
 
+from surprisals_experiment.sdk.turn import Turn
+
 import asyncio
 import json
 from advice_artifacts import advice_directory, read_score
@@ -105,7 +107,7 @@ def describe_advice_improvement():
             'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'src'),
         }
         assert all(session.closed for session in botbox_script.sessions)
-        assert (config.u_transcripts / 'messages.jsonl').exists()
+        assert (Turn(config, 0).u_transcripts / 'messages.jsonl').exists()
 
 
 def describe_run_layout():

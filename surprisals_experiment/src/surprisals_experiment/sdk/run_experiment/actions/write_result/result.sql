@@ -1,5 +1,5 @@
 WITH completed AS (
-  SELECT * FROM evaluated_turns
+  SELECT * FROM complete_turns
   WHERE window = :window AND fork = :fork AND turn <= :turn AND samples = :samples
 ), improvements AS (
   SELECT current.turn FROM completed current
@@ -10,5 +10,5 @@ WITH completed AS (
 )
 SELECT (SELECT score FROM completed WHERE passed = 1 ORDER BY score, turn LIMIT 1) AS score,
        (SELECT id FROM completed WHERE passed = 1 ORDER BY score, turn LIMIT 1) AS turn_id,
-       :turn + 1 AS attempts,
+       (SELECT count(*) FROM completed) AS attempts,
        (SELECT count(*) FROM completed WHERE turn > coalesce((SELECT max(turn) FROM improvements), -1)) AS stale

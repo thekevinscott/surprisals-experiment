@@ -18,6 +18,7 @@ async def produce_code(
 ) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     source = output / "src"
+    shutil.rmtree(source, ignore_errors=True)
 
     def before_sleep(state):
         shutil.rmtree(source, ignore_errors=True)
@@ -41,6 +42,7 @@ async def produce_code(
                 write(log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n")
                 shutil.rmtree(source)
         source.mkdir()
+        write(output / "run.json", json.dumps({"timed_out": True}) + "\n")
         return source
 
     return await generate()

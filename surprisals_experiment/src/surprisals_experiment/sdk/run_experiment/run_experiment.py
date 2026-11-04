@@ -1,6 +1,5 @@
-"""Run the experiment through the Python SDK."""
+"""Drive the existing sequential loop from artifacts, including partial turns."""
 
-from itertools import count
 from collections.abc import Callable
 from pathlib import Path
 
@@ -11,36 +10,56 @@ from .actions.write_result import write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
-from ..utils.u_chat import open_u_chat
 from ..database import ExperimentDatabase, QuestionDatabase
-from ..utils.write import write
 from ..turn import Turn
+from ..utils.write import write
+
+QUERIES = Path(__file__).parent
+
+
+async def state(config: Config, database: ExperimentDatabase) -> dict:
+    result, = await database.query(
+        QUERIES / "run.sql", samples=config.t_samples,
+        cap=config.max_u_turns if config.max_u_turns is not None else -1,
+        max_stale=config.max_turns_without_improvement,
+    )
+    return result
+
+
+async def turn_state(turn: Turn, database: ExperimentDatabase) -> dict:
+    result, = await database.query(QUERIES / "turn.sql", **turn.params, samples=turn.config.t_samples)
+    return result
 
 
 async def run_experiment(
     config: Config, *, on_delta: Callable[[str, str], None] | None,
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
-    """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
-    problem = QuestionDatabase(config.problem_dir)
     config.save_settings()
-    write(config.window_dir / "window.json", "{}\n")
-    write(config.fork_dir / "fork.json", "{}\n")
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
-    best_solution = None
-    attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
-    async with open_u_chat(config) as u_chat:
-        for attempt in attempts:
-            turn = Turn(config, attempt)
-            advice = await write_advice(turn, u_chat, database, problem, on_delta=on_delta)
-            await score_advice(turn, advice, on_delta=on_delta)
-            await write_solutions(turn, on_delta=on_t_delta)
-            await run_tests(turn, problem)
+    problem = QuestionDatabase(config.problem_dir)
+    while True:
+        current = await state(config, database)
+        turn = Turn(config, current["turn"])
+        if current["state"] == "stopped":
+            solution, _ = await write_result(turn, database)
+            if solution is None:
+                write(config.error_file, f"No passing solution after {turn.position} U turns\n")
+            return solution
+        if current["state"] == "not_started":
+            write(config.window_dir / "window.json", "{}\n")
+            write(config.fork_dir / "fork.json", "{}\n")
+            continue
+        stage = await turn_state(turn, database)
+        if stage["state"] == "advice_missing":
+            await write_advice(turn, database, problem, on_delta=on_delta)
+        elif stage["state"] == "unscored":
+            await score_advice(turn, on_delta=on_delta)
+        elif stage["state"] == "solutions_missing":
+            await write_solutions(turn, database, on_delta=on_t_delta)
+        elif stage["state"] == "untested":
+            await run_tests(turn, database, problem)
+        elif stage["state"] == "feedback_missing":
             await write_feedback(turn, database, problem)
-            best_solution, turns_without_improvement = await write_result(turn, database)
-            if turns_without_improvement >= config.max_turns_without_improvement:
-                break
-    if best_solution is None:
-        write(config.error_file, f"No passing solution after {attempt + 1} U turns\n")
-    return best_solution
+            await write_result(turn, database)

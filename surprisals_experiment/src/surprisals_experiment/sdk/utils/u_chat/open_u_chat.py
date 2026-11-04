@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
+from ...turn import Turn
 from .chat_session import ChatSession
 from .record import restore
 from ..write import write
@@ -16,7 +17,8 @@ CONTEXT = Prompt("u/flush/context.txt")
 
 
 @asynccontextmanager
-async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
+async def open_u_chat(turn: Turn) -> AsyncGenerator[ChatSession]:
+    config = turn.config
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
@@ -27,10 +29,10 @@ async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
         base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
         max_retries=0,
     ) as client:
-        config.u_transcripts.mkdir(parents=True, exist_ok=True)
+        turn.u_transcripts.mkdir(parents=True, exist_ok=True)
         u_chat = ChatSession(
             client, config.u_model, config.u_thinking,
-            config.u_transcripts / "messages.jsonl",
+            turn.u_transcripts / "messages.jsonl",
         )
         if u_chat.transcript.exists():
             lines = u_chat.transcript.read_bytes().splitlines(keepends=True)

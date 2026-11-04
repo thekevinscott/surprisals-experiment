@@ -31,6 +31,10 @@ class Turn:
         return self.attempt_dir / "u"
 
     @property
+    def u_transcripts(self) -> Path:
+        return self.u_dir / "transcripts"
+
+    @property
     def advice(self) -> Advice:
         metadata = json.loads((self.attempt_dir / "metadata.json").read_text())
         text = (self.config.output / metadata["advice"] / "advice.txt").read_bytes().decode("utf-8")

@@ -55,7 +55,8 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
         config.attempt_dir(attempt).mkdir(parents=True)
         advice = Advice(text, config.advice_measure, config.output)
         advice.save()
-        assert await score_advice(Turn(config, attempt), advice) == len(text)
+        (config.attempt_dir(attempt) / 'metadata.json').write_text(json.dumps({'advice': str(advice.directory.relative_to(config.output))}))
+        assert await score_advice(Turn(config, attempt)) == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()
     database = ExperimentDatabase(config.output)
     assert await database.query('SELECT * FROM advices') == [{
