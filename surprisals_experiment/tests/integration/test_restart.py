@@ -6,7 +6,7 @@ import json
 import pytest
 
 from conftest import FakeSession
-from surprisals_experiment.sdk.run_experiment.produce_code import produce_code
+from surprisals_experiment.sdk.run_experiment.actions.write_solutions.produce_code import produce_code
 from surprisals_experiment.sdk import run_experiment
 
 PASS = 'print(int(input()) * 2)\n'
