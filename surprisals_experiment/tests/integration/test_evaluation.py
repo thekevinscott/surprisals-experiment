@@ -37,9 +37,10 @@ async def test_wrong_crashing_and_binary_candidates_fail(tmp_path):
                "import os; os.write(2, b'\\xff'); print(7)"]
     for source in sources:
         (tmp_path / 'main.py').write_text(source)
-        results = await run_test_suite({'inputs': [''], 'outputs': ['7']}, tmp_path)
-        assert not results.all_passed, source
-        assert results.passed == 0
+        result_file = await run_test_suite({'inputs': [''], 'outputs': ['7']}, tmp_path)
+        results = json.loads(result_file.read_text())
+        assert not results['all_passed'], source
+        assert results['passed'] == 0
 
 
 async def test_missing_candidate_directory_is_an_evaluator_error(tmp_path):
@@ -74,3 +75,35 @@ async def test_case_exceeding_five_seconds_fails(config, botbox_script):
     assert result['passed'] == 0
     assert result['cases'][0]['stderr'] == 'Test exceeded 5 seconds'
     assert result['duration_seconds'] >= 5
+
+
+async def test_releases_each_case_before_running_the_next(tmp_path, monkeypatch):
+    import importlib
+    import weakref
+
+    module = importlib.import_module('surprisals_experiment.sdk.run_test_suite.run_test_suite')
+    original = module.run_case
+    previous = None
+    calls = 0
+
+    async def track(*args):
+        nonlocal previous, calls
+        if previous is not None:
+            assert previous() is None
+        result = await original(*args)
+        previous = weakref.ref(result)
+        calls += 1
+        return result
+
+    monkeypatch.setattr(module, 'run_case', track)
+    (tmp_path / 'main.py').write_text(
+        'import sys\nsys.stdout.write("x" * 262144)\nsys.stderr.write("y" * 262144)\n'
+    )
+    path = await run_test_suite({'inputs': [''] * 3, 'outputs': ['x' * 262144] * 3}, tmp_path)
+    assert calls == 3
+    assert previous() is None
+    saved = json.loads(path.read_text())
+    assert saved['passed'] == 3
+    assert len(saved['cases']) == 3
+    assert all(case['stdout'] == 'x' * 262144 and case['stderr'] == 'y' * 262144
+               for case in saved['cases'])

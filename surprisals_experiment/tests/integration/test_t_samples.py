@@ -105,14 +105,14 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
                 event.set()
             solutions = await task
         assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-        results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
+        result = await run_test_suite_for_ts(solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
-        assert [result.all_passed for result in results] == [True, False, True, False, True]
+        assert result is None
         assert [session.messages for session in botbox_script.sessions] == [['double it']] * 5
-        for sample, result in enumerate(results):
+        for sample, passed in enumerate([True, False, True, False, True]):
             saved = json.loads((config.t_dir(0, sample) / 'tests.json').read_text())
-            assert saved['all_passed'] == result.all_passed
+            assert saved['all_passed'] == passed
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

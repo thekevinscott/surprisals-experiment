@@ -8,27 +8,28 @@ from ..utils.write_text import write_text
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from ..run_test_suite import TestSuiteResult
+from ..run_test_suite import read_summary
 
 FEEDBACK = Prompt("u/feedback.txt")
 CONTEXT = Prompt("u/chat/context.txt")
 
 
-def describe_result(config: Config, attempt: int, index: int, sample: TestSuiteResult) -> str:
+def describe_result(config: Config, attempt: int, index: int) -> str:
     t_dir = config.t_dir(attempt, index)
+    sample = read_summary(t_dir / "tests.json")
     timed_out = (t_dir / "timeouts.txt").exists() and not any((t_dir / "src").iterdir())
-    return f"passed {sample.passed} of {sample.total} tests" + (
+    return f"passed {sample['passed']} of {sample['total']} tests" + (
         "; timed out on every try and wrote no solution" if timed_out else ""
     )
 
 
 def prepare_feedback(
-    config: Config, attempt: int, results: list[TestSuiteResult], *,
+    config: Config, attempt: int, *,
     solutions: list[Path], advice_length: int | float, best_length: int | float | None, turns_without_improvement: int,
 ) -> str:
     evaluations = []
-    for index, sample in enumerate(results):
-        evaluations.append(f"T {index}: {describe_result(config, attempt, index, sample)}.")
+    for index in range(len(solutions)):
+        evaluations.append(f"T {index}: {describe_result(config, attempt, index)}.")
     advice_measurement = f"Your advice was {advice_length} characters."
     if config.cap_strategy == "surprisal":
         metadata = json.loads((config.attempt_dir(attempt) / "metadata.json").read_text())
@@ -38,7 +39,8 @@ def prepare_feedback(
         unit=config.advice_measure.unit, measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
         implementations=read_implementations(solutions),
-        evaluations="\n".join(evaluations), passed=sum(result.all_passed for result in results), total=len(results),
+        evaluations="\n".join(evaluations), passed=sum(read_summary(solution.parent / "tests.json")["all_passed"] for solution in solutions),
+        total=len(solutions),
         advice_measurement=advice_measurement, best_length=best_length,
         turns_without_improvement=turns_without_improvement,
         max_turns_without_improvement=config.max_turns_without_improvement,
