@@ -2,8 +2,14 @@ name: state-machine
 
 on:
   pull_request:
+    paths:
+      - 'state_machine/**'
+      - '.github/workflows/state-machine.yml'
   push:
     branches: [main]
+    paths:
+      - 'state_machine/**'
+      - '.github/workflows/state-machine.yml'
 
 jobs:
   integration:
