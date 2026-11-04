@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from ..database import QuestionDatabase
+from ...database import QuestionDatabase
 
 TURN = Prompt("u/flush/turn.txt")
 
