@@ -36,8 +36,9 @@ async def produce_code(
                         raise RuntimeError("T infrastructure failed: botbox could not obtain an exit code")
                     return source
             except TimeoutError:
-                with (output / "timeouts.txt").open("a") as log:
-                    log.write(f"T exceeded {config.t_sample_timeout:g} seconds\n")
+                log = output / "timeouts.txt"
+                previous = log.read_text() if log.exists() else ""
+                write(log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n")
                 shutil.rmtree(source)
         source.mkdir()
         return source

@@ -14,6 +14,7 @@ from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_chat
 from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
+from ..turn import Turn
 
 
 async def run_experiment(
@@ -22,34 +23,21 @@ async def run_experiment(
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     problem = QuestionDatabase(config.problem_dir)
-    prompt = await problem.question
     config.save_settings()
     write(config.window_dir / "window.json", "{}\n")
     write(config.fork_dir / "fork.json", "{}\n")
     database = ExperimentDatabase(config.output)
-    best_length = None
     best_solution = None
-    turns_without_improvement = 0
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
         for attempt in attempts:
-            advice = await write_advice(
-                config, u_chat, prompt, attempt=attempt, on_delta=on_delta,
-            )
-            measurement = await score_advice(
-                config, advice, attempt=attempt, on_delta=on_delta,
-            )
-            solutions = await write_solutions(
-                config, attempt=attempt, advice=advice.text,
-                on_delta=on_t_delta,
-                folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
-            )
-            await run_tests(config, solutions, problem, attempt=attempt)
-            prompt, best_length, best_solution, turns_without_improvement = await write_feedback(
-                config, database, attempt, advice, measurement, solutions,
-                best_length, best_solution, turns_without_improvement, problem,
-            )
-            write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
+            turn = Turn(config, attempt)
+            advice = await write_advice(turn, u_chat, database, problem, on_delta=on_delta)
+            await score_advice(turn, advice, on_delta=on_delta)
+            await write_solutions(turn, on_delta=on_t_delta)
+            await run_tests(turn, problem)
+            await write_feedback(turn, database, problem)
+            best_solution, turns_without_improvement = await write_result(turn, database)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:

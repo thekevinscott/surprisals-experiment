@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from openai import LengthFinishReasonError
 
+from ..write import write
 from ..output_limit_message import output_limit_message
 
 
@@ -69,12 +70,13 @@ async def stream_reply(self, *, on_delta=None) -> str:
         raise output_limit_error(snapshot) from error
     finally:
         usage = snapshot.usage if snapshot is not None else None
-        with self.transcript.with_name("usage.jsonl").open("a") as log:
-            log.write(json.dumps({
+        log = self.transcript.with_name("usage.jsonl")
+        previous = log.read_text() if log.exists() else ""
+        write(log, previous + json.dumps({
                 "timestamp": datetime.now(UTC).isoformat(),
                 "completion_id": snapshot.id if snapshot is not None else None,
                 "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
-            }) + "\n")
+        }) + "\n")
         if snapshot is not None and snapshot.choices:
             message = snapshot.choices[0].message.model_dump(exclude_none=True)
             message.pop("parsed", None)

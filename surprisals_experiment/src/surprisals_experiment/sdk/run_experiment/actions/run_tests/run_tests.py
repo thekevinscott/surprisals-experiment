@@ -1,15 +1,14 @@
 import traceback
-from pathlib import Path
 
-from surprisals_experiment.config import Config
+from ....turn import Turn
 from ....utils.write import write
 from ....database import QuestionDatabase
 from ....run_test_suite import run_test_suite
 
 
-async def run_tests(config: Config, solutions: list[Path], problem: QuestionDatabase, *, attempt: int):
+async def run_tests(turn: Turn, problem: QuestionDatabase):
     try:
-        await run_test_suite(config, solutions, problem)
+        await run_test_suite(turn.config, [turn.t_dir(sample) / "src" for sample in range(turn.config.t_samples)], problem)
     except Exception:
-        write(config.attempt_dir(attempt) / "error.txt", traceback.format_exc())
+        write(turn.attempt_dir / "error.txt", traceback.format_exc())
         raise
