@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793836019,
+  "exit_code": 0,
+  "commit": "d2b755b8e38c0c3d144c0d57687d63ac2f379db3",
+  "branch": "chore/no-importlib"
+}
