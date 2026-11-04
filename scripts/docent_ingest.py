@@ -88,13 +88,14 @@ def convert(run):
             attempt = sample.parent.parent
             metadata_file = attempt / "metadata.json"
             metadata = json.loads(metadata_file.read_text()) if metadata_file.exists() else None
+            advice = json.loads((problem_run / metadata["advice"] / "advice.json").read_text()) if metadata else None
             tests_file = sample / "tests.json"
             tests = json.loads(tests_file.read_text()) if tests_file.exists() else None
             t = transcript([sample / "transcripts", sample / "t_transcripts"], base | {
                 "agent": "T",
                 "attempt": int(attempt.name),
                 "sample": int(sample.name),
-                "advice_chars": metadata["measurement"] if metadata and not metadata.get("rejected", False) else None,
+                "advice_chars": advice["score"] if advice else None,
                 "tests_passed": tests and tests["passed"],
                 "tests_total": tests and tests["total"],
                 "scores": {"all_passed": bool(tests and tests["all_passed"])},

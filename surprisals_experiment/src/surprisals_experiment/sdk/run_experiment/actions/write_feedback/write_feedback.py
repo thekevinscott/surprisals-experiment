@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....advice import Advice
 from ....utils.write import write
 from ....database import ExperimentDatabase, QuestionDatabase
 from ...prepare_flush import prepare_flush
@@ -9,7 +10,7 @@ TURN_TESTS = Path(__file__).parent / "turn_tests.sql"
 
 
 async def write_feedback(
-    config: Config, database: ExperimentDatabase, attempt: int, advice: str,
+    config: Config, database: ExperimentDatabase, attempt: int, advice: Advice,
     measurement: int | float, solutions: list[Path],
     best_length: int | float | None, best_solution: Path | None,
     turns_without_improvement: int, problem: QuestionDatabase,

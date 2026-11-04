@@ -36,5 +36,37 @@ async def test_question_database_reads_question_and_test_suite(tmp_path):
 
 async def test_experiment_database_creates_schema_tables(tmp_path):
     database = ExperimentDatabase(tmp_path)
-    for table in ['windows', 'forks', 'turns', 'advice', 'ts', 'files', 'test_results']:
+    for table in ['windows', 'forks', 'turns', 'advices', 'turn_advice', 'ts', 'files', 'test_results']:
         assert await database.query(f'SELECT * FROM {table}') == []
+
+
+async def test_identical_advice_has_one_row_and_two_turn_links(config):
+    import json
+    from hashlib import sha256
+    from surprisals_experiment.sdk.advice import Advice
+    from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
+
+    text = 'Use café.\r\nThen double.\r\n'
+    config.fork_dir.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
+    for attempt in range(2):
+        config.attempt_dir(attempt).mkdir(parents=True)
+        advice = Advice(text, config.advice_measure, config.output)
+        advice.save()
+        assert await score_advice(config, advice, attempt=attempt) == len(text)
+    digest = sha256(text.encode('utf-8')).hexdigest()
+    database = ExperimentDatabase(config.output)
+    assert await database.query('SELECT * FROM advices') == [{
+        'id': f'advices/{digest}', 'text': text, 'score': len(text), 'score_text': None,
+    }]
+    links = await database.query('SELECT * FROM turn_advice ORDER BY turn_id')
+    assert links == [
+        {'turn_id': str(config.attempt_dir(attempt).relative_to(config.output)),
+         'advice_id': f'advices/{digest}'} for attempt in range(2)
+    ]
+    assert (config.output / 'advices' / digest / 'advice.txt').read_bytes() == text.encode('utf-8')
+    assert len(list((config.output / 'advices').iterdir())) == 1
+    for attempt in range(2):
+        assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {'advice': f'advices/{digest}'}
+        assert not (config.attempt_dir(attempt) / 'advice.txt').exists()

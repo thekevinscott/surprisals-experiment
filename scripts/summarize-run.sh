@@ -31,7 +31,7 @@ fi
 query="$(dirname "${BASH_SOURCE[0]}")/run-summary.sql"
 sql=$(cat "$query")
 if [[ "$format" == table ]]; then
-  sql="SELECT cap, advice_rewrites, evaluation_attempts_to_success
+  sql="SELECT cap, evaluation_attempts_to_success
        FROM (${sql%;}) WHERE scope = 'run'"
 fi
 cd "$run_directory"

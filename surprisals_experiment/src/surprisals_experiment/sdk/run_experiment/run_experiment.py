@@ -40,7 +40,7 @@ async def run_experiment(
                 config, advice, attempt=attempt, on_delta=on_delta,
             )
             solutions = await write_solutions(
-                config, attempt=attempt, advice=advice,
+                config, attempt=attempt, advice=advice.text,
                 on_delta=on_t_delta,
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )

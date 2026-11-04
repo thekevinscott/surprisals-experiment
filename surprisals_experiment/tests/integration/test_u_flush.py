@@ -1,6 +1,7 @@
 """Flush shows the original question and only the earliest shortest all-pass attempt."""
 
 import json
+from advice_artifacts import write_advice
 from importlib.resources import files
 
 import pytest
@@ -68,8 +69,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     advice.mkdir(parents=True)
     (config.window_dir / 'window.json').write_text('{}')
     (config.fork_dir / 'fork.json').write_text('{}')
-    (advice / 'advice.txt').write_text('double it')
-    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9}))
+    write_advice(config, advice, 'double it', 9)
     sample = config.t_dir(0, 0)
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)

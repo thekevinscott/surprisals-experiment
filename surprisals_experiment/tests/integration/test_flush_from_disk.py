@@ -1,6 +1,7 @@
 """Build flush inputs using only persisted run artifacts."""
 
 import json
+from advice_artifacts import write_advice
 
 import pytest
 
@@ -28,10 +29,8 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     ]:
         directory = config.attempt_dir(number)
         directory.mkdir(parents=True)
-        (directory / 'advice.txt').write_text(f'advice {number}')
-        (directory / 'metadata.json').write_text(json.dumps({
-            'measurement': measurement, 'tokens': [[f'advice {number}', measurement]],
-        }))
+        write_advice(config, directory, f'advice {number}', measurement,
+                     [[f'advice {number}', measurement]] if measure == 'surprisal' else None)
         for sample, passed in enumerate(results):
             folder = config.t_dir(number, sample)
             folder.mkdir(parents=True)
@@ -57,7 +56,8 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         assert f'print({sample})' in prompt
         assert f'VALUE = {sample}' in prompt
     # Files, not a retained Attempt instance, supply each call's text and code.
-    (config.attempt_dir(2) / 'advice.txt').write_text('updated advice')
+    write_advice(config, config.attempt_dir(2), 'updated advice', 5,
+                 [['updated advice', 5]] if measure == 'surprisal' else None)
     (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
     updated = await prepare_flush(config, problem, database)
     assert '<advice>\nupdated advice\n</advice>' in updated
@@ -71,8 +71,7 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
         (directory / 'ts/0').mkdir(parents=True)
         (directory.parents[3] / 'window.json').write_text('{}')
         (directory.parents[1] / 'fork.json').write_text('{}')
-        (directory / 'advice.txt').write_text(turn)
-        (directory / 'metadata.json').write_text(json.dumps({'measurement': 5}))
+        write_advice(config, directory, turn, 5)
         (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
