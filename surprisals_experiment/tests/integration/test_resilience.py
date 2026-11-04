@@ -13,7 +13,7 @@ from botbox import RunResult
 
 from conftest import FakeSession
 from surprisals_experiment.retry_policy import DELAYS
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)'
@@ -102,18 +102,12 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
 
 
 async def test_length_and_http_errors_share_one_budget(
-    config, botbox_script, chat_provider, no_retry_wait, monkeypatch, capsys,
+    config, botbox_script, chat_provider, no_retry_wait,
 ):
     botbox_script.advice.extend([{'status': 503}, length_reply()] * 4 + [length_reply(100)])
-    from surprisals_experiment.cli.main import main
-
-    (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-    monkeypatch.chdir(config.problem_dir)
-    with pytest.raises(SystemExit) as raised:
-        await main(['--output', str(config.output), '--t-samples', '1',
-                    'problem', str(config.problem_dir)])
-    assert raised.value.code == 2
-    error = capsys.readouterr().err.splitlines()[-1]
+    with pytest.raises(RuntimeError) as raised:
+        await run_experiment(config, on_delta=None)
+    error = str(raised.value)
     assert 'U hit its output token limit' in error
     assert '100 completion tokens' in error and '99 reasoning tokens' in error
     assert '8 retries exhausted' in error

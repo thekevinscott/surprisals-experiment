@@ -7,5 +7,5 @@ WITH completed AS (
 SELECT (SELECT score FROM best) AS score,
        (SELECT id FROM best) AS turn_id,
        coalesce((SELECT max(window * 40 + turn) + 1 FROM completed), 0) AS attempts,
-       coalesce((SELECT max(window * 40 + turn) FROM completed), 0)
-         - coalesce((SELECT time FROM best), 0) AS stale
+       coalesce((SELECT max(window * 40 + turn) FROM completed), -1) + 1
+         - coalesce((SELECT time FROM best) + 1, 0) AS stale
