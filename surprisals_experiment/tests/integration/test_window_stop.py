@@ -21,6 +21,7 @@ def save_turn(turn, score, *, passed=True, complete=True):
         'advice': str(advice.directory.relative_to(turn.config.output)),
     }))
     for sample in range(turn.config.t_samples):
+        write(turn.t_dir(sample) / 'src/main.py', 'print(int(input()) * 2)\n')
         write(turn.t_dir(sample) / 'run.json', '{"exit_code": 0}')
         write(turn.t_dir(sample) / 'tests.json', json.dumps({'cases': [{
             'index': 0, 'passed': passed, 'status': 'passed' if passed else 'wrong_answer',
@@ -63,5 +64,18 @@ async def test_cumulative_best_ignores_failed_partial_and_future_turns(config):
     save_turn(Turn(config, 0, window=3), 70)
     result, = await ExperimentDatabase(config.output).query(
         QUERIES / 'window_stop.sql', window=2, samples=config.t_samples,
+    )
+    assert result['stopped'] == 1
+
+
+async def test_missing_sample_does_not_improve_best(config):
+    config.t_samples = 2
+    save_turn(Turn(config, 0), 100)
+    save_turn(Turn(config, 0, window=1), 96)
+    partial = Turn(config, 1, window=1)
+    save_turn(partial, 50)
+    (partial.t_dir(1) / 'tests.json').rename(partial.t_dir(1) / '.unpublished-tests')
+    result, = await ExperimentDatabase(config.output).query(
+        QUERIES / 'window_stop.sql', window=1, samples=config.t_samples,
     )
     assert result['stopped'] == 1
