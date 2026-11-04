@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_u_chat.py -q && uv run pytest tests/integration/test_u_flush.py -q && uv run pytest tests/integration/test_t_samples.py -q && uv run pytest tests/integration/test_t_timeout.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_evaluation.py -q && uv run pytest tests/integration/test_u_compaction.py -q",
+  "ran_at": 1793756962,
+  "exit_code": 0,
+  "commit": "d14768aa3f84e0bc9457e40912f366cf820e6036",
+  "branch": "refactor/remove-u-snapshot"
+}
