@@ -1,5 +1,6 @@
 """Drive the existing sequential loop from artifacts, including partial turns."""
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -37,6 +38,9 @@ async def run_experiment(
     config: Config, *, on_delta: Callable[[str, str], None] | None,
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
+    settings = config.output / "settings.json"
+    if settings.exists():
+        config = Config(**(json.loads(settings.read_text()) | {"api_key": config.api_key}))
     config.save_settings()
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()

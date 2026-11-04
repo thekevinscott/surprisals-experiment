@@ -200,3 +200,22 @@ async def test_restart_keeps_completed_test_results(config, botbox_script, chat_
     assert calls[config.t_dir(0,1) / 'src'] == 2
     assert calls[config.t_dir(0,2) / 'src'] == 1
     assert completed.stat().st_mtime_ns == before
+
+async def test_restart_uses_saved_settings_over_changed_config(config, botbox_script, chat_provider):
+    config.t_samples = 2
+    config.max_u_turns = 1
+    config.save_settings()
+    saved_turn(config, stage='solutions_missing')
+    settings = config.output / 'settings.json'
+    before = settings.read_bytes()
+    changed = config.model_copy(update={
+        't_samples': 1, 'max_u_turns': 3,
+        'problem_dir': config.output / 'not-the-original-problem',
+    })
+    botbox_script.solutions.extend([PASS] * 2)
+    assert await run_experiment(changed, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert len(botbox_script.sessions) == 2
+    assert not chat_provider
+    assert (config.t_dir(0, 1) / 'tests.json').exists()
+    assert not config.attempt_dir(1).exists()
+    assert settings.read_bytes() == before
