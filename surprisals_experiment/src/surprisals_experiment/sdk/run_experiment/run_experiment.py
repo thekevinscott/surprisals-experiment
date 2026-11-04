@@ -11,7 +11,7 @@ from .actions.write_result import write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
-from ..utils.u_chat import open_u_session
+from ..utils.u_chat import open_u_chat
 from ..database import Database
 from ..utils.write_text import write_text
 
@@ -31,10 +31,10 @@ async def run_experiment(
     turns_without_improvement = 0
     history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
-    async with open_u_session(config) as u_session:
+    async with open_u_chat(config) as u_chat:
         for attempt in attempts:
             advice = await write_advice(
-                config, u_session, prompt, attempt=attempt, on_delta=on_delta,
+                config, u_chat, prompt, attempt=attempt, on_delta=on_delta,
             )
             measurement = await score_advice(
                 config, advice, attempt=attempt, on_delta=on_delta,
@@ -46,7 +46,7 @@ async def run_experiment(
             )
             results = await run_tests(config, solutions, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = write_feedback(
-                config, u_session, attempt, advice, measurement, solutions, results,
+                config, u_chat, attempt, advice, measurement, solutions, results,
                 best_length, best_solution, turns_without_improvement, history,
             )
             write_result(config, attempt=attempt, best_length=best_length, best_solution=best_solution)
