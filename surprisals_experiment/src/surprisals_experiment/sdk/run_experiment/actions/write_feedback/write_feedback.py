@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....utils.write import write
 from ....database import ExperimentDatabase, QuestionDatabase
 from ...prepare_flush import prepare_flush
 
@@ -25,5 +26,5 @@ async def write_feedback(
     else:
         turns_without_improvement += 1
     prompt = await prepare_flush(config, problem, database)
-    (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
+    write(config.attempt_dir(attempt) / "feedback.txt", prompt)
     return prompt, best_length, best_solution, turns_without_improvement

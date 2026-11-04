@@ -3,6 +3,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ....utils.write import write
 from .prompt_t_to_produce_code import prompt_t_to_produce_code
 
 
@@ -18,5 +19,5 @@ async def write_solutions(
             folders=folders,
         )
     except Exception:
-        (config.attempt_dir(attempt) / "error.txt").write_text(traceback.format_exc())
+        write(config.attempt_dir(attempt) / "error.txt", traceback.format_exc())
         raise

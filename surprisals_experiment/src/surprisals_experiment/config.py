@@ -42,9 +42,9 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
-        from .sdk.utils.write_text import write_text
+        from .sdk.utils.write import write
 
-        write_text(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
+        write(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
 
     @property
     def result_file(self) -> Path:
