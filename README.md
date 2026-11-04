@@ -74,10 +74,11 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, updated after every evaluated batch.
 - `u_transcripts/`: U’s conversation in `messages.jsonl`, with system, user, and assistant messages (including returned reasoning).
-- `attempts/<attempt>/advices/0/advice.txt`: the advice for that turn.
+- `windows/0/window.json` and `windows/0/forks/0/fork.json`: `{}` placeholders; every turn is in window 0, fork 0.
+- `windows/0/forks/0/turns/<turn>/advice.txt`: the advice for that turn, with `feedback.txt` and any `error.txt` beside it.
 - Adjacent `metadata.json`: measured character count and `rejected: false` for compatibility with existing readers.
-- `settings.json`: the U mode, requested T count, timeout retry count, explicitly selected by `Config.save_settings()`.
-- Each T has its own `attempts/<attempt>/t_samples/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
+- `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
+- Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. Later failures or interruption retain that result; the file's presence does not imply the run has stopped. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 

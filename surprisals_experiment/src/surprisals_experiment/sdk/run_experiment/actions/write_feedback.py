@@ -1,8 +1,7 @@
 from pathlib import Path
 
-from dirsql import DirSQL
-
 from surprisals_experiment.config import Config
+from ...database import Database
 from ...run_test_suite import TestSuiteResult
 from ...utils.u_chat import ChatSession
 from ..prepare_feedback import prepare_feedback
@@ -13,7 +12,7 @@ async def write_feedback(
     config: Config, u_session: ChatSession, attempt: int, advice: str,
     measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
     best_length: int | float | None, best_solution: Path | None,
-    turns_without_improvement: int, database: DirSQL,
+    turns_without_improvement: int, database: Database,
 ) -> tuple[str, int | float | None, Path | None, int]:
     if (all(result.all_passed for result in results)
             and (best_length is None or measurement < best_length)):

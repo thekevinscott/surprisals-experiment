@@ -7,7 +7,7 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.database import open_database
+from surprisals_experiment.sdk.database import Database
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
 PASS = 'print(int(input()) * 2)\n'
@@ -72,7 +72,7 @@ async def test_accumulates_chat_when_flush_is_disabled(
 
 async def test_keeps_best_attempt_even_above_old_size_budget(config):
     config.u_compact_chars = 1
-    advice = config.advice_dir(0, 0)
+    advice = config.attempt_dir(0)
     advice.mkdir(parents=True)
     (advice / 'advice.txt').write_text('double it')
     (advice / 'metadata.json').write_text(json.dumps({'measurement': 9}))
@@ -80,7 +80,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
     (sample / 'tests.json').write_text(json.dumps({'all_passed': True}))
-    prompt = await prepare_flush(config, open_database(config.output))
+    prompt = await prepare_flush(config, Database(config.output))
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
     assert PASS.rstrip() in prompt

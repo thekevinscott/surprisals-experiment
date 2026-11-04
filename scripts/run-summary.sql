@@ -1,10 +1,10 @@
 -- Run from one experiment run folder, not a batch containing multiple runs.
 WITH
 candidates AS (
-    SELECT substr(path, 1, instr(path, '/advices/') - 1) AS attempt_path,
+    SELECT substr(path, 1, length(path) - length('/metadata.json')) AS attempt_path,
            content ->> 'rejected' AS rejected,
            content ->> 'measurement' AS measurement
-    FROM './attempts/*/advices/*/metadata.json'
+    FROM './windows/*/forks/*/turns/*/metadata.json'
 ),
 advice AS (
     SELECT attempt_path, count(*) AS candidates,
@@ -15,15 +15,11 @@ advice AS (
     GROUP BY attempt_path
 ),
 sample_results AS (
-    SELECT substr(path, 1, length(path) - length('/tests.json')) AS attempt_path,
+    SELECT substr(path, 1, instr(path, '/ts/') - 1) AS attempt_path,
            content ->> 'passed' AS tests_passed,
            content ->> 'total' AS tests_total,
            content ->> 'all_passed' AS all_passed
-    FROM './attempts/*/tests.json'
-    UNION ALL
-    SELECT substr(path, 1, instr(path, '/t_samples/') - 1),
-           content ->> 'passed', content ->> 'total', content ->> 'all_passed'
-    FROM './attempts/*/t_samples/*/tests.json'
+    FROM './windows/*/forks/*/turns/*/ts/*/tests.json'
 ),
 evaluations AS (
     SELECT attempt_path,
@@ -42,7 +38,7 @@ paths AS (
     UNION SELECT attempt_path FROM evaluations
 ),
 attempts AS (
-    SELECT cast(substr(p.attempt_path, instr(p.attempt_path, 'attempts/') + 9) AS integer) AS attempt_index,
+    SELECT cast(substr(p.attempt_path, instr(p.attempt_path, '/turns/') + 7) AS integer) AS attempt_index,
            a.candidates AS advice_candidates,
            a.rewrites AS advice_rewrites,
            a.rejected_candidates,

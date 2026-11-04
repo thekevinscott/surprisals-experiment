@@ -1,6 +1,5 @@
 """Run the experiment through the Python SDK."""
 
-import json
 from itertools import count
 from collections.abc import Callable
 from pathlib import Path
@@ -13,7 +12,8 @@ from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
-from ..database import open_database
+from ..database import Database
+from ..utils.write_text import write_text
 
 
 async def run_experiment(
@@ -22,16 +22,10 @@ async def run_experiment(
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     prompt = config.question_file.read_text()
-    test_suite = json.loads(config.test_suite_file.read_text())
-    if not isinstance(test_suite, dict) or test_suite.get("fn_name"):
-        raise ValueError("Only stdin/stdout test suites are supported")
-    inputs, outputs = test_suite.get("inputs"), test_suite.get("outputs")
-    if (not isinstance(inputs, list) or not isinstance(outputs, list)
-            or not inputs or len(inputs) != len(outputs)
-            or not all(isinstance(value, str) for value in inputs + outputs)):
-        raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
     config.save_settings()
-    database = open_database(config.output)
+    write_text(config.window_dir / "window.json", "{}\n")
+    write_text(config.fork_dir / "fork.json", "{}\n")
+    database = Database(config.output)
     best_length = None
     best_solution = None
     turns_without_improvement = 0
@@ -49,7 +43,7 @@ async def run_experiment(
                 on_delta=on_t_delta,
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
-            results = await run_tests(config, solutions, test_suite, attempt=attempt)
+            results = await run_tests(config, solutions, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = await write_feedback(
                 config, u_session, attempt, advice, measurement, solutions, results,
                 best_length, best_solution, turns_without_improvement, database,

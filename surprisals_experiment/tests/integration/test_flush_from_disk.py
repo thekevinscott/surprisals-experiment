@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from surprisals_experiment.sdk.database import open_database
+from surprisals_experiment.sdk.database import Database
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
 
@@ -13,7 +13,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     config.cap_strategy = measure
     config.t_samples = 2
     config.output.mkdir()
-    database = open_database(config.output)
+    database = Database(config.output)
     assert await prepare_flush(config, database) == config.question_file.read_text()
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
@@ -21,7 +21,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         (10, 5, [True, True]), (2, 5, [True, True]), (1, 9, [True, True]),
         (3, 1, [True, False]), (4, 0, [True]),
     ]:
-        directory = config.advice_dir(number, 0)
+        directory = config.attempt_dir(number)
         directory.mkdir(parents=True)
         (directory / 'advice.txt').write_text(f'advice {number}')
         (directory / 'metadata.json').write_text(json.dumps({
@@ -52,7 +52,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         assert f'print({sample})' in prompt
         assert f'VALUE = {sample}' in prompt
     # Files, not a retained Attempt instance, supply each call's text and code.
-    (config.advice_dir(2, 0) / 'advice.txt').write_text('updated advice')
+    (config.attempt_dir(2) / 'advice.txt').write_text('updated advice')
     (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
     updated = await prepare_flush(config, database)
     assert '<advice>\nupdated advice\n</advice>' in updated

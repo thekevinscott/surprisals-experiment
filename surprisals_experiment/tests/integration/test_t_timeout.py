@@ -87,7 +87,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, botbox_script,
     assert json.loads(config.result_file.read_text())['success']
     assert len(botbox_script.sessions) == 3
     assert all(s.closed for s in botbox_script.sessions)
-    assert not list(config.output.glob('attempts/*/t_samples/*/timeouts.txt'))
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/ts/*/timeouts.txt'))
 
 
 async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypatch):

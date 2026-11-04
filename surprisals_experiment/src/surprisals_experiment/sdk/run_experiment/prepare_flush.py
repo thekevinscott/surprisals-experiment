@@ -1,24 +1,24 @@
 """Build the flush prompt from the shortest all-pass attempt on disk."""
 
 import json
-
-from dirsql import DirSQL
+from pathlib import Path
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from ..database import best_sql
+from ..database import Database
 from .read_implementations import read_sources
 
 TURN = Prompt("u/flush/turn.txt")
+BEST_ATTEMPT = Path(__file__).parents[1] / "database" / "best_attempt.sql"
 
 
-async def prepare_flush(config: Config, database: DirSQL) -> str:
+async def prepare_flush(config: Config, database: Database) -> str:
     question = config.question_file.read_text()
-    best = await database.query(best_sql(config.t_samples))
+    best = await database.query(BEST_ATTEMPT, samples=config.t_samples)
     if not best:
         return question
     number, measurement = best[0]["attempt"], best[0]["measurement"]
-    directory = config.advice_dir(number, 0)
+    directory = config.attempt_dir(number)
     surprisal = config.cap_strategy == "surprisal"
     return TURN(
         question=question.rstrip("\n"), surprisal=surprisal, t_samples=config.t_samples,

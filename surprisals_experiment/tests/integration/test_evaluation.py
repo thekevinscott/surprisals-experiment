@@ -9,22 +9,6 @@ from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
 
 
-async def test_invalid_suites_fail_before_starting_models(config, botbox_script, chat_provider):
-    invalid = [None, {}, {'inputs': [], 'outputs': []},
-               {'inputs': ['x', 'y'], 'outputs': ['x']},
-               {'inputs': [[1]], 'outputs': ['1']},
-               {'inputs': [''], 'outputs': ['7'], 'fn_name': 'answer'}]
-    for suite in invalid:
-        config.test_suite_file.write_text(json.dumps(suite))
-        with pytest.raises(ValueError):
-            await run_experiment(config, on_delta=None)
-    config.test_suite_file.write_text('{')
-    with pytest.raises(ValueError):
-        await run_experiment(config, on_delta=None)
-    assert not chat_provider
-    assert not botbox_script.sessions
-
-
 async def test_evaluator_cannot_drop_unmatched_cases(tmp_path):
     (tmp_path / 'main.py').write_text('print(7)')
     with pytest.raises(ValueError):
