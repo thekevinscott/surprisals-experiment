@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793805583,
+  "exit_code": 0,
+  "commit": "8433726bd70e63cf45f2a4fa3dff84a88c7a01b5",
+  "branch": "feat/database-query-params"
+}

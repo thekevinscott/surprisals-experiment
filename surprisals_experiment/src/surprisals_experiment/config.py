@@ -1,6 +1,5 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
-import json
 from functools import cached_property
 from pathlib import Path
 from typing import Literal
@@ -49,22 +48,9 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
-        """Save the fields needed by run summaries."""
         from .sdk.utils.write_text import write_text
 
-        write_text(self.output / "settings.json", json.dumps({
-            **({"u_flush": True} if self.u_flush else {}),
-            "t_samples": self.t_samples,
-            "t_sample_retries": self.t_sample_retries,
-        }, indent=2) + "\n")
-
-    @property
-    def question_file(self) -> Path:
-        return self.problem_dir / "question.txt"
-
-    @property
-    def test_suite_file(self) -> Path:
-        return self.problem_dir / "input_output.json"
+        write_text(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
 
     @property
     def result_file(self) -> Path:
@@ -82,14 +68,19 @@ class Config(BaseModel):
     def u_transcripts(self) -> Path:
         return self.u_dir / "transcripts"
 
+    @property
+    def window_dir(self) -> Path:
+        return self.output / "windows" / "0"
+
+    @property
+    def fork_dir(self) -> Path:
+        return self.window_dir / "forks" / "0"
+
     def attempt_dir(self, attempt: int) -> Path:
-        return self.output / "attempts" / str(attempt)
+        return self.fork_dir / "turns" / str(attempt)
 
     def t_dir(self, attempt: int, sample: int) -> Path:
-        return self.attempt_dir(attempt) / "t_samples" / str(sample)
-
-    def advice_dir(self, attempt: int, candidate: int) -> Path:
-        return self.attempt_dir(attempt) / "advices" / str(candidate)
+        return self.attempt_dir(attempt) / "ts" / str(sample)
 
     @field_validator("problem_dir", "output")
     @classmethod

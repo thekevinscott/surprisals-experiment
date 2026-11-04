@@ -16,22 +16,20 @@ class AdviceMeasure:
             # The shared policy owns retries; the scorer currently exposes no public retry option.
             self.client._openai.max_retries = 0
 
-    async def score(
-        self, advice: str, *, tokens: list[tuple[str, float]] | None = None, on_delta=None,
-    ) -> tuple[int | float, list[tuple[str, float]] | None]:
+    async def score(self, advice: str, *, on_delta=None) -> tuple[int | float, list[tuple[str, float]] | None]:
         if self.client is None:
             return len(advice), None
-        if tokens is None:
-            def before_sleep(state):
-                if on_delta is not None:
-                    on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
-                                      f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
-            @retried(operation="Scorer request", before_sleep=before_sleep)
-            async def score():
-                return await measure_surprisal(advice, client=self.client)
+        def before_sleep(state):
+            if on_delta is not None:
+                on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
+                                  f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
-            tokens = await score()
+        @retried(operation="Scorer request", before_sleep=before_sleep)
+        async def score():
+            return await measure_surprisal(advice, client=self.client)
+
+        tokens = await score()
         return sum(bits for _, bits in tokens), tokens
 
     @property

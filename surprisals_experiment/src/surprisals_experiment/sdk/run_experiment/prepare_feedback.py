@@ -31,7 +31,7 @@ def prepare_feedback(
         evaluations.append(f"T {index}: {describe_result(config, attempt, index, sample)}.")
     advice_measurement = f"Your advice was {advice_length} characters."
     if config.cap_strategy == "surprisal":
-        metadata = json.loads((config.advice_dir(attempt, 0) / "metadata.json").read_text())
+        metadata = json.loads((config.attempt_dir(attempt) / "metadata.json").read_text())
         annotated = "".join(f"{token}<{bits:.1f}>" for token, bits in metadata["tokens"])
         advice_measurement = f"Your advice cost {advice_length:.1f} bits:\n{annotated}"
     feedback = FEEDBACK(

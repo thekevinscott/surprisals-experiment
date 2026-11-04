@@ -7,8 +7,6 @@ import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
-from surprisals_experiment.sdk.run_experiment.actions.write_advice.save_advice import save_advice
 
 PASS = 'print(int(input()) * 2)'
 
@@ -24,7 +22,7 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
     await run_experiment(config, on_delta=None)
-    assert json.loads((config.advice_dir(0, 0) / 'metadata.json').read_text()) == {
+    assert json.loads((config.attempt_dir(0) / 'metadata.json').read_text()) == {
         'rejected': False, 'measurement': 10,
     }
     assert 'Your advice was 10 characters.' in (config.attempt_dir(0) / 'feedback.txt').read_text()
@@ -44,7 +42,7 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, botbox
     assert result['best_measurement'] == pytest.approx(8.25)
     assert result['cap_strategy'] == 'surprisal'
     for attempt, tokens in enumerate(pairs):
-        metadata = json.loads((config.advice_dir(attempt, 0) / 'metadata.json').read_text())
+        metadata = json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text())
         assert metadata['measurement'] == pytest.approx(sum(bits for _, bits in tokens))
         assert [token for token, _ in metadata['tokens']] == [token for token, _ in tokens]
         assert [bits for _, bits in metadata['tokens']] == pytest.approx([bits for _, bits in tokens])
@@ -70,8 +68,8 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_s
     config = scoring_config
 
     def fail_after_advice_is_saved(request):
-        assert (config.advice_dir(0, 0) / 'advice.txt').read_text() == 'Use a loop'
-        assert not (config.advice_dir(0, 0) / 'metadata.json').exists()
+        assert (config.attempt_dir(0) / 'advice.txt').read_text() == 'Use a loop'
+        assert not (config.attempt_dir(0) / 'metadata.json').exists()
         return httpx2.Response(503, json={'error': {'message': 'scorer failed'}})
 
     scorer_provider.replies.extend([fail_after_advice_is_saved, [('Use a loop', 10.0)]])
@@ -82,7 +80,7 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_s
     assert len(scorer_provider.requests) == 2
     no_retry_wait.assert_awaited_once_with(10)
     assert any(kind == 'retry' and '1/8 in 10s' in text for kind, text in deltas)
-    assert json.loads((config.advice_dir(0, 0) / 'metadata.json').read_text())['measurement'] == pytest.approx(10.0)
+    assert json.loads((config.attempt_dir(0) / 'metadata.json').read_text())['measurement'] == pytest.approx(10.0)
 
 
 async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_config, botbox_script, scorer_provider, no_retry_wait):
@@ -92,8 +90,8 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
         await run_experiment(scoring_config, on_delta=None)
     assert len(scorer_provider.requests) == 9
     assert [call.args[0] for call in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
-    assert (scoring_config.advice_dir(0, 0) / 'advice.txt').read_text() == 'preserve me'
-    assert not (scoring_config.advice_dir(0, 0) / 'metadata.json').exists()
+    assert (scoring_config.attempt_dir(0) / 'advice.txt').read_text() == 'preserve me'
+    assert not (scoring_config.attempt_dir(0) / 'metadata.json').exists()
 
 
 async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider):
@@ -107,21 +105,10 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
     assert len(scorer_provider.requests) == 1
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     for attempt in range(2):
-        metadata = json.loads((config.advice_dir(attempt, 0) / 'metadata.json').read_text())
+        metadata = json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text())
         assert metadata['measurement'] == pytest.approx(10.0)
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
     assert 'Turns without improvement: 1 of 1.' in (config.attempt_dir(1) / 'feedback.txt').read_text()
-
-
-async def test_repeated_advice_reuses_tokens_from_disk(scoring_config, scorer_provider):
-    scorer_provider.replies.append([("it's", 4.0), (' same', 6.0)])
-    for attempt in range(2):
-        config = Config(**scoring_config.model_dump())
-        save_advice(config.advice_dir(attempt, 0), "it's same")
-        assert await score_advice(config, "it's same", attempt=attempt) == pytest.approx(10.0)
-    assert len(scorer_provider.requests) == 1
-    assert ((config.advice_dir(0, 0) / 'metadata.json').read_text()
-            == (config.advice_dir(1, 0) / 'metadata.json').read_text())
 
 
 async def test_real_scorer_sdk_does_not_add_retries(scoring_config, scorer_provider, no_retry_wait):

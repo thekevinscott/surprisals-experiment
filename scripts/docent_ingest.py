@@ -84,19 +84,17 @@ def convert(run):
             "agent": "U", "success": result.get("success"), "attempts": result.get("attempts"),
         })
         agent_runs.append(u) if u else missing.append(f"{base['problem_run']} U")
-        for sample in sorted((problem_run / "attempts").glob("*/t_samples/*")):
+        for sample in sorted(problem_run.glob("windows/*/forks/*/turns/*/ts/*")):
             attempt = sample.parent.parent
-            accepted = [
-                json.loads(m.read_text()) for m in sorted(attempt.glob("advices/*/metadata.json"), key=lambda p: int(p.parent.name))
-            ]
-            accepted = [m for m in accepted if not m["rejected"]]
+            metadata_file = attempt / "metadata.json"
+            metadata = json.loads(metadata_file.read_text()) if metadata_file.exists() else None
             tests_file = sample / "tests.json"
             tests = json.loads(tests_file.read_text()) if tests_file.exists() else None
             t = transcript([sample / "transcripts", sample / "t_transcripts"], base | {
                 "agent": "T",
                 "attempt": int(attempt.name),
                 "sample": int(sample.name),
-                "advice_chars": accepted[-1]["measurement"] if accepted else None,
+                "advice_chars": metadata["measurement"] if metadata and not metadata["rejected"] else None,
                 "tests_passed": tests and tests["passed"],
                 "tests_total": tests and tests["total"],
                 "scores": {"all_passed": bool(tests and tests["all_passed"])},

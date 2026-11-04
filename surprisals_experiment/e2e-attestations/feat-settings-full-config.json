@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_t_samples.py -q",
+  "ran_at": 1793766577,
+  "exit_code": 0,
+  "commit": "568c7923ff4cb68a3c6b1762b167ba74922d4cfa",
+  "branch": "feat/settings-full-config"
+}

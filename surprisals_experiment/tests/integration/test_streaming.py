@@ -61,7 +61,7 @@ def client(**kwargs):
     return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
 with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', Box), \
-     patch('surprisals_experiment.sdk.utils.u_chat.open_u_session.AsyncOpenAI', client):
+     patch('surprisals_experiment.sdk.utils.u_chat.open_u_chat.AsyncOpenAI', client):
     import runpy
     sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'),
                 '--t-samples', '1', '--max-u-turns', '1', 'problem', str(root)]

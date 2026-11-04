@@ -1,0 +1,7 @@
+{
+  "command": "uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_loops.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_samples.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_run_summary.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_database.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_measure.py -q && uv run --project surprisals_experiment pytest surprisals_experiment/tests/integration/test_t_timeout.py -q",
+  "ran_at": 1793765985,
+  "exit_code": 0,
+  "commit": "f802f4501cf2494d8d25fa48fc740dcb1218df5b",
+  "branch": "refactor/run-layout"
+}

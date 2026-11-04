@@ -6,14 +6,16 @@ from dataclasses import asdict
 from pathlib import Path
 
 from surprisals_experiment.config import Config
+from ..database import QuestionDatabase
 from .results import TestSuiteResult
 from ..utils.write_text import write_text
 from .run_test_suite import run_test_suite
 
 
 async def run_test_suite_for_ts(
-    config: Config, solutions: list[Path], test_suite: dict,
+    config: Config, solutions: list[Path], problem: QuestionDatabase,
 ) -> list[TestSuiteResult]:
+    test_suite = await problem.test_suite
     results = []
     for solution in solutions:
         started = time.monotonic()

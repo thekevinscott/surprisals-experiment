@@ -5,6 +5,7 @@ import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
+from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 from test_run_summary import report
 
@@ -26,12 +27,17 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     assert not (config.attempt_dir(0) / 'batch.json').exists()
     for i, source in enumerate(sources):
         directory = config.t_dir(0, i)
-        assert directory == config.attempt_dir(0) / 't_samples' / str(i)
+        assert directory == config.attempt_dir(0) / 'ts' / str(i)
         assert (directory / 'src/main.py').read_text() == source
         assert (directory / 'transcripts/session.jsonl').exists()
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
-    settings = json.loads((config.output / 'settings.json').read_text())
-    assert settings == {'t_samples': n, 't_sample_retries': 3}
+    settings_text = (config.output / 'settings.json').read_text()
+    settings = json.loads(settings_text)
+    assert settings.keys() == type(config).model_fields.keys() - {'api_key'}
+    assert settings['t_samples'] == n
+    assert settings['t_sample_retries'] == 3
+    assert settings['problem_dir'] == str(config.problem_dir)
+    assert 'test-key' not in settings_text
     summary, attempt = report(config.output)
     assert summary['ts_per_advice'] == n
     assert summary['completed_t_evaluations'] == n
@@ -104,8 +110,9 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             for event in release:
                 event.set()
             solutions = await task
-        assert not list(config.output.glob("attempts/*/t_samples/*/tests.json"))
-        results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
+        assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
+        (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
+        results = await run_test_suite_for_ts(config, solutions, QuestionDatabase(config.problem_dir))
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
         assert [result.all_passed for result in results] == [True, False, True, False, True]
