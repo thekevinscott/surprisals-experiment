@@ -1,11 +1,14 @@
 """Flush shows the original question and only the earliest shortest all-pass attempt."""
 
+import json
 from importlib.resources import files
 
 import pytest
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -58,6 +61,23 @@ async def test_sends_no_chat_history(config, botbox_script, chat_provider):
     await run_experiment(config, on_delta=None)
     assert [len(request['messages']) for request in chat_provider] == [2, 2, 2]
     assert all(message['role'] != 'assistant' for request in chat_provider for message in request['messages'])
+
+
+async def test_keeps_best_attempt_even_above_old_size_budget(config):
+    advice = config.attempt_dir(0)
+    advice.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
+    (advice / 'advice.txt').write_text('double it')
+    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9, 'rejected': False}))
+    sample = config.t_dir(0, 0)
+    (sample / 'src').mkdir(parents=True)
+    (sample / 'src/main.py').write_text(PASS)
+    (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
+    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    assert prompt.count('<attempt>') == 1
+    assert '<advice>\ndouble it\n</advice>' in prompt
+    assert PASS.rstrip() in prompt
 
 
 async def test_selects_by_bits_and_shows_only_best_token_scores(config, botbox_script, chat_provider, scorer_provider):
