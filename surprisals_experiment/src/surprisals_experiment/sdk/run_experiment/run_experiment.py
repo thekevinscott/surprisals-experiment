@@ -12,7 +12,7 @@ from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
-from ..database import open_database
+from ..database import Database
 from ..utils.write_text import write_text
 
 
@@ -25,7 +25,7 @@ async def run_experiment(
     config.save_settings()
     write_text(config.window_dir / "window.json", "{}\n")
     write_text(config.fork_dir / "fork.json", "{}\n")
-    database = open_database(config.output)
+    database = Database(config.output)
     best_length = None
     best_solution = None
     turns_without_improvement = 0
