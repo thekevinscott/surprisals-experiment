@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793831191,
+  "exit_code": 0,
+  "commit": "35558a5e69cea4065d70c50cd4e4f421e0147d92",
+  "branch": "feat/state-feedback-missing"
+}
