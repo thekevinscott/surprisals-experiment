@@ -13,7 +13,6 @@
 {% if unit != "characters" %}
 <bits>
 {{ attempt.score_text }}
-
 </bits>
 {% endif %}
 <code>
