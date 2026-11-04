@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_database.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_u_flush.py -q",
+  "ran_at": 1793760741,
+  "exit_code": 0,
+  "commit": "f244a533bc8027d4548e969cafaa7bb8d6793285",
+  "branch": "refactor/run-database"
+}
