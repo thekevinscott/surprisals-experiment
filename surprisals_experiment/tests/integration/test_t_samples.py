@@ -55,11 +55,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
-    assert '2 of 3 solutions passed every test' in feedback
-    for i, passed in enumerate([2, 0, 2]):
-        assert f'T {i}: passed {passed} of 2 tests.' in feedback
-    assert json.dumps({f'T {i}': {'main.py': source} for i, source in enumerate([PASS, FAIL, PASS])},
-                      indent=2) in feedback
+    assert feedback == await QuestionDatabase(config.problem_dir).question
     assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     summary, *_ = report(config.output)

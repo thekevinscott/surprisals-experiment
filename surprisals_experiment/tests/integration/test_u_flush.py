@@ -23,7 +23,6 @@ FAIL = 'print(0)\n'
     (['best', 'later failure'], [True, False], 0),
 ], ids=['no-pass', 'one-pass-among-failures', 'shorter-pass', 'equal-pass', 'failure-after-best'])
 async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_provider, advices, passed, best):
-    config.u_flush = True
     config.t_samples = 2
     config.max_u_turns = len(advices) + 1
     (config.problem_dir / 'question.txt').write_text((config.problem_dir / 'question.txt').read_text() + '\n')
@@ -53,33 +52,28 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
     assert chat_provider[0]['messages'][1]['content'] == question
     context = files('surprisals_experiment').joinpath('prompts/u/flush/context.txt').read_text()
     assert context in messages[0]['content']
-    assert json.loads((config.output / 'settings.json').read_text())['u_flush'] is True
 
 
-async def test_accumulates_chat_when_flush_is_disabled(
-    config, botbox_script, chat_provider,
-):
+async def test_sends_no_chat_history(config, botbox_script, chat_provider):
     config.max_u_turns = 3
     botbox_script.advice.extend(['double it', 'double', 'ok'])
     botbox_script.solutions.extend([PASS] * 3)
     await run_experiment(config, on_delta=None)
-    context = files('surprisals_experiment').joinpath('prompts/u/chat/context.txt').read_text()
-    assert context in chat_provider[0]['messages'][0]['content']
-    assert [len(request['messages']) for request in chat_provider] == [2, 4, 6]
-    for turn in [1, 2]:
-        assert chat_provider[turn]['messages'][-1]['content'] == (config.attempt_dir(turn - 1) / 'feedback.txt').read_text()
+    assert [len(request['messages']) for request in chat_provider] == [2, 2, 2]
+    assert all(message['role'] != 'assistant' for request in chat_provider for message in request['messages'])
 
 
 async def test_keeps_best_attempt_even_above_old_size_budget(config):
-    config.u_compact_chars = 1
     advice = config.attempt_dir(0)
     advice.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
     (advice / 'advice.txt').write_text('double it')
-    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9}))
+    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9, 'rejected': False}))
     sample = config.t_dir(0, 0)
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
-    (sample / 'tests.json').write_text(json.dumps({'all_passed': True}))
+    (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
@@ -92,7 +86,7 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, botbox_s
     scorer_provider.replies.extend(scores)
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-        'u_flush': True, 'max_u_turns': 3, 'max_turns_without_improvement': 3,
+        'max_u_turns': 3, 'max_turns_without_improvement': 3,
     }))
     botbox_script.advice.extend(['Use a two-pointer', 'Sweep.', 'done'])
     botbox_script.solutions.extend([PASS] * 3)
@@ -112,7 +106,7 @@ async def test_shows_only_the_selected_measure_and_no_results(
 ):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1',
-        'u_flush': True, 'max_u_turns': 2, 't_samples': 2,
+        'max_u_turns': 2, 't_samples': 2,
     }))
     scorer_provider.replies.extend([[('double', 2.5)], [('next', 1.0)]])
     botbox_script.advice.extend(['double', 'next'])

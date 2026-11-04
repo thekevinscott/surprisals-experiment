@@ -25,7 +25,7 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
     assert json.loads((config.attempt_dir(0) / 'metadata.json').read_text()) == {
         'rejected': False, 'measurement': 10,
     }
-    assert 'Your advice was 10 characters.' in (config.attempt_dir(0) / 'feedback.txt').read_text()
+    assert '<length>10 characters</length>' in (config.attempt_dir(0) / 'feedback.txt').read_text()
     assert not scorer_provider.requests
 
 
@@ -47,10 +47,10 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, botbox
         assert [token for token, _ in metadata['tokens']] == [token for token, _ in tokens]
         assert [bits for _, bits in metadata['tokens']] == pytest.approx([bits for _, bits in tokens])
         feedback = (config.attempt_dir(attempt) / 'feedback.txt').read_text()
-        assert 'bits:' in feedback
+        assert '<bits>' in feedback
     assert 'much longer<3.0> but fewer bits<5.2>' in chat_provider[2]['messages'][-1]['content']
-    assert 'Turns without improvement: 0 of 1.' in (config.attempt_dir(1) / 'feedback.txt').read_text()
-    assert 'Turns without improvement: 1 of 1.' in (config.attempt_dir(2) / 'feedback.txt').read_text()
+    assert '<index>1</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
+    assert '<index>1</index>' in (config.attempt_dir(2) / 'feedback.txt').read_text()
     assert all(request['model'] == config.t_model for request in scorer_provider.requests)
 
 
@@ -108,7 +108,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         metadata = json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text())
         assert metadata['measurement'] == pytest.approx(10.0)
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
-    assert 'Turns without improvement: 1 of 1.' in (config.attempt_dir(1) / 'feedback.txt').read_text()
+    assert '<index>0</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
 
 
 async def test_real_scorer_sdk_does_not_add_retries(scoring_config, scorer_provider, no_retry_wait):

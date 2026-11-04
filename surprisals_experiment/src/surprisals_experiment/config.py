@@ -19,8 +19,6 @@ class Config(BaseModel):
     output: Path
     u_model: str
     u_thinking: ThinkingLevel
-    u_compact_chars: int = Field(default=400000, ge=0)
-    u_flush: bool = False
     t_model: str
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
@@ -36,10 +34,6 @@ class Config(BaseModel):
         if self.cap_strategy == "surprisal" and not self.scorer_base_url:
             raise ValueError("scorer_base_url is required for surprisal")
         return self
-
-    @property
-    def u_context(self) -> str:
-        return "flush" if self.u_flush else "chat"
 
     @cached_property
     def advice_measure(self):
