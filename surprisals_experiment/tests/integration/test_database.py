@@ -43,6 +43,7 @@ async def test_experiment_database_creates_schema_tables(tmp_path):
 async def test_identical_advice_has_one_row_and_two_turn_links(config):
     import json
     from hashlib import sha256
+    from surprisals_experiment.sdk.advice import Advice
     from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
 
     text = 'Use café.\r\nThen double.\r\n'
@@ -51,7 +52,9 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     (config.fork_dir / 'fork.json').write_text('{}')
     for attempt in range(2):
         config.attempt_dir(attempt).mkdir(parents=True)
-        assert await score_advice(config, text, attempt=attempt) == len(text)
+        advice = Advice(config, text)
+        advice.save()
+        assert await score_advice(config, advice, attempt=attempt) == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()
     database = ExperimentDatabase(config.output)
     assert await database.query('SELECT * FROM advices') == [{
