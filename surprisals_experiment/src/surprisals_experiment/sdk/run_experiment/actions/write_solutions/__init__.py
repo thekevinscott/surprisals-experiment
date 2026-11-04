@@ -2,22 +2,17 @@ import traceback
 from collections.abc import Callable
 from pathlib import Path
 
-from surprisals_experiment.config import Config
+from ....turn import Turn
 from ....utils.write import write
 from .prompt_t_to_produce_code import prompt_t_to_produce_code
 
 
-async def write_solutions(
-    config: Config, *, attempt: int, advice: str,
-    on_delta: Callable[[str, str], None] | None = None,
-    folders: list[Path],
-) -> list[Path]:
+async def write_solutions(turn: Turn, *, on_delta: Callable[[str, str], None] | None = None) -> list[Path]:
     try:
         return await prompt_t_to_produce_code(
-            config, advice=advice,
-            on_delta=on_delta,
-            folders=folders,
+            turn.config, advice=turn.advice.text, on_delta=on_delta,
+            folders=[turn.t_dir(sample) for sample in range(turn.config.t_samples)],
         )
     except Exception:
-        write(config.attempt_dir(attempt) / "error.txt", traceback.format_exc())
+        write(turn.attempt_dir / "error.txt", traceback.format_exc())
         raise

@@ -2,6 +2,8 @@
 
 import json
 
+from ..write import write
+
 
 def restore(self, entry):
     message = {key: value for key, value in entry.items() if not key.startswith('_')}
@@ -25,8 +27,8 @@ def record(self, message: dict, *, reset=False, attempt=None, complete=None) -> 
         entry['_attempt'] = attempt
     if complete is not None:
         entry['_complete'] = complete
-    with self.transcript.open('a') as transcript:
-        transcript.write(json.dumps(entry, ensure_ascii=False) + '\n')
+    previous = self.transcript.read_text() if self.transcript.exists() else ''
+    write(self.transcript, previous + json.dumps(entry, ensure_ascii=False) + '\n')
     if complete is False:
         self.messages.append(message)
     else:
