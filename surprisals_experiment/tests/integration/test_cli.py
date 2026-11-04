@@ -17,7 +17,7 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, botbox
     botbox_script.solutions.extend(['print(int(input()) * 2)'] * 4)
     await main([
         '-U', 'selected-u', '-T', 'selected-t', '--cap-strategy', 'surprisal',
-        '--scorer-base-url', 'http://scorer/v1', '--max-turns-without-improvement', '1',
+        '--scorer-base-url', 'http://scorer/v1', '--max-u-turns', '2',
         '--t-samples', '2', '--t-pool-size', '1', '--output', str(config.output),
         'problem', str(config.problem_dir),
     ])
@@ -31,8 +31,8 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, botbox
 
 
 def test_rejects_nonpositive_stopping_budget(config):
-    with pytest.raises(ValidationError, match='max_turns_without_improvement'):
-        Config(**(config.model_dump() | {'max_turns_without_improvement': 0}))
+    with pytest.raises(ValidationError, match='max_u_turns'):
+        Config(**(config.model_dump() | {'max_u_turns': 0}))
 
 
 def test_surprisal_requires_endpoint(config):

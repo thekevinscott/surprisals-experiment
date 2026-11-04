@@ -47,10 +47,9 @@ def describe_u_to_t_loop():
 
 
 def describe_advice_improvement():
-    async def it_stops_without_a_first_success(config, botbox_script):
+    async def it_honors_the_hard_cap_without_a_first_success(config, botbox_script):
         limit = 2
-        config.max_u_turns = None
-        config.max_turns_without_improvement = limit
+        config.max_u_turns = limit
         botbox_script.advice.extend(['advice'] * 21)
         botbox_script.solutions.extend([FAIL] * 21)
         assert await run_experiment(config, on_delta=None) is None
@@ -61,11 +60,10 @@ def describe_advice_improvement():
         (['long advice', 'tiny', 'long advice', 'tiny'], [[PASS, PASS]] * 4, 1),
         (['long advice', 'tiny', 'x'], [[PASS, PASS], [PASS, FAIL], [FAIL, PASS]], 0),
     ])
-    async def it_resets_only_for_strictly_shorter_all_pass_advice(
+    async def it_keeps_only_strictly_shorter_all_pass_advice(
         config, botbox_script, chat_provider, advices, outcomes, best_attempt,
     ):
-        config.max_u_turns = None
-        config.max_turns_without_improvement = 2
+        config.max_u_turns = len(advices)
         config.t_samples = 2
         botbox_script.advice.extend(advices + ['must not run'])
         botbox_script.solutions.extend(source for batch in outcomes for source in batch)
