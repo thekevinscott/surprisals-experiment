@@ -18,7 +18,6 @@ async def produce_code(
 ) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     source = output / "src"
-    (output / "timeouts.txt").unlink(missing_ok=True)
 
     def before_sleep(state):
         shutil.rmtree(source, ignore_errors=True)
@@ -28,7 +27,6 @@ async def produce_code(
 
     @retried(operation="T sample", before_sleep=before_sleep)
     async def generate() -> Path:
-        shutil.rmtree(source, ignore_errors=True)
         for _ in range(config.t_sample_retries + 1):
             try:
                 async with asyncio.timeout(config.t_sample_timeout):
