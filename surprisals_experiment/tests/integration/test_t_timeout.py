@@ -1,4 +1,6 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
+
+from surprisals_experiment.sdk.turn import Turn
 import asyncio
 import importlib
 import json
@@ -135,7 +137,7 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(task, 5)
         assert all(s.closed for s in botbox_script.sessions)
-        assert config.u_transcripts.joinpath('messages.jsonl').exists()
+        assert Turn(config, 0).u_transcripts.joinpath('messages.jsonl').exists()
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

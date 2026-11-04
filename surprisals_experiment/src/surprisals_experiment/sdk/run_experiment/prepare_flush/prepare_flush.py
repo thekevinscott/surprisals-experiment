@@ -11,9 +11,11 @@ TURN = Prompt("u/flush/turn.txt")
 BEST_ATTEMPT = Path(__file__).parent / "best_attempt.sql"
 
 
-async def prepare_flush(config: Config, problem: QuestionDatabase, database: ExperimentDatabase) -> str:
+async def prepare_flush(
+    config: Config, problem: QuestionDatabase, database: ExperimentDatabase, *, query_file: Path = BEST_ATTEMPT,
+) -> str:
     question = await problem.question
-    best = await database.query(BEST_ATTEMPT, samples=config.t_samples)
+    best = await database.query(query_file, samples=config.t_samples)
     if not best:
         return question
     turn = config.output / best[0]["turn_id"]

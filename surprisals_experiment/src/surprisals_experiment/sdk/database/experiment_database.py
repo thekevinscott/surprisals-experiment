@@ -30,11 +30,12 @@ class ExperimentDatabase(Database):
 
         def advice(path):
             directory = relative(path).parent
-            metadata = json.loads(Path(path).read_text())
+            score = Path(path).with_name("advice.json")
+            metadata = json.loads(score.read_text()) if score.exists() else {}
             tokens = metadata.get("tokens")
             return [{
                 "id": str(directory),
-                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata["score"],
+                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata.get("score"),
                 "score_text": tokens and "".join(f"{token}<{bits:.1f}>" for token, bits in tokens),
             }]
 
@@ -45,6 +46,12 @@ class ExperimentDatabase(Database):
         def t(path):
             t = relative(path).parent
             return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
+
+        def generation(path):
+            return [] if json.loads(Path(path).read_text()).get("exit_code") == -1 else t(path)
+
+        def feedback(path):
+            return [{"turn_id": str(relative(path).parent)}]
 
         def test_results(path):
             tests = relative(path)
@@ -58,9 +65,11 @@ class ExperimentDatabase(Database):
             "windows": ("windows/*/window.json", window),
             "forks": ("windows/*/forks/*/fork.json", fork),
             "turns": (f"{TURN}/metadata.json", turn),
-            "advices": ("advices/*/advice.json", advice),
+            "advices": ("advices/*/advice.txt", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/tests.json", t),
+            "generations": (f"{TURN}/ts/*/run.json", generation),
+            "feedback": (f"{TURN}/feedback.txt", feedback),
             "test_results": (f"{TURN}/ts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]

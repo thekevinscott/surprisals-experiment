@@ -1,5 +1,7 @@
 """Observed provider failures, bounded retries, and interrupted-run diagnostics."""
 
+from surprisals_experiment.sdk.turn import Turn
+
 import asyncio
 import importlib
 import json
@@ -23,7 +25,7 @@ PROVIDER_ERROR = {
 
 def transcript(config):
     return [json.loads(line) for line in
-            (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+            (Turn(config, 0).u_transcripts / 'messages.jsonl').read_text().splitlines()]
 
 
 def length_reply(tokens=None):
@@ -88,7 +90,7 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
 ):
     botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
     with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
-        async with open_u_chat(config) as session:
+        async with open_u_chat(Turn(config, 0)) as session:
             await session.prompt('question')
     assert 'U chat provider error' in str(raised.value)
     assert 'upstream failed' in str(raised.value)
