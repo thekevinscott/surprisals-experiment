@@ -42,6 +42,7 @@ async def run_experiment(
 ) -> Path | None:
     config.save_settings()
     database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
     problem = QuestionDatabase(config.problem_dir)
     while True:
         current = await state(config, database)
