@@ -14,4 +14,4 @@ class Database:
 
     async def query(self, query: str | Path, **params: str | int | float) -> list[dict]:
         sql = query.read_text() if isinstance(query, Path) else query
-        return await self.dirsql.query(sql, params or None)
+        return await self.dirsql.query(sql, params)
