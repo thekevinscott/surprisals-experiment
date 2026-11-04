@@ -1,7 +1,6 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
 import json
-import subprocess
 import warnings
 from functools import cached_property
 from pathlib import Path
@@ -45,15 +44,10 @@ class Config(BaseModel):
         return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
 
     def save_settings(self) -> None:
+        from .sdk.utils.git_commit import git_commit
         from .sdk.utils.write import write
 
-        try:
-            commit = subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent,
-                capture_output=True, text=True, check=True,
-            ).stdout.strip()
-        except (OSError, subprocess.CalledProcessError):
-            commit = None
+        commit = git_commit()
         path = self.output / "settings.json"
         if path.exists():
             if json.loads(path.read_text()).get("git_commit") != commit:
