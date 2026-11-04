@@ -67,7 +67,7 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, botbox_s
     assert json.loads(config.result_file.read_text())['best_measurement'] == pytest.approx(10.0)
 
 
-async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_script, scorer_provider, no_retry_wait):
+async def test_scorer_failure_leaves_scoring_as_next_step(scoring_config, botbox_script, scorer_provider, no_backoff):
     config = scoring_config
 
     def fail_after_advice_is_saved(request):
@@ -81,20 +81,19 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_s
     deltas = []
     assert await run_experiment(config, on_delta=lambda *event: deltas.append(event))
     assert len(scorer_provider.requests) == 2
-    no_retry_wait.assert_awaited_once_with(10)
-    assert any(kind == 'retry' and '1/8 in 10s' in text for kind, text in deltas)
+    no_backoff.assert_not_awaited()
+    assert not any(kind == 'retry' for kind, text in deltas)
     assert read_score(config, 0)['score'] == pytest.approx(10.0)
 
 
-async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_config, botbox_script, scorer_provider, no_retry_wait):
-    scorer_provider.replies.extend(httpx2.Response(503, json={'error': {'message': 'scorer failed'}}) for _ in range(9))
+async def test_scoring_continues_past_former_budget(scoring_config, botbox_script, scorer_provider):
+    scorer_provider.replies.extend(httpx2.Response(503, json={'error': {'message': 'scorer failed'}}) for _ in range(12))
+    scorer_provider.replies.append([('preserve me', 10.0)])
     botbox_script.advice.append('preserve me')
-    with pytest.raises(RuntimeError, match='Scorer request failed:.*8 retries exhausted'):
-        await run_experiment(scoring_config, on_delta=None)
-    assert len(scorer_provider.requests) == 9
-    assert [call.args[0] for call in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
+    botbox_script.solutions.append(PASS)
+    assert await run_experiment(scoring_config, on_delta=None)
+    assert len(scorer_provider.requests) == 13
     assert (advice_directory(scoring_config, 'preserve me') / 'advice.txt').read_text() == 'preserve me'
-    assert (scoring_config.attempt_dir(0) / 'metadata.json').exists()
 
 
 async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider):
@@ -118,9 +117,9 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
 
 
 
-async def test_real_scorer_sdk_does_not_add_retries(scoring_config, scorer_provider, no_retry_wait):
-    scorer_provider.replies.extend(httpx2.Response(408, json={'error': {'message': 'timeout'}}) for _ in range(9))
-    with pytest.raises(RuntimeError, match='8 retries exhausted'):
+async def test_real_scorer_sdk_makes_one_request(scoring_config, scorer_provider):
+    from openai import APIStatusError
+    scorer_provider.replies.append(httpx2.Response(408, json={'error': {'message': 'timeout'}}))
+    with pytest.raises(APIStatusError):
         await scoring_config.advice_measure.score('advice')
-    assert len(scorer_provider.requests) == 9
-    assert no_retry_wait.await_count == 8
+    assert len(scorer_provider.requests) == 1

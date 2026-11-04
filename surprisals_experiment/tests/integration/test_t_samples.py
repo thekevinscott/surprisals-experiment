@@ -35,7 +35,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     settings = json.loads(settings_text)
     assert settings.keys() == (type(config).model_fields.keys() - {'api_key'}) | {'git_commit'}
     assert settings['t_samples'] == n
-    assert settings['t_sample_retries'] == 3
+    assert 't_sample_retries' not in settings
     assert settings['problem_dir'] == str(config.problem_dir)
     assert 'test-key' not in settings_text
     summary, attempt = report(config.output)

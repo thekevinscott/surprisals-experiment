@@ -1,4 +1,4 @@
-"""Hung T samples retry and real CLI SIGTERM cancels both model phases."""
+"""Timeouts leave generation unfinished; SIGTERM cancels both model phases."""
 
 from surprisals_experiment.sdk.turn import Turn
 import asyncio
@@ -12,10 +12,9 @@ from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.cli.main import main
 
-async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
+async def test_timeout_leaves_same_next_step_with_a_fresh_t(config, botbox_script, monkeypatch):
     config.t_samples = 3
     config.t_sample_timeout = .1
-    config.t_sample_retries = 1
     botbox_script.advice.append('Double.')
     botbox_script.solutions.extend(['print(int(input()) * 2)'] * 3)
     original = FakeSession.message
@@ -34,37 +33,8 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     assert len(botbox_script.sessions) == 4
     assert all(s.closed for s in botbox_script.sessions)
     assert json.loads(config.result_file.read_text())['success']
-    assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
-    assert not (config.attempt_dir(0) / 'error.txt').exists()
+    assert 'TimeoutError' in (config.attempt_dir(0) / 'error.txt').read_text()
     assert 'timed out' not in (config.attempt_dir(0) / 'feedback.txt').read_text()
-
-
-async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(config, botbox_script, monkeypatch):
-    config.max_u_turns = 2
-    config.t_samples = 3
-    config.t_sample_timeout = .1
-    config.t_sample_retries = 1
-    botbox_script.advice.extend(['Double the input.', 'Double.'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 5)
-    original = FakeSession.message
-
-    async def message(self, text):
-        output = self.mounts['/solution']
-        if output.parents[2].name == '1' and output.parent.name == '2':
-            await asyncio.Event().wait()
-        return await original(self, text)
-
-    monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 7
-    assert all(s.closed for s in botbox_script.sessions)
-    assert not (config.attempt_dir(1) / 'error.txt').exists()
-    assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
-    tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
-    assert tests['passed'] == 0 and not tests['all_passed']
-    result = json.loads(config.result_file.read_text())
-    assert result['success'] and result['attempts'] == 2
-    assert result['solution'] == str(config.t_dir(0, 0) / 'src')
 
 
 async def test_gives_queued_samples_their_own_full_budget(config, botbox_script, monkeypatch):
@@ -87,25 +57,34 @@ async def test_gives_queued_samples_their_own_full_budget(config, botbox_script,
     assert not list(config.output.glob('windows/*/forks/*/turns/*/ts/*/timeouts.txt'))
 
 
-async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypatch):
-    config.t_sample_retries = 0
-    config.t_sample_timeout = .05
+async def test_permanent_timeout_has_no_completion_or_budget(config, botbox_script, monkeypatch):
+    config.t_sample_timeout = .01
     botbox_script.advice.append('Double.')
+    reached = asyncio.Event()
+    calls = 0
 
     async def message(self, text):
+        nonlocal calls
+        calls += 1
+        assert not (config.t_dir(0, 0) / 'run.json').exists()
         assert not list(self.mounts['/solution'].iterdir())
         (self.mounts['/solution'] / 'partial.py').write_text('partial')
+        if calls >= 6:
+            reached.set()
         await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 1
+    task = asyncio.create_task(run_experiment(config, on_delta=None))
+    try:
+        await asyncio.wait_for(reached.wait(), 5)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert not (config.t_dir(0, 0) / 'run.json').exists()
+    assert not (config.t_dir(0, 0) / 'tests.json').exists()
+    assert not config.result_file.exists()
     assert all(s.closed for s in botbox_script.sessions)
-    assert not json.loads(config.result_file.read_text())['success']
-    assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == 1
-    assert not list((config.t_dir(0, 0) / 'src').iterdir())
-    assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['passed'] == 0
-    assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == 0
 
 
 @pytest.mark.parametrize('phase', ['U', 'T'])

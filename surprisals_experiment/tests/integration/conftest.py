@@ -43,7 +43,7 @@ class FakeSession:
     async def message(self, text):
         self.messages.append(text)
         reply = self.script.solutions.popleft()
-        if isinstance(reply, Exception):
+        if isinstance(reply, BaseException):
             raise reply
         (self.mounts['/solution'] / 'main.py').write_text(reply)
         events = [{'type': 'agent_end', 'willRetry': False, 'messages': [{
@@ -96,11 +96,11 @@ def botbox_script(monkeypatch):
 
 
 @pytest.fixture
-def no_retry_wait(monkeypatch):
+def no_backoff(monkeypatch):
     waits = AsyncMock()
     real_sleep = asyncio.sleep
 
-    # Retry waits are 10 s and up; shorter sleeps are polls that must yield.
+    # Observe unexpected backoff; shorter sleeps are polls that must yield.
     async def sleep(delay, *args, **kwargs):
         if delay >= 1:
             return await waits(delay)
@@ -133,7 +133,7 @@ def chat_provider(monkeypatch, botbox_script):
     def respond(request):
         requests.append(json.loads(request.content))
         reply = botbox_script.advice.popleft()
-        if isinstance(reply, Exception):
+        if isinstance(reply, BaseException):
             raise reply
         if isinstance(reply, dict):
             status = reply.get('status', 200)
@@ -186,7 +186,7 @@ def chat_provider(monkeypatch, botbox_script):
 
 @pytest.fixture
 async def scorer_provider(monkeypatch):
-    """Serve prompt logprobs over mocked HTTP, keeping measurement and retries real."""
+    """Serve prompt logprobs over mocked HTTP, keeping measurement real."""
     import math
     from types import SimpleNamespace
 
@@ -202,7 +202,7 @@ async def scorer_provider(monkeypatch):
         reply = script.replies.popleft()
         if callable(reply):
             reply = reply(request)
-        if isinstance(reply, Exception):
+        if isinstance(reply, BaseException):
             raise reply
         if isinstance(reply, httpx2.Response):
             return reply

@@ -167,7 +167,8 @@ asyncio.run(run_experiment(config, on_delta=None))
     assert all(path.read_text() == '1' for path in [*u_calls, *t_calls, tmp_path/'calls/score'])
 
 
-async def test_restart_keeps_completed_test_results(config, botbox_script, chat_provider, monkeypatch):
+@pytest.mark.parametrize("failure", ["restart", "in_run"])
+async def test_restart_keeps_completed_test_results(config, botbox_script, chat_provider, monkeypatch, failure):
     import asyncio
     import importlib
     from collections import Counter
@@ -179,20 +180,24 @@ async def test_restart_keeps_completed_test_results(config, botbox_script, chat_
     original = module.run_test_suite_for_t
     calls = Counter()
     interrupted = False
+    before = None
 
     async def evaluate(suite, solution):
-        nonlocal interrupted
+        nonlocal interrupted, before
         calls[solution] += 1
         if solution == config.t_dir(0,1) / 'src' and not interrupted:
             interrupted = True
-            raise asyncio.CancelledError
+            before = (config.t_dir(0,0) / "tests.json").stat().st_mtime_ns
+            if failure == "restart":
+                raise asyncio.CancelledError
+            raise OSError("evaluation unavailable")
         return await original(suite, solution)
 
     monkeypatch.setattr(module, 'run_test_suite_for_t', evaluate)
-    with pytest.raises(asyncio.CancelledError):
-        await run_experiment(config, on_delta=None)
+    if failure == "restart":
+        with pytest.raises(asyncio.CancelledError):
+            await run_experiment(config, on_delta=None)
     completed = config.t_dir(0,0) / 'tests.json'
-    before = completed.stat().st_mtime_ns
     await run_experiment(config, on_delta=None)
     assert len(chat_provider) == 1
     assert len(botbox_script.sessions) == 3

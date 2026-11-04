@@ -27,7 +27,6 @@ class Config(BaseModel):
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
-    t_sample_retries: int = Field(default=3, ge=0)
     max_turns_without_improvement: int = Field(default=20, ge=1)
     max_u_turns: int | None = Field(default=None, ge=1)
 

@@ -33,8 +33,6 @@ async def main(argv: list[str] | None = None) -> None:
                         help="Maximum concurrent T generations (default: 3)")
     parser.add_argument("--t-sample-timeout", type=float, default=900,
                         help="Time limit per active T sample in seconds (default: 900)")
-    parser.add_argument("--t-sample-retries", type=int, default=3,
-                        help="Retries per timed-out T sample; 0 disables retries (default: 3)")
     parser.add_argument("--max-turns-without-improvement", type=int, default=20,
                         help="Stop after this many turns without shorter all-pass advice (default: 20)")
     parser.add_argument(
@@ -81,7 +79,6 @@ async def main(argv: list[str] | None = None) -> None:
             t_samples=args.t_samples,
             t_pool_size=args.t_pool_size,
             t_sample_timeout=args.t_sample_timeout,
-            t_sample_retries=args.t_sample_retries,
             max_u_turns=args.max_u_turns,
             max_turns_without_improvement=args.max_turns_without_improvement,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))

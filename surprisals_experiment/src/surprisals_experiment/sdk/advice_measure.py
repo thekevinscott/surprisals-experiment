@@ -3,7 +3,6 @@
 from measure_surprisal import Client, measure_surprisal
 
 from surprisals_experiment.prompt import Prompt
-from surprisals_experiment.retry_policy import DELAYS, retried
 
 SURPRISAL_WORDING = Prompt("u/measure_surprisal.txt")
 
@@ -13,23 +12,14 @@ class AdviceMeasure:
         self.name = name
         self.client = Client(base_url=base_url, model=model) if name == "surprisal" else None
         if self.client is not None:
-            # The shared policy owns retries; the scorer currently exposes no public retry option.
+            # The experiment state owns progression; disable SDK retries.
             self.client._openai.max_retries = 0
 
     async def score(self, advice: str, *, on_delta=None) -> tuple[int | float, list[tuple[str, float]] | None]:
         if self.client is None:
             return len(advice), None
 
-        def before_sleep(state):
-            if on_delta is not None:
-                on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
-                                  f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
-
-        @retried(operation="Scorer request", before_sleep=before_sleep)
-        async def score():
-            return await measure_surprisal(advice, client=self.client)
-
-        tokens = await score()
+        tokens = await measure_surprisal(advice, client=self.client)
         return sum(bits for _, bits in tokens), tokens
 
     @property

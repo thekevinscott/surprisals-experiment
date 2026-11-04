@@ -1,7 +1,6 @@
 import traceback
 from pathlib import Path
 
-from surprisals_experiment.retry_policy import retried
 
 from ....turn import Turn
 from ....utils.write import write
@@ -11,7 +10,6 @@ from ....run_test_suite import run_test_suite
 PENDING = Path(__file__).with_name("pending_samples.sql")
 
 
-@retried(operation="Test evaluation")
 async def run_tests(turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase):
     samples = await database.query(PENDING, **turn.params, samples=turn.config.t_samples)
     try:

@@ -1,7 +1,9 @@
 """Drive the existing sequential loop from artifacts, including partial turns."""
 
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
+import warnings
 
 from state_machine import Stop, state_machine
 
@@ -41,6 +43,7 @@ async def run_experiment(
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
     problem = QuestionDatabase(config.problem_dir)
+
     async def current_turn() -> Turn:
         current = await state(config, database)
         return Turn(config, current["turn"])
@@ -73,15 +76,21 @@ async def run_experiment(
         await write_feedback(turn, database, problem)
         await write_result(turn, database)
 
+    async def step(action) -> None:
+        try:
+            await action()
+        except Exception as error:
+            warnings.warn(f"Experiment step failed: {type(error).__name__}: {error}", stacklevel=2)
+
     await state_machine(
         state=read_state,
         actions={
-            "not_started": start,
-            "advice_missing": advice,
-            "unscored": score,
-            "solutions_missing": solutions,
-            "untested": tests,
-            "feedback_missing": feedback,
+            "not_started": partial(step, start),
+            "advice_missing": partial(step, advice),
+            "unscored": partial(step, score),
+            "solutions_missing": partial(step, solutions),
+            "untested": partial(step, tests),
+            "feedback_missing": partial(step, feedback),
             "stopped": Stop,
         },
     )

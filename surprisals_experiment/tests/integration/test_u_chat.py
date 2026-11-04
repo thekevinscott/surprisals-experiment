@@ -126,38 +126,41 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
     assert session.messages[-1]['reasoning'] == 'Thinking. More.'
 
 
-async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{
+async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_script):
+    botbox_script.advice.append({
         'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
         'finish': 'length', 'usage': USAGE,
-    }] * 9)
-    with pytest.raises(RuntimeError, match='U chat'):
-        await run_experiment(config, on_delta=None)
+    })
+    async with open_u_chat(Turn(config, 0)) as session:
+        with pytest.raises(RuntimeError):
+            await session.prompt('question')
     transcript = [json.loads(line) for line in (Turn(config, 0).u_transcripts / 'messages.jsonl').read_text().splitlines()]
     assert transcript[-1] == {'role': 'assistant', 'content': 'partial', '_complete': False}
     usage = [json.loads(line) for line in (Turn(config, 0).u_transcripts / 'usage.jsonl').read_text().splitlines()]
-    assert len(usage) == 9
-    assert all(entry['usage'] == USAGE for entry in usage)
+    assert len(usage) == 1
+    assert usage[0]['usage'] == USAGE
 
 
-async def test_does_not_accept_empty_replies(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{'deltas': [{'role': 'assistant'}], 'finish': None}] * 9)
-    with pytest.raises(RuntimeError, match='U chat'):
-        await run_experiment(config, on_delta=None)
+async def test_does_not_accept_empty_replies(config, botbox_script):
+    botbox_script.advice.append({'deltas': [{'role': 'assistant'}], 'finish': None})
+    async with open_u_chat(Turn(config, 0)) as session:
+        with pytest.raises(RuntimeError, match='U chat'):
+            await session.prompt('question')
     assert not botbox_script.sessions
 
 
-async def test_preserves_the_prompt_on_provider_failure(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{'status': 400}] * 9)
-    with pytest.raises(RuntimeError, match='provider failed'):
-        await run_experiment(config, on_delta=None)
-    assert not botbox_script.sessions
-    assert (config.problem_dir / 'question.txt').read_text() in (Turn(config, 0).u_transcripts / 'messages.jsonl').read_text()
+async def test_preserves_the_prompt_on_provider_failure(config, botbox_script):
+    from openai import APIStatusError
+    botbox_script.advice.append({'status': 400})
+    async with open_u_chat(Turn(config, 0)) as session:
+        with pytest.raises(APIStatusError):
+            await session.prompt('saved question')
+    assert 'saved question' in session.transcript.read_text()
 
 
 @pytest.mark.parametrize('finish', ['stop', None])
 async def test_reasoning_format_preserves_latest_provider_value(
-    config, botbox_script, finish, no_retry_wait,
+    config, botbox_script, finish, no_backoff,
 ):
     final_format = 'provider.v1'
     reply = {
@@ -190,7 +193,7 @@ async def test_reasoning_format_preserves_latest_provider_value(
 
 @pytest.mark.parametrize('mode', ['plain', 'partial'])
 async def test_rebuilt_transcript_matches_live_session(
-    config, botbox_script, chat_provider, no_retry_wait, mode,
+    config, botbox_script, chat_provider, no_backoff, mode,
 ):
     replies = ['first']
     if mode == 'partial':
@@ -201,6 +204,11 @@ async def test_rebuilt_transcript_matches_live_session(
     async with open_u_chat(Turn(config, 0)) as live:
         live.attempt = 0
         assert await live.prompt('question') == 'first'
+        live.attempt = 1
+        if mode == 'partial':
+            with pytest.raises(RuntimeError):
+                await live.prompt('feedback')
+    async with open_u_chat(Turn(config, 0)) as live:
         live.attempt = 1
         assert await live.prompt('feedback') == 'second'
         expected = (live.messages, live.turn_attempt, live.turn_reply)
