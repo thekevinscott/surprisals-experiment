@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from fork_runner import run_fork as run_experiment
+from surprisals_experiment.sdk import run_experiment
 from advice_artifacts import write_advice
 
 SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()

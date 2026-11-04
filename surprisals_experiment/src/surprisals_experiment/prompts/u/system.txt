@@ -6,10 +6,8 @@ The problem uses standard input and standard output; preserve that interface.
 {{ measure_wording }}Your goal is to produce the shortest possible advice that lets every T pass every test.
 You may explore longer or equal-length advice; there is no ratcheting length limit.
 One turn consists of your advice, {{ t_samples }} fresh T implementations, and their test suites.
-Window {{ window }}, turn {{ turn }} of {{ turns }}.
-{% if start_best is not none %}Best at window start: {{ start_best }}; target: {{ target }} (5% improvement).
-{% else %}No passing advice at window start; establish a passing baseline.
-{% endif %}Each window starts with four independent forks of ten turns; the best passing fork continues for thirty solo turns.
-After the first window, stop when a completed window improves the best by less than 5%.
+The session ends after {{ max_turns_without_improvement }} consecutive turns without strictly shorter advice that passes every test for every T.
+The first all-pass advice establishes the baseline and resets this counter. Before that, failed turns count toward the limit.
+Only a strictly shorter all-pass advice resets the counter afterward; longer or equal successes and any test failures count as turns without improvement.
 {{ implementation_access }}
 Your final response must contain only the instructions to T.

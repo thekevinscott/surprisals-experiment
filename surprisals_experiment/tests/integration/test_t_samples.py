@@ -4,7 +4,7 @@ import json
 import pytest
 from surprisals_experiment.sdk.advice import Advice
 from conftest import FakeSession
-from fork_runner import run_fork as run_experiment
+from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
 from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_test_suite import run_test_suite

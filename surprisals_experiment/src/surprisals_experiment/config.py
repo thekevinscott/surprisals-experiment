@@ -29,20 +29,19 @@ class Config(BaseModel):
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
     t_sample_retries: int = Field(default=3, ge=0)
+    max_turns_without_improvement: int = Field(default=20, ge=1)
     max_u_turns: int | None = Field(default=None, ge=1)
 
-    _window: int = PrivateAttr(default=0)
-    _fork: int = PrivateAttr(default=0)
     _turn: int = PrivateAttr(default=0)
 
-    def at(self, *, window: int, fork: int = 0, turn: int = 0):
+    def at(self, *, turn: int):
         scoped = self.model_copy()
-        scoped._window, scoped._fork, scoped._turn = window, fork, turn
+        scoped._turn = turn
         return scoped
 
     @property
     def position(self) -> dict:
-        return dict(window=self._window, fork=self._fork, turn=self._turn)
+        return dict(window=0, fork=0, turn=self._turn)
 
     @model_validator(mode="after")
     def require_scorer(self):
@@ -88,11 +87,11 @@ class Config(BaseModel):
 
     @property
     def window_dir(self) -> Path:
-        return self.output / "windows" / str(self._window)
+        return self.output / "windows" / "0"
 
     @property
     def fork_dir(self) -> Path:
-        return self.window_dir / "forks" / str(self._fork)
+        return self.window_dir / "forks" / "0"
 
     def attempt_dir(self, attempt: int) -> Path:
         return self.fork_dir / "turns" / str(attempt)

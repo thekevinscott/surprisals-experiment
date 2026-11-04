@@ -7,7 +7,7 @@ import httpx2
 import pytest
 
 from surprisals_experiment.config import Config
-from fork_runner import run_fork as run_experiment
+from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.advice import Advice
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
 
@@ -35,6 +35,7 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
 async def test_bits_drive_improvement_feedback_and_result(scoring_config, botbox_script, scorer_provider, chat_provider):
     config = scoring_config
     config.max_u_turns = 3
+    config.max_turns_without_improvement = 1
     pairs = [[('tiny', 10.5)], [('much longer', 3.0), (' but fewer bits', 5.25)], [('equal bits', 8.25)]]
     scorer_provider.replies.extend(pairs)
     botbox_script.advice.extend(''.join(token for token, _ in reply) for reply in pairs)
@@ -98,7 +99,8 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
 
 async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider):
     config = scoring_config
-    config.max_u_turns = 2
+    config.max_u_turns = 3
+    config.max_turns_without_improvement = 1
     scorer_provider.replies.extend([[('same', 4.0), (' advice', 6.0)], [('same advice', 9.0)]])
     botbox_script.advice.extend(['same advice'] * 2)
     botbox_script.solutions.extend([PASS] * 2)

@@ -2,10 +2,6 @@ WITH RECURSIVE
 samples(position) AS (
   SELECT 0 UNION ALL SELECT position + 1 FROM samples WHERE position + 1 < :samples
 ),
-fork_positions(position) AS (VALUES (0), (1), (2), (3)),
-turn_positions(position) AS (
-  SELECT 0 UNION ALL SELECT position + 1 FROM turn_positions WHERE position < 39
-),
 tested AS (
   SELECT ts.turn_id, ts.position, coalesce(min(test_results.passed), 0) AS passed
   FROM ts LEFT JOIN test_results ON test_results.t_id = ts.id
@@ -27,37 +23,27 @@ ready AS (
 complete AS (
   SELECT ready.* FROM ready JOIN feedback ON feedback.turn_id = ready.id
 ),
-round_winners AS (
-  SELECT window, fork, row_number() OVER (PARTITION BY window ORDER BY score, fork, turn) AS rank
-  FROM complete WHERE turn < 10 AND passed = 1
+run_turns AS (
+  SELECT turns.id, turns.position AS turn
+  FROM windows JOIN forks ON forks.window_id = windows.id
+  JOIN turns ON turns.fork_id = forks.id
+  WHERE windows.position = 0 AND forks.position = 0
 ),
-winners AS (
-  SELECT windows.position AS window, coalesce(round_winners.fork, 0) AS fork
-  FROM windows LEFT JOIN round_winners ON round_winners.window = windows.position AND rank = 1
+run_complete AS (
+  SELECT * FROM complete WHERE window = 0 AND fork = 0
 ),
-expected AS (
-  SELECT windows.position AS window, fork_positions.position AS fork, turn_positions.position AS turn
-  FROM windows CROSS JOIN fork_positions CROSS JOIN turn_positions
-  JOIN winners ON winners.window = windows.position
-  WHERE (turn_positions.position < 10 OR fork_positions.position = winners.fork)
-    AND (:cap < 0 OR windows.position * 40 + turn_positions.position < :cap)
-),
-finished AS (
-  SELECT windows.position AS window FROM windows
-  WHERE NOT EXISTS (
-    SELECT 1 FROM expected LEFT JOIN complete USING (window, fork, turn)
-    WHERE expected.window = windows.position AND complete.id IS NULL
+improvements AS (
+  SELECT current.turn FROM run_complete current
+  WHERE current.passed = 1 AND NOT EXISTS (
+    SELECT 1 FROM run_complete previous
+    WHERE previous.turn < current.turn AND previous.passed = 1 AND previous.score <= current.score
   )
 ),
-window_bests AS (
-  SELECT windows.position AS window, min(complete.score) AS score
-  FROM windows LEFT JOIN complete ON complete.window <= windows.position AND complete.passed = 1
-  GROUP BY windows.id
+positions(turn) AS (
+  SELECT 0 UNION ALL SELECT turn + 1 FROM positions
+  WHERE turn <= coalesce((SELECT max(turn) FROM run_turns), -1)
 ),
-stop_windows AS (
-  SELECT finished.window FROM finished
-  JOIN window_bests current ON current.window = finished.window
-  JOIN window_bests previous ON previous.window = finished.window - 1
-  WHERE current.score IS NULL OR (previous.score IS NOT NULL AND current.score > previous.score * 0.95)
-     OR previous.score = 0
+next_turn AS (
+  SELECT min(turn) AS turn FROM positions
+  WHERE NOT EXISTS (SELECT 1 FROM run_complete WHERE run_complete.turn = positions.turn)
 )

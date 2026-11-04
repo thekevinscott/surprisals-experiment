@@ -75,6 +75,6 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
         write_advice(config, directory, turn, 5)
         (directory / 'ts/0/run.json').write_text('{"exit_code":0}')
         (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
-    config = Config(**(config.model_dump() | {'t_samples': 1})).at(window=11)
+    config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt

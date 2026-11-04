@@ -14,7 +14,7 @@ async def write_advice(
     on_delta: Callable[[str, str], None] | None = None,
 ) -> None:
     prompt = await prepare_flush(config, problem, database)
-    async with open_u_chat(config, database=database) as chat:
+    async with open_u_chat(config) as chat:
         chat.attempt = config.position["turn"]
         advice = Advice(await chat.prompt(prompt, on_delta=on_delta), config.advice_measure, config.output)
     advice.save()

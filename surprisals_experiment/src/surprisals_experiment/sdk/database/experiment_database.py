@@ -1,6 +1,4 @@
-import asyncio
 import json
-from collections import defaultdict
 from pathlib import Path
 
 from dirsql import Table
@@ -15,9 +13,6 @@ class ExperimentDatabase(Database):
     """The run's output folder, with the tables in schema.sql. Ids are paths relative to it."""
 
     def __init__(self, root: Path):
-        # Synchronization resources only; advice content/scores remain on disk.
-        self.advice_locks = defaultdict(asyncio.Lock)
-
         def relative(path: str) -> Path:
             return Path(path).relative_to(root)
 

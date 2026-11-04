@@ -102,8 +102,8 @@ class StreamingTest(unittest.TestCase):
                         raise
                 self.assertEqual(process.returncode, 0, (root/'stderr.log').read_text())
             text = (root/'stdout.log').read_text()
-            self.assertEqual(text.count('THINKING_BEFORE_END'), 4)
-            self.assertEqual(text.count('TEXT_BEFORE_END'), 4)
+            self.assertEqual(text.count('THINKING_BEFORE_END'), 1)
+            self.assertEqual(text.count('TEXT_BEFORE_END'), 1)
             self.assertFalse((root/'run/u.jsonl').exists())
 
 
