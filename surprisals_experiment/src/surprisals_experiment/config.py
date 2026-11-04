@@ -1,5 +1,8 @@
 """Explicit experiment settings; environment and dotenv loading are disabled."""
 
+import json
+import subprocess
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import Literal
@@ -44,7 +47,19 @@ class Config(BaseModel):
     def save_settings(self) -> None:
         from .sdk.utils.write import write
 
-        write(self.output / "settings.json", self.model_dump_json(exclude={"api_key"}, indent=2) + "\n")
+        try:
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent,
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            commit = None
+        path = self.output / "settings.json"
+        if path.exists():
+            if json.loads(path.read_text()).get("git_commit") != commit:
+                warnings.warn("Run was started with a different git commit", stacklevel=2)
+            return
+        write(path, json.dumps(self.model_dump(mode="json", exclude={"api_key"}) | {"git_commit": commit}, indent=2) + "\n")
 
     @property
     def result_file(self) -> Path:
