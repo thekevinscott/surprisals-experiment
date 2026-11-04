@@ -30,11 +30,12 @@ class ExperimentDatabase(Database):
 
         def advice(path):
             directory = relative(path).parent
-            metadata = json.loads(Path(path).read_text())
+            score = Path(path).with_name("advice.json")
+            metadata = json.loads(score.read_text()) if score.exists() else {}
             tokens = metadata.get("tokens")
             return [{
                 "id": str(directory),
-                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata["score"],
+                "text": Path(path).read_bytes().decode("utf-8"), "score": metadata.get("score"),
                 "score_text": tokens and "".join(f"{token}<{bits:.1f}>" for token, bits in tokens),
             }]
 
@@ -61,7 +62,7 @@ class ExperimentDatabase(Database):
             "windows": ("windows/*/window.json", window),
             "forks": ("windows/*/forks/*/fork.json", fork),
             "turns": (f"{TURN}/metadata.json", turn),
-            "advices": ("advices/*/advice.json", advice),
+            "advices": ("advices/*/advice.txt", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/generation.json", generation),
             "test_results": (f"{TURN}/ts/*/tests.json", test_results),
