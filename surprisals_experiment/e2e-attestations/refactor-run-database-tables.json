@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration/test_database.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_measure.py -q",
-  "ran_at": 1793803910,
+  "ran_at": 1793804129,
   "exit_code": 0,
-  "commit": "39b0598b4ab2c6be4ea4bf15ba64d78bc83e5c59",
+  "commit": "4f714fe40144930c4a1d3a2cefa9c9ccee1038f6",
   "branch": "refactor/run-database-tables"
 }
