@@ -77,9 +77,7 @@ def describe_advice_improvement():
             'success': True, 'attempts': len(advices), 'solution': str(result),
         }
         for attempt, advice in enumerate(advices):
-            candidates = config.attempt_dir(attempt) / 'advices'
-            assert [path.name for path in candidates.iterdir()] == ['0']
-            assert json.loads((candidates / '0/metadata.json').read_text()) == {
+            assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {
                 'rejected': False, 'measurement': len(advice),
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]

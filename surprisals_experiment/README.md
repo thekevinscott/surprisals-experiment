@@ -23,9 +23,9 @@ Run the configured problem through labnotes from the repository root (one direct
 uvx --no-config --from labnotes labnotes experiments sanity-check run
 ```
 
-`../experiments/sanity-check/experiment.toml` selects APPS problem `2286` with one run and a stopping threshold of 20 consecutive batches without improvement. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `runs/<experiment>/<run>/` relative to the repository root; Each attempt stores U's advice candidates in `attempts/<i>/advices/` and T's files in `attempts/<i>/t_samples/<j>/src/`. Attempts are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
+`../experiments/sanity-check/experiment.toml` selects APPS problem `2286` with one run and a stopping threshold of 20 consecutive batches without improvement. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `runs/<experiment>/<run>/` relative to the repository root; Each turn stores U's advice in `windows/0/forks/0/turns/<i>/advice.txt` and T's files in `windows/0/forks/0/turns/<i>/ts/<j>/src/`. Turns are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
 
-Labnotes captures the experiment’s stderr in `stderr.log` and records its exit code in `run.json`. T’s session transcripts are saved under `attempts/0/t_samples/0/t_transcripts/`, preserving Pi’s relative filenames, including on nonzero exits.
+Labnotes captures the experiment’s stderr in `stderr.log` and records its exit code in `run.json`. T’s session transcripts are saved under `windows/0/forks/0/turns/0/ts/0/transcripts/`, preserving Pi’s relative filenames, including on nonzero exits.
 
 Tests execute generated Python on the host, as requested. Agent container isolation does not isolate that evaluation step; generated code can access host files available to the current user.
 
@@ -49,7 +49,7 @@ Advice attempts and each sample’s test cases run sequentially. T code generati
 
 Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). The default is 5. Use `--t-samples 1` for one T per advice; all new runs use the same per-sample layout. One accepted advice is sent unchanged to N fresh T sessions, with up to `--t-pool-size` generations running concurrently; every solution must pass the entire suite. A failed test does not skip the rest of the batch. Infrastructure errors cancel and await the remaining generations before U closes; completed artifacts remain on disk. Results and feedback retain sample order. Use `--t-pool-size 1` for sequential generation. `run_experiment` calls `write_advice`, `score_advice`, `prompt_t_to_produce_code`, then `run_test_suite_for_ts`; testing starts after all generation finishes and evaluates samples sequentially. `--max-u-turns` counts advice batches, not individual T sessions.
 
-Each sample stores its source, transcripts, diagnostics, and tests under `attempts/<attempt>/t_samples/<index>/`. U receives all per-sample test counts after every completed batch, with inline source. Tests and expected outputs remain hidden.
+Each sample stores its source, transcripts, diagnostics, and tests under `windows/0/forks/0/turns/<turn>/ts/<index>/`. U receives all per-sample test counts after every completed batch, with inline source. Tests and expected outputs remain hidden.
 
 An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume. Retries use the fixed schedules described above. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
 

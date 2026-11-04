@@ -14,6 +14,7 @@ from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
 from ..utils.u_chat import open_u_session
 from ..database import open_database
+from ..utils.write_text import write_text
 
 
 async def run_experiment(
@@ -31,6 +32,8 @@ async def run_experiment(
             or not all(isinstance(value, str) for value in inputs + outputs)):
         raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
     config.save_settings()
+    write_text(config.window_dir / "window.json", "{}\n")
+    write_text(config.fork_dir / "fork.json", "{}\n")
     database = open_database(config.output)
     best_length = None
     best_solution = None
