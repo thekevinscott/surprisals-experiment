@@ -11,7 +11,6 @@ async def surprisal_score(
     directory = config.attempt_dir(attempt)
     measurement, tokens = await config.advice_measure.score(advice, on_delta=on_delta)
     (directory / "metadata.json").write_text(json.dumps({
-        "rejected": False,
         "measurement": measurement,
         "tokens": tokens,
     }, indent=2) + "\n")

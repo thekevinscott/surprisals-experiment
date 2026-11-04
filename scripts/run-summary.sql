@@ -2,7 +2,7 @@
 WITH
 candidates AS (
     SELECT substr(path, 1, length(path) - length('/metadata.json')) AS attempt_path,
-           content ->> 'rejected' AS rejected,
+           coalesce(content ->> 'rejected', 0) AS rejected,
            content ->> 'measurement' AS measurement
     FROM './windows/*/forks/*/turns/*/metadata.json'
 ),

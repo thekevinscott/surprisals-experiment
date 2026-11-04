@@ -11,7 +11,6 @@ async def characters_score(
     directory = config.attempt_dir(attempt)
     measurement = len(advice)
     (directory / "metadata.json").write_text(json.dumps({
-        "rejected": False,
         "measurement": measurement,
     }, indent=2) + "\n")
     return measurement

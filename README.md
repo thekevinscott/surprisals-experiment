@@ -76,7 +76,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 - `u_transcripts/`: U’s conversation in `messages.jsonl`, with system, user, and assistant messages (including returned reasoning).
 - `windows/0/window.json` and `windows/0/forks/0/fork.json`: `{}` placeholders; every turn is in window 0, fork 0.
 - `windows/0/forks/0/turns/<turn>/advice.txt`: the advice for that turn, with `feedback.txt` and any `error.txt` beside it.
-- Adjacent `metadata.json`: measured character count and `rejected: false` for compatibility with existing readers.
+- Adjacent `metadata.json`: measured character count.
 - `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
 - Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `run.json`, and `tests.json`, including when `--t-samples 1`.
 

@@ -23,7 +23,7 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
     botbox_script.solutions.append(PASS)
     await run_experiment(config, on_delta=None)
     assert json.loads((config.attempt_dir(0) / 'metadata.json').read_text()) == {
-        'rejected': False, 'measurement': 10,
+        'measurement': 10,
     }
     assert '<length>10 characters</length>' in (config.attempt_dir(0) / 'feedback.txt').read_text()
     assert not scorer_provider.requests
