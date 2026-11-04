@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_t_reuse.py -q && uv run pytest tests/integration/test_t_samples.py -q && uv run pytest tests/integration/test_loops.py -q && uv run pytest tests/integration/test_t_timeout.py -q && uv run pytest tests/integration/test_resilience.py -q",
+  "ran_at": 1793756365,
+  "exit_code": 0,
+  "commit": "a022f19e69bb0ce3cfc24967fcebbe24ddfd8953",
+  "branch": "refactor/action-helper-folders"
+}
