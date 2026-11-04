@@ -2,8 +2,8 @@ import traceback
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ...database import QuestionDatabase
-from ...run_test_suite import run_test_suite
+from ....database import QuestionDatabase
+from ....run_test_suite import run_test_suite
 
 
 async def run_tests(config: Config, solutions: list[Path], problem: QuestionDatabase, *, attempt: int):
