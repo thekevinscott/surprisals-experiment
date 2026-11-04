@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793807197,
+  "exit_code": 0,
+  "commit": "b8a0e162f84b3bf20bbda6725ae7801b823bd309",
+  "branch": "refactor/flush-only"
+}

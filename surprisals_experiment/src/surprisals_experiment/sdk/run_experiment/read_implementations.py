@@ -1,6 +1,5 @@
 """Include text source files from the supplied solution directories."""
 
-import json
 from pathlib import Path
 
 
@@ -17,9 +16,3 @@ def read_sources(solutions: list[Path]) -> dict[str, dict[str, str]]:
                 continue
         implementations[str(index)] = sources
     return implementations
-
-
-def read_implementations(solutions: list[Path]) -> str:
-    return json.dumps(
-        {f"T {name}": sources for name, sources in read_sources(solutions).items()}, ensure_ascii=False, indent=2,
-    )
