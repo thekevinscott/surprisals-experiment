@@ -179,7 +179,7 @@ def chat_provider(monkeypatch, botbox_script):
         return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-    module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_session')
+    module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_chat')
     monkeypatch.setattr(module, 'AsyncOpenAI', client)
     return requests
 

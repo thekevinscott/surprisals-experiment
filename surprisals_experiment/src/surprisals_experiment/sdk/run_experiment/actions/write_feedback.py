@@ -9,7 +9,7 @@ from ..prepare_flush import prepare_flush
 
 
 async def write_feedback(
-    config: Config, u_session: ChatSession, attempt: int, advice: str,
+    config: Config, u_chat: ChatSession, attempt: int, advice: str,
     measurement: int | float, solutions: list[Path], results: list[TestSuiteResult],
     best_length: int | float | None, best_solution: Path | None,
     turns_without_improvement: int, database: Database,
@@ -19,13 +19,13 @@ async def write_feedback(
         turns_without_improvement = 0
         best_solution = solutions[0]
         best_length = measurement
-        u_session.best_advice = advice
+        u_chat.best_advice = advice
     else:
         turns_without_improvement += 1
-    u_session.best_length = best_length
-    u_session.turns_without_improvement = turns_without_improvement
+    u_chat.best_length = best_length
+    u_chat.turns_without_improvement = turns_without_improvement
     if config.u_flush:
-        u_session.messages = u_session.messages[:1]
+        u_chat.messages = u_chat.messages[:1]
         prompt = await prepare_flush(config, database)
         (config.attempt_dir(attempt) / "feedback.txt").write_text(prompt)
     else:

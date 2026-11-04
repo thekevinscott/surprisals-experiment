@@ -7,7 +7,7 @@ import pytest
 from dotenv import dotenv_values, find_dotenv
 
 from surprisals_experiment.config import Config, U_MODEL, T_MODEL
-from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 QUESTION = 'Read an integer n from standard input and print 2 * n.'
 
@@ -28,7 +28,7 @@ def live_config(tmp_path):
 
 def describe_live_chat_compaction():
     async def it_summarizes_then_keeps_advising_from_the_measured_state(live_config):
-        async with asyncio.timeout(600), open_u_session(live_config) as session:
+        async with asyncio.timeout(600), open_u_chat(live_config) as session:
             first = await session.prompt(QUESTION)
             session.best_advice, session.best_length, session.turns_without_improvement = first, len(first), 3
             session.compact_chars = 1

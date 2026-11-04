@@ -15,7 +15,7 @@ CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
 
 
 @asynccontextmanager
-async def open_u_session(config) -> AsyncGenerator[ChatSession]:
+async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXTS[config.u_context](),
@@ -27,14 +27,14 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
         max_retries=0,
     ) as client:
         config.u_transcripts.mkdir(parents=True, exist_ok=True)
-        u_session = ChatSession(
+        u_chat = ChatSession(
             client, config.u_model, config.u_thinking,
             config.u_transcripts / "messages.jsonl",
             compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
             flush=config.u_flush,
         )
-        if u_session.transcript.exists():
-            with u_session.transcript.open('r+b') as transcript:
+        if u_chat.transcript.exists():
+            with u_chat.transcript.open('r+b') as transcript:
                 lines = transcript.readlines()
                 for index, line in enumerate(lines):
                     try:
@@ -45,7 +45,7 @@ async def open_u_session(config) -> AsyncGenerator[ChatSession]:
                         # Remove a torn suffix so the next append starts a valid line.
                         transcript.truncate(sum(map(len, lines[:index])))
                         break
-                    restore(u_session, entry)
+                    restore(u_chat, entry)
         else:
-            u_session.record({"role": "system", "content": prompt})
-        yield u_session
+            u_chat.record({"role": "system", "content": prompt})
+        yield u_chat
