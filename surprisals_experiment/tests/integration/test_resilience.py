@@ -11,7 +11,7 @@ from botbox import RunResult
 
 from conftest import FakeSession
 from surprisals_experiment.retry_policy import DELAYS
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)'
@@ -104,6 +104,7 @@ async def test_length_and_http_errors_share_one_budget(
 ):
     botbox_script.advice.extend([{'status': 503}, length_reply()] * 4 + [length_reply(100)])
     from surprisals_experiment.cli.main import main
+    monkeypatch.setattr(importlib.import_module('surprisals_experiment.cli.main'), 'run_experiment', run_experiment)
 
     (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
     monkeypatch.chdir(config.problem_dir)

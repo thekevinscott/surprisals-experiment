@@ -7,7 +7,7 @@ from importlib.resources import files
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
@@ -73,6 +73,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     sample = config.t_dir(0, 0)
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
+    (sample / 'run.json').write_text('{"exit_code":0}')
     (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert prompt.count('<attempt>') == 1

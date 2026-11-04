@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from openai import AsyncOpenAI
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.cli.main import main
 
 async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
@@ -135,7 +135,7 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(task, 5)
         assert all(s.closed for s in botbox_script.sessions)
-        assert config.u_transcripts.joinpath('messages.jsonl').exists()
+        assert list(config.output.glob('windows/*/forks/*/turns/*/u/transcripts/messages.jsonl'))
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

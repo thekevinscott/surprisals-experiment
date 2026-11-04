@@ -14,3 +14,7 @@ async def query(database: ExperimentDatabase, config: Config, sql: Path):
                   cap=config.max_u_turns if config.max_u_turns is not None else -1,
                   **config.position)
     return await database.query(statement, **{name: value for name, value in params.items() if f":{name}" in statement})
+
+
+async def samples(database: ExperimentDatabase, config: Config):
+    return await query(database, config, Path(__file__).with_name("samples.sql"))

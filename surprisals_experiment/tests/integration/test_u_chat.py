@@ -5,7 +5,7 @@ from contextlib import nullcontext
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)\n'
@@ -81,8 +81,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
 async def test_sends_and_records_exact_roles(
     config, botbox_script, chat_provider,
 ):
-    config.max_u_turns = None
-    config.max_turns_without_improvement = 2
+    config.max_u_turns = 3
     chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
     botbox_script.advice.extend(map(chunked, ['tiny', 'long advice', 'longer advice']))
     botbox_script.solutions.extend([PASS] * 3)
@@ -90,7 +89,7 @@ async def test_sends_and_records_exact_roles(
     assert len(chat_provider) == 3
     for request in chat_provider:
         assert {m['role'] for m in request['messages']} <= {'system', 'user', 'assistant'}
-    transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+    transcript = [json.loads(line) for turn in range(3) for line in (config.at(window=0, turn=turn).u_transcripts / 'messages.jsonl').read_text().splitlines()]
     assert {m['role'] for m in transcript} <= {'system', 'user', 'assistant'}
     assert [m['content'] for m in transcript if m['role'] == 'assistant'] == ['tiny', 'long advice', 'longer advice']
 

@@ -2,8 +2,9 @@
 import asyncio
 import json
 import pytest
+from surprisals_experiment.sdk.advice import Advice
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from fork_runner import run_fork as run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
 from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
@@ -33,7 +34,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
     settings_text = (config.output / 'settings.json').read_text()
     settings = json.loads(settings_text)
-    assert settings.keys() == type(config).model_fields.keys() - {'api_key'}
+    assert settings.keys() == (type(config).model_fields.keys() - {'api_key'}) | {'git_commit'}
     assert settings['t_samples'] == n
     assert settings['t_sample_retries'] == 3
     assert settings['problem_dir'] == str(config.problem_dir)
@@ -92,7 +93,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     monkeypatch.setattr(FakeSession, 'message', message)
     task = asyncio.create_task(prompt_t_to_produce_code(
-        config, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
+        config, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice=Advice('double it', config.advice_measure, config.output),
     ))
     try:
         async with asyncio.timeout(5):

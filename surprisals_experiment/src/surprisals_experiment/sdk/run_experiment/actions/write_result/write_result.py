@@ -6,7 +6,7 @@ from ....database import ExperimentDatabase
 from ....utils.write import write
 from ...queries import query
 
-RESULT = Path(__file__).parents[2] / "queries/result.sql"
+RESULT = Path(__file__).with_name("result.sql")
 
 
 async def write_result(config: Config, database: ExperimentDatabase):

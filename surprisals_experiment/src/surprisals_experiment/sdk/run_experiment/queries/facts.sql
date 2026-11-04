@@ -20,6 +20,7 @@ ready AS (
   JOIN turn_advice ON turn_advice.turn_id = turns.id
   JOIN advices ON advices.id = turn_advice.advice_id
   JOIN tested ON tested.turn_id = turns.id
+  JOIN generations ON generations.turn_id = turns.id AND generations.position = tested.position
   WHERE advices.score IS NOT NULL AND tested.position >= 0 AND tested.position < :samples
   GROUP BY turns.id HAVING count(*) = :samples
 ),

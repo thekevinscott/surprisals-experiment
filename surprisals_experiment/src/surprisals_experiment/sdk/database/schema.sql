@@ -20,7 +20,7 @@ CREATE TABLE turns (
 CREATE TABLE advices (
   id         TEXT PRIMARY KEY,          -- 'advices/<sha256>'
   text       TEXT NOT NULL UNIQUE,
-  score      NUMERIC,                   -- chars, or total bits
+  score      NUMERIC,                   -- NULL until scored (chars or total bits)
   score_text TEXT                       -- per-token bits rendering, NULL in chars mode
 );
 

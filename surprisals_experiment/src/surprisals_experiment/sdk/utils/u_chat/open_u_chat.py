@@ -5,11 +5,11 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from openai import AsyncOpenAI
+
 from ...database import ExperimentDatabase
 from ...run_experiment.queries import query
 from ..write import write
-
-from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
 from .chat_session import ChatSession
@@ -17,7 +17,7 @@ from .record import restore
 
 SYSTEM = Prompt("u/system.txt")
 CONTEXT = Prompt("u/flush/context.txt")
-NUMBERS = Path(__file__).parents[2] / "run_experiment/queries/prompt.sql"
+NUMBERS = Path(__file__).with_name("prompt_numbers.sql")
 
 
 @asynccontextmanager

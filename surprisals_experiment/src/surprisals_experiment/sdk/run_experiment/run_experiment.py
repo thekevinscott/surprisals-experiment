@@ -16,7 +16,7 @@ from ..advice import Advice
 from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
 
-QUERIES = Path(__file__).with_name("queries")
+QUERIES = Path(__file__).parent
 
 
 async def state(config: Config, database: ExperimentDatabase) -> dict:
@@ -25,8 +25,8 @@ async def state(config: Config, database: ExperimentDatabase) -> dict:
 
 
 async def fork_state(config: Config, database: ExperimentDatabase) -> dict:
-    rows = await query(database, config, QUERIES / "fork.sql")
-    return rows[0] if rows else {"state": "complete"}
+    result, = await query(database, config, QUERIES / "fork.sql")
+    return result
 
 
 async def drive_fork(config: Config, database: ExperimentDatabase, problem: QuestionDatabase, *,

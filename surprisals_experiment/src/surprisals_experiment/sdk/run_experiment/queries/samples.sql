@@ -1,5 +1,5 @@
 SELECT samples.position,
-       CASE WHEN generations.id IS NULL AND ts.id IS NULL THEN 'solutions_missing'
+       CASE WHEN generations.id IS NULL THEN 'solutions_missing'
             WHEN ts.id IS NULL THEN 'untested' ELSE 'complete' END AS state
 FROM samples
 JOIN windows ON windows.position = :window

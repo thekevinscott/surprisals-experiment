@@ -21,3 +21,4 @@ def write_advice(config, turn, text, score, tokens=None):
         "score": score, **({"tokens": tokens} if tokens is not None else {}),
     }))
     (turn / "metadata.json").write_text(json.dumps({"advice": str(directory.relative_to(config.output))}))
+    (turn / "feedback.txt").write_text("complete fixture")
