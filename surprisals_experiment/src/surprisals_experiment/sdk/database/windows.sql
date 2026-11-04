@@ -1,2 +1,0 @@
-CREATE TABLE windows (
-    id TEXT PRIMARY KEY, position INTEGER NOT NULL UNIQUE)

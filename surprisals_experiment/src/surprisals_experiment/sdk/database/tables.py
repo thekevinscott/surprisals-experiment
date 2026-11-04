@@ -7,7 +7,7 @@ from dirsql import Table
 
 TURN = 'windows/*/forks/*/turns/*'
 T = f'{TURN}/ts/*'
-DDL = {path.stem: path.read_text() for path in Path(__file__).parent.glob('*.sql')}
+DDL = {ddl.split()[2]: ddl for ddl in map(str.strip, (Path(__file__).parent / 'schema.sql').read_text().split(';')) if ddl}
 
 
 def tables(root: str) -> list[Table]:
