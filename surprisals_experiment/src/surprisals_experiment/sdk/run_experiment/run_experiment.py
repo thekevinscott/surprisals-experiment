@@ -23,7 +23,6 @@ async def run_experiment(
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     problem = QuestionDatabase(config.problem_dir)
     question = await problem.question
-    test_suite = await problem.test_suite
     prompt = question
     config.save_settings()
     write_text(config.window_dir / "window.json", "{}\n")
@@ -47,7 +46,7 @@ async def run_experiment(
                 on_delta=on_t_delta,
                 folders=[config.t_dir(attempt, s) for s in range(config.t_samples)],
             )
-            results = await run_tests(config, solutions, test_suite, attempt=attempt)
+            results = await run_tests(config, solutions, problem, attempt=attempt)
             prompt, best_length, best_solution, turns_without_improvement = write_feedback(
                 config, u_session, attempt, advice, measurement, solutions, results,
                 best_length, best_solution, turns_without_improvement, history,

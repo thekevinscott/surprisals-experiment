@@ -12,7 +12,7 @@ from .run_test_suite import run_test_suite
 
 
 async def run_test_suite_for_ts(
-    config: Config, solutions: list[Path], test_suite: dict,
+    config: Config, solutions: list[Path], test_suite: list[dict],
 ) -> list[TestSuiteResult]:
     results = []
     for solution in solutions:

@@ -110,7 +110,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
                 event.set()
             solutions = await task
         assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-        results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
+        results = await run_test_suite_for_ts(config, solutions, [{"input": "3\n", "output": "6\n"}])
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
         assert [result.all_passed for result in results] == [True, False, True, False, True]
