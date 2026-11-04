@@ -41,7 +41,7 @@ from surprisals_experiment.sdk import run_experiment
 solution = await run_experiment(config, on_delta=None)
 ```
 
-A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Launch with `python -m surprisals_experiment.cli.run`; `cli/run.py` calls `asyncio.run(main())` under its module guard. There are no installed console commands or synchronous wrapper functions. U chats use `async with open_u_chat(config)` and `await u_chat.prompt(...)`.
+A synchronous script can use `asyncio.run(run_experiment(config, on_delta=None))`. The CLI’s `main()` is async. Launch with `python -m surprisals_experiment.cli.run`; `cli/run.py` calls `asyncio.run(main())` under its module guard. There are no installed console commands or synchronous wrapper functions. U chats use `async with open_u_chat(config, problem)` and `await u_chat.prompt(...)`.
 
 Advice attempts and each sample’s test cases run sequentially. T code generation runs in a pool controlled by `--t-pool-size` (default 3). Botbox runs use its native async API; streaming callbacks run synchronously on the event-loop thread. Testcases use native async subprocesses. Timeout or cancellation kills and reaps the current testcase before run cleanup. Small filesystem operations remain synchronous.
 

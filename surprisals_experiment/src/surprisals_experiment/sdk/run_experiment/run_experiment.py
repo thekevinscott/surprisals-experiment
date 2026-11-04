@@ -32,7 +32,7 @@ async def run_experiment(
     turns_without_improvement = 0
     history = []
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
-    async with open_u_chat(config, prompt) as u_chat:
+    async with open_u_chat(config, problem) as u_chat:
         for attempt in attempts:
             advice = await write_advice(
                 config, u_chat, prompt, attempt=attempt, on_delta=on_delta,
