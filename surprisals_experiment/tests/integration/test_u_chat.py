@@ -6,7 +6,7 @@ from contextlib import nullcontext
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.utils.u_chat import open_u_session
+from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)\n'
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
@@ -20,7 +20,7 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     config.u_thinking = 'high'
     botbox_script.advice.extend(['first\nadvice', 'next'])
     deltas = []
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         assert await session.prompt('question', on_delta=lambda *delta: deltas.append(delta)) == 'first\nadvice'
         assert await session.prompt('feedback') == 'next'
     assert not botbox_script.sessions
@@ -58,7 +58,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
         (output / 'nested').mkdir()
         (output / 'nested/extra.py').write_text('EXTRA = 7\n')
         (output / 'binary.dat').write_bytes(b'\xff')
-        (output / 'hidden.json').symlink_to(config.test_suite_file)
+        (output / 'hidden.json').symlink_to((config.problem_dir / 'input_output.json'))
         return result
 
     monkeypatch.setattr(FakeSession, 'message', write_helpers)
@@ -104,7 +104,7 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
         raise asyncio.CancelledError
 
     with pytest.raises(asyncio.CancelledError):
-        async with open_u_session(config) as session:
+        async with open_u_chat(config) as session:
             await session.prompt('question', on_delta=cancel)
     transcript = (config.u_transcripts / 'messages.jsonl').read_text()
     assert 'Thinking.' in transcript
@@ -117,7 +117,7 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
         {'role': 'assistant', 'content': 'advice'},
     ]})
     deltas = []
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         await session.prompt('question', on_delta=lambda *delta: deltas.append(delta))
     assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
     assert session.messages[-1]['role'] == 'assistant'
@@ -150,7 +150,7 @@ async def test_preserves_the_prompt_on_provider_failure(config, botbox_script, n
     with pytest.raises(RuntimeError, match='provider failed'):
         await run_experiment(config, on_delta=None)
     assert not botbox_script.sessions
-    assert config.question_file.read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
+    assert (config.problem_dir / 'question.txt').read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
 
 
 @pytest.mark.parametrize('finish', ['stop', None])
@@ -177,7 +177,7 @@ async def test_reasoning_format_preserves_latest_provider_value(
         {'type': 'reasoning.text', 'index': 0, 'text': 'Think more.', 'format': final_format},
         {'type': 'reasoning.text', 'index': 1, 'text': 'Other thought', 'format': 'other'},
     ]
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
             await session.prompt('question')
         assert session.messages[-1]['reasoning_details'] == expected
@@ -196,7 +196,7 @@ async def test_rebuilt_transcript_matches_live_session(
                         'finish': 'length'})
     replies.append('second')
     botbox_script.advice.extend(replies)
-    async with open_u_session(config) as live:
+    async with open_u_chat(config) as live:
         live.attempt = 0
         assert await live.prompt('question') == 'first'
         live.attempt = 1
@@ -215,7 +215,7 @@ async def test_rebuilt_transcript_matches_live_session(
         with transcript.open('a') as output:
             output.write('{"role": "assistant", "content":')
     requests = len(chat_provider)
-    async with open_u_session(config) as rebuilt:
+    async with open_u_chat(config) as rebuilt:
         assert (rebuilt.messages, rebuilt.turn_attempt, rebuilt.turn_reply) == expected
         rebuilt.attempt = 1
         assert await rebuilt.prompt('feedback') == 'second'
@@ -223,10 +223,10 @@ async def test_rebuilt_transcript_matches_live_session(
     assert transcript.read_bytes() == before_replay
     if mode == 'partial':
         botbox_script.advice.append('third')
-        async with open_u_session(config) as resumed:
+        async with open_u_chat(config) as resumed:
             resumed.attempt = 2
             assert await resumed.prompt('next feedback') == 'third'
-        async with open_u_session(config) as rebuilt:
+        async with open_u_chat(config) as rebuilt:
             assert rebuilt.messages == resumed.messages
             assert rebuilt.turn_attempt == 2
             assert rebuilt.turn_reply == 'third'
@@ -234,7 +234,7 @@ async def test_rebuilt_transcript_matches_live_session(
 
 async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, chat_provider):
     botbox_script.advice.extend(['first', 'second'])
-    async with open_u_session(config) as live:
+    async with open_u_chat(config) as live:
         live.attempt = 0
         assert await live.prompt('question') == 'first'
         live.attempt = 1
@@ -245,7 +245,7 @@ async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, ch
     transcript.write_text(''.join(json.dumps(entry) + '\n' for entry in entries[:end]))
     botbox_script.advice.append('second')
     requests = len(chat_provider)
-    async with open_u_session(config) as rebuilt:
+    async with open_u_chat(config) as rebuilt:
         rebuilt.attempt = 1
         assert await rebuilt.prompt('feedback') == 'second'
         assert rebuilt.messages == live.messages
@@ -257,12 +257,12 @@ async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, ch
 
 
 async def test_rebuilt_transcript_rejects_invalid_interior_line(config, chat_provider):
-    async with open_u_session(config) as session:
+    async with open_u_chat(config) as session:
         transcript = session.transcript
     with transcript.open('a') as output:
         output.write('not json\n' + json.dumps({'role': 'user', 'content': 'question', '_attempt': 0}) + '\n')
     requests = len(chat_provider)
     with pytest.raises(json.JSONDecodeError):
-        async with open_u_session(config):
+        async with open_u_chat(config):
             pass
     assert len(chat_provider) == requests

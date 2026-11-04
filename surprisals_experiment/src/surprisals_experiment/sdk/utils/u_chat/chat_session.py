@@ -1,4 +1,4 @@
-"""One persistent U conversation, without agent tools."""
+"""One U conversation, without agent tools."""
 
 from dataclasses import dataclass, field
 from pathlib import Path

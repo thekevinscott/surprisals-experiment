@@ -6,6 +6,7 @@ import json
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
+from surprisals_experiment.sdk.database import QuestionDatabase
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -35,7 +36,7 @@ def describe_u_to_t_loop():
             assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = (attempt / 'feedback.txt').read_text()
-                assert feedback == config.question_file.read_text()
+                assert feedback == await QuestionDatabase(config.problem_dir).question
                 assert chat_provider[i + 1]['messages'][-1]['content'] == feedback
         assert config.error_file.exists() == (failures == 5)
         assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()

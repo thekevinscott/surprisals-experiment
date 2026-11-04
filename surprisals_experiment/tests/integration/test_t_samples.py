@@ -5,6 +5,7 @@ import pytest
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.prompt_t_to_produce_code import prompt_t_to_produce_code
+from surprisals_experiment.sdk.database import QuestionDatabase
 from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_ts
 from test_run_summary import report
 
@@ -54,7 +55,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
-    assert feedback == config.question_file.read_text()
+    assert feedback == await QuestionDatabase(config.problem_dir).question
     assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     summary, *_ = report(config.output)
@@ -106,7 +107,8 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
                 event.set()
             solutions = await task
         assert not list(config.output.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-        results = await run_test_suite_for_ts(config, solutions, {"inputs": ["3\n"], "outputs": ["6\n"]})
+        (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
+        results = await run_test_suite_for_ts(config, solutions, QuestionDatabase(config.problem_dir))
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
         assert [result.all_passed for result in results] == [True, False, True, False, True]

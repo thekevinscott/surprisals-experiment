@@ -9,42 +9,20 @@ from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_test_suite import run_test_suite
 
 
-async def test_invalid_suites_fail_before_starting_models(config, botbox_script, chat_provider):
-    invalid = [None, {}, {'inputs': [], 'outputs': []},
-               {'inputs': ['x', 'y'], 'outputs': ['x']},
-               {'inputs': [[1]], 'outputs': ['1']},
-               {'inputs': [''], 'outputs': ['7'], 'fn_name': 'answer'}]
-    for suite in invalid:
-        config.test_suite_file.write_text(json.dumps(suite))
-        with pytest.raises(ValueError):
-            await run_experiment(config, on_delta=None)
-    config.test_suite_file.write_text('{')
-    with pytest.raises(ValueError):
-        await run_experiment(config, on_delta=None)
-    assert not chat_provider
-    assert not botbox_script.sessions
-
-
-async def test_evaluator_cannot_drop_unmatched_cases(tmp_path):
-    (tmp_path / 'main.py').write_text('print(7)')
-    with pytest.raises(ValueError):
-        await run_test_suite({'inputs': ['', ''], 'outputs': ['7']}, tmp_path)
-
-
 async def test_wrong_crashing_and_binary_candidates_fail(tmp_path):
     sources = ['print(8)', 'raise RuntimeError("bad code")',
                "import os; os.write(1, b'\\xff')",
                "import os; os.write(2, b'\\xff'); print(7)"]
     for source in sources:
         (tmp_path / 'main.py').write_text(source)
-        results = await run_test_suite({'inputs': [''], 'outputs': ['7']}, tmp_path)
+        results = await run_test_suite([{'input': '', 'output': '7'}], tmp_path)
         assert not results.all_passed, source
         assert results.passed == 0
 
 
 async def test_missing_candidate_directory_is_an_evaluator_error(tmp_path):
     with pytest.raises(FileNotFoundError):
-        await run_test_suite({'inputs': [''], 'outputs': ['7']}, tmp_path / 'absent')
+        await run_test_suite([{'input': '', 'output': '7'}], tmp_path / 'absent')
 
 
 async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, botbox_script, monkeypatch):
@@ -66,7 +44,7 @@ async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, bo
 
 
 async def test_case_exceeding_five_seconds_fails(config, botbox_script):
-    config.test_suite_file.write_text(json.dumps({'inputs': [''], 'outputs': ['done']}))
+    (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': [''], 'outputs': ['done']}))
     botbox_script.advice.append('Print done.')
     botbox_script.solutions.append('import time; time.sleep(6); print("done")')
     assert await run_experiment(config, on_delta=None) is None

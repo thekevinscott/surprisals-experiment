@@ -22,8 +22,8 @@ FAIL = 'print(0)\n'
 async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_provider, advices, passed, best):
     config.t_samples = 2
     config.max_u_turns = len(advices) + 1
-    config.question_file.write_text(config.question_file.read_text() + '\n')
-    question = config.question_file.read_text()
+    (config.problem_dir / 'question.txt').write_text((config.problem_dir / 'question.txt').read_text() + '\n')
+    question = (config.problem_dir / 'question.txt').read_text()
     botbox_script.advice.extend([*advices, 'final'])
     for all_passed in [*passed, True]:
         botbox_script.solutions.extend([PASS, OTHER_PASS if all_passed else FAIL])

@@ -121,7 +121,7 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         def client(**kwargs):
             return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(
                 transport=httpx2.MockTransport(block)))
-        module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_session')
+        module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_chat')
         monkeypatch.setattr(module, 'AsyncOpenAI', client)
     else:
         monkeypatch.setattr(FakeSession, 'message', block)
