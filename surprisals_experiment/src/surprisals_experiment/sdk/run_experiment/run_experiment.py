@@ -23,14 +23,18 @@ def start(config: Config) -> None:
     write(config.fork_dir / "fork.json", "{}\n")
 
 
-# Feedback and result publication are one sequential stage.
+async def feedback(turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase):
+    await write_feedback(turn, database, problem)
+    return await write_result(turn, database)
+
+
 actions = {
     "not_started": start,
     "advice_missing": write_advice,
     "unscored": score_advice,
     "solutions_missing": write_solutions,
     "untested": run_tests,
-    "feedback_missing": (write_feedback, write_result),
+    "feedback_missing": feedback,
 }
 
 
@@ -52,8 +56,7 @@ async def run_experiment(
             await actions["unscored"](turn, advice, on_delta=on_delta)
             await actions["solutions_missing"](turn, on_delta=on_t_delta)
             await actions["untested"](turn, problem)
-            await actions["feedback_missing"][0](turn, database, problem)
-            best_solution, turns_without_improvement = await actions["feedback_missing"][1](turn, database)
+            best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
