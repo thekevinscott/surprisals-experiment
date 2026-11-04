@@ -59,7 +59,6 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     summary, *_ = report(config.output)
-    assert summary['advice_rewrites'] == 0
     assert summary['completed_t_evaluations'] == 6
     assert summary['evaluation_attempts_to_success'] == 2
 

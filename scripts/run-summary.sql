@@ -2,10 +2,7 @@
 WITH
 advice AS (
     SELECT substr(turn.path, 1, length(turn.path) - length('/metadata.json')) AS attempt_path,
-           1 AS candidates,
-           0 AS rewrites,
-           0 AS rejected_candidates,
-           score.content ->> 'score' AS accepted_characters
+           score.content ->> 'score' AS score
     FROM './windows/*/forks/*/turns/*/metadata.json' AS turn
     JOIN './advices/*/advice.json' AS score
       ON score.path = (turn.content ->> 'advice') || '/advice.json'
@@ -35,10 +32,7 @@ paths AS (
 ),
 attempts AS (
     SELECT cast(substr(p.attempt_path, instr(p.attempt_path, '/turns/') + 7) AS integer) AS attempt_index,
-           a.candidates AS advice_candidates,
-           a.rewrites AS advice_rewrites,
-           a.rejected_candidates,
-           a.accepted_characters,
+           a.score,
            e.tests_passed, e.tests_total,
            coalesce(e.completed, 0) AS completed_t_evaluations,
            CASE WHEN e.completed = e.expected THEN 1 ELSE 0 END AS completed_evaluation_attempts,
@@ -63,10 +57,7 @@ result AS (
 ),
 rows AS (
     SELECT 'run' AS scope, NULL AS attempt_index,
-           sum(advice_candidates) AS advice_candidates,
-           sum(advice_rewrites) AS advice_rewrites,
-           sum(rejected_candidates) AS rejected_candidates,
-           NULL AS accepted_characters,
+           NULL AS score,
            coalesce(sum(completed_t_evaluations), 0) AS completed_t_evaluations,
            coalesce(sum(completed_evaluation_attempts), 0) AS completed_evaluation_attempts,
            coalesce(sum(passing_ts), 0) AS passing_ts,
@@ -76,8 +67,7 @@ rows AS (
                ELSE 'no_final_result' END AS outcome
     FROM attempts
     UNION ALL
-    SELECT 'attempt', attempt_index, advice_candidates, advice_rewrites,
-           rejected_candidates, accepted_characters, completed_t_evaluations,
+    SELECT 'attempt', attempt_index, score, completed_t_evaluations,
            completed_evaluation_attempts, passing_ts, tests_passed, tests_total, outcome
     FROM attempts
 )
