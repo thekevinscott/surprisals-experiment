@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793806041,
+  "ran_at": 1793806169,
   "exit_code": 0,
-  "commit": "78102b24052ab2c75d80369bdddf89ccaaba049a",
+  "commit": "5efcaa11fa246ddba0090842f63044b3591b7811",
   "branch": "feat/problem-dirsql"
 }
