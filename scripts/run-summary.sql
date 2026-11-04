@@ -1,18 +1,14 @@
 -- Run from one experiment run folder, not a batch containing multiple runs.
 WITH
-candidates AS (
-    SELECT substr(path, 1, length(path) - length('/metadata.json')) AS attempt_path,
-           coalesce(content ->> 'rejected', 0) AS rejected,
-           content ->> 'measurement' AS measurement
-    FROM './windows/*/forks/*/turns/*/metadata.json'
-),
 advice AS (
-    SELECT attempt_path, count(*) AS candidates,
-           count(*) - 1 AS rewrites,
-           sum(rejected = 1) AS rejected_candidates,
-           max(CASE WHEN rejected = 0 THEN measurement END) AS accepted_characters
-    FROM candidates
-    GROUP BY attempt_path
+    SELECT substr(turn.path, 1, length(turn.path) - length('/metadata.json')) AS attempt_path,
+           1 AS candidates,
+           0 AS rewrites,
+           0 AS rejected_candidates,
+           score.content ->> 'score' AS accepted_characters
+    FROM './windows/*/forks/*/turns/*/metadata.json' AS turn
+    JOIN './advices/*/advice.json' AS score
+      ON score.path = (turn.content ->> 'advice') || '/advice.json'
 ),
 sample_results AS (
     SELECT substr(path, 1, instr(path, '/ts/') - 1) AS attempt_path,

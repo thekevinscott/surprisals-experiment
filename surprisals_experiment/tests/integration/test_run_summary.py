@@ -3,12 +3,11 @@
 import json
 from pathlib import Path
 import subprocess
-import tempfile
-import shutil
 
 import pytest
 
 from surprisals_experiment.sdk import run_experiment
+from advice_artifacts import write_advice
 
 SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()
 PASS = 'print(int(input()) * 2)\n'
@@ -16,16 +15,9 @@ FAIL = 'print(0)\n'
 
 
 def report(folder):
-    with tempfile.TemporaryDirectory() as temporary:
-        legacy = Path(temporary) / 'run'
-        shutil.copytree(folder, legacy)
-        for metadata in legacy.glob('windows/*/forks/*/turns/*/metadata.json'):
-            link = json.loads(metadata.read_text())
-            score = json.loads((legacy / link['advice'] / 'advice.json').read_text())
-            metadata.write_text(json.dumps({'measurement': score['score']}))
-        result = subprocess.run(['dirsql', '--no-ignore', '--format', 'json', '--', SQL],
-                                cwd=legacy, check=True, capture_output=True, text=True)
-        return json.loads(result.stdout)
+    result = subprocess.run(['dirsql', '--no-ignore', '--format', 'json', '--', SQL],
+                            cwd=folder, check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
 
 
 def describe_run_summary():
@@ -71,3 +63,11 @@ def describe_run_summary():
         assert summary['advice_candidates'] is None
         assert summary['cap_status'] == 'unknown'
         assert summary['outcome'] == 'no_final_result'
+
+    def it_reads_shared_advice_scores(config):
+        turn = config.attempt_dir(0)
+        turn.mkdir(parents=True)
+        write_advice(config, turn, 'Use café.\r\n', 3.25, tokens=[{'text': 'Use', 'surprisal': 3.25}])
+        summary, attempt = report(config.output)
+        assert summary['advice_candidates'] == 1
+        assert attempt['accepted_characters'] == 3.25
