@@ -1,6 +1,5 @@
 """Run the experiment through the Python SDK."""
 
-import json
 from itertools import count
 from collections.abc import Callable
 from pathlib import Path
@@ -17,24 +16,12 @@ from ..database import open_database
 from ..utils.write_text import write_text
 
 
-def validate_test_suite(config: Config) -> None:
-    test_suite = json.loads(config.test_suite_file.read_text())
-    if not isinstance(test_suite, dict) or test_suite.get("fn_name"):
-        raise ValueError("Only stdin/stdout test suites are supported")
-    inputs, outputs = test_suite.get("inputs"), test_suite.get("outputs")
-    if (not isinstance(inputs, list) or not isinstance(outputs, list)
-            or not inputs or len(inputs) != len(outputs)
-            or not all(isinstance(value, str) for value in inputs + outputs)):
-        raise ValueError("Test suite requires equally sized, nonempty inputs and outputs lists of strings")
-
-
 async def run_experiment(
     config: Config, *, on_delta: Callable[[str, str], None] | None,
     on_t_delta: Callable[[str, str], None] | None = None,
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     prompt = config.question_file.read_text()
-    validate_test_suite(config)
     config.save_settings()
     write_text(config.window_dir / "window.json", "{}\n")
     write_text(config.fork_dir / "fork.json", "{}\n")
