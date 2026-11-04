@@ -1,17 +1,17 @@
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 from dirsql import DirSQL
 
 from surprisals_experiment.config import Config
 
+SCORED_TOKENS = (Path(__file__).parent / 'scored_tokens.sql').read_text()
+
 
 async def scored_tokens(config: Config, advice: str) -> list[tuple[str, float]] | None:
     rows = await DirSQL(str(config.output), no_ignore=True).query(
-        "SELECT m.path FROM './attempts/*/advices/*/advice.txt' AS a"
-        " JOIN './attempts/*/advices/*/metadata.json' AS m ON m.dir = a.dir"
-        f" WHERE a.content = '{advice.replace("'", "''")}' AND m.content ->> 'tokens' IS NOT NULL LIMIT 1"
-    )
+        SCORED_TOKENS.format(advice=advice.replace("'", "''")))
     return json.loads((config.output / rows[0]["path"]).read_text())["tokens"] if rows else None
 
 
