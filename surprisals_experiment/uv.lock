@@ -65,18 +65,18 @@ wheels = [
 
 [[package]]
 name = "dirsql"
-version = "0.4.132"
+version = "0.4.136"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bin-shim" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/53/41/826d8f7af539563ced88b0166e69e6102334ce414af64bae0e3ca10f2486/dirsql-0.4.132.tar.gz", hash = "sha256:ac05571efe64a3b5082f75693a3fce8214ad877366a5493238bcc703003e90ee", size = 730933, upload-time = "2026-11-04T17:01:22.362Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/1c/385c50de91ec46bb94e7a22eec5b2ef6760734c0e29e6006147457d17617/dirsql-0.4.136.tar.gz", hash = "sha256:33c60a16a2d584f181c467cbaa87969020f8bde830e134291059c4dfe96d7f75", size = 743915, upload-time = "2026-11-04T20:12:06.168Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/a4/5554c12dfd210f53d15b269488d388482fe8f7774e2f231fd1a7c86c5628/dirsql-0.4.132-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:3f11f5031c01e5b12e28b89bfdcf6bfb8e35544050dd0afb6c7b89ba50332878", size = 3606413, upload-time = "2026-11-04T17:01:11.906Z" },
-    { url = "https://files.pythonhosted.org/packages/61/6b/c8e0b83abebad5ac9e1adc7539f4991e737eb7e1f3c52cbe45a4cc32d222/dirsql-0.4.132-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:3d0d3822896d2899e8703059043702d2d2214300b2e37ce6871b0a9906549676", size = 3402067, upload-time = "2026-11-04T17:01:14.355Z" },
-    { url = "https://files.pythonhosted.org/packages/b4/b4/365eb1de7329544987df159f8ce83a8478a39ee92a5ed3357482d16f918b/dirsql-0.4.132-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:731eaeeff2ac1524ab9feac7c9eaa22f699214cded6a6a13ccf2597439e9c175", size = 3640966, upload-time = "2026-11-04T17:01:16.374Z" },
-    { url = "https://files.pythonhosted.org/packages/e3/f4/e62987336aadc599c89146c62725a852052d65f07db2a3631c4227b10bd8/dirsql-0.4.132-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:b50fef1e8524249cde1a5760de7ed920e45faafed3ed069befaaa2e2fd943c17", size = 3844876, upload-time = "2026-11-04T17:01:18.547Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/c5/2994f0f0eecd80c74ddf2635f15149efb9d49e7666a7ab84f7d4951a9ee7/dirsql-0.4.132-cp310-abi3-win_amd64.whl", hash = "sha256:8823648692e8ca4c8b8a8d98460d2cb1e774b332f43d4e49115f231ba656ba39", size = 3823719, upload-time = "2026-11-04T17:01:20.481Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/c0/55d654576fd7f29c12437244d8a88f84564d51b52458a11ce80894a31729/dirsql-0.4.136-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:f82429b316f04288b2a2433609ac76003c216d4cfa82c66d0a0bd612d1eef852", size = 3637971, upload-time = "2026-11-04T20:11:58.038Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/8d/8afdc6b34129ddcbc9f0e9d05b057cdec5e4953389e33e92f1e1a912b99d/dirsql-0.4.136-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:fa30b51c1ef0368dec18e4862ab83530b5d464ce437646fb84db3abb511043f2", size = 3433550, upload-time = "2026-11-04T20:11:59.923Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/2e/c315d195f868434a3c6f7deffae242307a24eed3fc3f477f8118ab679e70/dirsql-0.4.136-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:2ad1a3f4e44a4dc51b96307bd6af31316858f715689a975cdfb1aa4ded1a2e80", size = 3671708, upload-time = "2026-11-04T20:12:01.384Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/09/2015d98d07e14b993a52ec6d6a72c805bc8ff4a91b72a38abdb0fd4bccef/dirsql-0.4.136-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:e5debec5432627e1a82f2e161ea77420020a8e44043e943d4054c09fa438c150", size = 3878241, upload-time = "2026-11-04T20:12:03.035Z" },
+    { url = "https://files.pythonhosted.org/packages/74/c4/f300ecf0d3fe9b33acec4e37a7392b9b714d3ac355c4858d261dfe206824/dirsql-0.4.136-cp310-abi3-win_amd64.whl", hash = "sha256:1ecb64f3f0479cb2c9018cffa17c3562d8f70977b9d4f801f895a4a98c268168", size = 3860689, upload-time = "2026-11-04T20:12:04.53Z" },
 ]
 
 [[package]]
@@ -551,7 +551,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819" },
-    { name = "dirsql", specifier = ">=0.4.132" },
+    { name = "dirsql", specifier = ">=0.4.136" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
     { name = "openai", specifier = ">=3.37.0" },
