@@ -19,4 +19,3 @@ concurrency = 2
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
-u-flush = [1]

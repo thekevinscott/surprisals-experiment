@@ -14,4 +14,3 @@ continues = false
 
 [params]
 problem-dir = ["../data/APPS/test/2286"]
-u-mode = ["agent", "chat"]
