@@ -45,8 +45,7 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
         assert prompt == (
             f'<original_question>\n{question.rstrip()}\n</original_question>\n\n'
             f'<attempt>\n<index>{best}</index>\n<length>{len(advices[best])} characters</length>\n'
-            f'<advice>\n{advices[best]}\n</advice>\n<results>\n'
-            f'T-0: passed 2 of 2 tests\nT-1: passed 2 of 2 tests\n</results>\n'
+            f'<advice>\n{advices[best]}\n</advice>\n'
             f'<code>\n{code}\n</code>\n</attempt>'
         )
     assert (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text() == prompt
@@ -93,6 +92,33 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, botbox_s
     prompt = chat_provider[2]['messages'][1]['content']
     assert prompt.count('<attempt>') == 1
     assert '<index>0</index>' in prompt
-    assert '<length>2.023 bits of surprisal</length>' in prompt
+    assert '<length>' not in prompt
+    assert '<results>' not in prompt
     assert '<bits>\nUse<1.1> a<0.4> two<0.3>-pointer<0.2>\n</bits>' in prompt
     assert 'Sweep' not in prompt
+
+
+@pytest.mark.parametrize('measure', ['characters', 'surprisal'])
+async def test_shows_only_the_selected_measure_and_no_results(
+    config, botbox_script, chat_provider, scorer_provider, measure,
+):
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1',
+        'u_flush': True, 'max_u_turns': 2, 't_samples': 2,
+    }))
+    scorer_provider.replies.extend([[('double', 2.5)], [('next', 1.0)]])
+    botbox_script.advice.extend(['double', 'next'])
+    botbox_script.solutions.extend([PASS, OTHER_PASS] * 2)
+    await run_experiment(config, on_delta=None)
+    prompt = chat_provider[1]['messages'][1]['content']
+    if measure == 'characters':
+        assert '<length>6 characters</length>' in prompt
+        assert '<bits>' not in prompt
+    else:
+        assert '<bits>\ndouble<2.5>\n</bits>' in prompt
+        assert '<length>' not in prompt
+    assert '<results>' not in prompt
+    assert 'passed 2 of 2 tests' not in prompt
+    assert '<advice>\ndouble\n</advice>' in prompt
+    assert PASS.rstrip() in prompt
+    assert OTHER_PASS.rstrip() in prompt
