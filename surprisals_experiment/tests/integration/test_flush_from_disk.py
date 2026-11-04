@@ -14,7 +14,9 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 't_samples': 2,
     }))
-    config.output.mkdir()
+    config.fork_dir.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
     problem = QuestionDatabase(config.problem_dir)
     database = ExperimentDatabase(config.output)
     assert await prepare_flush(config, problem, database) == await problem.question
@@ -28,12 +30,12 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         directory.mkdir(parents=True)
         (directory / 'advice.txt').write_text(f'advice {number}')
         (directory / 'metadata.json').write_text(json.dumps({
-            'measurement': measurement, 'tokens': [[f'advice {number}', measurement]],
+            'measurement': measurement, 'rejected': False, 'tokens': [[f'advice {number}', measurement]],
         }))
         for sample, passed in enumerate(results):
             folder = config.t_dir(number, sample)
             folder.mkdir(parents=True)
-            (folder / 'tests.json').write_text(json.dumps({'all_passed': passed}))
+            (folder / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': passed, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     for sample in range(2):
         src = config.t_dir(2, sample) / 'src'
         (src / 'nested').mkdir(parents=True)
@@ -67,9 +69,11 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
     for turn in ['windows/10/forks/0/turns/1', 'windows/9/forks/2/turns/35', 'windows/9/forks/1/turns/35']:
         directory = config.output / turn
         (directory / 'ts/0').mkdir(parents=True)
+        (directory.parents[3] / 'window.json').write_text('{}')
+        (directory.parents[1] / 'fork.json').write_text('{}')
         (directory / 'advice.txt').write_text(turn)
-        (directory / 'metadata.json').write_text(json.dumps({'measurement': 5}))
-        (directory / 'ts/0/tests.json').write_text(json.dumps({'all_passed': True}))
+        (directory / 'metadata.json').write_text(json.dumps({'measurement': 5, 'rejected': False}))
+        (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt

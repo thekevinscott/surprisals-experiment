@@ -74,12 +74,14 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     config.u_compact_chars = 1
     advice = config.attempt_dir(0)
     advice.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
     (advice / 'advice.txt').write_text('double it')
-    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9}))
+    (advice / 'metadata.json').write_text(json.dumps({'measurement': 9, 'rejected': False}))
     sample = config.t_dir(0, 0)
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
-    (sample / 'tests.json').write_text(json.dumps({'all_passed': True}))
+    (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
