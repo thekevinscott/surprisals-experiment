@@ -19,16 +19,6 @@ def results(config, attempt):
         for sample in range(config.t_samples)]
 
 
-def snapshot(config, session, attempt):
-    path = session.solutions / str(attempt)
-    path.mkdir(parents=True, exist_ok=True)
-    for sample, source in enumerate(solutions(config, attempt)):
-        if (path / str(sample)).exists():
-            continue
-        shutil.copytree(source, path / str(sample), symlinks=True)
-    return path
-
-
 async def action_inputs(config, session, action):
     facts = (await query(config, run_facts(config)))[0]
     attempt = facts['latest']
@@ -65,7 +55,7 @@ async def action_inputs(config, session, action):
         return dict(advice=advice, attempt=attempt)
     if action == 'write_solutions':
         pending = [row for row in await query(config, sample_facts(config, attempt)) if not row['has_solution']]
-        return dict(advice=advice, attempt=attempt, snapshot=session.solutions / str(attempt),
+        return dict(advice=advice, attempt=attempt,
                     folders=[config.t_dir(attempt, row['sample']) for row in pending])
     previous = (await query(config, run_facts(config, before=attempt)))[0]
     history = []
@@ -75,10 +65,9 @@ async def action_inputs(config, session, action):
             history.append(Attempt(
                 number, row['advice'], row['measurement'],
                 [describe_result(config, number, i, result) for i, result in enumerate(results(config, number))],
-                bool(row['passed']), read_sources(snapshot(config, session, number)),
+                bool(row['passed']), read_sources(solutions(config, number)),
                 config.advice_measure.scores.get(row['advice']),
             ))
-    snapshot(config, session, attempt)
     measurement = json.loads((config.advice_dir(attempt, 0) / 'metadata.json').read_text())['measurement']
     return dict(u_session=session, attempt=attempt, advice=advice, measurement=measurement,
                 solutions=solutions(config, attempt), results=results(config, attempt),

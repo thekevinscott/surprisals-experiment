@@ -1,8 +1,6 @@
 import json
 from types import SimpleNamespace
 
-import pytest
-
 from surprisals_experiment.sdk.run_experiment.state.inputs import action_inputs
 
 
@@ -19,9 +17,9 @@ def completed(config, attempt, advice, measurement, passed=True):
     write(config.t_dir(attempt, 0) / 'tests.json', {'all_passed': passed, 'cases': [dict(index=0, passed=passed, status='passed' if passed else 'failed', stdout='', stderr='', exit_code=0)]})
 
 
-async def test_advice_recovers_previous_feedback_and_best(config, tmp_path):
+async def test_advice_recovers_previous_feedback_and_best(config):
     config.output.mkdir()
-    session = SimpleNamespace(solutions=tmp_path / 'snapshots')
+    session = SimpleNamespace()
     first = await action_inputs(config, session, 'write_advice')
     assert first['attempt'] == 0
     assert first['prompt'] == config.question_file.read_text()
@@ -34,11 +32,11 @@ async def test_advice_recovers_previous_feedback_and_best(config, tmp_path):
     assert config.advice_measure.scores['Double.'] == [['Double.', 7]]
 
 
-async def test_scoring_and_generation_read_saved_advice(config, tmp_path):
+async def test_scoring_and_generation_read_saved_advice(config):
     write(config.advice_dir(0, 0) / 'advice.txt', 'Saved.')
-    session = SimpleNamespace(solutions=tmp_path / 'snapshots')
+    session = SimpleNamespace()
     assert await action_inputs(config, session, 'score_advice') == dict(advice='Saved.', attempt=0)
-    assert await action_inputs(config, session, 'write_solutions') == dict(advice='Saved.', attempt=0, snapshot=session.solutions / '0', folders=[config.t_dir(0, 0)])
+    assert await action_inputs(config, session, 'write_solutions') == dict(advice='Saved.', attempt=0, folders=[config.t_dir(0, 0)])
 
 
 async def test_tests_skip_finished_samples_and_clear_timed_out_sources(config):
@@ -55,31 +53,24 @@ async def test_tests_skip_finished_samples_and_clear_timed_out_sources(config):
     assert list(inputs['solutions'][1].iterdir()) == []
 
 
-@pytest.mark.parametrize('existing_snapshot', [False, True])
-async def test_feedback_uses_prior_counters_and_source_snapshots(config, tmp_path, existing_snapshot):
+async def test_feedback_uses_prior_counters_and_solution_sources(config):
     config.u_flush = True
     completed(config, 0, 'First.', 6)
     write(config.attempt_dir(0) / 'feedback.txt', 'Try again.')
     completed(config, 1, 'Second.', 7, False)
-    session = SimpleNamespace(solutions=tmp_path / 'snapshots')
-    (session.solutions / '1').mkdir(parents=True)
-    if existing_snapshot:
-        for attempt in (0, 1):
-            write(session.solutions / str(attempt) / '0' / 'nested' / 'main.py', 'original')
-            write(config.t_dir(attempt, 0) / 'src' / 'nested' / 'main.py', 'changed')
+    session = SimpleNamespace()
     inputs = await action_inputs(config, session, 'write_feedback')
     assert (inputs['attempt'], inputs['measurement'], inputs['best_length'], inputs['turns_without_improvement']) == (1, 7, 6, 0)
     assert inputs['best_solution'] == config.t_dir(0, 0) / 'src'
     assert not inputs['results'][0].all_passed
     assert len(inputs['history']) == 1
-    for attempt in (0, 1):
-        assert (session.solutions / str(attempt) / '0' / 'nested' / 'main.py').read_text() == 'original'
-        assert not (session.solutions / str(attempt) / '0' / 'main.py').exists()
+    assert inputs['history'][0].sources == {'0': {'nested/main.py': 'original'}}
+    assert inputs['solutions'] == [config.t_dir(1, 0) / 'src']
     result = await action_inputs(config, session, 'write_result')
     assert result == dict(attempt=1, best_length=6, best_solution=config.t_dir(0, 0) / 'src')
 
 
-async def test_generation_inputs_select_incomplete_folders(config, tmp_path):
+async def test_generation_inputs_select_incomplete_folders(config):
     config.t_samples = 4
     config.t_sample_retries = 2
     write(config.advice_dir(0, 0) / 'advice.txt', 'Saved.')
@@ -87,7 +78,7 @@ async def test_generation_inputs_select_incomplete_folders(config, tmp_path):
     write(config.t_dir(0, 1) / 'run.json', {'exit_code': -1})
     write(config.t_dir(0, 1) / 'timeouts.txt', 'timeout\n')
     write(config.t_dir(0, 2) / 'timeouts.txt', 'timeout\n' * 3)
-    session = SimpleNamespace(solutions=tmp_path / 'snapshots')
+    session = SimpleNamespace()
     inputs = await action_inputs(config, session, 'write_solutions')
-    assert inputs == dict(advice='Saved.', attempt=0, snapshot=session.solutions / '0',
+    assert inputs == dict(advice='Saved.', attempt=0,
                           folders=[config.t_dir(0, 1), config.t_dir(0, 3)])
