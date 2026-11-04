@@ -8,7 +8,6 @@ from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import AsyncMock
 
 import pytest
@@ -22,7 +21,6 @@ class Script:
     advice: deque = field(default_factory=deque)
     solutions: deque = field(default_factory=deque)
     sessions: list = field(default_factory=list)
-    u_workspaces: list = field(default_factory=list)
 
 
 class FakeSession:
@@ -181,14 +179,8 @@ def chat_provider(monkeypatch, botbox_script):
         return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-    class RecordedTemporaryDirectory(TemporaryDirectory):
-        def __enter__(self):
-            botbox_script.u_workspaces.append(Path(self.name))
-            return super().__enter__()
-
     module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_session')
     monkeypatch.setattr(module, 'AsyncOpenAI', client)
-    monkeypatch.setattr(module, 'TemporaryDirectory', RecordedTemporaryDirectory)
     return requests
 
 

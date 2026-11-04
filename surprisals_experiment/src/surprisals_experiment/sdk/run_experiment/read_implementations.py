@@ -1,12 +1,12 @@
-"""Include all text source files from every T's pre-test snapshot."""
+"""Include text source files from the supplied solution directories."""
 
 import json
 from pathlib import Path
 
 
-def read_sources(snapshot: Path) -> dict[str, dict[str, str]]:
+def read_sources(solutions: list[Path]) -> dict[str, dict[str, str]]:
     implementations = {}
-    for sample in sorted(path for path in snapshot.iterdir() if path.is_dir()):
+    for index, sample in enumerate(solutions):
         sources = {}
         for path in sorted(sample.rglob("*")):
             if not path.is_file() or not path.resolve().is_relative_to(sample.resolve()):
@@ -15,11 +15,11 @@ def read_sources(snapshot: Path) -> dict[str, dict[str, str]]:
                 sources[str(path.relative_to(sample))] = path.read_text()
             except UnicodeDecodeError:
                 continue
-        implementations[sample.name] = sources
+        implementations[str(index)] = sources
     return implementations
 
 
-def read_implementations(snapshot: Path) -> str:
+def read_implementations(solutions: list[Path]) -> str:
     return json.dumps(
-        {f"T {name}": sources for name, sources in read_sources(snapshot).items()}, ensure_ascii=False, indent=2,
+        {f"T {name}": sources for name, sources in read_sources(solutions).items()}, ensure_ascii=False, indent=2,
     )

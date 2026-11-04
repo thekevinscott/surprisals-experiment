@@ -16,7 +16,6 @@ class ChatSession:
     client: AsyncOpenAI
     model: str
     thinking: str
-    solutions: Path
     transcript: Path
     messages: list[dict] = field(default_factory=list)
 
