@@ -16,8 +16,10 @@ async def write_feedback(
     best_length: int | float | None, best_solution: Path | None,
     turns_without_improvement: int, history: list[Attempt], problem: QuestionDatabase,
 ) -> tuple[str, int | float | None, Path | None, int]:
-    results = await database.query(TURN_TESTS, turn=str(config.attempt_dir(attempt).relative_to(config.output)))
-    all_passed = all(result["all_passed"] for result in results)
+    results = await database.query(
+        TURN_TESTS, window=int(config.window_dir.name), fork=int(config.fork_dir.name), turn=attempt,
+    )
+    all_passed = len(results) == config.t_samples and all(result["all_passed"] for result in results)
     if (all_passed
             and (best_length is None or measurement < best_length)):
         turns_without_improvement = 0
