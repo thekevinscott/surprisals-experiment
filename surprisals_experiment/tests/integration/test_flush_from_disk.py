@@ -4,17 +4,20 @@ import json
 
 import pytest
 
-from surprisals_experiment.sdk.database import Database
+from surprisals_experiment.config import Config
+from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
 
 @pytest.mark.parametrize('measure', ['characters', 'surprisal'])
 async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
-    config.cap_strategy = measure
-    config.t_samples = 2
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 't_samples': 2,
+    }))
     config.output.mkdir()
-    database = Database(config.output)
-    assert await prepare_flush(config, database) == config.question_file.read_text()
+    problem = QuestionDatabase(config.problem_dir)
+    database = ExperimentDatabase(config.output)
+    assert await prepare_flush(config, problem, database) == await problem.question
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
     for number, measurement, results in [
@@ -36,7 +39,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         (src / 'nested').mkdir(parents=True)
         (src / 'main.py').write_text(f'print({sample})\n')
         (src / 'nested/helper.py').write_text(f'VALUE = {sample}\n')
-    prompt = await prepare_flush(config, database)
+    prompt = await prepare_flush(config, problem, database)
     assert prompt.count('<attempt>') == 1
     assert '<index>2</index>' in prompt
     assert '<advice>\nadvice 2\n</advice>' in prompt
@@ -54,6 +57,6 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     # Files, not a retained Attempt instance, supply each call's text and code.
     (config.attempt_dir(2) / 'advice.txt').write_text('updated advice')
     (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
-    updated = await prepare_flush(config, database)
+    updated = await prepare_flush(config, problem, database)
     assert '<advice>\nupdated advice\n</advice>' in updated
     assert 'print("updated")' in updated

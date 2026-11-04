@@ -4,13 +4,13 @@
 
 <attempt>
 <index>{{ attempt.number }}</index>
-{% if not surprisal %}
-<length>{{ attempt.length }} characters</length>
+{% if unit == "characters" %}
+<length>{{ attempt.length }} {{ unit }}</length>
 {% endif %}
 <advice>
 {{ attempt.advice }}
 </advice>
-{% if surprisal %}
+{% if unit != "characters" %}
 <bits>
 {% for token, bits in attempt.tokens %}{{ token }}<{{ '%.1f' % bits }}>{% endfor %}
 

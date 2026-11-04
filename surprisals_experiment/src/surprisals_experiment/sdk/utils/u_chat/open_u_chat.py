@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
+from ...database import QuestionDatabase
 from .chat_session import ChatSession
 from .record import restore
 
@@ -15,7 +16,7 @@ CONTEXTS = {name: Prompt(f"u/{name}/context.txt") for name in ("chat", "flush")}
 
 
 @asynccontextmanager
-async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
+async def open_u_chat(config, problem: QuestionDatabase) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXTS[config.u_context](),
@@ -30,7 +31,7 @@ async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
         u_chat = ChatSession(
             client, config.u_model, config.u_thinking,
             config.u_transcripts / "messages.jsonl",
-            compact_chars=config.u_compact_chars, question=config.question_file.read_text(),
+            compact_chars=config.u_compact_chars, question=await problem.question,
             flush=config.u_flush,
         )
         if u_chat.transcript.exists():
