@@ -91,7 +91,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     monkeypatch.setattr(FakeSession, 'message', message)
     task = asyncio.create_task(prompt_t_to_produce_code(
-        config, attempt=0, advice='double it',
+        config, attempt=0, folders=[config.t_dir(0, s) for s in range(config.t_samples)], advice='double it',
         snapshot=config.output / 'snapshots',
     ))
     try:
