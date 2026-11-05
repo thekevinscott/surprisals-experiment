@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from ....run import Run
-from ....window import Window
-from ...run_window.machine import state as window_state
+from ...run import Run
+from ...window import Window
+from ..run_window.machine import state as window_state
 
 STATE = Path(__file__).with_name("state.sql")
 

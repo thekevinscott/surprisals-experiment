@@ -21,7 +21,8 @@ from ..run import Run
 from ..fork import Fork
 from .run_fork import read_fork, turn_pending
 from .run_window import fork_pending
-from .machine import state, window_pending
+from .state import state
+from .actions.window_pending import window_pending
 
 
 async def start(run: Run) -> None:
