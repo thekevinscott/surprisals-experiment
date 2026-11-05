@@ -34,7 +34,7 @@ class ExperimentDatabase(Database):
             tokens = metadata.get("tokens")
             return [{
                 "id": str(directory),
-                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata["score"],
+                "text": (Path(path).parent / "advice.txt").read_bytes().decode("utf-8"), "score": metadata.get("score"),
                 "score_text": tokens and "".join(f"{token}<{bits:.1f}>" for token, bits in tokens),
             }]
 

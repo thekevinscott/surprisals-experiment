@@ -9,6 +9,7 @@ import pytest
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.advice import Advice
+from surprisals_experiment.sdk.database import ExperimentDatabase
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
 from surprisals_experiment.sdk.utils.write import write
 
@@ -73,7 +74,11 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_s
 
     def fail_after_advice_is_saved(request):
         assert (advice_directory(config, 'Use a loop') / 'advice.txt').read_text() == 'Use a loop'
-        assert not (config.attempt_dir(0) / 'metadata.json').exists()
+        directory = advice_directory(config, 'Use a loop')
+        assert json.loads((directory / 'advice.json').read_text()) == {}
+        assert json.loads((config.attempt_dir(0) / 'metadata.json').read_text()) == {
+            'advice': str(directory.relative_to(config.output)),
+        }
         return httpx2.Response(503, json={'error': {'message': 'scorer failed'}})
 
     scorer_provider.replies.extend([fail_after_advice_is_saved, [('Use a loop', 10.0)]])
@@ -95,7 +100,15 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
     assert len(scorer_provider.requests) == 9
     assert [call.args[0] for call in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
     assert (advice_directory(scoring_config, 'preserve me') / 'advice.txt').read_text() == 'preserve me'
-    assert not (scoring_config.attempt_dir(0) / 'metadata.json').exists()
+    directory = advice_directory(scoring_config, 'preserve me')
+    assert json.loads((directory / 'advice.json').read_text()) == {}
+    assert json.loads((scoring_config.attempt_dir(0) / 'metadata.json').read_text()) == {
+        'advice': str(directory.relative_to(scoring_config.output)),
+    }
+    database = ExperimentDatabase(scoring_config.output)
+    assert await database.query('SELECT score FROM advices') == [{'score': None}]
+    assert len(await database.query('SELECT * FROM turns')) == 1
+    assert len(await database.query('SELECT * FROM turn_advice')) == 1
 
 
 async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider, tmp_path):

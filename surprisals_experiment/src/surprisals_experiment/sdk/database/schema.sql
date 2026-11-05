@@ -20,7 +20,7 @@ CREATE TABLE turns (
 CREATE TABLE advices (
   id         TEXT PRIMARY KEY,          -- 'advices/<sha256>'
   text       TEXT NOT NULL UNIQUE,
-  score      NUMERIC NOT NULL,          -- chars, or total bits
+  score      NUMERIC,          -- chars, or total bits
   score_text TEXT                       -- per-token bits rendering, NULL in chars mode
 );
 
@@ -67,4 +67,5 @@ JOIN turns ON turns.fork_id = forks.id
 JOIN turn_advice ON turn_advice.turn_id = turns.id
 JOIN advices ON advices.id = turn_advice.advice_id
 JOIN tested ON tested.turn_id = turns.id
+WHERE advices.score IS NOT NULL
 GROUP BY turns.id;
