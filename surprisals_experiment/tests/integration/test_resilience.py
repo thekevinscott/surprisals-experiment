@@ -109,7 +109,7 @@ async def test_length_and_http_errors_share_one_budget(
     (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
     monkeypatch.chdir(config.problem_dir)
     with pytest.raises(SystemExit) as raised:
-        await main(['--output', str(config.output), '--t-samples', '1',
+        await main(['--window-forks', '1', '--output', str(config.output), '--t-samples', '1',
                     'problem', str(config.problem_dir)])
     assert raised.value.code == 2
     error = capsys.readouterr().err.splitlines()[-1]

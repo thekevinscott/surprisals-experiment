@@ -16,7 +16,7 @@ CONTEXT = Prompt("u/flush/context.txt")
 
 
 @asynccontextmanager
-async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
+async def open_u_chat(config, *, transcripts=None) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
@@ -26,10 +26,11 @@ async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
         base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
         max_retries=0,
     ) as client:
-        config.u_transcripts.mkdir(parents=True, exist_ok=True)
+        transcripts = config.u_transcripts if transcripts is None else transcripts
+        transcripts.mkdir(parents=True, exist_ok=True)
         u_chat = ChatSession(
             client, config.u_model, config.u_thinking,
-            config.u_transcripts / "messages.jsonl",
+            transcripts / "messages.jsonl",
         )
         if u_chat.transcript.exists():
             lines = u_chat.transcript.read_bytes().splitlines(keepends=True)
