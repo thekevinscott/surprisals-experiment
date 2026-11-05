@@ -21,7 +21,8 @@ from ..turn import Turn
 from ..run import Run
 
 
-def start(config: Config) -> None:
+def start(run: Run) -> None:
+    config = run.config
     config.save_settings()
     write(config.window_dir / "window.json", "{}\n")
     write(config.fork_dir / "fork.json", "{}\n")
@@ -50,13 +51,13 @@ async def run_experiment(
 ) -> Path | None:
     """Generate, test, and shorten advice until the no-improvement limit, turn limit, or interruption."""
     problem = QuestionDatabase(config.problem_dir)
-    actions["not_started"](config)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
     best_solution = None
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
-        run = Run(database, problem, actions, on_t_delta, u_chat, on_delta)
+        run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
+        actions["not_started"](run)
         for attempt in attempts:
             turn = Turn(config, attempt)
             await actions["advice_missing"](run, turn)

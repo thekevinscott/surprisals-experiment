@@ -3,12 +3,15 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+from surprisals_experiment.config import Config
+
 from .database import ExperimentDatabase, QuestionDatabase
 from .utils.u_chat import ChatSession
 
 
 @dataclass(frozen=True)
 class Run:
+    config: Config
     database: ExperimentDatabase
     problem: QuestionDatabase
     actions: Mapping

@@ -94,14 +94,14 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             finished[sample].set()
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    actions["not_started"](config)
     database = ExperimentDatabase(config.output)
+    actions["not_started"](Run(config, database, QuestionDatabase(config.problem_dir), actions))
     await database.dirsql.ready()
     turn = Turn(config, 0)
     turn.attempt_dir.mkdir(parents=True)
     write_advice(config, turn.attempt_dir, 'double it', 9)
     (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
-    task = asyncio.create_task(write_solutions(Run(database, QuestionDatabase(config.problem_dir), actions), turn))
+    task = asyncio.create_task(write_solutions(Run(config, database, QuestionDatabase(config.problem_dir), actions), turn))
     try:
         async with asyncio.timeout(5):
             capacity = min(size, 5)

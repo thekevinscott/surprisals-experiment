@@ -62,7 +62,7 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
         write(turn.u_dir / "advice.txt", text.encode("utf-8"))
         advice = Advice(turn.u_dir / "advice.txt", config.advice_measure, config.output)
         advice.save()
-        await score_advice(Run(database, problem, actions), turn)
+        await score_advice(Run(config, database, problem, actions), turn)
         assert json.loads((advice.directory / "advice.json").read_text())["score"] == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()
     assert await database.query('SELECT * FROM advices') == [{
