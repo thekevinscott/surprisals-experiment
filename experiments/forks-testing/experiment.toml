@@ -1,0 +1,11 @@
+from = "surprisals"
+name = "Forks testing"
+setup = "uv run --project runpod_scorer runpod-scorer up"
+command = "bash -c 'exec uv run --directory surprisals_experiment python -m surprisals_experiment.cli.run --output \"$0\" \"$@\" problem ../data/APPS/test/2286' \"{run_dir}\""
+teardown = "uv run --project runpod_scorer runpod-scorer down"
+repeats = 1
+continues = false
+concurrency = 2
+
+[params]
+cap-strategy = ["characters", "surprisal"]
