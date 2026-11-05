@@ -63,7 +63,7 @@ with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', Box),
      patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client):
     import runpy
     sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'),
-                '--window-forks', '1', '--t-samples', '1', '--max-u-turns', '1', 'problem', str(root)]
+                '--window-forks', '1', '--t-samples', '1', '--max-u-turns', '1', str(root)]
     runpy.run_module('surprisals_experiment.cli.run', run_name='__main__')
 '''
 

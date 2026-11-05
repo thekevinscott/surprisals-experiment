@@ -8,6 +8,7 @@ from functools import partial
 from pathlib import Path
 from typing import get_args
 
+import labnotes
 from dotenv import dotenv_values, find_dotenv
 
 from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
@@ -26,7 +27,7 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--cap-strategy", choices=("characters", "surprisal"), default="characters",
                         help="Advice cap strategy (default: characters)")
     parser.add_argument("--scorer-base-url",
-                        help="OpenAI-compatible prompt-logprob endpoint; required for surprisal")
+                        help="OpenAI-compatible prompt-logprob endpoint")
     parser.add_argument("--t-samples", type=int, default=5,
                         help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3,
@@ -45,9 +46,7 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--window-solo-turns", type=int, default=30,
                         help="Turns the winning fork continues alone after the fork round (default: 30)")
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
-    commands = parser.add_subparsers(dest="command", required=True)
-    problem = commands.add_parser("problem", help="Select a problem directory")
-    source = problem.add_mutually_exclusive_group(required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
     args = parser.parse_args(argv)
@@ -73,6 +72,8 @@ async def main(argv: list[str] | None = None) -> None:
         key = dotenv_values(env_file, interpolate=False).get("OPENROUTER_API_KEY")
         if not key or not key.strip():
             raise ValueError("Set OPENROUTER_API_KEY in your .env file")
+        if args.cap_strategy == "surprisal" and not args.scorer_base_url:
+            args.scorer_base_url = labnotes.get_state().get("base_url")
         await run_experiment(Config(
             api_key=key,
             problem_dir=args.problem_dir or args.problem_dir_option,
