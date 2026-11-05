@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-from aws_runner.remote.monitor import SSH_FAILURE_TIMEOUT
 from aws_runner.run import run
 
 
@@ -38,11 +37,11 @@ def test_files_vanishing_during_mirror_do_not_fail_the_run(
 
 
 @pytest.mark.parametrize("operation", ["polls", "copy_codes"])
-def test_transient_ssh_failure_recovers(cloud, transport, tmp_path, operation):
+def test_transient_ssh_failure_recovers(cloud, transport, tmp_path, operation, capsys):
     ec2, _, config = cloud
     _, _, state = transport
     state["polls"] = [""] * 7 + ["7"]
-    # A success between outages resets the deadline.
+    # Each outage reports failure and recovery only once.
     state[operation] = (
         [255, 255, "", 255, 255, "", "", "7"]
         if operation == "polls"
@@ -59,30 +58,42 @@ def test_transient_ssh_failure_recovers(cloud, transport, tmp_path, operation):
     ):
         assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 7
     assert not ec2.describe_volumes()["Volumes"]
+    label = "Exit-code check" if operation == "polls" else "Live mirror"
+    assert (
+        capsys.readouterr().err.splitlines()
+        == [
+            f"{label} SSH failed; retrying",
+            f"{label} SSH recovered",
+        ]
+        * 2
+    )
 
 
 @pytest.mark.parametrize("operation", ["polls", "copy_codes"])
-def test_persistent_ssh_failure_raises(cloud, transport, tmp_path, operation):
+def test_long_ssh_outage_recovers(cloud, transport, tmp_path, operation, capsys):
     ec2, _, config = cloud
-    _, stream, state = transport
-    state["polls"] = [""]
-    state[operation] = [255]
+    _, _, state = transport
+    state["polls"] = [""] * 420 + ["7"]
+    state[operation] = (
+        [255] * 400 + ["7"] if operation == "polls" else [255] * 400 + [0]
+    )
     with (
         patch("time.monotonic", return_value=0) as clock,
         patch(
             "time.sleep",
             side_effect=lambda _: setattr(
-                clock, "return_value", clock.return_value + 100
+                clock, "return_value", clock.return_value + 1
             ),
         ),
-        pytest.raises(subprocess.CalledProcessError) as error,
     ):
-        run(ec2, config, tmp_path / "run", ["sleep", "20"])
-    assert error.value.returncode == 255
-    assert clock.return_value == SSH_FAILURE_TIMEOUT + (
-        100 if operation == "copy_codes" else 0
-    )
-    stream.return_value.terminate.assert_called_once()
+        assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 7
+    assert clock.return_value == (400 if operation == "polls" else 420)
+    label = "Exit-code check" if operation == "polls" else "Live mirror"
+    assert capsys.readouterr().err.splitlines() == [
+        f"{label} SSH failed; retrying",
+        f"{label} SSH recovered",
+    ]
+    assert not ec2.describe_volumes()["Volumes"]
 
 
 @pytest.mark.parametrize("operation", ["polls", "copy_codes"])

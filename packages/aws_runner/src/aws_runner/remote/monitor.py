@@ -1,16 +1,15 @@
 import subprocess
+import sys
 import time
 
 from aws_runner.remote.follow import follow
 from aws_runner.remote.mirror import mirror
 from aws_runner.remote.result import result
 
-SSH_FAILURE_TIMEOUT = 300
-
 
 def monitor(config, instance, directory):
-    result_failed_since = None
-    mirror_failed_since = None
+    result_failing = False
+    mirror_failing = False
     offsets = [0, 0]
     stream, reader = follow(config, instance, offsets)
     next_mirror = time.monotonic() + 10
@@ -24,14 +23,18 @@ def monitor(config, instance, directory):
             except subprocess.CalledProcessError as error:
                 if error.returncode != 255:
                     raise
-                now = time.monotonic()
-                if result_failed_since is None:
-                    result_failed_since = now
-                if now - result_failed_since >= SSH_FAILURE_TIMEOUT:
-                    raise
+                if not result_failing:
+                    print(
+                        "Exit-code check SSH failed; retrying",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                result_failing = True
                 code = None
             else:
-                result_failed_since = None
+                if result_failing:
+                    print("Exit-code check SSH recovered", file=sys.stderr, flush=True)
+                result_failing = False
             if code is not None:
                 status = stream.wait()
                 reader.join()
@@ -46,14 +49,18 @@ def monitor(config, instance, directory):
                 except subprocess.CalledProcessError as error:
                     if error.returncode != 255:
                         raise
-                    now = time.monotonic()
-                    if mirror_failed_since is None:
-                        mirror_failed_since = now
-                    if now - mirror_failed_since >= SSH_FAILURE_TIMEOUT:
-                        raise
+                    if not mirror_failing:
+                        print(
+                            "Live mirror SSH failed; retrying",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    mirror_failing = True
                 else:
-                    mirror_failed_since = None
-                next_mirror = time.monotonic() + 10
+                    if mirror_failing:
+                        print("Live mirror SSH recovered", file=sys.stderr, flush=True)
+                    mirror_failing = False
+                    next_mirror = time.monotonic() + 10
             time.sleep(1)
     except BaseException:
         stream.terminate()
