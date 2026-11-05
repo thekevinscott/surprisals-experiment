@@ -27,3 +27,8 @@ SSH/rsync and never require AWS credentials. Real AWS validation remains:
 setup twice, run the hello-world command, verify streamed output and out.txt,
 verify nonzero exit propagation, and confirm instance termination plus deletion
 of both the data volume and the stock AMI root volume.
+
+While the command runs, rsync mirrors its run folder approximately every ten
+seconds (plus transfer time). A final copy still completes before cleanup.
+A real-AWS live-mirror check should run a command that writes files more than
+ten seconds apart and confirm the first file appears locally before exit.

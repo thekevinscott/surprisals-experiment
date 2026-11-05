@@ -41,3 +41,9 @@ def transport():
     ):
         execute.return_value = subprocess.CompletedProcess([], 0, stdout="0\n")
         yield execute, stream
+
+
+@pytest.fixture
+def ticking_clock():
+    with patch("time.monotonic", side_effect=[0, 5, 10, 10]) as clock:
+        yield clock
