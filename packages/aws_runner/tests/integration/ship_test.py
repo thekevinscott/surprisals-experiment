@@ -7,10 +7,17 @@ import pytest
 from aws_runner.run import run
 
 
+@pytest.mark.parametrize("run_state", ["unset", "missing", "present"])
 @pytest.mark.parametrize("environment", [False, True])
 def test_ships_env_when_present_and_runs_unchanged_command_from_root(
-    cloud, transport, tmp_path, environment
+    cloud, transport, tmp_path, environment, run_state, monkeypatch
 ):
+    state_file = tmp_path / "labnotes state.json"
+    monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
+    if run_state != "unset":
+        monkeypatch.setenv("LABNOTES_RUN_STATE", str(state_file))
+    if run_state == "present":
+        state_file.write_text('{"base_url": "https://scorer.example/v1"}')
     ec2, _, config = cloud
     execute, _, state = transport
     checkout = Path(state["checkout"])
@@ -44,6 +51,20 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     assert "cd /srv/aws-runner/repo || exit 125" in script
     assert shlex.join(command) in script
     assert "export PATH=/home/ubuntu/.local/bin:$PATH" in script
+    state_copies = [
+        call.args[0]
+        for call in calls
+        if call.args[0][0] == "rsync" and call.args[0][-1].endswith("/run-state.json")
+    ]
+    if run_state == "present":
+        assert len(state_copies) == 1
+        assert state_copies[0][-2] == str(state_file)
+        assert state_copies[0][-1].endswith(":/srv/aws-runner/run-state.json")
+        assert "export LABNOTES_RUN_STATE=/srv/aws-runner/run-state.json\n" in script
+        assert str(state_file) not in script
+    else:
+        assert state_copies == []
+        assert "LABNOTES_RUN_STATE" not in script
     assert any(
         f"sudo ln -s /srv/aws-runner/run {shlex.quote(str(directory))}"
         in call.kwargs.get("input", "")
