@@ -95,7 +95,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     monkeypatch.setattr(FakeSession, 'message', message)
     database = ExperimentDatabase(config.output)
-    actions["not_started"](Run(config, database, QuestionDatabase(config.problem_dir), actions))
+    await actions["not_started"](Run(config, database, QuestionDatabase(config.problem_dir), actions))
     await database.dirsql.ready()
     turn = Turn(config, 0)
     turn.attempt_dir.mkdir(parents=True)

@@ -18,7 +18,7 @@ PASS = 'print(int(input()) * 2)\n'
 
 async def setup(config):
     database = ExperimentDatabase(config.output)
-    actions["not_started"](Run(config, database, QuestionDatabase(config.problem_dir), actions))
+    await actions["not_started"](Run(config, database, QuestionDatabase(config.problem_dir), actions))
     await database.dirsql.ready()
     turn = Turn(config, 0)
     turn.attempt_dir.mkdir(parents=True)

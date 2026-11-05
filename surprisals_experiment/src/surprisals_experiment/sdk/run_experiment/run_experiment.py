@@ -19,12 +19,12 @@ from ..utils.write import write
 from ..turn import Turn
 from ..run import Run
 from ..fork import Fork
-from ..window import Window
 from .run_fork import read_fork, turn_pending
-from .run_window import fork_pending, run_window
+from .run_window import fork_pending
+from .run_run import run_run, window_pending
 
 
-def start(run: Run) -> None:
+async def start(run: Run) -> None:
     config = run.config
     config.save_settings()
     write(config.window_dir / "window.json", "{}\n")
@@ -49,6 +49,8 @@ actions = {
     "fork_done": Stop,
     "fork_pending": fork_pending,
     "window_done": Stop,
+    "window_pending": window_pending,
+    "run_done": Stop,
     "feedback": feedback,
 }
 
@@ -63,9 +65,8 @@ async def run_experiment(
     await database.dirsql.ready()
     async with open_u_chat(config) as u_chat:
         run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
-        actions["not_started"](run)
+        await run_run(run)
         fork = Fork(config)
-        await run_window(run, Window(config))
         row = await read_fork(run, fork)
         result, best_solution = await read_progress(run, Turn(config, row["latest"], fork.window, fork.position))
     if best_solution is None:
