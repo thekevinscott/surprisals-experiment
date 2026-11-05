@@ -61,11 +61,11 @@ async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_
 
     async def reply(self, text, **kwargs):
         turn = current[id(self)]
-        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 15, 8, 12][turn.fork] - turn.position))
+        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 3, 8, 12][turn.fork] - turn.position))
         return await prompt(self, text, **kwargs)
 
     async def solution(self, text):
-        botbox_script.solutions.append('print(int(input()) * 2)' if passes else 'print(0)')
+        botbox_script.solutions.append('print(int(input()) * 2)' if passes and not text.startswith('B') else 'print(0)')
         await message(self, text)
 
     with (patch.dict(actions, {'advice_missing': advice}),
@@ -105,11 +105,11 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
 
     async def reply(self, text, **kwargs):
         turn = current[id(self)]
-        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 15, 8, 12][turn.fork] - turn.position))
+        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 3, 8, 12][turn.fork] - turn.position))
         return await prompt(self, text, **kwargs)
 
     async def solution(self, text):
-        botbox_script.solutions.append('print(int(input()) * 2)')
+        botbox_script.solutions.append('print(int(input()) * 2)' if not text.startswith('B') else 'print(0)')
         await message(self, text)
 
     async def interrupt(run, turn):
@@ -131,3 +131,24 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
     assert len(calls) == len(set(calls)) == len(chat_provider) == 10
     assert len(botbox_script.sessions) == 10
     assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files} == before
+
+
+async def test_winner_lookup_uses_latest_window(config, botbox_script):
+    from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+    from surprisals_experiment.sdk.run import Run
+    from surprisals_experiment.sdk.window import Window
+    from surprisals_experiment.sdk.run_experiment.read_winner import read_winner
+    from surprisals_experiment.sdk.run_experiment.run_window import run_window
+    from surprisals_experiment.sdk.utils.u_chat import open_u_chat
+
+    botbox_script.advice.extend(['A', 'Longer advice'])
+    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 2)
+    await run_experiment(config, on_delta=None)
+    database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
+    async with open_u_chat(config) as chat:
+        run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
+        await run_window(run, Window(config, 1))
+        winner = await read_winner(run)
+    assert (winner.window, winner.fork, winner.position) == (1, 0, 0)
+    assert (config.output / 'windows/1/forks/0/u/transcripts/messages.jsonl').exists()

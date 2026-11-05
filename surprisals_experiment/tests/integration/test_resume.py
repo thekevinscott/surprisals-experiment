@@ -18,6 +18,7 @@ from surprisals_experiment.sdk.turn import Turn
                                  if action is not Stop and key != 'feedback'])
 async def test_resume_after_interrupt_at_each_state(config, botbox_script, chat_provider, key):
     config.max_u_turns = 2
+    config.fork_turns = 1
     config.t_samples = 2
     config.t_pool_size = 1
     baseline = config.model_copy(update={'output': config.output.parent / 'baseline'})
