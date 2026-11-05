@@ -10,7 +10,7 @@ from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
 from .actions.write_solutions.produce_code import produce_code
 from .actions.run_tests import run_tests
-from .actions.write_result import write_result
+from .actions.write_result import read_progress, write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
 from .actions.write_feedback import write_feedback
@@ -29,7 +29,7 @@ def start(config: Config) -> None:
 
 async def feedback(run: Run, turn: Turn):
     await write_feedback(turn, run.database, run.problem)
-    return await write_result(turn, run.database)
+    await write_result(run, turn)
 
 
 actions = {
@@ -62,8 +62,9 @@ async def run_experiment(
             await actions["advice_missing"](run, turn)
             await actions["unscored"](run, turn)
             await actions["solutions_missing"](run, turn)
-            best_solution, turns_without_improvement = await actions["feedback_missing"](run, turn)
-            if turns_without_improvement >= config.max_turns_without_improvement:
+            await actions["feedback_missing"](run, turn)
+            result, best_solution = await read_progress(run, turn)
+            if result["stale"] >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
         write(config.error_file, f"No passing solution after {attempt + 1} U turns\n")
