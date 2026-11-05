@@ -76,7 +76,7 @@ a characters-only invocation acquires the shared scorer.
 
 RUNPOD_API_KEY loads in-process from the repository root .env.
 Default: openai/gpt-oss-120b on one H100 80GB, image
-vllm/vllm-openai:v0.30.0, context 8192, 85% GPU allocation, 100GB disposable
+vllm/vllm-openai:v0.30.0, context 24576, 85% GPU allocation, 100GB disposable
 disk and no persistent volume. Up retains --model and --gpu overrides; GPU
 selection applies only when creating the pod. An existing scorer must match
 the requested model.

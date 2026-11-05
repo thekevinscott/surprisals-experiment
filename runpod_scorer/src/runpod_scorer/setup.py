@@ -39,7 +39,7 @@ def create_pod(model, gpu, key):
                 "--port",
                 "8000",
                 "--max-model-len",
-                "8192",
+                "24576",
                 "--enable-chunked-prefill",
                 "--max-num-batched-tokens",
                 "8192",
