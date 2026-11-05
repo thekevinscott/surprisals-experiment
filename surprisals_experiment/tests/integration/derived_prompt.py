@@ -1,5 +1,5 @@
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
-from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
+from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 
 
 async def derived_prompt(config):
