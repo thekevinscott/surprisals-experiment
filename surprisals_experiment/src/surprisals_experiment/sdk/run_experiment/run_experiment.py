@@ -53,14 +53,14 @@ async def run_experiment(
     actions["not_started"](config)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
-    run = Run(database, problem, actions, on_t_delta)
     best_solution = None
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
+        run = Run(database, problem, actions, on_t_delta, u_chat, on_delta)
         for attempt in attempts:
             turn = Turn(config, attempt)
-            advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
-            await actions["unscored"](turn, advice, on_delta=on_delta)
+            await actions["advice_missing"](run, turn)
+            await actions["unscored"](run, turn)
             await actions["solutions_missing"](run, turn)
             best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:

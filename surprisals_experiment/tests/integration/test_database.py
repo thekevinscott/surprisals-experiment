@@ -45,19 +45,26 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     from hashlib import sha256
     from surprisals_experiment.sdk.advice import Advice
     from surprisals_experiment.sdk.turn import Turn
+    from surprisals_experiment.sdk.run import Run
+    from surprisals_experiment.sdk.run_experiment.run_experiment import actions
+    from surprisals_experiment.sdk.utils.write import write
     from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
 
     text = 'Use café.\r\nThen double.\r\n'
     config.fork_dir.mkdir(parents=True)
     (config.window_dir / 'window.json').write_text('{}')
     (config.fork_dir / 'fork.json').write_text('{}')
+    database = ExperimentDatabase(config.output)
+    problem = QuestionDatabase(config.problem_dir)
     for attempt in range(2):
         config.attempt_dir(attempt).mkdir(parents=True)
         advice = Advice(text, config.advice_measure, config.output)
         advice.save()
-        assert await score_advice(Turn(config, attempt), advice) == len(text)
+        turn = Turn(config, attempt)
+        write(turn.u_dir / "advice.txt", text.encode("utf-8"))
+        await score_advice(Run(database, problem, actions), turn)
+        assert json.loads((advice.directory / "advice.json").read_text())["score"] == len(text)
     digest = sha256(text.encode('utf-8')).hexdigest()
-    database = ExperimentDatabase(config.output)
     assert await database.query('SELECT * FROM advices') == [{
         'id': f'advices/{digest}', 'text': text, 'score': len(text), 'score_text': None,
     }]
