@@ -47,7 +47,7 @@ Advice attempts and each sample’s test cases run sequentially. T code generati
 
 ## Multiple T samples
 
-Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). The default is 5. Use `--t-samples 1` for one T per advice; all new runs use the same per-sample layout. One accepted advice is sent unchanged to N fresh T sessions, with up to `--t-pool-size` generations running concurrently; every solution must pass the entire suite. A failed test does not skip the rest of the batch. Infrastructure errors cancel and await the remaining generations before U closes; completed artifacts remain on disk. Results and feedback retain sample order. Use `--t-pool-size 1` for sequential generation. `run_experiment` calls `write_advice`, `score_advice`, then `write_solutions`. Each T sample is generated then tested on its own, up to `--t-pool-size` samples at once. `--max-u-turns` counts advice batches, not individual T sessions.
+Pass `--t-samples N` (SDK: `Config.t_samples`). The default is 5. Use `--t-samples 1` for one T per advice; all new runs use the same per-sample layout. One accepted advice is sent unchanged to N fresh T sessions, with up to `--t-pool-size` generations running concurrently; every solution must pass the entire suite. A failed test does not skip the rest of the batch. Infrastructure errors cancel and await the remaining generations before U closes; completed artifacts remain on disk. Results and feedback retain sample order. Use `--t-pool-size 1` for sequential generation. `run_experiment` calls `write_advice`, `score_advice`, then `write_solutions`. Each T sample is generated then tested on its own, up to `--t-pool-size` samples at once. `--max-u-turns` counts advice batches, not individual T sessions.
 
 Each sample stores its source, transcripts, diagnostics, and tests under `windows/0/forks/0/turns/<turn>/ts/<index>/`. Tests and expected outputs remain hidden from U.
 
@@ -69,8 +69,7 @@ Prompt wording lives in `prompts/u/system.txt`, `prompts/u/flush/context.txt`, a
 
 Character minimization remains the default, with unchanged prompts and results.
 To minimize surprisal instead, add
-`--cap-strategy surprisal --scorer-base-url https://HOST/v1` before the `problem`
-subcommand. The scorer must serve T's model (the `-T` model ID) and support
+`--cap-strategy surprisal --scorer-base-url https://HOST/v1`. The scorer must serve T's model (the `-T` model ID) and support
 completion prompt logprobs. No separate scorer-model override is used.
 
 Surprisal is measured by the existing `measure-surprisal` dependency in bits,
