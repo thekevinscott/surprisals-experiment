@@ -2,10 +2,11 @@
 import asyncio
 import json
 import signal
+from contextlib import nullcontext
+from unittest.mock import patch
 import httpx2
 import pytest
 
-from surprisals_experiment.sdk.utils.u_chat import opener
 from openai import AsyncOpenAI
 from conftest import FakeSession
 from surprisals_experiment.sdk import run_experiment
@@ -122,20 +123,21 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
         def client(**kwargs):
             return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(
                 transport=httpx2.MockTransport(block)))
-        monkeypatch.setattr(opener, 'AsyncOpenAI', client)
     else:
         monkeypatch.setattr(FakeSession, 'message', block)
-    task = asyncio.create_task(main([
-        '--output', str(config.output), '--t-samples', '1', '--t-sample-timeout', '1.5',
-        'problem', str(config.problem_dir),
-    ]))
-    try:
-        await asyncio.wait_for(started.wait(), 5)
-        signal.raise_signal(signal.SIGTERM)
-        with pytest.raises(asyncio.CancelledError):
-            await asyncio.wait_for(task, 5)
-        assert all(s.closed for s in botbox_script.sessions)
-        assert config.u_transcripts.joinpath('messages.jsonl').exists()
-    finally:
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+    with (patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client)
+          if phase == 'U' else nullcontext()):
+        task = asyncio.create_task(main([
+            '--output', str(config.output), '--t-samples', '1', '--t-sample-timeout', '1.5',
+            'problem', str(config.problem_dir),
+        ]))
+        try:
+            await asyncio.wait_for(started.wait(), 5)
+            signal.raise_signal(signal.SIGTERM)
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 5)
+            assert all(s.closed for s in botbox_script.sessions)
+            assert config.u_transcripts.joinpath('messages.jsonl').exists()
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
