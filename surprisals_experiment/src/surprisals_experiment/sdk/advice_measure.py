@@ -3,7 +3,8 @@
 from measure_surprisal import Client, measure_surprisal
 
 from surprisals_experiment.prompt import Prompt
-from surprisals_experiment.retry_policy import DELAYS, retried
+from surprisals_experiment.retry_policy.constants import DELAYS
+from surprisals_experiment.retry_policy.retried import retried
 
 SURPRISAL_WORDING = Prompt("u/measure_surprisal.txt")
 

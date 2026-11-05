@@ -5,7 +5,8 @@ import json
 import shutil
 from pathlib import Path
 
-from surprisals_experiment.retry_policy import DELAYS, retried
+from surprisals_experiment.retry_policy.constants import DELAYS
+from surprisals_experiment.retry_policy.retried import retried
 from ....run import Run
 from ....sample import Sample
 from ....prompt_t import prompt_t

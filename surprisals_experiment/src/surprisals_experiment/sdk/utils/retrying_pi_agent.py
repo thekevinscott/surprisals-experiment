@@ -4,7 +4,7 @@ import json
 
 from botbox import PiAgent
 
-from surprisals_experiment.retry_policy import pi_settings
+from surprisals_experiment.retry_policy.pi_settings import pi_settings
 
 
 class RetryingPiAgent(PiAgent):

@@ -5,29 +5,9 @@ from datetime import UTC, datetime
 
 from openai import LengthFinishReasonError
 
-from ..write import write
-from ..output_limit_message import output_limit_message
-
-
-class IncompleteStreamError(RuntimeError):
-    """A stream ended before its terminal completion event."""
-
-
-class ProviderError(RuntimeError):
-    """The provider ended a chat reply with an error."""
-
-
-class OutputTokenLimitError(RuntimeError):
-    """U exhausted its output budget without completing its advice."""
-
-
-def output_limit_error(completion):
-    usage = completion.usage
-    details = usage.completion_tokens_details if usage is not None else None
-    return OutputTokenLimitError(output_limit_message(
-        usage.completion_tokens if usage is not None else None,
-        details.reasoning_tokens if details is not None else None,
-    ))
+from ...write import write
+from .errors import IncompleteStreamError, ProviderError
+from .output_limit_error import output_limit_error
 
 
 async def stream_reply(self, *, on_delta=None) -> str:

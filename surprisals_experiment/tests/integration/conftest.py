@@ -90,7 +90,7 @@ def botbox_script():
                 await session.message(args[args.index('-p') + 1])
             return session.result
 
-    with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', FakeBotbox):
+    with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', FakeBotbox):
         yield script
 
 

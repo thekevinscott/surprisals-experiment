@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ....run import Run
+from .....run import Run
 
 RESULT = Path(__file__).with_name("result.sql")
 
