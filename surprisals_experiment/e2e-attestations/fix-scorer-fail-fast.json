@@ -1,0 +1,7 @@
+{
+  "command": "uv run --frozen pytest tests/integration/test_measure.py -q",
+  "ran_at": 1793915681,
+  "exit_code": 0,
+  "commit": "bb6b325b00aafe0d9e5749bb82e59a260cade2fe",
+  "branch": "fix/scorer-fail-fast"
+}
