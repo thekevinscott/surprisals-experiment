@@ -1,4 +1,7 @@
 import signal
+import subprocess
+import sys
+import textwrap
 from unittest.mock import patch
 
 import pytest
@@ -129,3 +132,52 @@ def test_stop_reports_remaining_resources(cloud, tmp_path, capsys, failed):
         Filters=[{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
     )["Volumes"]
     assert {volume["VolumeId"] for volume in volumes} == {volume_id}
+
+
+@pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
+def test_second_signal_exits_immediately(tmp_path, signum):
+    directory = tmp_path / "aborted"
+    script = textwrap.dedent(
+        """\
+        import signal
+        import sys
+        from unittest.mock import Mock, patch
+
+        from aws_runner.run import run
+
+        def terminate(**kwargs):
+            print("terminating", flush=True)
+            signal.raise_signal(int(sys.argv[2]))
+            print("continued after second signal", flush=True)
+
+        ec2 = Mock()
+        ec2.describe_instances.return_value = {
+            "Reservations": [{"Instances": [{
+                "InstanceId": "i-test", "State": {"Name": "running"}
+            }]}]
+        }
+        ec2.terminate_instances.side_effect = terminate
+        ec2.describe_volumes.side_effect = lambda **kwargs: print("further AWS call", flush=True)
+        try:
+            with patch("aws_runner.run.find", side_effect=lambda *args: signal.raise_signal(signal.SIGINT)):
+                run(ec2, {}, sys.argv[1], [])
+        finally:
+            print("unwound after second signal", flush=True)
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(directory), str(int(signum))],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert completed.returncode == 130
+    assert completed.stdout == "terminating\n"
+    assert f"Stopping: cleaning up AWS resources for {directory}" in completed.stderr
+    assert "terminating i-test" in completed.stderr
+    assert (
+        f"Cleanup aborted: AWS resources tagged {TAG}={directory} may remain\n"
+        in completed.stderr
+    )
+    assert "Cleanup done" not in completed.stderr

@@ -1,4 +1,6 @@
+import os
 import signal
+import sys
 
 from aws_runner.cloud.cleanup import cleanup
 from aws_runner.cloud.find import find
@@ -6,6 +8,7 @@ from aws_runner.cloud.launch import launch
 from aws_runner.cloud.resume import resume
 from aws_runner.cloud.stop import stop
 from aws_runner.cloud.surviving_volume import surviving_volume
+from aws_runner.config import TAG
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
 from aws_runner.remote.monitor import monitor
@@ -17,6 +20,15 @@ from aws_runner.remote.start import start
 
 
 def run(ec2, config, directory, command):
+    def abort(signum, frame):
+        print(
+            f"Cleanup aborted: AWS resources tagged {TAG}={directory} may remain",
+            file=sys.stderr,
+            flush=True,
+        )
+        os._exit(130)
+
+    previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
         existing = find(ec2, directory)
@@ -44,7 +56,10 @@ def run(ec2, config, directory, command):
         cleanup(ec2, instance, volume)
         return code
     except KeyboardInterrupt:
+        signal.signal(signal.SIGINT, abort)
+        signal.signal(signal.SIGTERM, abort)
         stop(ec2, directory)
         raise
     finally:
+        signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
