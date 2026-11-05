@@ -14,8 +14,9 @@ popen_process = subprocess.Popen
 
 @pytest.mark.parametrize("run_state", ["unset", "missing", "present"])
 @pytest.mark.parametrize("environment", [False, True])
+@pytest.mark.parametrize("inside_checkout", [False, True])
 def test_ships_env_when_present_and_runs_unchanged_command_from_root(
-    cloud, transport, tmp_path, environment, run_state, monkeypatch
+    cloud, transport, tmp_path, environment, run_state, inside_checkout, monkeypatch
 ):
     state_file = tmp_path / "labnotes state.json"
     monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
@@ -29,7 +30,11 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     checkout.mkdir()
     if environment:
         (checkout / ".env").touch()
-    directory = tmp_path / "cell with spaces"
+    directory = (
+        checkout / "experiments/example/runs/cell with spaces"
+        if inside_checkout
+        else tmp_path / "cell with spaces"
+    )
     command = ["uv", "run", "experiment.py", "--run-dir", str(directory)]
     assert run(ec2, config, directory, command) == 0
     assert json.loads((directory / "aws_runner.json").read_text()) == {
@@ -40,6 +45,7 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     upload = next(call.args[0] for call in calls if call.args[0][-1].endswith("/repo/"))
     assert "--exclude=.git" in upload
     assert "--exclude=/.env" in upload
+    assert "--exclude=/experiments/*/runs/" in upload
     env_copies = [
         call.args[0] for call in calls if call.args[0][-1].endswith("/repo/.env")
     ]
@@ -75,6 +81,19 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
         in call.kwargs.get("input", "")
         for call in calls
     )
+    if inside_checkout:
+        target = Path("/srv/aws-runner/repo") / directory.relative_to(checkout)
+        assert any(
+            f"sudo ln -s /srv/aws-runner/run {shlex.quote(str(target))}"
+            in call.kwargs.get("input", "")
+            for call in calls
+        )
+    assert any(
+        call.args[0][0] == "rsync"
+        and call.args[0][-2] == str(directory) + "/"
+        and call.args[0][-1].endswith(":/srv/aws-runner/run/")
+        for call in calls
+    )
     final_copy = next(
         call.args[0]
         for call in calls
@@ -93,6 +112,13 @@ def test_ships_external_symlink_contents(cloud, transport, tmp_path):
     outside.mkdir()
     (outside / "question.txt").write_text("problem statement")
     (checkout / "data").symlink_to(outside, target_is_directory=True)
+    for experiment in ("example", "another experiment"):
+        folder = checkout / "experiments" / experiment
+        (folder / "runs/past-run").mkdir(parents=True)
+        (folder / "runs/past-run/result.json").write_text("{}")
+        (folder / "experiment.toml").write_text("name = 'example'\n")
+    (checkout / "runs/legacy").mkdir(parents=True)
+    (checkout / "runs/legacy/result.json").write_text("{}")
     assert run(ec2, config, tmp_path / "run", ["true"]) == 0
     upload = next(
         call.args[0]
@@ -104,6 +130,11 @@ def test_ships_external_symlink_contents(cloud, transport, tmp_path):
         run_process(upload[:-1] + [str(destination) + "/"], check=True)
     assert not (destination / "data").is_symlink()
     assert (destination / "data/question.txt").read_text() == "problem statement"
+    for experiment in ("example", "another experiment"):
+        folder = destination / "experiments" / experiment
+        assert (folder / "experiment.toml").is_file()
+        assert not (folder / "runs").exists()
+    assert not (destination / "runs").exists()
 
 
 def test_ships_symlinked_env_as_regular_file(cloud, transport, tmp_path):

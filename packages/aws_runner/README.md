@@ -41,7 +41,7 @@ ten seconds apart and confirm the first file appears locally before exit.
 
 Run from inside the local Git checkout. The working tree (including
 uncommitted files) is uploaded over SSH, excluding `.git`, virtual environments,
-worktrees, caches, and root `runs/`.
+worktrees, caches, `experiments/*/runs/`, and legacy root `runs/`.
 Symlinks pointing outside the checkout are copied as contents so their files are available on the box. The local run folder is uploaded separately.
 `aws_runner.json` records the Git commit and dirty flag before upload. Commands
 run from the repository root, even when invoked from a subdirectory; absolute local run

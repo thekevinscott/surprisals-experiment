@@ -40,6 +40,7 @@ def ship(config, instance, directory):
             "--exclude=__pycache__",
             "--exclude=.worktrees",
             "--exclude=/runs/",
+            "--exclude=/experiments/*/runs/",
             "--exclude=/.env",
             str(checkout) + "/",
             f"{connection[-1]}:{ROOT}/repo/",

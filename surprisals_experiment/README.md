@@ -4,7 +4,7 @@ Download the dataset using the [APPS setup instructions](../scripts/README.md).
 
 ```bash
 uv run python -m surprisals_experiment.cli.run \
-  --output ../runs/sanity-check/example \
+  --output ../experiments/sanity-check/runs/example \
   -U xiaomi/mimo-v2.6-pro \
   --u-thinking high \
   -T openai/gpt-oss-120b \
@@ -23,7 +23,7 @@ Run the configured problem through labnotes from the repository root (one direct
 uvx --no-config --from labnotes labnotes experiments sanity-check run
 ```
 
-`../experiments/sanity-check/experiment.toml` selects APPS problem `2286` with one run and a stopping threshold of 20 consecutive batches without improvement. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `runs/<experiment>/<run>/` relative to the repository root; Each turn links to shared U advice through `windows/0/forks/0/turns/<i>/metadata.json` and T's files in `windows/0/forks/0/turns/<i>/ts/<j>/src/`. Turns are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
+`../experiments/sanity-check/experiment.toml` selects APPS problem `2286` with one run and a stopping threshold of 20 consecutive batches without improvement. It uses `--u-thinking high` and requires the external APPS dataset under `../data/APPS/`. Small addition and brackets fixtures remain available under `../fixtures/` for smoke checks. Labnotes stores logs and run metadata in `experiments/<experiment>/runs/<run>/` relative to the repository root; Each turn links to shared U advice through `windows/0/forks/0/turns/<i>/metadata.json` and T's files in `windows/0/forks/0/turns/<i>/ts/<j>/src/`. Turns are numbered from `0`. The configured `adhoc` mode runs the grid again on each invocation.
 
 Labnotes captures the experiment’s stderr in `stderr.log` and records its exit code in `run.json`. T’s session transcripts are saved under `windows/0/forks/0/turns/0/ts/0/transcripts/`, preserving Pi’s relative filenames, including on nonzero exits.
 
