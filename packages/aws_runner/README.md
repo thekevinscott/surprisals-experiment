@@ -48,8 +48,8 @@ run from the repository root, even when invoked from a subdirectory; absolute lo
 paths and checkout-relative run paths point to the data volume's run folder.
 Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
 resolved by the command. If `.env` exists at the local repository root, it is
-copied over SSH to the remote checkout as `.env`; otherwise no env file is
-shipped. The runner does not read or parse its contents. The copied file remains
+copied over SSH to the remote checkout as a regular `.env` file, following
+symlinks; otherwise no env file is shipped. The runner does not read or parse its contents. The copied file remains
 on the data disk until deletion, including on disks kept after failures.
 If `LABNOTES_RUN_STATE` names an existing local file, a new run copies it to
 `/srv/aws-runner/run-state.json` and exports that path in the saved command script.
