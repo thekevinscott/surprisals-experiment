@@ -2,7 +2,7 @@
 
 import json
 from advice_artifacts import write_advice
-from importlib.resources import files
+from surprisals_experiment.prompt import PROMPTS
 
 import pytest
 
@@ -51,7 +51,7 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
         )
     assert (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text() == prompt
     assert chat_provider[0]['messages'][1]['content'] == question
-    context = files('surprisals_experiment').joinpath('prompts/u/flush/context.txt').read_text()
+    context = (PROMPTS / 'u/flush/context.txt').read_text()
     assert context in messages[0]['content']
 
 

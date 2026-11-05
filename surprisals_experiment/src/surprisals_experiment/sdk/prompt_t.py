@@ -1,7 +1,6 @@
 """Run T on U's advice in a fresh botbox workspace."""
 
 from collections.abc import Callable
-from importlib.resources import files
 from pathlib import Path
 
 from botbox import RunResult
@@ -12,7 +11,6 @@ from .utils.t_agent import TAgent
 from .utils.botbox_run import botbox_run
 
 
-RESOURCES = files("surprisals_experiment")
 INSTRUCTIONS = Prompt("t.txt")
 
 
@@ -25,6 +23,6 @@ async def prompt_t(config: Config, advice: str, *, output: Path, logs: Path,
         instructions=INSTRUCTIONS(), on_delta=on_delta,
     )
     return await botbox_run(
-        agent, agent.command(advice), dockerfile=Path(str(RESOURCES.joinpath("docker/Dockerfile.t"))),
+        agent, agent.command(advice), dockerfile=Path(__file__).parents[1] / "docker/Dockerfile.t",
         mounts=[(output, "/solution", "rw")], workdir="/solution", output=logs, on_event=agent.receive,
     )

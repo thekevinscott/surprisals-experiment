@@ -1,11 +1,10 @@
 """Prompt files, relative to the prompts folder, read once at import and rendered with Jinja."""
 
-from importlib.resources import files
 from pathlib import Path
 
 from jinja2 import Environment, StrictUndefined
 
-PROMPTS = Path(str(files("surprisals_experiment"))) / "prompts"
+PROMPTS = Path(__file__).parent / "prompts"
 ENVIRONMENT = Environment(
     trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True, undefined=StrictUndefined,
 )

@@ -1,12 +1,13 @@
 """Observed provider failures, bounded retries, and interrupted-run diagnostics."""
 
 import asyncio
-import importlib
 import json
 import os
+from unittest.mock import patch
 
 import httpx2
 import pytest
+
 from botbox import RunResult
 
 from conftest import FakeSession
@@ -64,21 +65,21 @@ async def test_failed_reply_retries_original_history(
     assert any(m.get('content') == 'Use a loop' for m in messages)
 
 
-async def test_credential_proxy_startup_retries(config, botbox_script, monkeypatch, no_retry_wait):
-    module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_run')
+async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_wait):
+    from surprisals_experiment.sdk.utils.botbox_run import Botbox
     builds = []
 
-    class FailingEntry(module.Botbox):
+    class FailingEntry(Botbox):
         async def build(self):
             builds.append(self)
             if len(builds) == 1:
                 raise RuntimeError('botbox credential proxy did not start:\n')
             return await super().build()
 
-    monkeypatch.setattr(module, 'Botbox', FailingEntry)
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', FailingEntry):
+        assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(builds) == 2
     no_retry_wait.assert_awaited_once_with(10)
 
@@ -179,23 +180,22 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
 
 
 async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
-    config, botbox_script, monkeypatch, no_retry_wait,
+    config, botbox_script, no_retry_wait,
 ):
-    module = importlib.import_module('surprisals_experiment.sdk.utils.botbox_run')
-    original = module.Botbox
+    from surprisals_experiment.sdk.utils.botbox_run import Botbox
     root = config.output
     for failure in ('infrastructure', 'disk failure'):
-        class BrokenBotbox(original):
+        class BrokenBotbox(Botbox):
             async def run(self, *args, **kwargs):
                 if failure == 'disk failure':
                     raise OSError('disk failure')
                 return RunResult(exit_code=-1)
 
-        monkeypatch.setattr(module, 'Botbox', BrokenBotbox)
         config.output = root / failure.replace(' ', '-')
         botbox_script.advice.append('Use a loop')
-        with pytest.raises(RuntimeError, match=failure):
-            await run_experiment(config, on_delta=None)
+        with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', BrokenBotbox):
+            with pytest.raises(RuntimeError, match=failure):
+                await run_experiment(config, on_delta=None)
         diagnostics = (config.attempt_dir(0) / 'error.txt').read_text()
         assert failure in diagnostics
         assert 'Traceback' in diagnostics

@@ -1,16 +1,16 @@
 """Script Botbox runs globally; keep orchestration and evaluation real."""
 
 import asyncio
-import importlib
 import json
 import shlex
 from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from botbox import Botbox, RunResult
 
 from surprisals_experiment.config import Config
@@ -64,7 +64,7 @@ class FakeSession:
 
 
 @pytest.fixture(autouse=True)
-def botbox_script(monkeypatch):
+def botbox_script():
     script = Script()
 
     class FakeBotbox:
@@ -90,9 +90,8 @@ def botbox_script(monkeypatch):
                 await session.message(args[args.index('-p') + 1])
             return session.result
 
-    monkeypatch.setattr(importlib.import_module('surprisals_experiment.sdk.utils.botbox_run'),
-                        'Botbox', FakeBotbox)
-    return script
+    with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', FakeBotbox):
+        yield script
 
 
 @pytest.fixture
@@ -123,7 +122,7 @@ def config(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def chat_provider(monkeypatch, botbox_script):
+def chat_provider(botbox_script):
     """Mock only HTTP; exercise the real SDK's streaming and message assembly."""
     import httpx2
     from openai import AsyncOpenAI
@@ -179,13 +178,12 @@ def chat_provider(monkeypatch, botbox_script):
         return AsyncOpenAI(**kwargs,
                            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-    module = importlib.import_module('surprisals_experiment.sdk.utils.u_chat.open_u_chat')
-    monkeypatch.setattr(module, 'AsyncOpenAI', client)
-    return requests
+    with patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client):
+        yield requests
 
 
 @pytest.fixture
-async def scorer_provider(monkeypatch):
+async def scorer_provider():
     """Serve prompt logprobs over mocked HTTP, keeping measurement and retries real."""
     import math
     from types import SimpleNamespace
@@ -225,7 +223,7 @@ async def scorer_provider(monkeypatch):
         clients.append(http)
         return AsyncOpenAI(**kwargs, http_client=http)
 
-    monkeypatch.setattr(importlib.import_module('measure_surprisal.utils.client'), 'AsyncOpenAI', client)
-    yield script
+    with patch('measure_surprisal.utils.client.AsyncOpenAI', client):
+        yield script
     for client in clients:
         await client.aclose()
