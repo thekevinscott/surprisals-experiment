@@ -15,6 +15,6 @@ class Run:
     database: ExperimentDatabase
     problem: QuestionDatabase
     actions: Mapping
-    on_t_delta: Callable[[str, str], None] | None = None
+    on_t_delta: Callable[[str, str, str], None] | None = None
     u_chat: ChatSession | None = None
-    on_delta: Callable[[str, str], None] | None = None
+    on_delta: Callable[[str, str, str], None] | None = None

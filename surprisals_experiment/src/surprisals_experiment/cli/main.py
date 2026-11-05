@@ -3,8 +3,6 @@
 import argparse
 import asyncio
 import signal
-import sys
-from functools import partial
 from pathlib import Path
 from typing import get_args
 
@@ -14,6 +12,8 @@ from dotenv import dotenv_values, find_dotenv
 from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
+from .log_streams import LogStreams
+
 
 async def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
@@ -21,47 +21,90 @@ async def main(argv: list[str] | None = None) -> None:
         description="Run the U → T experiment on an APPS problem.",
     )
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
-    parser.add_argument("--u-thinking", choices=get_args(ThinkingLevel),
-                        default="high", help="U thinking level (default: high)")
-    parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
-    parser.add_argument("--cap-strategy", choices=("characters", "surprisal"), default="characters",
-                        help="Advice cap strategy (default: characters)")
-    parser.add_argument("--scorer-base-url",
-                        help="OpenAI-compatible prompt-logprob endpoint")
-    parser.add_argument("--t-samples", type=int, default=5,
-                        help="Independent T solutions per advice; all must pass (default: 5)")
-    parser.add_argument("--t-pool-size", type=int, default=3,
-                        help="Maximum concurrent T generations (default: 3)")
-    parser.add_argument("--t-sample-timeout", type=float, default=900,
-                        help="Time limit per active T sample in seconds (default: 900)")
-    parser.add_argument("--t-sample-retries", type=int, default=3,
-                        help="Retries per timed-out T sample; 0 disables retries (default: 3)")
     parser.add_argument(
-        "--max-u-turns", type=int, help="Optional per-fork iteration limit",
+        "--u-thinking",
+        choices=get_args(ThinkingLevel),
+        default="high",
+        help="U thinking level (default: high)",
     )
-    parser.add_argument("--window-forks", type=int, default=4,
-                        help="Parallel forks at the start of each window (default: 4)")
-    parser.add_argument("--fork-turns", type=int, default=10,
-                        help="Turn target for the parallel fork round (default: 10)")
-    parser.add_argument("--window-solo-turns", type=int, default=30,
-                        help="Turns the winning fork continues alone after the fork round (default: 30)")
-    parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
+    parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
+    parser.add_argument(
+        "--cap-strategy",
+        choices=("characters", "surprisal"),
+        default="characters",
+        help="Advice cap strategy (default: characters)",
+    )
+    parser.add_argument(
+        "--scorer-base-url", help="OpenAI-compatible prompt-logprob endpoint"
+    )
+    parser.add_argument(
+        "--t-samples",
+        type=int,
+        default=5,
+        help="Independent T solutions per advice; all must pass (default: 5)",
+    )
+    parser.add_argument(
+        "--t-pool-size",
+        type=int,
+        default=3,
+        help="Maximum concurrent T generations (default: 3)",
+    )
+    parser.add_argument(
+        "--t-sample-timeout",
+        type=float,
+        default=900,
+        help="Time limit per active T sample in seconds (default: 900)",
+    )
+    parser.add_argument(
+        "--t-sample-retries",
+        type=int,
+        default=3,
+        help="Retries per timed-out T sample; 0 disables retries (default: 3)",
+    )
+    parser.add_argument(
+        "--max-u-turns",
+        type=int,
+        help="Optional per-fork iteration limit",
+    )
+    parser.add_argument(
+        "--window-forks",
+        type=int,
+        default=4,
+        help="Parallel forks at the start of each window (default: 4)",
+    )
+    parser.add_argument(
+        "--fork-turns",
+        type=int,
+        default=10,
+        help="Turn target for the parallel fork round (default: 10)",
+    )
+    parser.add_argument(
+        "--window-solo-turns",
+        type=int,
+        default=30,
+        help="Turns the winning fork continues alone after the fork round (default: 30)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="New directory to retain T’s solution",
+    )
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
-    source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
+    source.add_argument(
+        "problem_dir",
+        nargs="?",
+        type=Path,
+        help="Directory containing question.txt and input_output.json",
+    )
+    source.add_argument(
+        "--problem-dir",
+        dest="problem_dir_option",
+        type=Path,
+        help="Problem directory (for parameter grids)",
+    )
     args = parser.parse_args(argv)
-    active_section = None
-
-    def print_delta(kind: str, text: str, *, agent: str = "U") -> None:
-        nonlocal active_section
-        destination = sys.stdout
-        color_code = "\033[90m" if kind == "thinking" else "\033[34m"
-        color = color_code if destination.isatty() else ""
-        reset = "\033[0m" if color else ""
-        if (agent, kind) != active_section:
-            print(f"\n{color}[{agent} {kind}]{reset}", file=destination, flush=True)
-            active_section = (agent, kind)
-        print(f"{color}{text}{reset}", end="", file=destination, flush=True)
+    streams = LogStreams()
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
@@ -74,27 +117,32 @@ async def main(argv: list[str] | None = None) -> None:
             raise ValueError("Set OPENROUTER_API_KEY in your .env file")
         if args.cap_strategy == "surprisal" and not args.scorer_base_url:
             args.scorer_base_url = labnotes.get_state().get("base_url")
-        await run_experiment(Config(
-            api_key=key,
-            problem_dir=args.problem_dir or args.problem_dir_option,
-            output=args.output,
-            u_model=args.U,
-            u_thinking=args.u_thinking,
-            t_model=args.T,
-            cap_strategy=args.cap_strategy,
-            scorer_base_url=args.scorer_base_url,
-            t_samples=args.t_samples,
-            t_pool_size=args.t_pool_size,
-            t_sample_timeout=args.t_sample_timeout,
-            t_sample_retries=args.t_sample_retries,
-            window_forks=args.window_forks,
-            fork_turns=args.fork_turns,
-            window_solo_turns=args.window_solo_turns,
-            max_u_turns=args.max_u_turns,
-        ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
+        await run_experiment(
+            Config(
+                api_key=key,
+                problem_dir=args.problem_dir or args.problem_dir_option,
+                output=args.output,
+                u_model=args.U,
+                u_thinking=args.u_thinking,
+                t_model=args.T,
+                cap_strategy=args.cap_strategy,
+                scorer_base_url=args.scorer_base_url,
+                t_samples=args.t_samples,
+                t_pool_size=args.t_pool_size,
+                t_sample_timeout=args.t_sample_timeout,
+                t_sample_retries=args.t_sample_retries,
+                window_forks=args.window_forks,
+                fork_turns=args.fork_turns,
+                window_solo_turns=args.window_solo_turns,
+                max_u_turns=args.max_u_turns,
+            ),
+            on_delta=streams.delta,
+            on_t_delta=streams.delta,
+        )
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
     finally:
+        streams.close()
         loop.remove_signal_handler(signal.SIGTERM)
 
     print()
