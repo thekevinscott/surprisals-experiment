@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/test_cli.py -q",
+  "ran_at": 1793880554,
+  "exit_code": 0,
+  "commit": "74449ede49d4c2a2a8e8597f9b376edb9bacc1f7",
+  "branch": "feat/scorer-url-from-state"
+}
