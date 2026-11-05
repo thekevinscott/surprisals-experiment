@@ -8,7 +8,7 @@ from aws_runner.remote.ssh import ssh
 def mirror(config, instance, directory):
     directory.mkdir(parents=True, exist_ok=True)
     connection = ssh(config, instance)
-    subprocess.run(
+    copy = subprocess.run(
         [
             "rsync",
             "-az",
@@ -18,6 +18,7 @@ def mirror(config, instance, directory):
             shlex.join(connection[:-1]),
             f"{connection[-1]}:{ROOT}/run/",
             str(directory) + "/",
-        ],
-        check=True,
+        ]
     )
+    if copy.returncode not in (0, 24):
+        raise subprocess.CalledProcessError(copy.returncode, copy.args)
