@@ -40,13 +40,12 @@ def ship(config, instance, directory):
             "--exclude=.worktrees",
             "--exclude=/runs/",
             "--exclude=/.env",
-            "--exclude=/.env.aws",
             str(checkout) + "/",
             f"{connection[-1]}:{ROOT}/repo/",
         ],
         check=True,
     )
-    environment = checkout / ".env.aws"
+    environment = checkout / ".env"
     if environment.exists():
         subprocess.run(
             copy + [str(environment), f"{connection[-1]}:{ROOT}/repo/.env"], check=True

@@ -7,17 +7,16 @@ import pytest
 from aws_runner.run import run
 
 
-@pytest.mark.parametrize("aws_environment", [False, True])
-def test_ships_selected_env_and_runs_unchanged_command_from_root(
-    cloud, transport, tmp_path, aws_environment
+@pytest.mark.parametrize("environment", [False, True])
+def test_ships_env_when_present_and_runs_unchanged_command_from_root(
+    cloud, transport, tmp_path, environment
 ):
     ec2, _, config = cloud
     execute, _, state = transport
     checkout = Path(state["checkout"])
     checkout.mkdir()
-    (checkout / ".env").touch()
-    if aws_environment:
-        (checkout / ".env.aws").touch()
+    if environment:
+        (checkout / ".env").touch()
     directory = tmp_path / "cell with spaces"
     command = ["uv", "run", "experiment.py", "--run-dir", str(directory)]
     assert run(ec2, config, directory, command) == 0
@@ -29,13 +28,12 @@ def test_ships_selected_env_and_runs_unchanged_command_from_root(
     upload = next(call.args[0] for call in calls if call.args[0][-1].endswith("/repo/"))
     assert "--exclude=.git" in upload
     assert "--exclude=/.env" in upload
-    assert "--exclude=/.env.aws" in upload
     env_copies = [
         call.args[0] for call in calls if call.args[0][-1].endswith("/repo/.env")
     ]
-    if aws_environment:
+    if environment:
         assert len(env_copies) == 1
-        assert env_copies[0][-2] == str(checkout / ".env.aws")
+        assert env_copies[0][-2] == str(checkout / ".env")
     else:
         assert env_copies == []
     script = next(
