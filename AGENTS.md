@@ -55,19 +55,19 @@
 ## Banking runs
 
 - Bank every run in the Hugging Face dataset
-  `thekevinscott/surprisals-experiment-runs`, at the same `{experiment}/{run}`
-  path it has under `runs/`. Bank before deleting a run from any host.
+  `thekevinscott/surprisals-experiment-runs`, at `{experiment}/{run}` for local
+  `experiments/{experiment}/runs/{run}`. Bank before deleting a run from any host.
 - Upload from the host holding the full run (usually `optimizing`), from the
   repo root, one commit per run cell so each stays a few thousand files:
 
   ```sh
   uv run --no-project --env-file .env --with huggingface-hub \
     hf upload thekevinscott/surprisals-experiment-runs \
-    runs/EXP/RUN/CELL EXP/RUN/CELL --repo-type dataset
+    experiments/EXP/runs/RUN/CELL EXP/RUN/CELL --repo-type dataset
   ```
 
-  Then upload the invocation's own files with `runs/EXP/RUN EXP/RUN --exclude "*/*"`.
-- Do not `git push` from the `runs/` clone. `optimizing` has no git-lfs, and the
+  Then upload the invocation's own files with `experiments/EXP/runs/RUN EXP/RUN --exclude "*/*"`.
+- Do not `git push` from the legacy `runs/` dataset clone. `optimizing` has no git-lfs, and the
   dataset's `.gitattributes` routes `*.json` to LFS.
 - Done means the file count under `EXP/RUN` on the Hub equals
-  `find runs/EXP/RUN -type f | wc -l` on the host. Delete only after that.
+  `find experiments/EXP/runs/RUN -type f | wc -l` on the host. Delete only after that.

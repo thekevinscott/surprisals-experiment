@@ -1,6 +1,6 @@
 """Upload a run's U and T Pi transcripts to the Docent collection named after its experiment.
 
-Usage: uv run --no-project --with 'docent-python>=0.1.83' scripts/docent_ingest.py runs/<experiment>/<run>
+Usage: uv run --no-project --with 'docent-python>=0.1.83' scripts/docent_ingest.py experiments/<experiment>/runs/<run>
 """
 
 import json

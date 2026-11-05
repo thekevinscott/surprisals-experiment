@@ -17,7 +17,9 @@ dist/
 
 # Local datasets, run artifacts, and private notes
 outputs/
-runs/
+# Legacy runs remain until the separate migration.
+/runs/
+/experiments/*/runs/
 data
 /notes/internal/
 

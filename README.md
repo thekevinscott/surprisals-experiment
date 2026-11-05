@@ -44,7 +44,7 @@ uv run python -m surprisals_experiment.cli.run \
   -T openai/gpt-oss-120b \
   --u-thinking high \
   --t-samples 5 \
-  --output ../runs/sanity-check/example \
+  --output ../experiments/sanity-check/runs/example \
   ../data/APPS/test/2286
 ```
 
@@ -54,7 +54,7 @@ Chat U, scorer requests, and each T sample retry any failure up to 8 times (9 at
 
 Control concurrent T generations with `--t-pool-size` (default 3). `--t-samples` still sets the total number evaluated per advice (default 5); all must pass. Use a pool size of 1 for sequential generation. Testing follows generation and runs sequentially. Each active T sample has a 900-second timeout (`--t-sample-timeout`); waiting for a pool slot does not consume it. Each timeout is logged in `timeouts.txt`. `--t-sample-retries` sets the retry count (default 3, up to 4 tries; 0 means no retry), with a fresh T and empty source directory each time. If all tries time out, the empty solution counts as failed and the run continues. SIGTERM cancels the CLI task so Botbox can clean up its sessions.
 
-Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `runs/<experiment>/`:
+Each experiment has its own TOML and `files/` directory under `experiments/`, and its runs under `experiments/<experiment>/runs/`:
 
 - [sanity-check](experiments/sanity-check/experiment.toml): problem 2286, stop after 50 turns without improvement, agent and chat U.
 - [advice-minimization](experiments/advice-minimization/experiment.toml): 20 problems, uncapped advice, stopping after 30 turns without improvement.
@@ -70,7 +70,7 @@ Tests execute generated Python on the host, outside the agent containers, with a
 
 ## Outputs
 
-Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experiments/<experiment>/files/`. Both are ignored by Git. `runs/` is one clone of the [surprisals-experiment-runs dataset on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs), with a folder per experiment. Runs from before the current configurations are under `runs/development/`.
+Run artifacts belong in `experiments/<experiment>/runs/<run>/`; experiment files belong in `experiments/<experiment>/files/`. Run directories are ignored by Git. Bank runs in the [surprisals-experiment-runs dataset on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs) at `<experiment>/<run>/`, following [the banking instructions](AGENTS.md#banking-runs). Existing runs under the legacy root `runs/` remain in place until a separate migration while no labnotes run is active.
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, derived from the database when the run completes.
 - `u_transcripts/`: U’s conversation in `messages.jsonl`, with system, user, and assistant messages (including returned reasoning).
@@ -83,7 +83,7 @@ Run artifacts belong in `runs/<experiment>/`; experiment files belong in `experi
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. The file is written at run completion. Restarting derives it again from persisted evaluations, repairing a missing or stale result after interruption. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
-Generate a dynamic summary of advice and T attempts with `./scripts/summarize-run.sh runs/<experiment>/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
+Generate a dynamic summary of advice and T attempts with `./scripts/summarize-run.sh experiments/<experiment>/runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 
