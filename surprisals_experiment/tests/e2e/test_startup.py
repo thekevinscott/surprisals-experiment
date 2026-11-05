@@ -5,7 +5,7 @@ import os
 import shlex
 
 from surprisals_experiment.sdk.prompt_t import RESOURCES, INSTRUCTIONS
-from surprisals_experiment.sdk.utils.botbox_run import botbox_run
+from surprisals_experiment.sdk.utils.botbox_run.botbox_run import botbox_run
 from surprisals_experiment.sdk.utils.t_agent import TAgent
 
 

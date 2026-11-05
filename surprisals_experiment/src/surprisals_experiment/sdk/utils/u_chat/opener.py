@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 
 from surprisals_experiment.prompt import Prompt
 from .chat_session import ChatSession
-from .record import restore
+from .record.restore import restore
 from ..write import write
 
 SYSTEM = Prompt("u/system.txt")

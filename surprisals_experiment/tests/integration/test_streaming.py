@@ -59,7 +59,7 @@ def respond(request):
 def client(**kwargs):
     return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
-with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', Box), \
+with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', Box), \
      patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client):
     import runpy
     sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'),

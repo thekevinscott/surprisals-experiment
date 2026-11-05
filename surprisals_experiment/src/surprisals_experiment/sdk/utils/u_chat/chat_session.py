@@ -7,7 +7,7 @@ from openai import AsyncOpenAI
 
 from .reply import reply
 from .prompt import prompt
-from .record import record
+from .record.record import record
 
 
 @dataclass

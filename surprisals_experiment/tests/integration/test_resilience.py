@@ -11,7 +11,7 @@ import pytest
 from botbox import RunResult
 
 from conftest import FakeSession
-from surprisals_experiment.retry_policy import DELAYS
+from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
@@ -66,7 +66,7 @@ async def test_failed_reply_retries_original_history(
 
 
 async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_wait):
-    from surprisals_experiment.sdk.utils.botbox_run import Botbox
+    from surprisals_experiment.sdk.utils.botbox_run.botbox_run import Botbox
     builds = []
 
     class FailingEntry(Botbox):
@@ -78,7 +78,7 @@ async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_
 
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
-    with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', FailingEntry):
+    with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', FailingEntry):
         assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(builds) == 2
     no_retry_wait.assert_awaited_once_with(10)
@@ -182,7 +182,7 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
 async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     config, botbox_script, no_retry_wait,
 ):
-    from surprisals_experiment.sdk.utils.botbox_run import Botbox
+    from surprisals_experiment.sdk.utils.botbox_run.botbox_run import Botbox
     root = config.output
     for failure in ('infrastructure', 'disk failure'):
         class BrokenBotbox(Botbox):
@@ -193,7 +193,7 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
 
         config.output = root / failure.replace(' ', '-')
         botbox_script.advice.append('Use a loop')
-        with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', BrokenBotbox):
+        with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', BrokenBotbox):
             with pytest.raises(RuntimeError, match=failure):
                 await run_one_window(config, on_delta=None)
         diagnostics = (config.attempt_dir(0) / 'error.txt').read_text()

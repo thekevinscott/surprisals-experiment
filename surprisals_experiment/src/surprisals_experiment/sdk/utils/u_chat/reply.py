@@ -1,7 +1,8 @@
 """Retry failed chat replies, including failures after streaming starts."""
 
-from surprisals_experiment.retry_policy import DELAYS, retried
-from .stream_reply import stream_reply
+from surprisals_experiment.retry_policy.constants import DELAYS
+from surprisals_experiment.retry_policy.retried import retried
+from .stream_reply.stream_reply import stream_reply
 
 
 async def reply(self, *, on_delta=None) -> str:

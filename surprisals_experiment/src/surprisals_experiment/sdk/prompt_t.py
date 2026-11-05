@@ -8,7 +8,7 @@ from botbox import RunResult
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
 from .utils.t_agent import TAgent
-from .utils.botbox_run import botbox_run
+from .utils.botbox_run.botbox_run import botbox_run
 
 
 INSTRUCTIONS = Prompt("t.txt")
