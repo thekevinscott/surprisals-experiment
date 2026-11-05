@@ -46,12 +46,13 @@ def test_run_collects_then_removes_instance_and_volume(
     scripts = [call.kwargs.get("input", "") for call in execute.call_args_list]
     assert any("echo hello; echo hi > out.txt" in script for script in scripts)
     assert any("mkfs.ext4" in script for script in scripts)
-    assert "journalctl" in stream.call_args.args[0][-1]
-    assert "--lines=all" in stream.call_args.args[0][-1]
+    assert "command.stdout.log" in stream.call_args.args[0][-1]
+    assert "command.stderr.log" in stream.call_args.args[0][-1]
     assert any(
         'while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]' in script for script in scripts
     )
-    stream.return_value.terminate.assert_called_once()
+    stream.return_value.terminate.assert_not_called()
+    stream.return_value.wait.assert_called_once()
 
 
 def test_failed_collection_preserves_remote_copy(cloud, transport, tmp_path):

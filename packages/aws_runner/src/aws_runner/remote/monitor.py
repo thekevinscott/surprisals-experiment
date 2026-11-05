@@ -1,27 +1,29 @@
 import subprocess
 import time
 
+from aws_runner.remote.follow import follow
 from aws_runner.remote.mirror import mirror
 from aws_runner.remote.result import result
-from aws_runner.remote.ssh import ssh
 
 
 def monitor(config, instance, directory):
-    connection = ssh(config, instance)
-    stream = subprocess.Popen(
-        connection + ["sudo journalctl -u aws-runner --lines=all -f -o cat --no-pager"]
-    )
+    stream = follow(config, instance)
     next_mirror = time.monotonic() + 10
     try:
         while True:
+            if stream.poll() not in (None, 0):
+                raise subprocess.CalledProcessError(stream.returncode, stream.args)
             code = result(config, instance)
             if code is not None:
-                time.sleep(1)
+                status = stream.wait()
+                if status:
+                    raise subprocess.CalledProcessError(status, stream.args)
                 return code
             if time.monotonic() >= next_mirror:
                 mirror(config, instance, directory)
                 next_mirror = time.monotonic() + 10
             time.sleep(1)
-    finally:
+    except BaseException:
         stream.terminate()
         stream.wait()
+        raise
