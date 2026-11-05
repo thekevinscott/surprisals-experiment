@@ -1,7 +1,7 @@
 {
   "command": "uv run --frozen pytest tests/integration/test_streaming.py tests/integration/test_cli.py tests/integration/test_log_streams.py -q",
-  "ran_at": 1793912596,
+  "ran_at": 1793912609,
   "exit_code": 0,
-  "commit": "871352cc99f3bd199aef253cd8842c7cbacdd73d",
+  "commit": "c42dbdbf6e86dd8f3aef391c67bb8bd7357652e9",
   "branch": "feat/log-blocks"
 }
