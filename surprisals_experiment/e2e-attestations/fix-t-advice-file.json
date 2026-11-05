@@ -1,0 +1,7 @@
+{
+  "command": "uv run --frozen pytest tests/integration/test_advice_file.py tests/integration/test_streaming.py -q",
+  "ran_at": 1793913190,
+  "exit_code": 0,
+  "commit": "2500a148cd776f55f9a09bf954307ae7164b65a8",
+  "branch": "fix/t-advice-file"
+}
