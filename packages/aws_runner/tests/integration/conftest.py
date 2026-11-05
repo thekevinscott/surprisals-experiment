@@ -1,10 +1,12 @@
-import subprocess
 from argparse import Namespace
+from functools import partial
+from pathlib import Path
 from unittest.mock import patch
 
 import boto3
 import pytest
 from moto import mock_aws
+from respond import respond
 
 from aws_runner.cloud.setup import setup
 
@@ -39,8 +41,9 @@ def transport():
         patch("subprocess.Popen") as stream,
         patch("time.sleep"),
     ):
-        execute.return_value = subprocess.CompletedProcess([], 0, stdout="0\n")
-        yield execute, stream
+        state = {"checkout": str(Path.cwd()), "polls": ["0"], "fail_copy": False}
+        execute.side_effect = partial(respond, state)
+        yield execute, stream, state
 
 
 @pytest.fixture

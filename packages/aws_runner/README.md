@@ -32,3 +32,13 @@ While the command runs, rsync mirrors its run folder approximately every ten
 seconds (plus transfer time). A final copy still completes before cleanup.
 A real-AWS live-mirror check should run a command that writes files more than
 ten seconds apart and confirm the first file appears locally before exit.
+
+Run from inside the local Git checkout. The working tree (including `.env` and
+uncommitted files) is uploaded over SSH, excluding `.git`, virtual environments,
+worktrees, caches, and root `runs/`. The local run folder is uploaded separately.
+`aws_runner.json` records the Git commit and dirty flag before upload. Commands
+now run in the corresponding checkout subdirectory; both absolute local run
+paths and checkout-relative run paths point to the data volume's run folder.
+Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
+resolved by the command. `.env` is copied as an ordinary file over encrypted
+SSH and remains on the data disk until deletion. No secret store is involved.

@@ -18,7 +18,7 @@ def prepare(config, instance, volume):
     script = f"""set -eu
 sudo cloud-init status --wait
 sudo apt-get update -qq
-sudo apt-get install -y -qq rsync
+sudo apt-get install -y -qq rsync curl ca-certificates
 DEVICE=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_{serial}
 while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]; do sleep 1; done
 if [ ! -b "$DEVICE" ]; then DEVICE=/dev/xvdf; fi

@@ -29,8 +29,8 @@ def test_run_collects_then_removes_instance_and_volume(
     cloud, transport, tmp_path, exit_code
 ):
     ec2, _, config = cloud
-    execute, stream = transport
-    execute.return_value = subprocess.CompletedProcess([], 0, stdout=f"{exit_code}\n")
+    execute, stream, state = transport
+    state["polls"] = [str(exit_code)]
     directory = tmp_path / "hello world"
     assert (
         run(ec2, config, directory, ["sh", "-c", "echo hello; echo hi > out.txt"])
@@ -41,7 +41,7 @@ def test_run_collects_then_removes_instance_and_volume(
     assert {"Key": TAG, "Value": str(directory)} in instances[0]["Tags"]
     assert not ec2.describe_volumes()["Volumes"]
     commands = [call.args[0] for call in execute.call_args_list]
-    assert sum(command[0] == "rsync" for command in commands) == 1
+    assert sum(command[0] == "rsync" for command in commands) == 3
     assert any("systemd-run" in command[-1] for command in commands)
     scripts = [call.kwargs.get("input", "") for call in execute.call_args_list]
     assert any("echo hello; echo hi > out.txt" in script for script in scripts)
@@ -56,15 +56,8 @@ def test_run_collects_then_removes_instance_and_volume(
 
 def test_failed_collection_preserves_remote_copy(cloud, transport, tmp_path):
     ec2, _, config = cloud
-    execute, _ = transport
-    execute.side_effect = [
-        subprocess.CompletedProcess([], 0, stdout=""),
-        subprocess.CompletedProcess([], 0, stdout=""),
-        subprocess.CompletedProcess([], 0, stdout=""),
-        subprocess.CompletedProcess([], 0, stdout=""),
-        subprocess.CompletedProcess([], 0, stdout="0"),
-        subprocess.CalledProcessError(23, "rsync"),
-    ]
+    execute, _, state = transport
+    state["fail_copy"] = True
     with pytest.raises(subprocess.CalledProcessError):
         run(ec2, config, tmp_path / "run", ["true"])
     volume = ec2.describe_volumes(Filters=[{"Name": "tag-key", "Values": [TAG]}])[
