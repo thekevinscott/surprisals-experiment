@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2",
     "python-dotenv>=1.2.4",
     "tenacity>=9.2.1",
+    "labnotes>=0.2.25",
 ]
 
 [build-system]
