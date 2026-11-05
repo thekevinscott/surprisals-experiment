@@ -9,4 +9,7 @@ def restore(self, entry):
         self.turn_reply = None
     if message['role'] == 'assistant':
         self.turn_reply = message.get('content')
-    self.messages.append(message)
+    if message["role"] == "system" and self.messages:
+        self.messages[0] = message
+    else:
+        self.messages.append(message)

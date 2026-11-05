@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793846714,
+  "exit_code": 0,
+  "commit": "b9deadc0c526ad1e1729e7c190fec7f16834f6a9",
+  "branch": "feat/u-prompt-window"
+}
