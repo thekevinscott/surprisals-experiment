@@ -34,6 +34,7 @@ def ship(config, instance, directory):
     subprocess.run(
         copy
         + [
+            "--copy-unsafe-links",
             "--exclude=.git",
             "--exclude=.venv",
             "--exclude=__pycache__",

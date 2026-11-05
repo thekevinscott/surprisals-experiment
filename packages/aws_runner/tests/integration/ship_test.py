@@ -1,10 +1,15 @@
 import json
 import shlex
+import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from aws_runner.run import run
+
+run_process = subprocess.run
+popen_process = subprocess.Popen
 
 
 @pytest.mark.parametrize("run_state", ["unset", "missing", "present"])
@@ -77,3 +82,25 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     )
     assert final_copy[-2].endswith(":/srv/aws-runner/run/")
     assert final_copy[-1] == str(directory) + "/"
+
+
+def test_ships_external_symlink_contents(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    checkout = Path(state["checkout"])
+    checkout.mkdir()
+    outside = tmp_path / "external data"
+    outside.mkdir()
+    (outside / "question.txt").write_text("problem statement")
+    (checkout / "data").symlink_to(outside, target_is_directory=True)
+    assert run(ec2, config, tmp_path / "run", ["true"]) == 0
+    upload = next(
+        call.args[0]
+        for call in execute.call_args_list
+        if call.args[0][-1].endswith("/repo/")
+    )
+    destination = tmp_path / "remote"
+    with patch("subprocess.Popen", popen_process):
+        run_process(upload[:-1] + [str(destination) + "/"], check=True)
+    assert not (destination / "data").is_symlink()
+    assert (destination / "data/question.txt").read_text() == "problem statement"
