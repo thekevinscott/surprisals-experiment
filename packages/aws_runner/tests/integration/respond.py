@@ -14,4 +14,6 @@ def respond(state, args, **kwargs):
         output = ""
     if args[0] == "rsync" and args[-2].startswith("ubuntu@") and state["fail_copy"]:
         raise subprocess.CalledProcessError(23, args)
+    if args[0] == "rsync" and args[-2].startswith("ubuntu@"):
+        return subprocess.CompletedProcess(args, state.get("copy_code", 0))
     return subprocess.CompletedProcess(args, 0, stdout=output)

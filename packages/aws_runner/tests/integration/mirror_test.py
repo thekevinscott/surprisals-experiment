@@ -18,3 +18,14 @@ def test_live_mirror_precedes_completion_and_final_copy(
     assert len(copies) == 2
     assert polls[1] < copies[0] < polls[2] < copies[1]
     assert not ec2.describe_volumes()["Volumes"]
+
+
+def test_files_vanishing_during_mirror_do_not_fail_the_run(
+    cloud, transport, ticking_clock, tmp_path
+):
+    ec2, _, config = cloud
+    _, _, state = transport
+    state["polls"] = ["", "", "7"]
+    state["copy_code"] = 24
+    assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 7
+    assert not ec2.describe_volumes()["Volumes"]
