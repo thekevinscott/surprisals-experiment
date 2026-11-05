@@ -46,9 +46,7 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--window-solo-turns", type=int, default=30,
                         help="Turns the winning fork continues alone after the fork round (default: 30)")
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
-    commands = parser.add_subparsers(dest="command", required=True)
-    problem = commands.add_parser("problem", help="Select a problem directory")
-    source = problem.add_mutually_exclusive_group(required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("problem_dir", nargs="?", type=Path, help="Directory containing question.txt and input_output.json")
     source.add_argument("--problem-dir", dest="problem_dir_option", type=Path, help="Problem directory (for parameter grids)")
     args = parser.parse_args(argv)

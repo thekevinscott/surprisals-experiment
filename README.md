@@ -45,7 +45,7 @@ uv run python -m surprisals_experiment.cli.run \
   --u-thinking high \
   --t-samples 5 \
   --output ../runs/sanity-check/example \
-  problem ../data/APPS/test/2286
+  ../data/APPS/test/2286
 ```
 
 Use `--t-samples 5` to require five independently generated solutions to pass. Five is the default; use `--t-samples 1` for the original single-T behavior. Each run completes at least two windows. After each window from window 1 onward, it stops when the best successful advice score has improved by less than 5% over the best at the end of the previous window. `--max-u-turns` optionally limits turns per fork. Use a new output directory for each run. U and T thinking and text stream to the terminal.
