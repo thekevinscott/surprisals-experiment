@@ -5,10 +5,13 @@ from aws_runner.config import ROOT
 from aws_runner.remote.ssh import ssh
 
 
-def start(config, instance, command):
+def start(config, instance, command, working_directory):
     script = f"""#!/bin/sh
-cd {ROOT}/run || exit 125
+export PATH=/home/ubuntu/.local/bin:$PATH
+(
+cd {shlex.quote(working_directory)} || exit 125
 {shlex.join(command)}
+)
 code=$?
 printf '%s\\n' "$code" > {ROOT}/exit-code.tmp
 mv {ROOT}/exit-code.tmp {ROOT}/exit-code

@@ -1,10 +1,10 @@
 # aws_runner
 
-Blocking AWS execution for one run directory. Run from this uv project:
+Blocking AWS execution for one run directory. Run from the repository root:
 
 ```sh
-uv run aws_runner setup --region us-east-1 --ami ami-YOUR-PINNED-UBUNTU-AMI
-uv run aws_runner run /tmp/hw -- sh -c 'echo hello; echo hi > out.txt'
+uv run --project packages/aws_runner aws_runner setup --region us-east-1 --ami ami-YOUR-PINNED-UBUNTU-AMI
+uv run --project packages/aws_runner aws_runner run /tmp/hw -- sh -c 'echo hello; echo hi > /tmp/hw/out.txt'
 ```
 
 Setup uses the local AWS profile, the default VPC, a caller-IP-only SSH rule,
@@ -15,7 +15,7 @@ IP discovery. Re-running setup updates the SSH rule and reuses the key.
 The local host needs SSH and rsync. The subnet needs internet access.
 
 Each run launches On-Demand compute and a tagged gp3 data volume. The volume
-is mounted at `/srv/aws-runner`; commands initially run in its `run` directory.
+is mounted at `/srv/aws-runner`; commands run from its `repo` checkout directory.
 The root disk follows the stock AMI's delete-on-termination setting; the data
 disk explicitly survives termination. Systemd runs the command as Ubuntu and
 streams its journal. Final rsync must succeed before termination and deletion;
@@ -32,3 +32,23 @@ While the command runs, rsync mirrors its run folder approximately every ten
 seconds (plus transfer time). A final copy still completes before cleanup.
 A real-AWS live-mirror check should run a command that writes files more than
 ten seconds apart and confirm the first file appears locally before exit.
+
+Run from inside the local Git checkout. The working tree (including
+uncommitted files) is uploaded over SSH, excluding `.git`, virtual environments,
+worktrees, caches, and root `runs/`. The local run folder is uploaded separately.
+`aws_runner.json` records the Git commit and dirty flag before upload. Commands
+run from the repository root, even when invoked from a subdirectory; absolute local run
+paths and checkout-relative run paths point to the data volume's run folder.
+Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
+resolved by the command. If `.env.aws` exists at the local repository root,
+it is copied over SSH to the remote checkout as `.env`; otherwise `.env` is
+copied when present. Neither file is read or parsed by the runner. Only the
+selected file is shipped, and it remains on the data disk until deletion.
+`.env.aws` can hold the RunPod scorer URL when the local tower is unreachable
+from AWS.
+
+Switch an experiment to AWS by changing one line in `experiment.toml`: prefix
+its existing command with `uv run --project packages/aws_runner aws_runner run
+"{run_dir}" -- ` (on one line). Keep the experiment command and its arguments
+unchanged. `{run_dir}` is the same local absolute path on both hosts; on AWS it
+is linked to the data volume folder read by the live and final mirrors.

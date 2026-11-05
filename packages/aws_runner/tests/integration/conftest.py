@@ -1,10 +1,11 @@
-import subprocess
 from argparse import Namespace
+from functools import partial
 from unittest.mock import patch
 
 import boto3
 import pytest
 from moto import mock_aws
+from respond import respond
 
 from aws_runner.cloud.setup import setup
 
@@ -33,14 +34,19 @@ def cloud(tmp_path):
 
 
 @pytest.fixture
-def transport():
+def transport(tmp_path):
     with (
         patch("subprocess.run") as execute,
         patch("subprocess.Popen") as stream,
         patch("time.sleep"),
     ):
-        execute.return_value = subprocess.CompletedProcess([], 0, stdout="0\n")
-        yield execute, stream
+        state = {
+            "checkout": str(tmp_path / "checkout"),
+            "polls": ["0"],
+            "fail_copy": False,
+        }
+        execute.side_effect = partial(respond, state)
+        yield execute, stream, state
 
 
 @pytest.fixture
