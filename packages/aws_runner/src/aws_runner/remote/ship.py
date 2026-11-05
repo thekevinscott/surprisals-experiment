@@ -47,8 +47,6 @@ def ship(config, instance, directory):
         check=True,
     )
     environment = checkout / ".env.aws"
-    if not environment.exists():
-        environment = checkout / ".env"
     if environment.exists():
         subprocess.run(
             copy + [str(environment), f"{connection[-1]}:{ROOT}/repo/.env"], check=True
