@@ -1,19 +1,19 @@
 import asyncio
 import traceback
-from collections.abc import Callable
 
 from ....turn import Turn
 from ....utils.write import write
 from .run_sample import run_sample
-from ....database import ExperimentDatabase, QuestionDatabase
+from ....run import Run
+from ....sample import Sample
 
 
-async def write_solutions(turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase, *, on_delta: Callable[[str, str], None] | None = None) -> None:
+async def write_solutions(run: Run, turn: Turn) -> None:
     pool = asyncio.Semaphore(turn.config.t_pool_size)
 
-    async def generate(sample: int) -> None:
+    async def generate(position: int) -> None:
         async with pool:
-            await run_sample(turn, sample, database, problem, on_delta=on_delta)
+            await run_sample(run, Sample(turn, position))
 
     tasks = [asyncio.create_task(generate(sample)) for sample in range(turn.config.t_samples)]
     try:
