@@ -3,16 +3,14 @@
 import asyncio
 import json
 import shlex
-from inspect import signature
 from collections import deque
 from dataclasses import dataclass, field
+from inspect import signature
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from botbox import Botbox, RunResult
-
 from surprisals_experiment.config import Config
 
 
@@ -21,6 +19,7 @@ class Script:
     advice: deque = field(default_factory=deque)
     solutions: deque = field(default_factory=deque)
     sessions: list = field(default_factory=list)
+    commands: list = field(default_factory=list)
 
 
 class FakeSession:
@@ -45,21 +44,32 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
-        (self.mounts['/solution'] / 'main.py').write_text(reply)
-        events = [{'type': 'agent_end', 'willRetry': False, 'messages': [{
-            'role': 'assistant', 'stopReason': 'stop',
-            'content': [{'type': 'text', 'text': 'Solution written.'}],
-        }]}, {'type': 'agent_settled', 'aborted': False}]
-        with (self.output / 'stdout.txt').open('a') as stdout:
-            stdout.writelines(json.dumps(event) + '\n' for event in events)
+        (self.mounts["/solution"] / "main.py").write_text(reply)
+        events = [
+            {
+                "type": "agent_end",
+                "willRetry": False,
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "stopReason": "stop",
+                        "content": [{"type": "text", "text": "Solution written."}],
+                    }
+                ],
+            },
+            {"type": "agent_settled", "aborted": False},
+        ]
+        with (self.output / "stdout.txt").open("a") as stdout:
+            stdout.writelines(json.dumps(event) + "\n" for event in events)
 
     def close(self):
         self.closed = True
-        (self.output / 'transcripts').mkdir(parents=True, exist_ok=True)
-        (self.output / 'transcripts/session.jsonl').write_text('\n'.join(
-            json.dumps({'prompt': text}) for text in self.messages))
-        for name in ('stderr.txt', 'proxy.log'):
-            (self.output / name).write_text('')
+        (self.output / "transcripts").mkdir(parents=True, exist_ok=True)
+        (self.output / "transcripts/session.jsonl").write_text(
+            "\n".join(json.dumps({"prompt": text}) for text in self.messages)
+        )
+        for name in ("stderr.txt", "proxy.log"):
+            (self.output / name).write_text("")
         return RunResult(exit_code=0)
 
 
@@ -79,18 +89,29 @@ def botbox_script():
             pass
 
         async def build(self):
-            return 'fake'
+            return "fake"
 
         async def run(self, command, *, mounts, workdir, output):
+            script.commands.append(command)
             args = shlex.split(command)
-            assert workdir == '/solution'
+            assert args[args.index("-p") + 1] == "@/advice/advice.md"
+            advice_dir = next(
+                Path(source)
+                for source, target, mode in mounts
+                if target == "/advice" and mode == "ro"
+            )
+            assert workdir == "/solution"
             Path(output).mkdir(parents=True, exist_ok=True)
-            (Path(output) / 'stdout.txt').write_text('')
+            (Path(output) / "stdout.txt").write_text("")
             async with FakeSession(self.agent, mounts, output, script) as session:
-                await session.message(args[args.index('-p') + 1])
+                await session.message(
+                    (advice_dir / "advice.md").read_bytes().decode("utf-8")
+                )
             return session.result
 
-    with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', FakeBotbox):
+    with patch(
+        "surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox", FakeBotbox
+    ):
         yield script
 
 
@@ -105,20 +126,34 @@ def no_retry_wait(monkeypatch):
             return await waits(delay)
         return await real_sleep(delay, *args, **kwargs)
 
-    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    monkeypatch.setattr(asyncio, "sleep", sleep)
     return waits
 
 
 @pytest.fixture
 def config(tmp_path):
-    problem = tmp_path / 'problem'
+    problem = tmp_path / "problem"
     problem.mkdir()
-    (problem / 'question.txt').write_text('Read an integer and print its double.')
-    (problem / 'input_output.json').write_text(json.dumps({
-        'inputs': ['3\n', '7\n'], 'outputs': ['6\n', '14\n'],
-    }))
-    return Config(api_key='test-key', problem_dir=problem, output=tmp_path / 'run',
-                  u_model='u', t_model='t', t_samples=1, u_thinking='high', max_u_turns=1, window_forks=1)
+    (problem / "question.txt").write_text("Read an integer and print its double.")
+    (problem / "input_output.json").write_text(
+        json.dumps(
+            {
+                "inputs": ["3\n", "7\n"],
+                "outputs": ["6\n", "14\n"],
+            }
+        )
+    )
+    return Config(
+        api_key="test-key",
+        problem_dir=problem,
+        output=tmp_path / "run",
+        u_model="u",
+        t_model="t",
+        t_samples=1,
+        u_thinking="high",
+        max_u_turns=1,
+        window_forks=1,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -135,50 +170,91 @@ def chat_provider(botbox_script):
         if isinstance(reply, Exception):
             raise reply
         if isinstance(reply, dict):
-            status = reply.get('status', 200)
+            status = reply.get("status", 200)
             if status != 200:
-                return httpx2.Response(status, json={'error': {'message': 'provider failed'}})
-            deltas = reply['deltas']
-            finish = reply.get('finish', 'stop')
+                return httpx2.Response(
+                    status, json={"error": {"message": "provider failed"}}
+                )
+            deltas = reply["deltas"]
+            finish = reply.get("finish", "stop")
         else:
-            deltas = [{'role': 'assistant', 'reasoning': 'Thinking.'},
-                      {'role': 'assistant', 'content': reply[:2]}, {'role': 'assistant', 'content': reply[2:]}]
-            finish = 'stop'
+            deltas = [
+                {"role": "assistant", "reasoning": "Thinking."},
+                {"role": "assistant", "content": reply[:2]},
+                {"role": "assistant", "content": reply[2:]},
+            ]
+            finish = "stop"
         chunks = [
-            {'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1,
-             'model': 'u', 'choices': [{'index': 0, 'delta': delta, 'finish_reason': None}]}
+            {
+                "id": "test-chat",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "u",
+                "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+            }
             for delta in deltas
         ]
         if finish is not None:
-            chunks.append({
-                'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1, 'model': 'u',
-                'choices': [{'index': 0, 'delta': {}, 'finish_reason': finish,
-                             **(reply.get('finish_choice', {}) if isinstance(reply, dict) else {})}],
-            })
-        if isinstance(reply, dict) and 'usage' in reply:
-            chunks.append({
-                'id': 'test-chat', 'object': 'chat.completion.chunk', 'created': 1,
-                'model': 'u', 'choices': [], 'usage': reply['usage'],
-            })
-        if isinstance(reply, dict) and 'stream_error' in reply:
-            chunks.append({'error': reply['stream_error']})
-        stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
-        if isinstance(reply, dict) and reply.get('drop_stream'):
+            chunks.append(
+                {
+                    "id": "test-chat",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": "u",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {},
+                            "finish_reason": finish,
+                            **(
+                                reply.get("finish_choice", {})
+                                if isinstance(reply, dict)
+                                else {}
+                            ),
+                        }
+                    ],
+                }
+            )
+        if isinstance(reply, dict) and "usage" in reply:
+            chunks.append(
+                {
+                    "id": "test-chat",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": "u",
+                    "choices": [],
+                    "usage": reply["usage"],
+                }
+            )
+        if isinstance(reply, dict) and "stream_error" in reply:
+            chunks.append({"error": reply["stream_error"]})
+        stream = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks)
+        if isinstance(reply, dict) and reply.get("drop_stream"):
+
             class DroppedStream(httpx2.AsyncByteStream):
                 async def __aiter__(self):
                     yield stream.encode()
-                    raise httpx2.RemoteProtocolError('stream disconnected')
-            return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
-                                   stream=DroppedStream())
-        return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
-                              content=stream + 'data: [DONE]\n\n')
+                    raise httpx2.RemoteProtocolError("stream disconnected")
+
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                stream=DroppedStream(),
+            )
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=stream + "data: [DONE]\n\n",
+        )
 
     def client(**kwargs):
-        kwargs.setdefault('max_retries', 0)
-        return AsyncOpenAI(**kwargs,
-                           http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
+        kwargs.setdefault("max_retries", 0)
+        return AsyncOpenAI(
+            **kwargs,
+            http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)),
+        )
 
-    with patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client):
+    with patch("surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI", client):
         yield requests
 
 
@@ -210,20 +286,34 @@ async def scorer_provider():
         for token in tokens:
             offsets.append(offset)
             offset += len(token)
-        return httpx2.Response(200, json={
-            'id': 'score', 'object': 'text_completion', 'created': 1, 'model': body['model'],
-            'choices': [{'index': 0, 'text': '', 'finish_reason': 'stop', 'logprobs': {
-                'tokens': tokens, 'token_logprobs': [-value * math.log(2) for value in bits],
-                'text_offset': offsets,
-            }}],
-        })
+        return httpx2.Response(
+            200,
+            json={
+                "id": "score",
+                "object": "text_completion",
+                "created": 1,
+                "model": body["model"],
+                "choices": [
+                    {
+                        "index": 0,
+                        "text": "",
+                        "finish_reason": "stop",
+                        "logprobs": {
+                            "tokens": tokens,
+                            "token_logprobs": [-value * math.log(2) for value in bits],
+                            "text_offset": offsets,
+                        },
+                    }
+                ],
+            },
+        )
 
     def client(**kwargs):
         http = httpx2.AsyncClient(transport=httpx2.MockTransport(respond))
         clients.append(http)
         return AsyncOpenAI(**kwargs, http_client=http)
 
-    with patch('measure_surprisal.utils.client.AsyncOpenAI', client):
+    with patch("measure_surprisal.utils.client.AsyncOpenAI", client):
         yield script
     for client in clients:
         await client.aclose()
