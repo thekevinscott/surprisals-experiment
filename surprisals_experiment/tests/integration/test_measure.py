@@ -7,7 +7,7 @@ import httpx2
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.advice import Advice
 from surprisals_experiment.sdk.database import ExperimentDatabase
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
@@ -26,7 +26,7 @@ def scoring_config(config, scorer_provider):
 async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_provider):
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     assert read_score(config, 0) == {
         'score': 10,
     }
@@ -37,12 +37,11 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
 async def test_bits_drive_improvement_feedback_and_result(scoring_config, botbox_script, scorer_provider, chat_provider):
     config = scoring_config
     config.max_u_turns = 3
-    config.max_turns_without_improvement = 1
     pairs = [[('tiny', 10.5)], [('much longer', 3.0), (' but fewer bits', 5.25)], [('equal bits', 8.25)]]
     scorer_provider.replies.extend(pairs)
     botbox_script.advice.extend(''.join(token for token, _ in reply) for reply in pairs)
     botbox_script.solutions.extend([PASS] * 3)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
     result = json.loads(config.result_file.read_text())
     assert result['best_measurement'] == pytest.approx(8.25)
     assert result['cap_strategy'] == 'surprisal'
@@ -65,7 +64,7 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, botbox_s
     scorer_provider.replies.extend([[('good', 10.0)], [('bad', 1.0)]])
     botbox_script.advice.extend(['good', 'bad'])
     botbox_script.solutions.extend([PASS, 'print(0)'])
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert json.loads(config.result_file.read_text())['best_measurement'] == pytest.approx(10.0)
 
 
@@ -85,7 +84,7 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, botbox_s
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
     deltas = []
-    assert await run_experiment(config, on_delta=lambda *event: deltas.append(event))
+    assert await run_one_window(config, on_delta=lambda *event: deltas.append(event))
     assert len(scorer_provider.requests) == 2
     no_retry_wait.assert_awaited_once_with(10)
     assert any(kind == 'retry' and '1/8 in 10s' in text for kind, text in deltas)
@@ -96,7 +95,7 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
     scorer_provider.replies.extend(httpx2.Response(503, json={'error': {'message': 'scorer failed'}}) for _ in range(9))
     botbox_script.advice.append('preserve me')
     with pytest.raises(RuntimeError, match='Scorer request failed:.*8 retries exhausted'):
-        await run_experiment(scoring_config, on_delta=None)
+        await run_one_window(scoring_config, on_delta=None)
     assert len(scorer_provider.requests) == 9
     assert [call.args[0] for call in no_retry_wait.await_args_list] == [10, 20, 30, 60, 180, 300, 1200, 1800]
     assert (advice_directory(scoring_config, 'preserve me') / 'advice.txt').read_text() == 'preserve me'
@@ -113,12 +112,11 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
 
 async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider, tmp_path):
     config = scoring_config
-    config.max_u_turns = 3
-    config.max_turns_without_improvement = 1
+    config.max_u_turns = 2
     scorer_provider.replies.extend([[('same', 4.0), (' advice', 6.0)], [('same advice', 9.0)]])
     botbox_script.advice.extend(['same advice'] * 2)
     botbox_script.solutions.extend([PASS] * 2)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(scorer_provider.requests) == 1
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     for attempt in range(2):

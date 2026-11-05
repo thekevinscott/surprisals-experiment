@@ -3,7 +3,7 @@ import asyncio
 import json
 import pytest
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
@@ -22,7 +22,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     sources = [PASS] * n
     botbox_script.advice.append('double it')
     botbox_script.solutions.extend(sources)
-    result = await run_experiment(config, on_delta=None)
+    result = await run_one_window(config, on_delta=None)
     assert result == config.t_dir(0, 0) / "src"
     assert [s.messages for s in botbox_script.sessions] == [['double it']] * n
     assert len({id(s.agent) for s in botbox_script.sessions}) == n
@@ -54,7 +54,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     config.max_u_turns = 2
     botbox_script.advice.extend(['one', 'two'])
     botbox_script.solutions.extend([PASS, FAIL, PASS] + [PASS] * 3)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
@@ -137,7 +137,7 @@ async def test_closes_all_t_sessions_on_cancellation(config, botbox_script, monk
         await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    task = asyncio.create_task(run_experiment(config, on_delta=None))
+    task = asyncio.create_task(run_one_window(config, on_delta=None))
     try:
         await asyncio.wait_for(full.wait(), timeout=5)
         task.cancel()
@@ -166,7 +166,7 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
         return await original(self, text)
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    task = asyncio.create_task(run_experiment(config, on_delta=None))
+    task = asyncio.create_task(run_one_window(config, on_delta=None))
     try:
         await asyncio.wait_for(blocked.wait(), 5)
         task.cancel()

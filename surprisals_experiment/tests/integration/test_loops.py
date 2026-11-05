@@ -6,7 +6,7 @@ from advice_artifacts import advice_directory, read_score
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.database import QuestionDatabase
 
 PASS = 'print(int(input()) * 2)\n'
@@ -20,7 +20,7 @@ def describe_u_to_t_loop():
         # Extra scripted responses reveal accidental calls after completion.
         botbox_script.advice.extend(f'advice {i}' for i in range(6))
         botbox_script.solutions.extend([FAIL] * failures + [PASS, PASS])
-        result = await run_experiment(config, on_delta=None)
+        result = await run_one_window(config, on_delta=None)
         count = min(failures + 1, 5)
         expected = config.t_dir(count - 1, 0) / 'src' if failures < 5 else None
         assert result == expected
@@ -47,11 +47,10 @@ def describe_u_to_t_loop():
 def describe_advice_improvement():
     async def it_stops_without_a_first_success(config, botbox_script):
         limit = 2
-        config.max_u_turns = None
-        config.max_turns_without_improvement = limit
+        config.max_u_turns = limit
         botbox_script.advice.extend(['advice'] * 21)
         botbox_script.solutions.extend([FAIL] * 21)
-        assert await run_experiment(config, on_delta=None) is None
+        assert await run_one_window(config, on_delta=None) is None
         assert len(botbox_script.sessions) == limit
         assert json.loads(config.result_file.read_text())['attempts'] == limit
 
@@ -59,15 +58,14 @@ def describe_advice_improvement():
         (['long advice', 'tiny', 'long advice', 'tiny'], [[PASS, PASS]] * 4, 1),
         (['long advice', 'tiny', 'x'], [[PASS, PASS], [PASS, FAIL], [FAIL, PASS]], 0),
     ])
-    async def it_resets_only_for_strictly_shorter_all_pass_advice(
+    async def it_selects_only_strictly_shorter_all_pass_advice(
         config, botbox_script, chat_provider, advices, outcomes, best_attempt,
     ):
-        config.max_u_turns = None
-        config.max_turns_without_improvement = 2
+        config.max_u_turns = len(advices)
         config.t_samples = 2
         botbox_script.advice.extend(advices + ['must not run'])
         botbox_script.solutions.extend(source for batch in outcomes for source in batch)
-        result = await run_experiment(config, on_delta=None)
+        result = await run_one_window(config, on_delta=None)
         assert result == config.t_dir(best_attempt, 0) / 'src'
         assert len(botbox_script.sessions) == 2 * len(advices)
         assert json.loads(config.result_file.read_text()) == {
@@ -100,7 +98,7 @@ def describe_advice_improvement():
 
         monkeypatch.setattr(owner, method, cancel_later)
         with pytest.raises(asyncio.CancelledError):
-            await run_experiment(config, on_delta=None)
+            await run_one_window(config, on_delta=None)
         assert json.loads(config.result_file.read_text()) == {
             'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'src'),
         }
@@ -113,7 +111,7 @@ def describe_run_layout():
         config.max_u_turns = 2
         botbox_script.advice.extend(['long advice', 'short'])
         botbox_script.solutions.extend([PASS, PASS])
-        await run_experiment(config, on_delta=None)
+        await run_one_window(config, on_delta=None)
         window = config.output / 'windows/0'
         fork = window / 'forks/0'
         assert json.loads((window / 'window.json').read_text()) == {}

@@ -3,14 +3,14 @@
 import json
 from unittest.mock import patch
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 
 
 async def test_finished_window_rerun_does_not_ask_u(config, botbox_script, chat_provider):
     botbox_script.advice.append('Double it.')
     botbox_script.solutions.append('print(int(input()) * 2)\n')
 
-    solution = await run_experiment(config, on_delta=None)
+    solution = await run_one_window(config, on_delta=None)
     assert solution == config.t_dir(0, 0) / 'src'
     assert json.loads(config.result_file.read_text())['success']
     assert len(chat_provider) == 1
@@ -18,7 +18,7 @@ async def test_finished_window_rerun_does_not_ask_u(config, botbox_script, chat_
 
     with patch('surprisals_experiment.sdk.utils.u_chat.ChatSession.prompt',
                side_effect=AssertionError('Finished window asked U again')) as prompt:
-        assert await run_experiment(config, on_delta=None) == solution
+        assert await run_one_window(config, on_delta=None) == solution
         prompt.assert_not_awaited()
     assert len(chat_provider) == 1
     assert len(botbox_script.sessions) == 1

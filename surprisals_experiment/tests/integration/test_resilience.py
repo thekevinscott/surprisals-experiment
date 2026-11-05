@@ -12,7 +12,7 @@ from botbox import RunResult
 
 from conftest import FakeSession
 from surprisals_experiment.retry_policy import DELAYS
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)'
@@ -51,7 +51,7 @@ async def test_failed_reply_retries_original_history(
 ):
     botbox_script.advice.extend([failure, 'Use a loop'])
     botbox_script.solutions.append(PASS)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(chat_provider) == 2
     assert chat_provider[0]['messages'] == chat_provider[1]['messages']
     no_retry_wait.assert_awaited_once_with(10)
@@ -79,7 +79,7 @@ async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
     with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', FailingEntry):
-        assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+        assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(builds) == 2
     no_retry_wait.assert_awaited_once_with(10)
 
@@ -127,7 +127,7 @@ async def test_run_continues_after_u_output_limit_exhaustion(config, botbox_scri
     config.max_u_turns = 2
     botbox_script.advice.extend([length_reply()] * 9 + ['Use a loop'])
     botbox_script.solutions.append(PASS)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
 
 
 async def test_cancellation_closes_t_and_keeps_u_artifacts(config, botbox_script, monkeypatch):
@@ -139,7 +139,7 @@ async def test_cancellation_closes_t_and_keeps_u_artifacts(config, botbox_script
         await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', block)
-    task = asyncio.create_task(run_experiment(config, on_delta=None))
+    task = asyncio.create_task(run_one_window(config, on_delta=None))
     try:
         await asyncio.wait_for(started.wait(), timeout=5)
     finally:
@@ -157,7 +157,7 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
         "import os, time\nfrom pathlib import Path\n"
         "Path('pid').write_text(str(os.getpid()))\ntime.sleep(60)\n"
     )
-    task = asyncio.create_task(run_experiment(config, on_delta=None))
+    task = asyncio.create_task(run_one_window(config, on_delta=None))
     pid_file = config.t_dir(0, 0) / 'src' / 'pid'
     try:
         async with asyncio.timeout(5):
@@ -195,7 +195,7 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
         botbox_script.advice.append('Use a loop')
         with patch('surprisals_experiment.sdk.utils.botbox_run.Botbox', BrokenBotbox):
             with pytest.raises(RuntimeError, match=failure):
-                await run_experiment(config, on_delta=None)
+                await run_one_window(config, on_delta=None)
         diagnostics = (config.attempt_dir(0) / 'error.txt').read_text()
         assert failure in diagnostics
         assert 'Traceback' in diagnostics

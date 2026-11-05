@@ -7,7 +7,7 @@ from surprisals_experiment.prompt import PROMPTS
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.prepare_flush import prepare_flush
 
@@ -32,7 +32,7 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
     botbox_script.advice.extend([*advices, 'final'])
     for all_passed in [*passed, True]:
         botbox_script.solutions.extend([PASS, OTHER_PASS if all_passed else FAIL])
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     messages = chat_provider[-1]['messages']
     assert len(messages) == 2
     assert messages[1]['role'] == 'user'
@@ -60,7 +60,7 @@ async def test_sends_no_chat_history(config, botbox_script, chat_provider):
     config.max_u_turns = 3
     botbox_script.advice.extend(['double it', 'double', 'ok'])
     botbox_script.solutions.extend([PASS] * 3)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     assert [len(request['messages']) for request in chat_provider] == [2, 2, 2]
     assert all(message['role'] != 'assistant' for request in chat_provider for message in request['messages'])
 
@@ -88,11 +88,11 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, botbox_s
     scorer_provider.replies.extend(scores)
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-        'max_u_turns': 3, 'max_turns_without_improvement': 3,
+        'max_u_turns': 3,
     }))
     botbox_script.advice.extend(['Use a two-pointer', 'Sweep.', 'done'])
     botbox_script.solutions.extend([PASS] * 3)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     prompt = chat_provider[2]['messages'][1]['content']
     assert prompt.count('<attempt>') == 1
     assert '<index>0</index>' in prompt
@@ -113,7 +113,7 @@ async def test_shows_only_the_selected_measure_and_no_results(
     scorer_provider.replies.extend([[('double', 2.5)], [('next', 1.0)]])
     botbox_script.advice.extend(['double', 'next'])
     botbox_script.solutions.extend([PASS, OTHER_PASS] * 2)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     prompt = chat_provider[1]['messages'][1]['content']
     if measure == 'characters':
         assert '<length>6 characters</length>' in prompt

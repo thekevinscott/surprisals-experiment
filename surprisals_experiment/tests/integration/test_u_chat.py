@@ -5,7 +5,7 @@ from contextlib import nullcontext
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)\n'
@@ -62,7 +62,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
         return result
 
     monkeypatch.setattr(FakeSession, 'message', write_helpers)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
     assert len(botbox_script.sessions) == 4
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
@@ -81,12 +81,11 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
 async def test_sends_and_records_exact_roles(
     config, botbox_script, chat_provider,
 ):
-    config.max_u_turns = None
-    config.max_turns_without_improvement = 2
+    config.max_u_turns = 3
     chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
     botbox_script.advice.extend(map(chunked, ['tiny', 'long advice', 'longer advice']))
     botbox_script.solutions.extend([PASS] * 3)
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(chat_provider) == 3
     for request in chat_provider:
         assert {m['role'] for m in request['messages']} <= {'system', 'user', 'assistant'}
@@ -130,7 +129,7 @@ async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_scri
         'finish': 'length', 'usage': USAGE,
     }] * 9)
     with pytest.raises(RuntimeError, match='U chat'):
-        await run_experiment(config, on_delta=None)
+        await run_one_window(config, on_delta=None)
     transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
     assert transcript[-1] == {'role': 'assistant', 'content': 'partial', '_complete': False}
     usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
@@ -141,14 +140,14 @@ async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_scri
 async def test_does_not_accept_empty_replies(config, botbox_script, no_retry_wait):
     botbox_script.advice.extend([{'deltas': [{'role': 'assistant'}], 'finish': None}] * 9)
     with pytest.raises(RuntimeError, match='U chat'):
-        await run_experiment(config, on_delta=None)
+        await run_one_window(config, on_delta=None)
     assert not botbox_script.sessions
 
 
 async def test_preserves_the_prompt_on_provider_failure(config, botbox_script, no_retry_wait):
     botbox_script.advice.extend([{'status': 400}] * 9)
     with pytest.raises(RuntimeError, match='provider failed'):
-        await run_experiment(config, on_delta=None)
+        await run_one_window(config, on_delta=None)
     assert not botbox_script.sessions
     assert (config.problem_dir / 'question.txt').read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
 

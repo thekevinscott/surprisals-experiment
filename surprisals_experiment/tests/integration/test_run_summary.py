@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from advice_artifacts import write_advice
 
 SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()
@@ -27,7 +27,7 @@ def describe_run_summary():
         config.max_u_turns = count
         botbox_script.advice.extend(['ok'] * count)
         botbox_script.solutions.extend([FAIL] * failures + [PASS])
-        await run_experiment(config, on_delta=None)
+        await run_one_window(config, on_delta=None)
         summary, *attempts = report(config.output)
         assert summary['cap'] is None
         assert summary['cap_status'] == 'uncapped'
@@ -42,7 +42,7 @@ def describe_run_summary():
         botbox_script.advice.append('ok')
         botbox_script.solutions.extend([RuntimeError('provider unavailable')] * 9)
         with pytest.raises(RuntimeError):
-            await run_experiment(config, on_delta=None)
+            await run_one_window(config, on_delta=None)
         summary, attempt = report(config.output)
         assert summary['completed_t_evaluations'] == 0
         assert summary['evaluation_attempts_to_success'] is None
