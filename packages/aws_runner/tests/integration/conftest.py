@@ -40,6 +40,8 @@ def transport(tmp_path):
         patch("subprocess.Popen") as stream,
         patch("time.sleep"),
     ):
+        stream.return_value.poll.return_value = None
+        stream.return_value.wait.return_value = 0
         state = {
             "checkout": str(tmp_path / "checkout"),
             "polls": ["0"],

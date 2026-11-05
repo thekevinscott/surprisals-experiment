@@ -18,12 +18,14 @@ Each run launches On-Demand compute and a tagged gp3 data volume. The volume
 is mounted at `/srv/aws-runner`; commands run from its `repo` checkout directory.
 The root disk follows the stock AMI's delete-on-termination setting; the data
 disk explicitly survives termination. Systemd runs the command as Ubuntu and
-streams its journal. Final rsync must succeed before termination and deletion;
+streams its saved stdout and stderr. Final rsync must succeed before termination and deletion;
 Stopping a run with Ctrl-C or SIGTERM terminates its instance and deletes its
 data disk, reporting cleanup actions and results to stderr, then exits non-zero.
 A second Ctrl-C or SIGTERM during stop cleanup prints an abort warning and exits
 immediately; AWS resources may remain. Other failures, including SSH or collection
 failures, preserve the instance and disk for inspection and resume.
+The command's stdout and stderr are saved as `command.stdout.log` and `command.stderr.log` in the run folder and fully replayed to their corresponding local streams before returning, including on reattachment.
+Dropped output connections reconnect from the last bytes delivered locally, without aborting the run or duplicating output.
 The command's exit code is returned after collection and cleanup.
 
 Run `uv run pytest` and `uv run ruff check .` locally. Tests use moto and mocked

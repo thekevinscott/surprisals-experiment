@@ -12,6 +12,8 @@ def mirror(config, instance, directory):
         [
             "rsync",
             "-az",
+            "--exclude=/stdout.log",
+            "--exclude=/stderr.log",
             "-e",
             shlex.join(connection[:-1]),
             f"{connection[-1]}:{ROOT}/run/",
