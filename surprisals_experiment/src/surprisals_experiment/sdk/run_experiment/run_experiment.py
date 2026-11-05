@@ -27,9 +27,9 @@ def start(config: Config) -> None:
     write(config.fork_dir / "fork.json", "{}\n")
 
 
-async def feedback(turn: Turn, database: ExperimentDatabase, problem: QuestionDatabase):
-    await write_feedback(turn, database, problem)
-    return await write_result(turn, database)
+async def feedback(run: Run, turn: Turn):
+    await write_feedback(turn, run.database, run.problem)
+    return await write_result(turn, run.database)
 
 
 actions = {
@@ -62,7 +62,7 @@ async def run_experiment(
             advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
             await actions["unscored"](turn, advice, on_delta=on_delta)
             await actions["solutions_missing"](run, turn)
-            best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
+            best_solution, turns_without_improvement = await actions["feedback_missing"](run, turn)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break
     if best_solution is None:
