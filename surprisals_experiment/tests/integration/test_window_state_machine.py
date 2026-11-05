@@ -33,11 +33,11 @@ async def test_finished_window_rerun_does_not_ask_u(config, botbox_script, chat_
 
 
 @pytest.mark.parametrize('passes', [True, False])
-@pytest.mark.parametrize('window_turns', [2, 4])
-async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_provider, passes, window_turns):
+@pytest.mark.parametrize('window_solo_turns', [0, 2])
+async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_provider, passes, window_solo_turns):
     config.window_forks = 4
     config.fork_turns = 2
-    config.window_turns = window_turns
+    config.window_solo_turns = window_solo_turns
     config.max_u_turns = None
     entered = set()
     together = asyncio.Event()
@@ -72,10 +72,10 @@ async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_
           patch.object(FakeSession, 'message', solution), patch.object(ChatSession, 'prompt', reply)):
         result = await run_one_window(config, on_delta=None)
     winner = 2 if passes else 0
-    assert set(calls) == {(fork, turn) for fork in range(4) for turn in range(2)} | {(winner, turn) for turn in range(2, window_turns)}
-    assert len(calls) == len(chat_provider) == 6 + window_turns
+    assert set(calls) == {(fork, turn) for fork in range(4) for turn in range(2)} | {(winner, turn) for turn in range(2, 2 + window_solo_turns)}
+    assert len(calls) == len(chat_provider) == 8 + window_solo_turns
     assert len({path for paths in chats.values() for path in paths}) == 4
-    expected = Turn(config, window_turns - 1, 0, winner).t_dir(0) / 'src' if passes else None
+    expected = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'src' if passes else None
     assert result == expected
     saved = json.loads(config.result_file.read_text())
     assert saved['success'] == passes
@@ -89,7 +89,7 @@ async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_
 async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_provider, interrupted_turn):
     config.window_forks = 4
     config.fork_turns = 2
-    config.window_turns = 4
+    config.window_solo_turns = 2
     config.max_u_turns = None
     calls = []
     original = actions['advice_missing']
@@ -160,7 +160,7 @@ async def test_parallel_windows_obey_run_stop_rule(config, botbox_script, chat_p
 
     config.window_forks = 4
     config.fork_turns = 1
-    config.window_turns = 2
+    config.window_solo_turns = 1
     config.max_u_turns = None
     botbox_script.advice.extend(['Double.'] * 10)
     botbox_script.solutions.extend(['print(int(input()) * 2)'] * 10)

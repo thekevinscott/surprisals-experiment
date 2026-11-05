@@ -12,6 +12,6 @@ async def state(run: Run, window: Window) -> str:
             return "fork_pending"
     row = await read_window(run, window)
     fork = Fork(window.config, window.position, row["winner"])
-    if await fork_state(run, fork, window.config.window_turns) != "fork_done":
+    if await fork_state(run, fork, window.config.fork_turns + window.config.window_solo_turns) != "fork_done":
         return "solo_pending"
     return "window_done"

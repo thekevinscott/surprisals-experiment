@@ -8,4 +8,4 @@ from .read_window import read_window
 async def solo_pending(run: Run, window: Window) -> None:
     row = await read_window(run, window)
     await run_fork(run, Fork(window.config, window.position, row["winner"]),
-                   window.config.window_turns)
+                   window.config.fork_turns + window.config.window_solo_turns)
