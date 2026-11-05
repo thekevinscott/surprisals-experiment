@@ -1,6 +1,7 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
 import json
+from derived_prompt import derived_prompt
 import signal
 from contextlib import nullcontext
 from unittest.mock import patch
@@ -36,7 +37,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     assert json.loads(config.result_file.read_text())['success']
     assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
     assert not (config.attempt_dir(0) / 'error.txt').exists()
-    assert 'timed out' not in (config.attempt_dir(0) / 'feedback.txt').read_text()
+    assert 'timed out' not in (await derived_prompt(config))
 
 
 async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(config, botbox_script, monkeypatch):

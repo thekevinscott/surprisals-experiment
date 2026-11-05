@@ -10,4 +10,3 @@ async def turn_pending(run: Run, fork: Fork) -> None:
     position = row["latest"] if row["pending"] else row["completed"]
     turn = Turn(fork.config, position, fork.window, fork.position)
     await run_turn(run, turn)
-    await run.actions["feedback"](run, turn)

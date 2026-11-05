@@ -1,6 +1,7 @@
 """Measurement, feedback and scorer recovery through the real HTTP client."""
 
 import json
+from derived_prompt import derived_prompt
 from advice_artifacts import advice_directory, read_score
 
 import httpx2
@@ -30,7 +31,7 @@ async def test_character_metadata_has_no_tokens(config, botbox_script, scorer_pr
     assert read_score(config, 0) == {
         'score': 10,
     }
-    assert '<length>10 characters</length>' in (config.attempt_dir(0) / 'feedback.txt').read_text()
+    assert '<length>10 characters</length>' in (await derived_prompt(config))
     assert not scorer_provider.requests
 
 
@@ -50,11 +51,12 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, botbox
         assert metadata['score'] == pytest.approx(sum(bits for _, bits in tokens))
         assert [token for token, _ in metadata['tokens']] == [token for token, _ in tokens]
         assert [bits for _, bits in metadata['tokens']] == pytest.approx([bits for _, bits in tokens])
-        feedback = (config.attempt_dir(attempt) / 'feedback.txt').read_text()
+        feedback = (chat_provider[attempt + 1]['messages'][-1]['content']
+                    if attempt + 1 < len(pairs) else await derived_prompt(config))
         assert '<bits>' in feedback
     assert 'much longer<3.0> but fewer bits<5.2>' in chat_provider[2]['messages'][-1]['content']
-    assert '<index>1</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
-    assert '<index>1</index>' in (config.attempt_dir(2) / 'feedback.txt').read_text()
+    assert '<index>1</index>' in (await derived_prompt(config))
+    assert '<index>1</index>' in (await derived_prompt(config))
     assert all(request['model'] == config.t_model for request in scorer_provider.requests)
 
 
@@ -123,7 +125,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         metadata = read_score(config, attempt)
         assert metadata['score'] == pytest.approx(10.0)
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
-    assert '<index>0</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
+    assert '<index>0</index>' in (await derived_prompt(config))
     fresh_measure = AdviceMeasure("surprisal", base_url=config.scorer_base_url, model=config.t_model)
     write(tmp_path / "advice.txt", "same advice")
     assert await Advice(tmp_path / "advice.txt", fresh_measure, config.output).score() == pytest.approx(10.0)

@@ -57,9 +57,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
-    assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
     assert feedback == await QuestionDatabase(config.problem_dir).question
-    assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     summary, *_ = report(config.output)
     assert summary['completed_t_evaluations'] == 6
@@ -145,7 +143,6 @@ async def test_closes_all_t_sessions_on_cancellation(config, botbox_script, monk
             await asyncio.wait_for(task, timeout=5)
         assert all(session.closed for session in botbox_script.sessions)
         assert not config.result_file.exists()
-        assert not (config.attempt_dir(0) / 'feedback.txt').exists()
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
@@ -178,7 +175,6 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
         assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
         assert not (config.t_dir(0, 1) / 'tests.json').exists()
         assert not config.result_file.exists()
-        assert not (config.attempt_dir(0) / 'feedback.txt').exists()
         summary, attempt = report(config.output)
         assert summary['completed_evaluation_attempts'] == 0
         assert summary['completed_t_evaluations'] == 1

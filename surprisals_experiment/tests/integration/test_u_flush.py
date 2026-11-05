@@ -50,7 +50,6 @@ async def test_shows_only_best_all_pass_attempt(config, botbox_script, chat_prov
             f'<advice>\n{advices[best]}\n</advice>\n'
             f'<code>\n{code}\n</code>\n</attempt>'
         )
-    assert (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text() == prompt
     assert chat_provider[0]['messages'][1]['content'] == question
     context = (PROMPTS / 'u/flush/context.txt').read_text()
     assert context in messages[0]['content']
