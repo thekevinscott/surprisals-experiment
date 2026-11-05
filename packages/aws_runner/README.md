@@ -48,6 +48,9 @@ resolved by the command. If `.env` exists at the local repository root, it is
 copied over SSH to the remote checkout as `.env`; otherwise no env file is
 shipped. The runner does not read or parse its contents. The copied file remains
 on the data disk until deletion, including on disks kept after failures.
+If `LABNOTES_RUN_STATE` names an existing local file, a new run copies it to
+`/srv/aws-runner/run-state.json` and exports that path in the saved command script.
+Recovery reuses that copy and export so the command can read the scorer state.
 
 Switch an experiment to AWS by changing one line in `experiment.toml`: prefix
 its existing command with `uv run --project packages/aws_runner aws_runner run
