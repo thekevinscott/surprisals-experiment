@@ -19,6 +19,7 @@ from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
 from ..turn import Turn
 from ..run import Run
+from .run_turn import run_turn
 
 
 def start(run: Run) -> None:
@@ -41,7 +42,8 @@ actions = {
     "solution_missing": produce_code,
     "untested": run_tests,
     "sample_done": Stop,
-    "feedback_missing": feedback,
+    "turn_done": Stop,
+    "feedback": feedback,
 }
 
 
@@ -60,10 +62,8 @@ async def run_experiment(
         actions["not_started"](run)
         for attempt in attempts:
             turn = Turn(config, attempt)
-            await actions["advice_missing"](run, turn)
-            await actions["unscored"](run, turn)
-            await actions["solutions_missing"](run, turn)
-            await actions["feedback_missing"](run, turn)
+            await run_turn(run, turn)
+            await actions["feedback"](run, turn)
             result, best_solution = await read_progress(run, turn)
             if result["stale"] >= config.max_turns_without_improvement:
                 break
