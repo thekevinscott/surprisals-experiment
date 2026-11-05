@@ -2,6 +2,7 @@ import subprocess
 import time
 
 from aws_runner.config import ROOT
+from aws_runner.remote.mirror import mirror
 from aws_runner.remote.ssh import ssh
 
 
@@ -10,6 +11,7 @@ def monitor(config, instance, directory):
     stream = subprocess.Popen(
         connection + ["sudo journalctl -u aws-runner --lines=all -f -o cat --no-pager"]
     )
+    next_mirror = time.monotonic() + 10
     try:
         while True:
             result = subprocess.run(
@@ -22,6 +24,9 @@ def monitor(config, instance, directory):
             if result.stdout.strip():
                 time.sleep(1)
                 return int(result.stdout.strip())
+            if time.monotonic() >= next_mirror:
+                mirror(config, instance, directory)
+                next_mirror = time.monotonic() + 10
             time.sleep(1)
     finally:
         stream.terminate()
