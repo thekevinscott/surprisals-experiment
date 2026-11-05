@@ -1,6 +1,6 @@
 from argparse import Namespace
 from functools import partial
-from unittest.mock import patch
+from unittest.mock import DEFAULT, patch
 
 import boto3
 import pytest
@@ -65,6 +65,7 @@ def capacity_shortage(cloud):
         patch.object(
             ec2,
             "run_instances",
+            wraps=original,
             side_effect=[
                 ClientError(
                     {
@@ -75,8 +76,9 @@ def capacity_shortage(cloud):
                     },
                     "RunInstances",
                 ),
+                DEFAULT,
             ],
         ) as allocate,
         patch("time.sleep") as sleep,
     ):
-        yield allocate, sleep, original
+        yield allocate, sleep
