@@ -16,11 +16,16 @@ class Advice:
 
     def save(self) -> None:
         write(self.directory / "advice.txt", self.text.encode("utf-8"))
+        path = self.directory / "advice.json"
+        if not path.exists():
+            write(path, "{}\n")
 
     async def score(self, on_delta=None) -> int | float:
         path = self.directory / "advice.json"
         if path.exists():
-            return json.loads(path.read_text())["score"]
+            metadata = json.loads(path.read_text())
+            if "score" in metadata:
+                return metadata["score"]
         score, tokens = await self.measure.score(self.text, on_delta=on_delta)
         write(path, json.dumps({
             "score": score, **({"tokens": tokens} if tokens is not None else {}),

@@ -1,3 +1,5 @@
+import json
+
 from ....run import Run
 from ....turn import Turn
 from ....advice import Advice
@@ -11,3 +13,5 @@ async def write_advice(run: Run, turn: Turn) -> None:
     write(turn.u_dir / "advice.txt", (await run.u_chat.prompt(prompt, on_delta=run.on_delta)).encode("utf-8"))
     advice = Advice(turn.u_dir / "advice.txt", config.advice_measure, config.output)
     advice.save()
+    write(turn.attempt_dir / "metadata.json",
+          json.dumps({"advice": str(advice.directory.relative_to(config.output))}, indent=2) + "\n")

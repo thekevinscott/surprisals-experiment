@@ -1,6 +1,6 @@
 WITH completed AS (
   SELECT * FROM evaluated_turns
-  WHERE window = :window AND fork = :fork AND turn <= :turn AND samples = :samples
+  WHERE window = :window AND fork = :fork AND turn <= :turn AND samples = :samples AND score IS NOT NULL
 ), improvements AS (
   SELECT current.turn FROM completed current
   WHERE current.passed = 1 AND NOT EXISTS (
