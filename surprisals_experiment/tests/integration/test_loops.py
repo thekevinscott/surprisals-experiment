@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+from unittest.mock import patch
+from derived_prompt import derived_prompt
 from advice_artifacts import advice_directory, read_score
 
 import pytest
@@ -36,11 +38,10 @@ def describe_u_to_t_loop():
             assert tests['passed'] == (2 if i == failures else 0)
             assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
-                feedback = (attempt / 'feedback.txt').read_text()
+                feedback = chat_provider[i + 1]['messages'][-1]['content']
                 assert feedback == await QuestionDatabase(config.problem_dir).question
                 assert chat_provider[i + 1]['messages'][-1]['content'] == feedback
         assert config.error_file.exists() == (failures == 5)
-        assert (config.attempt_dir(count - 1) / 'feedback.txt').exists()
         assert all(s.closed for s in botbox_script.sessions)
 
 
@@ -76,13 +77,13 @@ def describe_advice_improvement():
                 'advice': str(advice_directory(config, advice).relative_to(config.output)),
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]
-        feedback = (config.attempt_dir(len(advices) - 1) / 'feedback.txt').read_text()
+        feedback = await derived_prompt(config)
         assert f'<index>{best_attempt}</index>' in feedback
         assert f'<length>{len(advices[best_attempt])} characters</length>' in feedback
         assert all(session.closed for session in botbox_script.sessions)
 
 
-    async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script, monkeypatch):
+    async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script):
         from conftest import FakeSession
 
         config.max_u_turns = None
@@ -92,16 +93,15 @@ def describe_advice_improvement():
         original = getattr(owner, method)
 
         async def cancel_later(session, *args, **kwargs):
-            if config.result_file.exists():
+            if (config.t_dir(0, 0) / 'tests.json').exists():
                 raise asyncio.CancelledError
             return await original(session, *args, **kwargs)
 
-        monkeypatch.setattr(owner, method, cancel_later)
-        with pytest.raises(asyncio.CancelledError):
-            await run_one_window(config, on_delta=None)
-        assert json.loads(config.result_file.read_text()) == {
-            'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'src'),
-        }
+        with patch.object(owner, method, cancel_later):
+            with pytest.raises(asyncio.CancelledError):
+                await run_one_window(config, on_delta=None)
+        assert not config.result_file.exists()
+        assert '<advice>\nlong advice\n</advice>' in await derived_prompt(config)
         assert all(session.closed for session in botbox_script.sessions)
         assert (config.u_transcripts / 'messages.jsonl').exists()
 
@@ -123,5 +123,4 @@ def describe_run_layout():
             assert read_score(config, turn)['score'] == len(advice)
             assert (directory / 'ts/0/tests.json').exists()
             assert (directory / 'ts/0/src/main.py').read_text() == PASS
-        assert (fork / 'turns/0/feedback.txt').exists()
         assert not (config.output / 'attempts').exists()

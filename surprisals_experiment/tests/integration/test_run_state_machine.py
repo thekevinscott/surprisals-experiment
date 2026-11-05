@@ -80,7 +80,6 @@ async def test_window_zero_always_continues_and_restart_does_not_repeat_work(con
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
-    assert (config.output / 'windows/1/forks/0/turns/0/feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2
 
 

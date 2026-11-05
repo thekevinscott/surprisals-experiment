@@ -26,7 +26,6 @@ async def test_interrupted_second_turn_resumes_without_repeating_first(config, b
             await run_one_window(config, on_delta=None)
     first = config.t_dir(0, 0) / 'generation.json'
     before = (first.read_bytes(), first.stat().st_mtime_ns)
-    assert (config.attempt_dir(0) / 'feedback.txt').exists()
     assert (config.attempt_dir(1) / 'metadata.json').exists()
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 1
@@ -36,5 +35,4 @@ async def test_interrupted_second_turn_resumes_without_repeating_first(config, b
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (first.read_bytes(), first.stat().st_mtime_ns) == before
-    assert (config.attempt_dir(1) / 'feedback.txt').exists()
     assert json.loads(config.result_file.read_text())['attempts'] == 2

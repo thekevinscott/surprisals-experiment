@@ -65,7 +65,6 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
     assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
     assert len(botbox_script.sessions) == 4
     feedback = chat_provider[1]['messages'][-1]['content']
-    assert feedback == (config.attempt_dir(0) / 'feedback.txt').read_text()
     assert '/solutions/' not in feedback
     assert '<length>11 characters</length>' in feedback
     assert feedback.count('<file path="helper.py">\nVALUE = 42\n</file>') == 1

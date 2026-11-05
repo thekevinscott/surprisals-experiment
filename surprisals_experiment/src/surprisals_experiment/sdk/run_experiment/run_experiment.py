@@ -9,10 +9,9 @@ from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
 from .actions.write_solutions.produce_code import produce_code
 from .actions.run_tests import run_tests
-from .actions.write_result import read_progress
+from .actions.write_result import read_progress, write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
-from .actions.feedback import feedback
 from .actions.start import start
 from ..utils.u_chat import open_u_chat
 from ..database import ExperimentDatabase, QuestionDatabase
@@ -39,7 +38,6 @@ actions = {
     "window_done": Stop,
     "window_pending": window_pending,
     "run_done": Stop,
-    "feedback": feedback,
 }
 
 
@@ -54,6 +52,7 @@ async def run_experiment(
     async with open_u_chat(config) as u_chat:
         run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
         await state_machine(state, actions, run)
+        await write_result(run)
         result, best_solution = await read_progress(run)
     if best_solution is None:
         write(config.error_file, f"No passing solution after {result['attempts']} U turns\n")
