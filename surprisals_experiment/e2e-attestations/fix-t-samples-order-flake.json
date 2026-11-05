@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793843559,
+  "exit_code": 0,
+  "commit": "5a36af66d59f010b9f541276aa07ecade7eb3d50",
+  "branch": "fix/t-samples-order-flake"
+}

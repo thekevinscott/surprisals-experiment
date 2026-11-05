@@ -70,7 +70,6 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
     size = 2
     config.t_samples = 5
     config.t_pool_size = size
-    botbox_script.solutions.extend(['print(6)', 'print(0)', 'print(6)', 'print(0)', 'print(6)'])
     started = [asyncio.Event() for _ in range(5)]
     release = [asyncio.Event() for _ in range(5)]
     finished = [asyncio.Event() for _ in range(5)]
@@ -84,6 +83,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
         active += 1
         peak = max(peak, active)
         try:
+            self.script.solutions.append('print(6)' if sample % 2 == 0 else 'print(0)')
             reply = await original(self, text)
             started[sample].set()
             await release[sample].wait()
