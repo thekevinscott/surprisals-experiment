@@ -1,4 +1,4 @@
-"""Prove T events tailed from stdout.txt reach redirected CLI stdout before the run ends."""
+"""Prove T events tailed from stdout.txt reach labnotes log blocks before the run ends."""
 
 import json
 import os
@@ -9,8 +9,7 @@ import time
 import unittest
 from pathlib import Path
 
-
-RUNNER = r'''
+RUNNER = r"""
 import asyncio
 import json
 import sys
@@ -65,47 +64,70 @@ with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', Box),
     sys.argv = ['surprisals_experiment.cli.run', '--output', str(root/'run'),
                 '--window-forks', '1', '--t-samples', '1', '--max-u-turns', '1', str(root)]
     runpy.run_module('surprisals_experiment.cli.run', run_name='__main__')
-'''
+"""
 
 
 class StreamingTest(unittest.TestCase):
-    def test_t_stdout_is_flushed_before_run_end(self):
-        with tempfile.TemporaryDirectory(prefix='spar-stream-test-') as directory:
+    def test_t_blocks_are_written_before_run_end(self):
+        with tempfile.TemporaryDirectory(prefix="spar-stream-test-") as directory:
             root = Path(directory)
-            (root / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-            (root / 'question.txt').write_text('Print 7.')
-            (root / 'input_output.json').write_text(json.dumps({'inputs': [''], 'outputs': ['7']}))
+            (root / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
+            (root / "question.txt").write_text("Print 7.")
+            (root / "input_output.json").write_text(
+                json.dumps({"inputs": [""], "outputs": ["7"]})
+            )
             env = dict(os.environ)
-            env.pop('PYTHONUNBUFFERED', None)
-            with (root/'stdout.log').open('w') as stdout, (root/'stderr.log').open('w') as stderr:
-                process = subprocess.Popen([sys.executable, '-c', RUNNER, str(root)],
-                                           stdout=stdout, stderr=stderr, env=env, cwd=root)
+            env.pop("PYTHONUNBUFFERED", None)
+            log = root / "log.jsonl"
+            log.touch()
+            env["LABNOTES_LOG"] = str(log)
+            with (
+                (root / "stdout.log").open("w") as stdout,
+                (root / "stderr.log").open("w") as stderr,
+            ):
+                process = subprocess.Popen(
+                    [sys.executable, "-c", RUNNER, str(root)],
+                    stdout=stdout,
+                    stderr=stderr,
+                    env=env,
+                    cwd=root,
+                )
                 try:
                     deadline = time.monotonic() + 10
                     while time.monotonic() < deadline:
-                        text = (root/'stdout.log').read_text()
-                        if 'TEXT_BEFORE_END' in text or process.poll() is not None:
+                        text = log.read_text()
+                        if "TEXT_BEFORE_END" in text or process.poll() is not None:
                             break
-                        time.sleep(.01)
-                    self.assertIsNone(process.poll(), (root/'stderr.log').read_text())
-                    self.assertFalse((root/'release').exists())
-                    self.assertIn('[T thinking]\nTHINKING_BEFORE_END', text)
-                    self.assertIn('[T text]\nTEXT_BEFORE_END', text)
+                        time.sleep(0.01)
+                    self.assertIsNone(process.poll(), (root / "stderr.log").read_text())
+                    self.assertFalse((root / "release").exists())
+                    blocks = [json.loads(line) for line in text.splitlines()]
+                    starts = {
+                        b["id"]: b["type"] for b in blocks if b["phase"] == "start"
+                    }
+                    for kind, content in [
+                        ("thinking", "THINKING_BEFORE_END"),
+                        ("text", "TEXT_BEFORE_END"),
+                    ]:
+                        block = next(b for b in blocks if b.get("content") == content)
+                        self.assertEqual(starts[block["id"]], kind)
+                        self.assertIn("/ts/0/", block["id"])
                 finally:
-                    (root/'release').touch()
+                    (root / "release").touch()
                     try:
                         process.wait(timeout=10)
                     except subprocess.TimeoutExpired:
                         process.kill()
                         process.wait()
                         raise
-                self.assertEqual(process.returncode, 0, (root/'stderr.log').read_text())
-            text = (root/'stdout.log').read_text()
-            self.assertEqual(text.count('THINKING_BEFORE_END'), 2)
-            self.assertEqual(text.count('TEXT_BEFORE_END'), 2)
-            self.assertFalse((root/'run/u.jsonl').exists())
+                self.assertEqual(
+                    process.returncode, 0, (root / "stderr.log").read_text()
+                )
+            text = log.read_text()
+            self.assertEqual(text.count("THINKING_BEFORE_END"), 2)
+            self.assertEqual(text.count("TEXT_BEFORE_END"), 2)
+            self.assertFalse((root / "run/u.jsonl").exists())
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

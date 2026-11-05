@@ -12,12 +12,23 @@ run_process = subprocess.run
 popen_process = subprocess.Popen
 
 
+@pytest.mark.parametrize("log_enabled", [False, True])
 @pytest.mark.parametrize("run_state", ["unset", "missing", "present"])
 @pytest.mark.parametrize("environment", [False, True])
 @pytest.mark.parametrize("inside_checkout", [False, True])
 def test_ships_env_when_present_and_runs_unchanged_command_from_root(
-    cloud, transport, tmp_path, environment, run_state, inside_checkout, monkeypatch
+    cloud,
+    transport,
+    tmp_path,
+    environment,
+    run_state,
+    inside_checkout,
+    monkeypatch,
+    log_enabled,
 ):
+    monkeypatch.delenv("LABNOTES_LOG", raising=False)
+    if log_enabled:
+        monkeypatch.setenv("LABNOTES_LOG", str(tmp_path / "local log.jsonl"))
     state_file = tmp_path / "labnotes state.json"
     monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
     if run_state != "unset":
@@ -59,6 +70,10 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
         for call in calls
         if call.args[0][-1] == "cat > /srv/aws-runner/command.sh; sync"
     )
+    assert (
+        "export LABNOTES_LOG=/srv/aws-runner/run/log.jsonl\n" in script
+    ) == log_enabled
+    assert str(tmp_path / "local log.jsonl") not in script
     assert "cd /srv/aws-runner/repo || exit 125" in script
     assert shlex.join(command) in script
     assert "export PATH=/home/ubuntu/.local/bin:$PATH" in script
