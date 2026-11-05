@@ -8,6 +8,8 @@ import httpx
 import labnotes
 from dotenv import load_dotenv
 
+from . import users
+
 API = "https://rest.runpod.io/v1"
 DELETE_TIMEOUT = 120
 
@@ -44,7 +46,28 @@ def delete_pod(pod_id, key):
     raise TimeoutError(f"Pod {pod_id} still exists after deletion")
 
 
+def scorer_pods(key):
+    result = request("GET", f"{API}/pods", key)
+    result.raise_for_status()
+    return [pod for pod in result.json() if pod["name"] == "surprisal-scorer"]
+
+
+def release(pod_id, key, own=None):
+    """Caller holds scorer.lock through the ownership check and deletion."""
+    if not users.remaining(pod_id, own):
+        delete_pod(pod_id, key)
+
+
 def down():
-    pod_id = labnotes.get_state().get("pod_id")
-    if pod_id:
-        delete_pod(pod_id, api_key())
+    with users.locked():
+        pod_id = labnotes.get_state().get("pod_id")
+        if pod_id:
+            own = users.user_file(pod_id, users.state_directory())
+            release(pod_id, api_key(), own)
+
+
+def reap():
+    with users.locked():
+        key = api_key()
+        for pod in scorer_pods(key):
+            release(pod["id"], key)

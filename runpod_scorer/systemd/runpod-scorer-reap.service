@@ -1,0 +1,7 @@
+[Unit]
+Description=Reap unused shared RunPod scorers
+
+[Service]
+Type=oneshot
+WorkingDirectory=@REPO@
+ExecStart=%h/.local/bin/uv run --frozen --project "@REPO@/runpod_scorer" runpod-scorer reap

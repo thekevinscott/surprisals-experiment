@@ -1,12 +1,12 @@
 """Create a vLLM scorer and wait for readiness."""
 
-import time
 import sys
+import time
 
 import httpx
 import labnotes
 
-from . import teardown
+from . import teardown, users
 
 READY_TIMEOUT = 1800
 
@@ -16,26 +16,38 @@ DEFAULT_GPU = "NVIDIA H100 80GB HBM3"
 
 
 def create_pod(model, gpu, key):
-    result = teardown.request("POST", f"{teardown.API}/pods", key, json={
-        "name": "surprisal-scorer",
-        "imageName": "vllm/vllm-openai:v0.30.0",
-        "cloudType": "SECURE",
-        "computeType": "GPU",
-        "gpuTypeIds": [gpu],
-        "gpuCount": 1,
-        "containerDiskInGb": 100,
-        "volumeInGb": 0,
-        "ports": ["8000/http"],
-        "dockerEntrypoint": ["python3", "-m", "vllm.entrypoints.openai.api_server"],
-        "dockerStartCmd": [
-            "--model", model,
-            "--host", "0.0.0.0", "--port", "8000",
-            "--max-model-len", "8192",
-            "--enable-chunked-prefill",
-            "--max-num-batched-tokens", "8192",
-            "--gpu-memory-utilization", "0.85",
-        ],
-    })
+    result = teardown.request(
+        "POST",
+        f"{teardown.API}/pods",
+        key,
+        json={
+            "name": "surprisal-scorer",
+            "imageName": "vllm/vllm-openai:v0.30.0",
+            "cloudType": "SECURE",
+            "computeType": "GPU",
+            "gpuTypeIds": [gpu],
+            "gpuCount": 1,
+            "containerDiskInGb": 100,
+            "volumeInGb": 0,
+            "ports": ["8000/http"],
+            "dockerEntrypoint": ["python3", "-m", "vllm.entrypoints.openai.api_server"],
+            "dockerStartCmd": [
+                "--model",
+                model,
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--max-model-len",
+                "8192",
+                "--enable-chunked-prefill",
+                "--max-num-batched-tokens",
+                "8192",
+                "--gpu-memory-utilization",
+                "0.85",
+            ],
+        },
+    )
     result.raise_for_status()
     pod_id = result.json()["id"]
     print(f"Created pod {pod_id}", file=sys.stderr, flush=True)
@@ -43,10 +55,40 @@ def create_pod(model, gpu, key):
 
 
 def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
+    folder = users.state_directory()
+    pid = users.daemon_pid()
     key = teardown.api_key()
-    pod_id = create_pod(model, gpu, key)
+    pod_id = None
     try:
-        labnotes.set_state({"pod_id": pod_id})
+        with users.locked():
+            pods = teardown.scorer_pods(key)
+            if len(pods) > 1:
+                raise RuntimeError(
+                    "Multiple surprisal-scorer pods already exist: "
+                    + ", ".join(p["id"] for p in pods)
+                )
+            if pods:
+                pod = pods[0]
+                command = pod.get("dockerStartCmd", [])
+                existing_model = (
+                    command[command.index("--model") + 1]
+                    if "--model" in command
+                    else None
+                )
+                if existing_model != model:
+                    raise RuntimeError(
+                        f"Scorer {pod['id']} serves {existing_model!r}, requested {model!r}; refusing a second pod"
+                    )
+                if pod["desiredStatus"] != "RUNNING":
+                    raise RuntimeError(
+                        f"Scorer {pod['id']} is {pod['desiredStatus']}; resume or delete it before up"
+                    )
+                pod_id = pod["id"]
+                print(f"Reusing pod {pod_id}", file=sys.stderr, flush=True)
+            else:
+                pod_id = create_pod(model, gpu, key)
+            users.register(pod_id, folder, pid)
+            labnotes.set_state({"pod_id": pod_id})
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
         deadline = time.monotonic() + READY_TIMEOUT
         while time.monotonic() < deadline:
@@ -60,5 +102,7 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
             raise TimeoutError(f"Pod {pod_id} did not become ready")
         labnotes.set_state({"base_url": base_url})
     except BaseException:
-        teardown.delete_pod(pod_id, key)
+        if pod_id is not None:
+            with users.locked():
+                teardown.release(pod_id, key, users.user_file(pod_id, folder))
         raise

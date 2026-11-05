@@ -121,12 +121,18 @@ Review the advice-minimization behavior, then evaluate it in live runs before ad
 
 ## Shared RunPod scorer
 
-The [runpod_scorer package](runpod_scorer/README.md) owns one scorer per
-labnotes invocation. Its setup hook saves the pod ID to labnotes state
-immediately and adds the endpoint once ready; its teardown hook deletes the pod.
+The [runpod_scorer package](runpod_scorer/README.md) shares one pod named
+`surprisal-scorer` across labnotes invocations on mentees. Under a host-local
+lock, setup reuses the scorer or creates it if absent, rejects a different
+model, and registers the invocation's state folder and daemon PID. It saves
+the pod ID to labnotes state before waiting for readiness outside the lock.
+Teardown releases that invocation and deletes the pod only after its last live
+user ends. The package includes a systemd user timer for `runpod-scorer reap`
+every ten minutes to clean up after dead daemons; see its README for installation.
+The timer is not installed automatically, and all scorer use must stay on mentees.
 
 ~~~bash
-uv run --project runpod_scorer pytest runpod_scorer/tests
+uv run --frozen --project runpod_scorer pytest runpod_scorer/tests
 ~~~
 
 Run each cell through runpod_scorer/run-cell.sh <full command>. Character cells

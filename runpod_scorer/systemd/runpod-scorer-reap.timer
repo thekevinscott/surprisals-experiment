@@ -1,0 +1,10 @@
+[Unit]
+Description=Check shared RunPod scorer users every ten minutes
+
+[Timer]
+OnStartupSec=10min
+OnUnitActiveSec=10min
+Unit=runpod-scorer-reap.service
+
+[Install]
+WantedBy=timers.target
