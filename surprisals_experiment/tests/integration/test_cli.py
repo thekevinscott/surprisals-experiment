@@ -33,6 +33,24 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, botbox
     assert scorer_provider.requests[0]['model'] == 'selected-t'
 
 
+async def test_surprisal_reads_scorer_url_from_labnotes_state(config, botbox_script, scorer_provider, chat_provider, monkeypatch, tmp_path):
+    (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
+    monkeypatch.chdir(config.problem_dir)
+    state = tmp_path / 'state.json'
+    state.write_text(json.dumps({'base_url': 'http://state-scorer/v1'}))
+    monkeypatch.setenv('LABNOTES_RUN_STATE', str(state))
+    scorer_provider.replies.append([('Double.', 7.0)])
+    botbox_script.advice.extend(['Double.'] * 2)
+    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 4)
+    await main(['--window-forks', '1', '--window-solo-turns', '2',
+        '--cap-strategy', 'surprisal', '--max-u-turns', '1',
+        '--t-samples', '2', '--t-pool-size', '1', '--output', str(config.output),
+        'problem', str(config.problem_dir),
+    ])
+    settings = json.loads((config.output / 'settings.json').read_text())
+    assert settings['scorer_base_url'] == 'http://state-scorer/v1'
+
+
 def test_rejects_nonpositive_stopping_budget(config):
     with pytest.raises(ValidationError, match='max_u_turns'):
         Config(**(config.model_dump() | {'max_u_turns': 0}))
