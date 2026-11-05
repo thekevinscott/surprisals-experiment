@@ -8,9 +8,10 @@ import pytest
 from advice_artifacts import write_advice
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.run import Run
+from surprisals_experiment.sdk.sample import Sample
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions.run_sample import run_sample
-from surprisals_experiment.sdk.run_experiment.actions.write_solutions.run_sample import machine
 
 PASS = 'print(int(input()) * 2)\n'
 
@@ -28,31 +29,29 @@ async def setup(config):
 async def test_fresh_sample_generates_and_tests(config, botbox_script):
     turn, database, problem = await setup(config)
     botbox_script.solutions.append(PASS)
-    await run_sample(turn, 0, database, problem)
+    await run_sample(Run(database, problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
     assert json.loads((turn.t_dir(0) / 'tests.json').read_text())['all_passed']
-    await run_sample(turn, 0, ExperimentDatabase(config.output), problem)
+    await run_sample(Run(ExperimentDatabase(config.output), problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
 
 
-async def test_interrupted_after_generation_resumes_at_testing(config, botbox_script, monkeypatch):
+async def test_interrupted_after_generation_resumes_at_testing(config, botbox_script):
     turn, database, problem = await setup(config)
     botbox_script.solutions.append(PASS)
 
     async def interrupt(*args, **kwargs):
         raise asyncio.CancelledError
 
-    original = machine.run_tests
-    monkeypatch.setattr(machine, 'run_tests', interrupt)
+    run = Run(database, problem, {**actions, "untested": interrupt})
     with pytest.raises(asyncio.CancelledError):
-        await run_sample(turn, 0, database, problem)
-    monkeypatch.setattr(machine, 'run_tests', original)
+        await run_sample(run, Sample(turn, 0))
     generation = turn.t_dir(0) / 'generation.json'
     source = turn.t_dir(0) / 'src/main.py'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns,
               source.read_bytes(), source.stat().st_mtime_ns)
     assert not (turn.t_dir(0) / 'tests.json').exists()
-    await run_sample(turn, 0, ExperimentDatabase(config.output), problem)
+    await run_sample(Run(ExperimentDatabase(config.output), problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
     assert (generation.read_bytes(), generation.stat().st_mtime_ns,
             source.read_bytes(), source.stat().st_mtime_ns) == before
@@ -62,7 +61,7 @@ async def test_interrupted_after_generation_resumes_at_testing(config, botbox_sc
 async def test_other_sample_completion_does_not_skip_requested_sample(config, botbox_script):
     turn, database, problem = await setup(config)
     botbox_script.solutions.extend([PASS, PASS])
-    await run_sample(turn, 1, database, problem)
-    await run_sample(turn, 0, database, problem)
+    await run_sample(Run(database, problem, actions), Sample(turn, 1))
+    await run_sample(Run(database, problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 2
     assert (turn.t_dir(0) / 'tests.json').exists()

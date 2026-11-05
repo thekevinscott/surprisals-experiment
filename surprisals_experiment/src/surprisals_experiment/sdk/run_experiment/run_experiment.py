@@ -4,8 +4,12 @@ from itertools import count
 from collections.abc import Callable
 from pathlib import Path
 
+from state_machine import Stop
+
 from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
+from .actions.write_solutions.produce_code import produce_code
+from .actions.run_tests import run_tests
 from .actions.write_result import write_result
 from .actions.write_advice import write_advice
 from .actions.score_advice import score_advice
@@ -14,6 +18,7 @@ from ..utils.u_chat import open_u_chat
 from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
 from ..turn import Turn
+from ..run import Run
 
 
 def start(config: Config) -> None:
@@ -32,6 +37,9 @@ actions = {
     "advice_missing": write_advice,
     "unscored": score_advice,
     "solutions_missing": write_solutions,
+    "solution_missing": produce_code,
+    "untested": run_tests,
+    "sample_done": Stop,
     "feedback_missing": feedback,
 }
 
@@ -45,6 +53,7 @@ async def run_experiment(
     actions["not_started"](config)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
+    run = Run(database, problem, actions, on_t_delta)
     best_solution = None
     attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
@@ -52,7 +61,7 @@ async def run_experiment(
             turn = Turn(config, attempt)
             advice = await actions["advice_missing"](turn, u_chat, database, problem, on_delta=on_delta)
             await actions["unscored"](turn, advice, on_delta=on_delta)
-            await actions["solutions_missing"](turn, database, problem, on_delta=on_t_delta)
+            await actions["solutions_missing"](run, turn)
             best_solution, turns_without_improvement = await actions["feedback_missing"](turn, database, problem)
             if turns_without_improvement >= config.max_turns_without_improvement:
                 break

@@ -7,6 +7,7 @@ from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from advice_artifacts import write_advice
 from test_run_summary import report
@@ -100,7 +101,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
     turn.attempt_dir.mkdir(parents=True)
     write_advice(config, turn.attempt_dir, 'double it', 9)
     (config.problem_dir / 'input_output.json').write_text(json.dumps({'inputs': ['3\n'], 'outputs': ['6\n']}))
-    task = asyncio.create_task(write_solutions(turn, database, QuestionDatabase(config.problem_dir)))
+    task = asyncio.create_task(write_solutions(Run(database, QuestionDatabase(config.problem_dir), actions), turn))
     try:
         async with asyncio.timeout(5):
             capacity = min(size, 5)

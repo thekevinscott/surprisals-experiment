@@ -1,30 +1,20 @@
-from collections.abc import Callable
-from functools import partial
 from pathlib import Path
 
-from state_machine import Stop, state_machine
+from state_machine import state_machine
 
-from .....turn import Turn
-from .....database import ExperimentDatabase, QuestionDatabase
-from ..produce_code import produce_code
-from ...run_tests import run_tests
+from .....run import Run
+from .....sample import Sample
 
 QUERIES = Path(__file__).parent
 
 
-async def run_sample(turn: Turn, sample: int, database: ExperimentDatabase,
-                     problem: QuestionDatabase, *,
-                     on_delta: Callable[[str, str], None] | None = None) -> None:
-    async def state() -> str:
-        for name in ("solution_missing", "untested"):
-            row, = await database.query(QUERIES / f"{name}.sql", **turn.params, sample=sample)
-            if row["missing"]:
-                return name
-        return "done"
+async def state(run: Run, sample: Sample) -> str:
+    for name in ("solution_missing", "untested"):
+        row, = await run.database.query(QUERIES / f"{name}.sql", **sample.params)
+        if row["missing"]:
+            return name
+    return "sample_done"
 
-    await state_machine(state=state, actions={
-        "solution_missing": partial(produce_code, turn.config, output=turn.t_dir(sample),
-                                    advice=turn.advice.text, on_delta=on_delta),
-        "untested": partial(run_tests, turn, problem, sample=sample),
-        "done": Stop,
-    })
+
+async def run_sample(run: Run, sample: Sample) -> None:
+    await state_machine(state, run.actions, run, sample)

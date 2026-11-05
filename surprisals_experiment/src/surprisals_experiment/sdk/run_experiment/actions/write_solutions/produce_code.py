@@ -3,19 +3,20 @@
 import asyncio
 import json
 import shutil
-from collections.abc import Callable
 from pathlib import Path
 
-from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy import DELAYS, retried
+from ....run import Run
+from ....sample import Sample
 from ....prompt_t import prompt_t
 from ....utils.write import write
 
 
-async def produce_code(
-    config: Config, *, output: Path, advice: str,
-    on_delta: Callable[[str, str], None] | None = None,
-) -> Path:
+async def produce_code(run: Run, sample: Sample) -> None:
+    config = sample.turn.config
+    output = sample.t_dir
+    advice = sample.turn.advice.text
+    on_delta = run.on_t_delta
     output.mkdir(parents=True, exist_ok=True)
     source = output / "src"
 
@@ -44,4 +45,4 @@ async def produce_code(
         write(output / "generation.json", json.dumps({"timed_out": True}) + "\n")
         return source
 
-    return await generate()
+    await generate()

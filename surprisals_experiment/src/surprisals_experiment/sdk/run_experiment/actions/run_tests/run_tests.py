@@ -1,14 +1,14 @@
 import traceback
 
-from ....turn import Turn
+from ....run import Run
+from ....sample import Sample
 from ....utils.write import write
-from ....database import QuestionDatabase
 from ....run_test_suite import run_test_suite
 
 
-async def run_tests(turn: Turn, problem: QuestionDatabase, *, sample: int):
+async def run_tests(run: Run, sample: Sample) -> None:
     try:
-        await run_test_suite(turn.config, [turn.t_dir(sample) / "src"], problem)
+        await run_test_suite(sample.turn.config, [sample.t_dir / "src"], run.problem)
     except Exception:
-        write(turn.attempt_dir / "error.txt", traceback.format_exc())
+        write(sample.turn.attempt_dir / "error.txt", traceback.format_exc())
         raise
