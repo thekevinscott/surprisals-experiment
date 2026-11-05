@@ -27,7 +27,7 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--cap-strategy", choices=("characters", "surprisal"), default="characters",
                         help="Advice cap strategy (default: characters)")
     parser.add_argument("--scorer-base-url",
-                        help="OpenAI-compatible prompt-logprob endpoint; for surprisal, defaults to base_url in labnotes state")
+                        help="OpenAI-compatible prompt-logprob endpoint")
     parser.add_argument("--t-samples", type=int, default=5,
                         help="Independent T solutions per advice; all must pass (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3,
