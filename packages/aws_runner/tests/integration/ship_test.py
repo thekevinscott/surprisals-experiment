@@ -51,7 +51,7 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     script = next(
         call.kwargs["input"]
         for call in calls
-        if call.args[0][-1].endswith("/command.sh")
+        if call.args[0][-1] == "cat > /srv/aws-runner/command.sh; sync"
     )
     assert "cd /srv/aws-runner/repo || exit 125" in script
     assert shlex.join(command) in script
