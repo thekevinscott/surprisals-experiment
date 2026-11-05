@@ -1,6 +1,9 @@
 from dirsql import Table
 
 from surprisals_experiment.sdk.database import Database, ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk.run import Run
+from surprisals_experiment.sdk.run_experiment.run_experiment import actions
+from surprisals_experiment.sdk.utils.write import write
 
 
 async def test_query_runs_a_string_or_loads_a_path(tmp_path):
@@ -45,9 +48,6 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     from hashlib import sha256
     from surprisals_experiment.sdk.advice import Advice
     from surprisals_experiment.sdk.turn import Turn
-    from surprisals_experiment.sdk.run import Run
-    from surprisals_experiment.sdk.run_experiment.run_experiment import actions
-    from surprisals_experiment.sdk.utils.write import write
     from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
 
     text = 'Use café.\r\nThen double.\r\n'
