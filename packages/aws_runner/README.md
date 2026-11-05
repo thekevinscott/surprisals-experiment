@@ -44,14 +44,10 @@ worktrees, caches, and root `runs/`. The local run folder is uploaded separately
 run from the repository root, even when invoked from a subdirectory; absolute local run
 paths and checkout-relative run paths point to the data volume's run folder.
 Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
-resolved by the command. If `.env.aws` exists at the local repository root,
-only it is copied over SSH to the remote checkout as `.env`; otherwise no env
-file is shipped. The local `.env` is never shipped. Neither file is read or
-parsed by the runner. The copied file remains on the data disk until deletion.
-`.env.aws` must never hold AWS credentials or model API keys, since every run
-box gets it.
-`.env.aws` can hold the RunPod scorer URL when the local tower is unreachable
-from AWS.
+resolved by the command. If `.env` exists at the local repository root, it is
+copied over SSH to the remote checkout as `.env`; otherwise no env file is
+shipped. The runner does not read or parse its contents. The copied file remains
+on the data disk until deletion, including on disks kept after failures.
 
 Switch an experiment to AWS by changing one line in `experiment.toml`: prefix
 its existing command with `uv run --project packages/aws_runner aws_runner run
