@@ -1,0 +1,7 @@
+{
+  "command": "uv run --frozen pytest tests/integration/test_database.py -q",
+  "ran_at": 1793905745,
+  "exit_code": 0,
+  "commit": "231932772a1fe6af9ae4d9e086f7fc88e8b19cf3",
+  "branch": "config/runs-in-experiment-folders"
+}
