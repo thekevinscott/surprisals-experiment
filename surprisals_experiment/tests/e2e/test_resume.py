@@ -2,6 +2,8 @@
 
 import json
 import os
+import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -9,6 +11,7 @@ import time
 from pathlib import Path
 
 import pytest
+from curtaincall import expect
 
 PACKAGE = Path(__file__).resolve().parents[2]
 PROBLEM = '../data/APPS/test/2286'
@@ -176,3 +179,150 @@ def describe_real_cli_resume():
                 for volume in resources()[1]:
                     ec2.delete_volume(VolumeId=volume['VolumeId'])
                 await_cleanup()
+
+
+@pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
+def test_experiment_relaunch_continues_both_cells(
+    tmp_path, experiment, terminal, monkeypatch
+):
+    """RESUME_E2E=1; AWS also needs AWS_RESUME_E2E=1. Drive launch, stop and relaunch through the TUI."""
+    if os.environ.get("RESUME_E2E") != "1":
+        pytest.skip("Set RESUME_E2E=1 to run paid experiment relaunch checks")
+    if experiment.endswith("-aws") and os.environ.get("AWS_RESUME_E2E") != "1":
+        pytest.skip("Set AWS_RESUME_E2E=1 to run the paid AWS experiment check")
+
+    # A separate checkout keeps both labnotes and AWS shipping rooted away from real runs.
+    root = tmp_path / "project"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--shared", str(PACKAGE.parent), str(root)],
+        check=True,
+    )
+    shutil.copy2(PACKAGE.parent / ".labnotes.toml", root / ".labnotes.toml")
+    definition = Path("experiments") / experiment / "experiment.toml"
+    shutil.copy2(PACKAGE.parent / definition, root / definition)
+    assert (root / definition).read_bytes() == (
+        PACKAGE.parent / definition
+    ).read_bytes()
+    for name in ("data", ".env"):
+        target = root / name
+        if target.is_symlink():
+            target.unlink()
+        if not target.exists():
+            target.symlink_to((PACKAGE.parent / name).resolve())
+    monkeypatch.chdir(root)
+    state = tmp_path / "state"
+    env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
+    cli = [
+        "uvx",
+        "--from",
+        "git+https://github.com/thekevinscott/labnotes@main#subdirectory=packages/python",
+        "labnotes",
+        "-c",
+        str(root / ".labnotes.toml"),
+        "experiments",
+        experiment,
+    ]
+    # Reuse the CLI test's cheap settings, excluding output, cap strategy and problem.
+    cheap = command(tmp_path / "unused")[7:-1]
+    args = [*cli, "run", "--", *cheap]
+    runs = root / "experiments" / experiment / "runs"
+
+    def folders():
+        return {path.parent for path in runs.glob("*/run.json")}
+
+    def record(folder):
+        return json.loads((folder / "run.json").read_text())
+
+    def settled():
+        # Daemons drop discovery records after all runs AND teardown finish and the view leaves.
+        deadline = time.monotonic() + 180
+        while list(state.rglob("*.socket")):
+            assert time.monotonic() < deadline, (
+                "Labnotes daemon/teardown did not finish"
+            )
+            time.sleep(0.2)
+
+    term = None
+    active = False
+
+    def wait_for(ready, timeout=1200):
+        deadline = time.monotonic() + timeout
+        while not ready():
+            assert time.monotonic() < deadline, term._get_screen_text()
+            time.sleep(0.1)
+
+    try:
+        for invocation in (1, 2):
+            term = terminal(
+                shlex.join(args),
+                rows=40,
+                cols=200,
+                env=env,
+            )
+            active = True
+            for cell in ("characters", "surprisal"):
+                expect(term.get_by_text(cell)).to_be_visible(timeout=1200)
+            if invocation == 1:
+
+                def sampling():
+                    return len(folders()) == 2 and all(
+                        any(folder.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
+                        and not (folder / "result.json").exists()
+                        and record(folder).get("ended") is None
+                        for folder in folders()
+                    )
+
+                wait_for(sampling)
+                original = folders()
+                assert {
+                    record(folder)["params"]["cap-strategy"] for folder in original
+                } == {"characters", "surprisal"}
+                term.key_ctrl_c()
+                expect(term.get_by_text("2 runs still going.")).to_be_visible()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+                active = False
+                wait_for(
+                    lambda original=original: all(
+                        record(folder).get("ended") for folder in original
+                    ),
+                    timeout=180,
+                )
+                assert all(record(folder)["ended_by"] == "stop" for folder in original)
+                assert all(record(folder)["exit_code"] != 0 for folder in original)
+                settled()
+                active = False
+                before = {folder: snapshot(folder) for folder in original}
+            else:
+                wait_for(
+                    lambda original=original: (
+                        folders() != original
+                        or all(
+                            len(record(folder).get("invocations", [])) == 2
+                            for folder in original
+                        )
+                    )
+                )
+                assert folders() == original, "Relaunch created new run folders"
+                expect(term.get_by_text("2 passed, 0 failed.")).to_be_visible(
+                    timeout=2400
+                )
+                term.key_ctrl_c()
+                active = False
+                settled()
+                assert folders() == original
+                for folder in original:
+                    run = record(folder)
+                    assert len(run["invocations"]) == 2
+                    assert run["exit_code"] == 0
+                    assert run["invocations"][-1]["exit_code"] == 0
+                    check_preserved(*before[folder])
+                    check_result(folder, forks=1, samples=2)
+    finally:
+        if term is not None:
+            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+            if active and list(state.rglob("*.socket")):
+                term.key_ctrl_c()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+            settled()
