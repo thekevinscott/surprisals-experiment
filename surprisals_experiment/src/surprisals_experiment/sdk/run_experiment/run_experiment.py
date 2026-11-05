@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from state_machine import Stop
+from state_machine import Stop, state_machine
 
 from surprisals_experiment.config import Config
 from .actions.write_solutions import write_solutions
@@ -21,7 +21,7 @@ from ..run import Run
 from ..fork import Fork
 from .run_fork import read_fork, turn_pending
 from .run_window import fork_pending
-from .run_run import run_run, window_pending
+from .machine import state, window_pending
 
 
 async def start(run: Run) -> None:
@@ -65,7 +65,7 @@ async def run_experiment(
     await database.dirsql.ready()
     async with open_u_chat(config) as u_chat:
         run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
-        await run_run(run)
+        await state_machine(state, actions, run)
         fork = Fork(config)
         row = await read_fork(run, fork)
         result, best_solution = await read_progress(run, Turn(config, row["latest"], fork.window, fork.position))
