@@ -49,7 +49,9 @@ def ship(config, instance, directory):
     environment = checkout / ".env"
     if environment.exists():
         subprocess.run(
-            copy + [str(environment), f"{connection[-1]}:{ROOT}/repo/.env"], check=True
+            copy
+            + ["--copy-links", str(environment), f"{connection[-1]}:{ROOT}/repo/.env"],
+            check=True,
         )
     subprocess.run(
         copy + [str(directory) + "/", f"{connection[-1]}:{ROOT}/run/"], check=True

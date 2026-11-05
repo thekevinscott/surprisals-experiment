@@ -104,3 +104,26 @@ def test_ships_external_symlink_contents(cloud, transport, tmp_path):
         run_process(upload[:-1] + [str(destination) + "/"], check=True)
     assert not (destination / "data").is_symlink()
     assert (destination / "data/question.txt").read_text() == "problem statement"
+
+
+def test_ships_symlinked_env_as_regular_file(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    checkout = Path(state["checkout"])
+    checkout.mkdir()
+    outside = tmp_path / "dummy environment"
+    contents = "DUMMY_SETTING=test-value\n"
+    outside.write_text(contents)
+    (checkout / ".env").symlink_to(outside)
+    assert run(ec2, config, tmp_path / "run", ["true"]) == 0
+    upload = next(
+        call.args[0]
+        for call in execute.call_args_list
+        if call.args[0][-1].endswith("/repo/.env")
+    )
+    destination = tmp_path / "remote.env"
+    with patch("subprocess.Popen", popen_process):
+        run_process(upload[:-1] + [str(destination)], check=True)
+    assert destination.is_file()
+    assert not destination.is_symlink()
+    assert destination.read_text() == contents
