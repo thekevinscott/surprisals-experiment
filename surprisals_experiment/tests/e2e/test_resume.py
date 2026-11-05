@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import pytest
+from curtaincall import expect
 
 PACKAGE = Path(__file__).resolve().parents[2]
 PROBLEM = "../data/APPS/test/2286"
@@ -251,8 +252,10 @@ def describe_real_cli_resume():
 
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
-def test_experiment_relaunch_continues_both_cells(tmp_path, experiment):
-    """RESUME_E2E=1; AWS also needs AWS_RESUME_E2E=1. Local currently fails: continues=false."""
+def test_experiment_relaunch_continues_both_cells(
+    tmp_path, experiment, terminal, monkeypatch
+):
+    """RESUME_E2E=1; AWS also needs AWS_RESUME_E2E=1. Drive launch, stop and relaunch through the TUI."""
     if os.environ.get("RESUME_E2E") != "1":
         pytest.skip("Set RESUME_E2E=1 to run paid experiment relaunch checks")
     if experiment.endswith("-aws") and os.environ.get("AWS_RESUME_E2E") != "1":
@@ -276,6 +279,7 @@ def test_experiment_relaunch_continues_both_cells(tmp_path, experiment):
             target.unlink()
         if not target.exists():
             target.symlink_to((PACKAGE.parent / name).resolve())
+    monkeypatch.chdir(root)
     state = tmp_path / "state"
     env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
     cli = [
@@ -308,25 +312,26 @@ def test_experiment_relaunch_continues_both_cells(tmp_path, experiment):
             )
             time.sleep(0.2)
 
-    process = None
+    term = None
+    active = False
+
+    def wait_for(ready, timeout=1200):
+        deadline = time.monotonic() + timeout
+        while not ready():
+            assert time.monotonic() < deadline, term._get_screen_text()
+            time.sleep(0.1)
+
     try:
         for invocation in (1, 2):
-            # script supplies a terminal, selecting the same daemon-backed run path as the TUI.
-            process = subprocess.Popen(
-                [
-                    "script",
-                    "--quiet",
-                    "--return",
-                    "--command",
-                    shlex.join(args),
-                    str(tmp_path / f"labnotes-{invocation}.log"),
-                ],
-                cwd=root,
+            term = terminal(
+                shlex.join(args),
+                rows=40,
+                cols=200,
                 env=env,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
             )
+            active = True
+            for cell in ("characters", "surprisal"):
+                expect(term.get_by_text(cell)).to_be_visible(timeout=1200)
             if invocation == 1:
 
                 def sampling():
@@ -337,47 +342,43 @@ def test_experiment_relaunch_continues_both_cells(tmp_path, experiment):
                         for folder in folders()
                     )
 
-                wait_until(process, sampling)
+                wait_for(sampling)
                 original = folders()
                 assert {
                     record(folder)["params"]["cap-strategy"] for folder in original
                 } == {"characters", "surprisal"}
-                subprocess.run(
-                    [*cli, "stop"], cwd=root, env=env, check=True, timeout=60
-                )
-                wait_until(
-                    process,
+                term.key_ctrl_c()
+                expect(term.get_by_text("2 runs still going.")).to_be_visible()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+                active = False
+                wait_for(
                     lambda original=original: all(
                         record(folder).get("ended") for folder in original
                     ),
                     timeout=180,
                 )
                 assert all(record(folder)["ended_by"] == "stop" for folder in original)
-                process.communicate(input=b"ql", timeout=180)
+                assert all(record(folder)["exit_code"] != 0 for folder in original)
                 settled()
+                active = False
                 before = {folder: snapshot(folder) for folder in original}
             else:
-                wait_until(
-                    process,
+                wait_for(
                     lambda original=original: (
                         folders() != original
                         or all(
                             len(record(folder).get("invocations", [])) == 2
                             for folder in original
                         )
-                    ),
+                    )
                 )
-                assert folders() == original, (
-                    "Relaunch created new run folders (continues must be true)"
+                assert folders() == original, "Relaunch created new run folders"
+                expect(term.get_by_text("2 passed, 0 failed.")).to_be_visible(
+                    timeout=2400
                 )
-                wait_until(
-                    process,
-                    lambda original=original: all(
-                        record(folder).get("ended") for folder in original
-                    ),
-                    timeout=2400,
-                )
-                process.communicate(input=b"ql", timeout=180)
+                term.key_ctrl_c()
+                active = False
                 settled()
                 assert folders() == original
                 for folder in original:
@@ -388,10 +389,10 @@ def test_experiment_relaunch_continues_both_cells(tmp_path, experiment):
                     check_preserved(*before[folder])
                     check_result(folder, forks=1, samples=2)
     finally:
-        if process is not None and (
-            process.poll() is None or list(state.rglob("*.socket"))
-        ):
-            subprocess.run([*cli, "stop"], cwd=root, env=env, check=False, timeout=60)
-            if process.poll() is None:
-                process.communicate(input=b"qs", timeout=180)
-        settled()
+        if term is not None:
+            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+            if active and list(state.rglob("*.socket")):
+                term.key_ctrl_c()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+            settled()
