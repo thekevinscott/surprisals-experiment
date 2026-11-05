@@ -1,4 +1,3 @@
-import subprocess
 import time
 
 from aws_runner.remote.follow import follow
@@ -7,18 +6,23 @@ from aws_runner.remote.result import result
 
 
 def monitor(config, instance, directory):
-    stream = follow(config, instance)
+    offsets = [0, 0]
+    stream, reader = follow(config, instance, offsets)
     next_mirror = time.monotonic() + 10
     try:
         while True:
             if stream.poll() not in (None, 0):
-                raise subprocess.CalledProcessError(stream.returncode, stream.args)
+                reader.join()
+                stream, reader = follow(config, instance, offsets)
             code = result(config, instance)
             if code is not None:
                 status = stream.wait()
-                if status:
-                    raise subprocess.CalledProcessError(status, stream.args)
-                return code
+                reader.join()
+                if status == 0:
+                    return code
+                time.sleep(1)
+                stream, reader = follow(config, instance, offsets)
+                continue
             if time.monotonic() >= next_mirror:
                 mirror(config, instance, directory)
                 next_mirror = time.monotonic() + 10
@@ -26,4 +30,5 @@ def monitor(config, instance, directory):
     except BaseException:
         stream.terminate()
         stream.wait()
+        reader.join()
         raise
