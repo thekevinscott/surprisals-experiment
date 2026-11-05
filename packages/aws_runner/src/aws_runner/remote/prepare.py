@@ -1,19 +1,12 @@
 import shlex
 import subprocess
-import time
 
 from aws_runner.config import ROOT
-from aws_runner.remote.ssh import ssh
+from aws_runner.remote.connect import connect
 
 
 def prepare(config, instance, volume):
-    connection = ssh(config, instance)
-    for attempt in range(120):
-        if subprocess.run(connection + ["true"], capture_output=True).returncode == 0:
-            break
-        time.sleep(5)
-    else:
-        raise TimeoutError("Instance did not become reachable over SSH")
+    connection = connect(config, instance)
     serial = shlex.quote(volume.replace("-", ""))
     script = f"""set -eu
 sudo cloud-init status --wait
@@ -24,7 +17,9 @@ while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]; do sleep 1; done
 if [ ! -b "$DEVICE" ]; then DEVICE=/dev/xvdf; fi
 if ! sudo blkid "$DEVICE"; then sudo mkfs.ext4 -F "$DEVICE"; fi
 sudo mkdir -p {ROOT}
-sudo mount "$DEVICE" {ROOT}
+UUID=$(sudo blkid -s UUID -o value "$DEVICE")
+printf 'UUID=%s {ROOT} ext4 defaults,nofail 0 2\\n' "$UUID" | sudo tee -a /etc/fstab
+sudo mount {ROOT}
 sudo chown ubuntu:ubuntu {ROOT}
 mkdir -p {ROOT}/run
 """

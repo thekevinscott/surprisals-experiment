@@ -52,3 +52,12 @@ its existing command with `uv run --project packages/aws_runner aws_runner run
 "{run_dir}" -- ` (on one line). Keep the experiment command and its arguments
 unchanged. `{run_dir}` is the same local absolute path on both hosts; on AWS it
 is linked to the data volume folder read by the live and final mirrors.
+
+Re-running `aws_runner run <same-dir>` finds the instance by its canonical local
+run-path tag. A running instance reattaches without uploading or restarting the
+command; a stopped instance is started to collect its completed run. The data
+mount is recorded in fstab so it survives a stop/start. A detached systemd
+watcher waits for command completion, then gives the local client 120 seconds
+to finish its final rsync and write a collection marker. With no marker it
+shuts the instance down (EC2 shutdown behavior is `stop`). Reattachment needs
+no command; a brand-new run does. Use one client per run directory.
