@@ -7,5 +7,5 @@ async def sample(measure, prompt, semaphore):
         try:
             bits, tokens = await measure.score(prompt)
             return {"seconds": perf_counter() - started, "bits": bits, "tokens": len(tokens)}
-        except Exception as error:
+        except RuntimeError as error:
             return {"seconds": perf_counter() - started, "error": str(error)}
