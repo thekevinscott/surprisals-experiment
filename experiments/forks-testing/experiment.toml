@@ -4,7 +4,7 @@ setup = "uv run --project runpod_scorer runpod-scorer up"
 command = "uv run --directory surprisals_experiment python -m surprisals_experiment.cli.run --output {run_dir} ../data/APPS/test/2286"
 teardown = "uv run --project runpod_scorer runpod-scorer down"
 repeats = 1
-continues = false
+continues = true
 concurrency = 2
 
 [params]
