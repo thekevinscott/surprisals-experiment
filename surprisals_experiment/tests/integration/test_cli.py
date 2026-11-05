@@ -15,7 +15,7 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, botbox
     scorer_provider.replies.append([('Double.', 7.0)])
     botbox_script.advice.extend(['Double.'] * 2)
     botbox_script.solutions.extend(['print(int(input()) * 2)'] * 4)
-    await main([
+    await main(['--window-forks', '1',
         '-U', 'selected-u', '-T', 'selected-t', '--cap-strategy', 'surprisal',
         '--scorer-base-url', 'http://scorer/v1', '--max-u-turns', '1',
         '--t-samples', '2', '--t-pool-size', '1', '--output', str(config.output),

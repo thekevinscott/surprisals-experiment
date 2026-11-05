@@ -38,6 +38,12 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--max-u-turns", type=int, help="Optional per-fork iteration limit",
     )
+    parser.add_argument("--window-forks", type=int, default=4,
+                        help="Parallel forks at the start of each window (default: 4)")
+    parser.add_argument("--fork-turns", type=int, default=10,
+                        help="Turn target for the parallel fork round (default: 10)")
+    parser.add_argument("--window-turns", type=int, default=40,
+                        help="Turn target for the winning fork (default: 40)")
     parser.add_argument("--output", type=Path, required=True, help="New directory to retain T’s solution")
     commands = parser.add_subparsers(dest="command", required=True)
     problem = commands.add_parser("problem", help="Select a problem directory")
@@ -80,6 +86,9 @@ async def main(argv: list[str] | None = None) -> None:
             t_pool_size=args.t_pool_size,
             t_sample_timeout=args.t_sample_timeout,
             t_sample_retries=args.t_sample_retries,
+            window_forks=args.window_forks,
+            fork_turns=args.fork_turns,
+            window_turns=args.window_turns,
             max_u_turns=args.max_u_turns,
         ), on_delta=print_delta, on_t_delta=partial(print_delta, agent="T"))
     except (ValueError, OSError, RuntimeError) as error:

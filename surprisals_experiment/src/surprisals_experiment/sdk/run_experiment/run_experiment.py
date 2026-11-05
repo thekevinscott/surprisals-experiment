@@ -19,7 +19,7 @@ from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
 from ..run import Run
 from .state.run_fork import turn_pending
-from .state.run_window import fork_pending
+from .state.run_window import fork_pending, solo_pending
 from .state import state
 from .actions.window_pending import window_pending
 
@@ -36,6 +36,7 @@ actions = {
     "turn_pending": turn_pending,
     "fork_done": Stop,
     "fork_pending": fork_pending,
+    "solo_pending": solo_pending,
     "window_done": Stop,
     "window_pending": window_pending,
     "run_done": Stop,
