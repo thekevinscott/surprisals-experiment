@@ -18,7 +18,6 @@ from aws_runner.remote.start import start
 
 def run(ec2, config, directory, command):
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
-    previous_int = signal.getsignal(signal.SIGINT)
     try:
         existing = find(ec2, directory)
         if existing:
@@ -45,11 +44,7 @@ def run(ec2, config, directory, command):
         cleanup(ec2, instance, volume)
         return code
     except KeyboardInterrupt:
-        # A repeated stop must not interrupt AWS cleanup during labnotes' grace period.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         stop(ec2, directory)
         raise
     finally:
-        signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)

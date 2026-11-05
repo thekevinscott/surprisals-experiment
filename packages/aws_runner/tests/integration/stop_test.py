@@ -16,8 +16,6 @@ def test_stop_removes_tagged_resources(cloud, transport, tmp_path, phase, signum
     other, other_volume = launch(ec2, config, tmp_path / "other")
     handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
     original_waiter = ec2.get_waiter
-    original_delete = ec2.delete_volume
-    original_terminate = ec2.terminate_instances
 
     def interrupt(*args, **kwargs):
         signal.raise_signal(signum)
@@ -30,27 +28,11 @@ def test_stop_removes_tagged_resources(cloud, transport, tmp_path, phase, signum
             result.wait = interrupt
         return result
 
-    def terminate(**kwargs):
-        for sig in handlers:
-            signal.raise_signal(sig)
-        return original_terminate(**kwargs)
-
-    def delete(**kwargs):
-        for sig in handlers:
-            signal.raise_signal(sig)
-        return original_delete(**kwargs)
-
     with (
         patch.object(ec2, "get_waiter", side_effect=waiter),
         patch(
             "aws_runner.run.monitor",
             side_effect=interrupt if phase == "monitor" else None,
-        ),
-        patch.object(ec2, "delete_volume", side_effect=delete),
-        patch.object(
-            ec2,
-            "terminate_instances",
-            side_effect=terminate if phase != "cleanup" else original_terminate,
         ),
         pytest.raises(KeyboardInterrupt),
     ):
