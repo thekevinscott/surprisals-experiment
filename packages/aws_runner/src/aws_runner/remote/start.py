@@ -38,6 +38,9 @@ sync
 exit "$code"
 """
     subprocess.run(
-        connection + [f"cat > {ROOT}/command.sh; sync"], input=script, text=True, check=True
+        connection + [f"cat > {ROOT}/command.sh; sync"],
+        input=script,
+        text=True,
+        check=True,
     )
     execute(config, instance)
