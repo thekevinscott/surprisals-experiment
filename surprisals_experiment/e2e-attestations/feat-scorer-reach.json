@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793846757,
+  "exit_code": 0,
+  "commit": "9bd6327650fd38af1daa91693fd6a105523f27d0",
+  "branch": "feat/scorer-reach"
+}
