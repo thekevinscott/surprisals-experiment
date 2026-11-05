@@ -6,6 +6,7 @@ import httpx2
 import pytest
 from advice_artifacts import advice_directory, read_score
 from derived_prompt import derived_prompt
+from openai import BadRequestError
 from run_one_window import run_one_window
 from surprisals_experiment.config import Config
 from surprisals_experiment.sdk.advice import Advice
@@ -203,3 +204,41 @@ async def test_real_scorer_sdk_does_not_add_retries(
         await scoring_config.advice_measure.score("advice")
     assert len(scorer_provider.requests) == 9
     assert no_retry_wait.await_count == 8
+
+
+@pytest.mark.parametrize(
+    "message", ["maximum context length is 8192 tokens", "invalid model"]
+)
+async def test_scorer_bad_request_stops_run_without_retry(
+    scoring_config, botbox_script, scorer_provider, no_retry_wait, message
+):
+    scorer_provider.replies.append(
+        httpx2.Response(400, json={"error": {"message": message}})
+    )
+    botbox_script.advice.append("preserve rejected advice")
+    with pytest.raises(BadRequestError) as raised:
+        await run_one_window(scoring_config, on_delta=None)
+    assert message in str(raised.value)
+    if "maximum context length" in message:
+        assert "Advice exceeded the scorer's context limit" in str(raised.value)
+    assert raised.value.status_code == 400
+    assert len(scorer_provider.requests) == 1
+    no_retry_wait.assert_not_awaited()
+    assert not botbox_script.sessions
+    assert (
+        advice_directory(scoring_config, "preserve rejected advice") / "advice.txt"
+    ).read_text() == "preserve rejected advice"
+
+
+async def test_scorer_connection_error_keeps_retry_schedule(
+    scoring_config, scorer_provider, no_retry_wait
+):
+    scorer_provider.replies.extend(
+        [httpx2.ConnectError("connection refused"), [("advice", 3.0)]]
+    )
+    assert await scoring_config.advice_measure.score("advice") == (
+        3.0,
+        [("advice", 3.0)],
+    )
+    assert len(scorer_provider.requests) == 2
+    no_retry_wait.assert_awaited_once_with(10)

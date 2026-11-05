@@ -1,6 +1,8 @@
 """Advice units, scoring, and wording for both experimental arms."""
 
 from measure_surprisal import Client, measure_surprisal
+from openai import BadRequestError
+from tenacity import retry_if_not_exception_type
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.retry_policy.constants import DELAYS
@@ -26,11 +28,18 @@ class AdviceMeasure:
                 on_delta("retry", f"Scorer {state.attempt_number}/{len(DELAYS)} "
                                   f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
-        @retried(operation="Scorer request", before_sleep=before_sleep)
+        @retried(operation="Scorer request", before_sleep=before_sleep,
+                 retry=retry_if_not_exception_type(BadRequestError))
         async def score():
             return await measure_surprisal(advice, client=self.client)
 
-        tokens = await score()
+        try:
+            tokens = await score()
+        except BadRequestError as error:
+            if "maximum context length" not in str(error).lower():
+                raise
+            raise BadRequestError(f"Advice exceeded the scorer's context limit: {error}",
+                                  response=error.response, body=error.body) from error
         return sum(bits for _, bits in tokens), tokens
 
     @property
