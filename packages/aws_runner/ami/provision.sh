@@ -9,6 +9,7 @@ systemctl enable --now docker
 usermod -aG docker ubuntu
 
 curl -fsSL https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-unknown-linux-gnu.tar.gz -o /tmp/uv.tar.gz
+echo 'c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83  /tmp/uv.tar.gz' | sha256sum -c -
 tar -xzf /tmp/uv.tar.gz -C /tmp
 install -m 0755 /tmp/uv-x86_64-unknown-linux-gnu/uv /tmp/uv-x86_64-unknown-linux-gnu/uvx /usr/local/bin/
 

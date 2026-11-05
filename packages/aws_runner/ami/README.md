@@ -27,6 +27,7 @@ packer init .
 packer fmt -check .
 AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_EC2_METADATA_DISABLED=true packer validate -var 'region=us-east-1' -var 'ubuntu_ami=ami-00000000000000000' .
 bash -n provision.sh
+uvx --from shellcheck-py==0.11.0.1 shellcheck provision.sh
 ```
 
 No AMI has been built or assigned an ID yet. Real AWS still needs: a successful bake from the selected source AMI; a fresh launch with the intended key and no instance role; Docker access as `ubuntu` and image/cache checks; confirmation that cloud-init installs only the new launch key; and one rsynced experiment smoke run using the pinned result AMI. Build/launch/volume lifecycle belongs to #150's runner, not this template.

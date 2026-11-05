@@ -1,0 +1,39 @@
+name: aws-ami
+
+on:
+  pull_request:
+    paths:
+      - 'packages/aws_runner/ami/**'
+      - 'surprisals_experiment/src/surprisals_experiment/docker/Dockerfile.t'
+      - '.github/workflows/aws-ami.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/aws_runner/ami/**'
+      - 'surprisals_experiment/src/surprisals_experiment/docker/Dockerfile.t'
+      - '.github/workflows/aws-ami.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/aws_runner/ami
+    env:
+      AWS_CONFIG_FILE: /dev/null
+      AWS_SHARED_CREDENTIALS_FILE: /dev/null
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789
+        with:
+          version: '1.16.2'
+      - run: packer init .
+      - run: packer fmt -check .
+      - run: packer validate -var 'region=us-east-1' -var 'ubuntu_ami=ami-00000000000000000' .
+      - run: bash -n provision.sh
+      - run: uvx --from shellcheck-py==0.11.0.1 shellcheck provision.sh
