@@ -10,10 +10,14 @@ def respond(state, args, **kwargs):
         output = " M experiment.py\n"
     elif args[0] == "ssh" and "if [ -f" in args[-1]:
         output = state["polls"].pop(0) if len(state["polls"]) > 1 else state["polls"][0]
+        if isinstance(output, int):
+            raise subprocess.CalledProcessError(output, args)
     else:
         output = ""
     if args[0] == "rsync" and args[-2].startswith("ubuntu@") and state["fail_copy"]:
         raise subprocess.CalledProcessError(23, args)
     if args[0] == "rsync" and args[-2].startswith("ubuntu@"):
-        return subprocess.CompletedProcess(args, state.get("copy_code", 0))
+        codes = state.get("copy_codes", [state.get("copy_code", 0)])
+        code = codes.pop(0) if len(codes) > 1 else codes[0]
+        return subprocess.CompletedProcess(args, code)
     return subprocess.CompletedProcess(args, 0, stdout=output)
