@@ -47,6 +47,10 @@ def test_run_collects_then_removes_instance_and_volume(
     assert any("echo hello; echo hi > out.txt" in script for script in scripts)
     assert any("mkfs.ext4" in script for script in scripts)
     assert "journalctl" in stream.call_args.args[0][-1]
+    assert "--lines=all" in stream.call_args.args[0][-1]
+    assert any(
+        'while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]' in script for script in scripts
+    )
     stream.return_value.terminate.assert_called_once()
 
 

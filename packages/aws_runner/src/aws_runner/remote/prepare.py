@@ -20,8 +20,8 @@ sudo cloud-init status --wait
 sudo apt-get update -qq
 sudo apt-get install -y -qq rsync
 DEVICE=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_{serial}
-if [ ! -e "$DEVICE" ]; then DEVICE=/dev/xvdf; fi
-while [ ! -b "$DEVICE" ]; do sleep 1; done
+while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]; do sleep 1; done
+if [ ! -b "$DEVICE" ]; then DEVICE=/dev/xvdf; fi
 if ! sudo blkid "$DEVICE"; then sudo mkfs.ext4 -F "$DEVICE"; fi
 sudo mkdir -p {ROOT}
 sudo mount "$DEVICE" {ROOT}
