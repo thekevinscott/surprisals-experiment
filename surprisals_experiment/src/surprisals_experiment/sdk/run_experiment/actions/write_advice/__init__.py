@@ -1,5 +1,7 @@
 import json
 
+from .system_prompt import system_prompt
+
 from ....run import Run
 from ....turn import Turn
 from ....advice import Advice
@@ -9,6 +11,9 @@ from ...prepare_flush import prepare_flush
 
 async def write_advice(run: Run, turn: Turn) -> None:
     config = turn.config
+    system = await system_prompt(run, turn)
+    if run.u_chat.messages[0]["content"] != system:
+        run.u_chat.record({"role": "system", "content": system})
     prompt = await prepare_flush(config, run.problem, run.database)
     write(turn.u_dir / "advice.txt", (await run.u_chat.prompt(prompt, on_delta=run.on_delta)).encode("utf-8"))
     advice = Advice(turn.u_dir / "advice.txt", config.advice_measure, config.output)
