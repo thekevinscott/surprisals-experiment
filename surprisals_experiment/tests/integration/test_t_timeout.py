@@ -130,7 +130,7 @@ async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypat
           if phase == 'U' else nullcontext()):
         task = asyncio.create_task(main([
             '--output', str(config.output), '--t-samples', '1', '--t-sample-timeout', '1.5',
-            'problem', str(config.problem_dir),
+            str(config.problem_dir),
         ]))
         try:
             await asyncio.wait_for(started.wait(), 5)

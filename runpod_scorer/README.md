@@ -6,7 +6,7 @@ setup and teardown hooks and keep the pod in labnotes state
 
 ~~~toml
 setup = "uv run --project runpod_scorer runpod-scorer up"
-command = '''runpod_scorer/run-cell.sh uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" problem --problem-dir {problem_dir}'''
+command = '''runpod_scorer/run-cell.sh uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" --problem-dir {problem_dir}'''
 teardown = "uv run --project runpod_scorer runpod-scorer down"
 ~~~
 

@@ -19,7 +19,7 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, botbox
         '-U', 'selected-u', '-T', 'selected-t', '--cap-strategy', 'surprisal',
         '--scorer-base-url', 'http://scorer/v1', '--max-u-turns', '1',
         '--t-samples', '2', '--t-pool-size', '1', '--output', str(config.output),
-        'problem', str(config.problem_dir),
+        str(config.problem_dir),
     ])
     settings = json.loads((config.output / 'settings.json').read_text())
     assert settings['window_solo_turns'] == 2
@@ -45,7 +45,7 @@ async def test_surprisal_reads_scorer_url_from_labnotes_state(config, botbox_scr
     await main(['--window-forks', '1', '--window-solo-turns', '2',
         '--cap-strategy', 'surprisal', '--max-u-turns', '1',
         '--t-samples', '2', '--t-pool-size', '1', '--output', str(config.output),
-        'problem', str(config.problem_dir),
+        str(config.problem_dir),
     ])
     settings = json.loads((config.output / 'settings.json').read_text())
     assert settings['scorer_base_url'] == 'http://state-scorer/v1'
