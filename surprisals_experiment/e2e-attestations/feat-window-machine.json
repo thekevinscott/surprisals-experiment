@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793840195,
+  "exit_code": 0,
+  "commit": "67a3e83d19a9601b5cc9c855a64b4c025d399cea",
+  "branch": "feat/window-machine"
+}
