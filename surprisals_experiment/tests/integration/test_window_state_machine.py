@@ -138,7 +138,7 @@ async def test_winner_lookup_uses_latest_window(config, botbox_script):
     from surprisals_experiment.sdk.run import Run
     from surprisals_experiment.sdk.window import Window
     from surprisals_experiment.sdk.run_experiment.read_winner import read_winner
-    from surprisals_experiment.sdk.run_experiment.run_window import run_window
+    from surprisals_experiment.sdk.run_experiment.state.run_window import run_window
     from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
     botbox_script.advice.extend(['A', 'Longer advice'])
