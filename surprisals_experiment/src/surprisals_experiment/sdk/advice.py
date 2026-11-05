@@ -9,10 +9,10 @@ from .utils.write import write
 
 
 class Advice:
-    def __init__(self, text: str, measure: AdviceMeasure, root: Path):
-        self.text = text
+    def __init__(self, path: Path, measure: AdviceMeasure, root: Path):
+        self.text = path.read_bytes().decode("utf-8")
         self.measure = measure
-        self.directory = root / "advices" / sha256(text.encode("utf-8")).hexdigest()
+        self.directory = root / "advices" / sha256(self.text.encode("utf-8")).hexdigest()
 
     def save(self) -> None:
         write(self.directory / "advice.txt", self.text.encode("utf-8"))

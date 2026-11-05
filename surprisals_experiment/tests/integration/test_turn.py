@@ -4,6 +4,7 @@ import json
 
 from surprisals_experiment.sdk.advice import Advice
 from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.utils.write import write
 
 
 def test_turn_paths_and_advice_are_read_from_disk(config):
@@ -14,7 +15,8 @@ def test_turn_paths_and_advice_are_read_from_disk(config):
     assert turn.params == dict(window=3, fork=2, turn=12)
     assert config.window_dir == config.output / 'windows/0'
     turn.attempt_dir.mkdir(parents=True)
-    advice = Advice('Use café.\r\n', config.advice_measure, config.output)
+    write(turn.u_dir / 'advice.txt', 'Use café.\r\n'.encode('utf-8'))
+    advice = Advice(turn.u_dir / 'advice.txt', config.advice_measure, config.output)
     advice.save()
     (turn.attempt_dir / 'metadata.json').write_text(json.dumps({'advice': str(advice.directory.relative_to(config.output))}))
     assert turn.advice.text == 'Use café.\r\n'
