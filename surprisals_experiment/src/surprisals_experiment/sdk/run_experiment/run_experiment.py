@@ -1,6 +1,5 @@
 """Run the experiment through the Python SDK."""
 
-from itertools import count
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,7 +18,8 @@ from ..database import ExperimentDatabase, QuestionDatabase
 from ..utils.write import write
 from ..turn import Turn
 from ..run import Run
-from .run_turn import run_turn
+from ..fork import Fork
+from .run_fork import read_fork, run_fork, turn_pending
 
 
 def start(run: Run) -> None:
@@ -43,6 +43,8 @@ actions = {
     "untested": run_tests,
     "sample_done": Stop,
     "turn_done": Stop,
+    "turn_pending": turn_pending,
+    "fork_done": Stop,
     "feedback": feedback,
 }
 
@@ -55,18 +57,13 @@ async def run_experiment(
     problem = QuestionDatabase(config.problem_dir)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
-    best_solution = None
-    attempts = count() if config.max_u_turns is None else range(config.max_u_turns)
     async with open_u_chat(config) as u_chat:
         run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
         actions["not_started"](run)
-        for attempt in attempts:
-            turn = Turn(config, attempt)
-            await run_turn(run, turn)
-            await actions["feedback"](run, turn)
-            result, best_solution = await read_progress(run, turn)
-            if result["stale"] >= config.max_turns_without_improvement:
-                break
+        fork = Fork(config)
+        await run_fork(run, fork)
+        row = await read_fork(run, fork)
+        result, best_solution = await read_progress(run, Turn(config, row["latest"], fork.window, fork.position))
     if best_solution is None:
-        write(config.error_file, f"No passing solution after {attempt + 1} U turns\n")
+        write(config.error_file, f"No passing solution after {result['attempts']} U turns\n")
     return best_solution
