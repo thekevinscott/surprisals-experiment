@@ -15,7 +15,7 @@ The CLI sends the question and system prompt to U with `--u-thinking` (default `
 
 `T` running in `botbox` writes its code to `/solution`. `T`'s container starts fresh on every run. The SDK’s `prompt_t` returns botbox’s `RunResult` and writes solution files only at the supplied `output` path. Attempt orchestration saves the returned diagnostics and transcripts in its own directory.
 
-Each iteration calls `write_advice`, `score_advice`, then `write_solutions`. Each T sample is generated then tested on its own, up to `--t-pool-size` samples at once. U is told to minimize advice length and receives its current length, best successful length, test outcomes, and no-improvement count after each turn. Longer and equal-length advice is evaluated normally. `result.json` is updated after every evaluated batch and retains the shortest successful batch through subsequent failures or interruption.
+Each iteration calls `write_advice`, `score_advice`, then `write_solutions`. Each T sample is generated then tested on its own, up to `--t-pool-size` samples at once. U is told to minimize advice length and receives its current length, best successful length, test outcomes, and no-improvement count after each turn. Longer and equal-length advice is evaluated normally. `result.json` is derived from the database at run completion and points to the shortest successful batch. U prompts are derived via `prepare_flush`; no `feedback.txt` is written.
 
 Run the configured problem through labnotes from the repository root (one directory above this Python project):
 
@@ -51,7 +51,7 @@ Pass `--t-samples N` before the `problem` subcommand (SDK: `Config.t_samples`). 
 
 Each sample stores its source, transcripts, diagnostics, and tests under `windows/0/forks/0/turns/<turn>/ts/<index>/`. Tests and expected outputs remain hidden from U.
 
-An infrastructure exception stops the batch and preserves earlier completed results. If no batch has been evaluated, no `result.json` exists; otherwise it describes the best completed batch so far. There is no batch resume. Retries use the fixed schedules described above. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
+An infrastructure exception stops the batch and preserves completed evaluations. Restarting resumes from those artifacts and writes `result.json` after the state machine completes, repairing any missing or stale result. Retries use the fixed schedules described above. The final SDK return value and `result.json` solution point to the first sample's source in the shortest successful batch; all other passing solutions remain alongside it. `Config.save_settings()` writes the run settings to `settings.json`.
 
 ## U chat
 
