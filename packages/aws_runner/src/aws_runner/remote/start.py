@@ -3,6 +3,7 @@ import subprocess
 
 from aws_runner.config import ROOT
 from aws_runner.remote.ssh import ssh
+from aws_runner.remote.watch import watch
 
 
 def start(config, instance, command, working_directory):
@@ -18,6 +19,7 @@ mv {ROOT}/exit-code.tmp {ROOT}/exit-code
 sync
 exit "$code"
 """
+    watch(config, instance)
     connection = ssh(config, instance)
     subprocess.run(
         connection + [f"cat > {ROOT}/command.sh"], input=script, text=True, check=True
