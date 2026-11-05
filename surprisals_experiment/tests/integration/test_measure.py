@@ -10,6 +10,7 @@ from surprisals_experiment.config import Config
 from surprisals_experiment.sdk import run_experiment
 from surprisals_experiment.sdk.advice import Advice
 from surprisals_experiment.sdk.advice_measure import AdviceMeasure
+from surprisals_experiment.sdk.utils.write import write
 
 PASS = 'print(int(input()) * 2)'
 
@@ -97,7 +98,7 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
     assert not (scoring_config.attempt_dir(0) / 'metadata.json').exists()
 
 
-async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider):
+async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config, botbox_script, scorer_provider, tmp_path):
     config = scoring_config
     config.max_u_turns = 3
     config.max_turns_without_improvement = 1
@@ -113,7 +114,8 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         assert [token for token, _ in metadata['tokens']] == ['same', ' advice']
     assert '<index>0</index>' in (config.attempt_dir(1) / 'feedback.txt').read_text()
     fresh_measure = AdviceMeasure("surprisal", base_url=config.scorer_base_url, model=config.t_model)
-    assert await Advice("same advice", fresh_measure, config.output).score() == pytest.approx(10.0)
+    write(tmp_path / "advice.txt", "same advice")
+    assert await Advice(tmp_path / "advice.txt", fresh_measure, config.output).score() == pytest.approx(10.0)
     assert len(scorer_provider.requests) == 1
 
 
