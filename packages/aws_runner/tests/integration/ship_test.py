@@ -33,9 +33,11 @@ def test_ships_selected_env_and_runs_unchanged_command_from_root(
     env_copies = [
         call.args[0] for call in calls if call.args[0][-1].endswith("/repo/.env")
     ]
-    assert len(env_copies) == 1
-    selected = ".env.aws" if aws_environment else ".env"
-    assert env_copies[0][-2] == str(checkout / selected)
+    if aws_environment:
+        assert len(env_copies) == 1
+        assert env_copies[0][-2] == str(checkout / ".env.aws")
+    else:
+        assert env_copies == []
     script = next(
         call.kwargs["input"]
         for call in calls

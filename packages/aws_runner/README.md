@@ -41,9 +41,11 @@ run from the repository root, even when invoked from a subdirectory; absolute lo
 paths and checkout-relative run paths point to the data volume's run folder.
 Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
 resolved by the command. If `.env.aws` exists at the local repository root,
-it is copied over SSH to the remote checkout as `.env`; otherwise `.env` is
-copied when present. Neither file is read or parsed by the runner. Only the
-selected file is shipped, and it remains on the data disk until deletion.
+only it is copied over SSH to the remote checkout as `.env`; otherwise no env
+file is shipped. The local `.env` is never shipped. Neither file is read or
+parsed by the runner. The copied file remains on the data disk until deletion.
+`.env.aws` must never hold AWS credentials or model API keys, since every run
+box gets it.
 `.env.aws` can hold the RunPod scorer URL when the local tower is unreachable
 from AWS.
 
