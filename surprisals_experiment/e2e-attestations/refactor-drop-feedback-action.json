@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793845133,
+  "exit_code": 0,
+  "commit": "d9d2843792dbe92501b7a59180ca7f5948678bc9",
+  "branch": "refactor/drop-feedback-action"
+}
