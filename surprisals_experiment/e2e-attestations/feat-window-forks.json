@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793844836,
+  "ran_at": 1793845371,
   "exit_code": 0,
-  "commit": "a2b29757a74b1cffae97dc1b7c92a4334d977169",
+  "commit": "83df58049cb2d0ce052340fc455535c477ca8b36",
   "branch": "feat/window-forks"
 }
