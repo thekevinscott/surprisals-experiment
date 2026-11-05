@@ -38,11 +38,20 @@ def ship(config, instance, directory):
             "--exclude=__pycache__",
             "--exclude=.worktrees",
             "--exclude=/runs/",
+            "--exclude=/.env",
+            "--exclude=/.env.aws",
             str(checkout) + "/",
             f"{connection[-1]}:{ROOT}/repo/",
         ],
         check=True,
     )
+    environment = checkout / ".env.aws"
+    if not environment.exists():
+        environment = checkout / ".env"
+    if environment.exists():
+        subprocess.run(
+            copy + [str(environment), f"{connection[-1]}:{ROOT}/repo/.env"], check=True
+        )
     subprocess.run(
         copy + [str(directory) + "/", f"{connection[-1]}:{ROOT}/run/"], check=True
     )
@@ -57,4 +66,4 @@ def ship(config, instance, directory):
     script = "set -eu\n" + "\n".join(links) + "\n"
     script += "curl -LsSf https://astral.sh/uv/install.sh | sh\n"
     subprocess.run(connection + ["sh -s"], input=script, text=True, check=True)
-    return str(Path(ROOT) / "repo" / Path.cwd().relative_to(checkout))
+    return f"{ROOT}/repo"

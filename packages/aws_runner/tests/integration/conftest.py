@@ -1,6 +1,5 @@
 from argparse import Namespace
 from functools import partial
-from pathlib import Path
 from unittest.mock import patch
 
 import boto3
@@ -35,13 +34,17 @@ def cloud(tmp_path):
 
 
 @pytest.fixture
-def transport():
+def transport(tmp_path):
     with (
         patch("subprocess.run") as execute,
         patch("subprocess.Popen") as stream,
         patch("time.sleep"),
     ):
-        state = {"checkout": str(Path.cwd()), "polls": ["0"], "fail_copy": False}
+        state = {
+            "checkout": str(tmp_path / "checkout"),
+            "polls": ["0"],
+            "fail_copy": False,
+        }
         execute.side_effect = partial(respond, state)
         yield execute, stream, state
 
