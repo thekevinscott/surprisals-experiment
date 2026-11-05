@@ -9,7 +9,7 @@ import pytest
 
 from openai import AsyncOpenAI
 from conftest import FakeSession
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.cli.main import main
 
 async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
@@ -30,7 +30,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
         return await original(self, text)
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
     assert len(botbox_script.sessions) == 4
     assert all(s.closed for s in botbox_script.sessions)
     assert json.loads(config.result_file.read_text())['success']
@@ -55,7 +55,7 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
         return await original(self, text)
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
     assert len(botbox_script.sessions) == 7
     assert all(s.closed for s in botbox_script.sessions)
     assert not (config.attempt_dir(1) / 'error.txt').exists()
@@ -80,7 +80,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, botbox_script,
         return await original(self, text)
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    await run_experiment(config, on_delta=None)
+    await run_one_window(config, on_delta=None)
     assert json.loads(config.result_file.read_text())['success']
     assert len(botbox_script.sessions) == 3
     assert all(s.closed for s in botbox_script.sessions)
@@ -98,7 +98,7 @@ async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypa
         await asyncio.Event().wait()
 
     monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
+    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
     assert len(botbox_script.sessions) == 1
     assert all(s.closed for s in botbox_script.sessions)
     assert not json.loads(config.result_file.read_text())['success']

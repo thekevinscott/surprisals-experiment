@@ -21,7 +21,6 @@ async def open_u_chat(config) -> AsyncGenerator[ChatSession]:
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
         t_samples=config.t_samples,
-        max_turns_without_improvement=config.max_turns_without_improvement,
     )
     async with AsyncOpenAI(
         base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),

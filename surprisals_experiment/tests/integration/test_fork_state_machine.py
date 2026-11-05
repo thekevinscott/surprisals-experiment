@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 
 
@@ -23,7 +23,7 @@ async def test_interrupted_second_turn_resumes_without_repeating_first(config, b
 
     with patch.dict(actions, {"unscored": interrupt}):
         with pytest.raises(asyncio.CancelledError):
-            await run_experiment(config, on_delta=None)
+            await run_one_window(config, on_delta=None)
     first = config.t_dir(0, 0) / 'generation.json'
     before = (first.read_bytes(), first.stat().st_mtime_ns)
     assert (config.attempt_dir(0) / 'feedback.txt').exists()
@@ -31,7 +31,7 @@ async def test_interrupted_second_turn_resumes_without_repeating_first(config, b
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 1
 
-    solution = await run_experiment(config, on_delta=None)
+    solution = await run_one_window(config, on_delta=None)
     assert solution == config.t_dir(1, 0) / 'src'
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2

@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793844683,
+  "exit_code": 0,
+  "commit": "a7a925fdd40b8339ce868f750476628f637db95a",
+  "branch": "feat/window-stop"
+}

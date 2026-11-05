@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from surprisals_experiment.sdk import run_experiment
+from run_one_window import run_one_window
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 
 
@@ -20,12 +20,12 @@ async def test_interrupted_after_advice_resumes_at_scoring(config, botbox_script
 
     with patch.dict(actions, {"unscored": interrupt}):
         with pytest.raises(asyncio.CancelledError):
-            await run_experiment(config, on_delta=None)
+            await run_one_window(config, on_delta=None)
     assert (config.attempt_dir(0) / 'metadata.json').exists()
     assert len(chat_provider) == 1
     assert not botbox_script.sessions
 
-    solution = await run_experiment(config, on_delta=None)
+    solution = await run_one_window(config, on_delta=None)
     assert len(chat_provider) == 1
     assert solution == config.t_dir(0, 0) / 'src'
     assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']

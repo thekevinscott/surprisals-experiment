@@ -23,8 +23,8 @@ async def test_resume_after_interrupt_at_each_state(config, botbox_script, chat_
     baseline = config.model_copy(update={'output': config.output.parent / 'baseline'})
 
     def script():
-        botbox_script.advice.extend(['Double the input.', 'Double.'])
-        botbox_script.solutions.extend(['print(int(input()) * 2)\n'] * 4)
+        botbox_script.advice.extend(['Double the input.', 'Double.'] * 2)
+        botbox_script.solutions.extend(['print(int(input()) * 2)\n'] * 8)
 
     script()
     await run_experiment(baseline, on_delta=None)
