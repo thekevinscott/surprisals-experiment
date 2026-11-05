@@ -1,6 +1,6 @@
 from argparse import Namespace
 from functools import partial
-from unittest.mock import patch
+from unittest.mock import DEFAULT, patch
 
 import boto3
 import pytest
@@ -53,3 +53,32 @@ def transport(tmp_path):
 def ticking_clock():
     with patch("time.monotonic", side_effect=[0, 5, 10, 10]) as clock:
         yield clock
+
+
+@pytest.fixture
+def capacity_shortage(cloud):
+    from botocore.exceptions import ClientError
+
+    ec2, _, _ = cloud
+    original = ec2.run_instances
+    with (
+        patch.object(
+            ec2,
+            "run_instances",
+            wraps=original,
+            side_effect=[
+                ClientError(
+                    {
+                        "Error": {
+                            "Code": "InsufficientInstanceCapacity",
+                            "Message": "full",
+                        }
+                    },
+                    "RunInstances",
+                ),
+                DEFAULT,
+            ],
+        ) as allocate,
+        patch("time.sleep") as sleep,
+    ):
+        yield allocate, sleep
