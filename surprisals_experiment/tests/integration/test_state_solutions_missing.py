@@ -26,7 +26,7 @@ def saved_turn(root, window=2, fork=3, turn=4):
 async def test_checks_each_sample_position(tmp_path, completed, missing):
     turn = saved_turn(tmp_path)
     for sample in completed:
-        write(turn / 'ts' / str(sample) / 'run.json', '{"exit_code": 0}')
+        write(turn / 'ts' / str(sample) / 'generation.json', '{"exit_code": 0}')
     assert await ExperimentDatabase(tmp_path).query(CHECK, window=2, fork=3, turn=4, samples=2) == [{'solutions_missing': missing}]
 
 
