@@ -2,15 +2,19 @@ import signal
 from unittest.mock import patch
 
 import pytest
+from botocore.exceptions import ClientError
 
 from aws_runner.cloud.launch import launch
+from aws_runner.cloud.stop import stop
 from aws_runner.config import TAG
 from aws_runner.run import run
 
 
 @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
 @pytest.mark.parametrize("phase", ["launch", "monitor", "cleanup"])
-def test_stop_removes_tagged_resources(cloud, transport, tmp_path, phase, signum):
+def test_stop_removes_tagged_resources(
+    cloud, transport, tmp_path, phase, signum, capsys
+):
     ec2, _, config = cloud
     directory = tmp_path / "stopped"
     other, other_volume = launch(ec2, config, tmp_path / "other")
@@ -54,11 +58,17 @@ def test_stop_removes_tagged_resources(cloud, transport, tmp_path, phase, signum
     )
     assert ec2.describe_volumes(VolumeIds=[other_volume])["Volumes"]
     assert {sig: signal.getsignal(sig) for sig in handlers} == handlers
+    output = capsys.readouterr().err
+    assert f"Stopping: cleaning up AWS resources for {directory}" in output
+    if phase != "cleanup":
+        assert f"terminating {instances[0]['InstanceId']}" in output
+    assert "deleting vol-" in output
+    assert f"Cleanup done: no instances or volumes left for {directory}" in output
+    assert other["InstanceId"] not in output
+    assert other_volume not in output
 
 
 def test_stop_waits_briefly_for_creating_volume(cloud, tmp_path):
-    from aws_runner.cloud.stop import stop
-
     ec2, _, config = cloud
     directory = tmp_path / "creating"
     instance, volume_id = launch(ec2, config, directory)
@@ -71,7 +81,11 @@ def test_stop_waits_briefly_for_creating_volume(cloud, tmp_path):
         patch.object(
             ec2,
             "describe_volumes",
-            side_effect=[{"Volumes": [volume]}, describe(VolumeIds=[volume_id])],
+            side_effect=[
+                {"Volumes": [volume]},
+                describe(VolumeIds=[volume_id]),
+                {"Volumes": []},
+            ],
         ),
         patch.object(ec2, "get_waiter", return_value=waiter),
         patch.object(waiter, "wait", wraps=waiter.wait) as wait,
@@ -81,3 +95,37 @@ def test_stop_waits_briefly_for_creating_volume(cloud, tmp_path):
         VolumeIds=[volume_id], WaiterConfig={"Delay": 0.5, "MaxAttempts": 5}
     )
     assert not ec2.describe_volumes()["Volumes"]
+
+
+@pytest.mark.parametrize("failed", [False, True])
+def test_stop_reports_remaining_resources(cloud, tmp_path, capsys, failed):
+    ec2, _, config = cloud
+    directory = tmp_path / "remaining"
+    instance, volume_id = launch(ec2, config, directory)
+    spare = ec2.create_volume(
+        AvailabilityZone=instance["Placement"]["AvailabilityZone"],
+        Size=1,
+        TagSpecifications=[
+            {"ResourceType": "volume", "Tags": [{"Key": TAG, "Value": str(directory)}]}
+        ],
+    )["VolumeId"]
+    error = ClientError(
+        {"Error": {"Code": "UnauthorizedOperation", "Message": "denied"}},
+        "TerminateInstances",
+    )
+    with patch.object(
+        ec2, "terminate_instances", side_effect=error if failed else None
+    ):
+        stop(ec2, directory)
+    output = capsys.readouterr().err
+    assert f"terminating {instance['InstanceId']}" in output
+    assert f"deleting {spare}" in output
+    assert (f"Could not clean up {instance['InstanceId']}" in output) is failed
+    assert "Cleanup done" not in output
+    assert f"Cleanup not yet complete for {directory}" in output
+    assert f"{instance['InstanceId']} (running)" in output
+    assert f"{volume_id} (in-use)" in output
+    volumes = ec2.describe_volumes(
+        Filters=[{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
+    )["Volumes"]
+    assert {volume["VolumeId"] for volume in volumes} == {volume_id}
