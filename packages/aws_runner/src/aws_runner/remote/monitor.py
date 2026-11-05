@@ -1,8 +1,8 @@
 import subprocess
 import time
 
-from aws_runner.config import ROOT
 from aws_runner.remote.mirror import mirror
+from aws_runner.remote.result import result
 from aws_runner.remote.ssh import ssh
 
 
@@ -14,16 +14,10 @@ def monitor(config, instance, directory):
     next_mirror = time.monotonic() + 10
     try:
         while True:
-            result = subprocess.run(
-                connection
-                + [f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; fi"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            if result.stdout.strip():
+            code = result(config, instance)
+            if code is not None:
                 time.sleep(1)
-                return int(result.stdout.strip())
+                return code
             if time.monotonic() >= next_mirror:
                 mirror(config, instance, directory)
                 next_mirror = time.monotonic() + 10

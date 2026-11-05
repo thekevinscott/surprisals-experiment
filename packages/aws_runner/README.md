@@ -61,3 +61,17 @@ watcher waits for command completion, then gives the local client 120 seconds
 to finish its final rsync and write a collection marker. With no marker it
 shuts the instance down (EC2 shutdown behavior is `stop`). Reattachment needs
 no command; a brand-new run does. Use one client per run directory.
+
+If an instance was terminated, its tagged data volume is reused by a replacement
+in the same availability zone. A volume still attached to a nonterminated
+writer is never stolen. Capacity shortages retry every 30 seconds in that same
+zone. Recovery restores the saved path layout and executes the original command
+script against the existing checkout and run files; it does not re-upload local
+code, secrets, or stale run data. A completed result is collected without restart.
+A stopped incomplete run restarts its saved command on the same instance.
+
+The experiment must support resuming from its run folder, and labnotes must have
+`continues` enabled so it reuses that folder. aws_runner preserves files; it cannot
+make an arbitrary command idempotent. Real-AWS recovery validation remains:
+terminate a box mid-cell, re-run the same directory, verify the volume ID and AZ,
+and check the experiment's recorded work is not repeated before final teardown.

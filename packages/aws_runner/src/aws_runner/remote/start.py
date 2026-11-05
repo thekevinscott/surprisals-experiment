@@ -2,8 +2,8 @@ import shlex
 import subprocess
 
 from aws_runner.config import ROOT
+from aws_runner.remote.execute import execute
 from aws_runner.remote.ssh import ssh
-from aws_runner.remote.watch import watch
 
 
 def start(config, instance, command, working_directory):
@@ -19,16 +19,8 @@ mv {ROOT}/exit-code.tmp {ROOT}/exit-code
 sync
 exit "$code"
 """
-    watch(config, instance)
     connection = ssh(config, instance)
     subprocess.run(
         connection + [f"cat > {ROOT}/command.sh"], input=script, text=True, check=True
     )
-    subprocess.run(
-        connection
-        + [
-            f"sudo systemd-run --unit=aws-runner --property=User=ubuntu "
-            f"--property=StandardOutput=journal --property=StandardError=journal /bin/sh {ROOT}/command.sh"
-        ],
-        check=True,
-    )
+    execute(config, instance)
