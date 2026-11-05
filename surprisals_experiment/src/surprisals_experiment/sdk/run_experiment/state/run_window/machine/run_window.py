@@ -1,7 +1,7 @@
 from state_machine import state_machine
 
-from ....run import Run
-from ....window import Window
+from .....run import Run
+from .....window import Window
 from .state import state
 
 

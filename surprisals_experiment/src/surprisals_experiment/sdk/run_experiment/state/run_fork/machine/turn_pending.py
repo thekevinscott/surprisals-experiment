@@ -1,6 +1,6 @@
-from ....fork import Fork
-from ....run import Run
-from ....turn import Turn
+from .....fork import Fork
+from .....run import Run
+from .....turn import Turn
 from ...run_turn import run_turn
 from .read_fork import read_fork
 

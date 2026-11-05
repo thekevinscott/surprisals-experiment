@@ -2,8 +2,8 @@ from pathlib import Path
 
 from state_machine import state_machine
 
-from ...run import Run
-from ...turn import Turn
+from ....run import Run
+from ....turn import Turn
 
 STATE = Path(__file__).with_name("state.sql")
 

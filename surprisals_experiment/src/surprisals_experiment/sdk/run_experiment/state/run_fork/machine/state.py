@@ -1,7 +1,7 @@
-from ....fork import Fork
-from ....run import Run
-from ....turn import Turn
-from ...actions.write_result import read_progress
+from .....fork import Fork
+from .....run import Run
+from .....turn import Turn
+from ....actions.write_result import read_progress
 from .read_fork import read_fork
 
 
