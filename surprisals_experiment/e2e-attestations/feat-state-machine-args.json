@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793836130,
+  "ran_at": 1793837352,
   "exit_code": 0,
-  "commit": "ad83899398e99a6e59de80b1ba260ee9f0ac269e",
+  "commit": "0b67e24f988792732d06ea0223b505202e6ea48d",
   "branch": "feat/state-machine-args"
 }
