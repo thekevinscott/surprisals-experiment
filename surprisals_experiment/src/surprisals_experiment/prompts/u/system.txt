@@ -10,7 +10,7 @@ The run ends when a completed window improves the best successful advice score b
 The first all-pass advice establishes the baseline and resets this counter. Before that, failed turns count toward the limit.
 Only a strictly shorter all-pass advice resets the counter afterward; longer or equal successes and any test failures count as turns without improvement.
 {% if turn is defined %}
-turn {{ turn }}{% if turns is not none %} of {{ turns }}{% endif %}{% if best is not none %}; best at window start: {{ best }}; target: {{ target }} ({{ improvement }}){% endif %}
+turn {{ turn }}{% if turns is not none %} of {{ turns }}{% endif %}{% if best is not none %}; best at window start: {{ best }}; target: {{ target }} ({{ improvement }}){% endif +%}
 {% endif %}
 {{ implementation_access }}
 Your final response must contain only the instructions to T.
