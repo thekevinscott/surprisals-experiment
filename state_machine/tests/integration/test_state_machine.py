@@ -40,3 +40,18 @@ async def test_unknown_state_raises():
 
     with pytest.raises(KeyError, match="unknown"):
         await state_machine(state=read_state, actions={"done": Stop})
+
+
+async def test_forwards_argument_to_state_and_action():
+    calls = []
+
+    async def read_state(events):
+        events.append("state")
+        return "done" if "action" in events else "work"
+
+    async def action(events):
+        events.append("action")
+
+    await state_machine(read_state, {"work": action, "done": Stop}, calls)
+
+    assert calls == ["state", "action", "state"]
