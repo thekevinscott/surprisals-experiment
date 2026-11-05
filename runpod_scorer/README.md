@@ -55,3 +55,56 @@ uv run --project . pytest
 
 No repository-root pytest configuration is needed. HTTP is mocked and the
 cell script uses fake commands on PATH, so these tests incur no provider cost.
+
+## Scoring from EC2 or another host
+
+Use an already-running RunPod scorer's HTTPS base URL, including `/v1`:
+`https://POD_ID-8000.proxy.runpod.net/v1`. No tunnel to tower is needed.
+The scorer must serve `openai/gpt-oss-120b`; keep T set to the same model.
+On the remote host, pass the URL explicitly (or expand an exported
+`SCORER_BASE_URL` in the remote shell):
+
+~~~bash
+uv run --project surprisals_experiment python -m surprisals_experiment.cli.run \
+  -T openai/gpt-oss-120b --cap-strategy surprisal \
+  --scorer-base-url "$SCORER_BASE_URL" --output runs/example \
+  problem /path/to/problem
+~~~
+
+The experiment's existing OpenRouter credential setup is still required for
+U and T. The RunPod inference endpoint created by this package has no API-key
+requirement. The scorer client sends `Authorization: Bearer EMPTY`; never
+send `RUNPOD_API_KEY` to inference. That key is only for RunPod pod lifecycle
+operations on the controlling host. Use the explicit URL on EC2 rather than
+`run-cell.sh`, which expects a local labnotes state-file path.
+
+From any host with the checkout and uv, probe an existing endpoint with an
+actual advice file and the intended number of simultaneous scoring calls:
+
+~~~bash
+uv run --project surprisals_experiment python -m surprisals_experiment.cli.scorer_probe \
+  "$SCORER_BASE_URL" /path/to/advice.txt --concurrency 4 --requests 20
+~~~
+
+This command does not launch infrastructure or read credential files. It checks
+`GET /v1/models` for `openai/gpt-oss-120b`, then uses the experiment's
+`AdviceMeasure.score` path: `POST /v1/completions`, the file's exact text,
+`model=openai/gpt-oss-120b`, `echo=true`, `max_tokens=0`, `logprobs=1`,
+`temperature=0`, and the scoring library's RunPod-compatible User-Agent.
+The same SDK timeouts apply (5-second connect, 600-second read/write/pool),
+with SDK retries disabled and the experiment's eight scheduled retries.
+A failed scoring call can therefore take over an hour to exhaust retries.
+
+JSON output reports the actual timeout settings, successful scores/second,
+scored tokens/second, elapsed wall time, and each score's latency, token count,
+bits, or exhausted error. Latencies start after acquiring a concurrency slot;
+throughput includes retries and excludes the initial model check. A missing
+prompt-logprob response fails scoring; a null first-token logprob contributes
+zero bits, exactly as in the experiment. Failed samples produce a nonzero exit.
+A model mismatch or failed model-list request stops before the timed batch.
+
+Validation is mocked only. Still required on real infrastructure: check HTTPS
+reachability and model identity from the intended AWS subnet, verify the actual
+120B prompt-logprob response, and measure throughput/timeouts with representative
+advice lengths at the planned concurrency. No throughput or live readiness is
+claimed here.
