@@ -1,3 +1,5 @@
+# state-machine
+
 State and actions are async callables. Every positional argument after `actions` is passed to both. The caller owns all state logic.
 
 ```python
