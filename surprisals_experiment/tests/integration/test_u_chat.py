@@ -15,7 +15,7 @@ USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
 async def test_feeds_every_t_source_of_the_best_attempt_back(
     config, botbox_script, chat_provider, monkeypatch,
 ):
-    from conftest import FakeSession
+    from fake_botbox import FakeSession
 
     config.t_samples = 2
     config.max_u_turns = 2

@@ -2,7 +2,7 @@
 import asyncio
 import json
 import pytest
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from run_one_window import run_one_window
 from surprisals_experiment.sdk.database import QuestionDatabase
 from test_run_summary import report

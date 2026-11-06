@@ -3,7 +3,7 @@ import json
 
 from botbox import RunResult
 
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from run_one_window import run_one_window
 
 

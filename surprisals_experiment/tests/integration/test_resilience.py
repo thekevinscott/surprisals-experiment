@@ -10,7 +10,7 @@ import pytest
 
 from botbox import RunResult
 
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
 

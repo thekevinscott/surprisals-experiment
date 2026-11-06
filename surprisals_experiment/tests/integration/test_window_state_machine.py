@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import ChatSession

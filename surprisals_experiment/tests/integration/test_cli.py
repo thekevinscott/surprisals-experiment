@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
 
 

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
