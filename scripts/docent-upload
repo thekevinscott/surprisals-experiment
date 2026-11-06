@@ -1,6 +1,11 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.14"
+# dependencies = ["docent-python>=0.1.83"]
+# ///
 """Upload a run's U and T Pi transcripts to the Docent collection named after its experiment.
 
-Usage: uv run --no-project --with 'docent-python>=0.1.83' scripts/docent_ingest.py experiments/<experiment>/runs/<run>
+Usage: uv run scripts/docent-upload experiments/<experiment>/runs/<run>
 """
 
 import json
