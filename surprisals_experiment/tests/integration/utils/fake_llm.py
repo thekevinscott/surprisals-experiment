@@ -11,6 +11,8 @@ from unittest.mock import patch
 import httpx2
 from botbox import RunResult
 from openai import AsyncOpenAI
+
+import surprisals_experiment
 from surprisals_experiment.sdk.run_test_suite import TestResult
 
 from utils.expected import decoded, masked
@@ -117,6 +119,9 @@ class FakeLLM:
         self.asked += 1
         return index, state.reply
 
+    def relative(self, path):
+        return Path(path).relative_to(self.output).as_posix()
+
     async def follow(self, path, on_event):
         self.followers[path] = on_event
         await asyncio.Future()
@@ -206,7 +211,10 @@ class FakeLLM:
 
         class Botbox:
             def __init__(self, agent, *, dockerfile):
-                pass
+                self.sent = {
+                    'agent': {'provider': agent.provider, 'model': agent.model, 'api_key': agent.api_key},
+                    'dockerfile': Path(dockerfile).relative_to(Path(surprisals_experiment.__file__).parent).as_posix(),
+                }
 
             async def __aenter__(self):
                 self.exited = False
@@ -219,15 +227,17 @@ class FakeLLM:
             async def build(self):
                 state = llm.states[llm.asked] if llm.asked < len(llm.states) else None
                 if state and isinstance(state.reply, T) and state.reply.build_error:
-                    index, t = await llm.checked(llm.ask, T, None)
+                    index, t = await llm.checked(llm.ask, T, self.sent)
                     await llm.delivered(index)
                     raise t.build_error
                 return 'fake'
 
             async def run(self, command, *, mounts, workdir, output):
                 mounted = {target: Path(source) for source, target, _ in mounts}
-                attempt = Path(output).relative_to(llm.output).as_posix()
-                index, t = await llm.answer(T, (attempt, (mounted['/advice'] / 'advice.md').read_text()))
+                index, t = await llm.answer(T, {**self.sent, 'command': command, 'mounts': {
+                    target: (llm.relative(source) if Path(source).is_relative_to(llm.output)
+                             else {file.name: file.read_text() for file in Path(source).iterdir()}, mode)
+                    for source, target, mode in mounts}, 'workdir': workdir, 'output': llm.relative(output)})
                 await asyncio.sleep(t.seconds)
                 stdout = Path(output) / 'stdout.txt'
                 stdout.parent.mkdir(parents=True, exist_ok=True)
