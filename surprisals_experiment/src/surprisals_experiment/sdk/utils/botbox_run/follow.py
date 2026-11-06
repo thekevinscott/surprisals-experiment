@@ -32,5 +32,5 @@ async def follow(path: Path, done: asyncio.Event, on_event: Callable[[dict], Non
             await reader
     # Lines written just before done can still be in tail's pipe when it is killed.
     if path.exists():
-        for line in path.read_bytes().split(b"\n")[consumed:]:
+        for line in (await tail(path, n=None))[consumed:]:
             emit(line)
