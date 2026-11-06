@@ -42,9 +42,8 @@ class FakeLLM:
             patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.follow', self.follow),
             patch('surprisals_experiment.sdk.run_test_suite.run_test_suite_for_t.run_case', self.run_case),
             patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', self.openai),
+            patch('measure_surprisal.utils.client.AsyncOpenAI', self.scorer),
         ]
-        if any(isinstance(state.reply, Score) for state in self.states):
-            self.patches.append(patch('measure_surprisal.utils.client.AsyncOpenAI', self.scorer))
         for p in self.patches:
             p.start()
         return self
@@ -189,6 +188,8 @@ class FakeLLM:
             body = json.loads(request.content)
             index, reply = await self.answer(Score, body['prompt'])
             await self.delivered(index)
+            if reply.status != 200:
+                return httpx2.Response(reply.status, json={'error': {'message': reply.message}})
             tokens, bits = zip(*reply.bits)
             offsets = [sum(map(len, tokens[:position])) for position in range(len(tokens))]
             return httpx2.Response(200, json={

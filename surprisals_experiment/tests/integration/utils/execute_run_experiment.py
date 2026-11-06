@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 
+from surprisals_experiment.cli.main import main
 from surprisals_experiment.sdk import run_experiment
 
 from utils.deterministic import deterministic
@@ -11,9 +12,11 @@ from utils.fake_llm import FakeLLM
 
 
 @asynccontextmanager
-async def execute_run_experiment(config, world):
+async def execute_run_experiment(config, world, *, argv=None):
+    """With `argv`, the run starts from the CLI, which logs its own deltas."""
     with deterministic(), FakeLLM(world, config.output) as llm:
-        llm.task = asyncio.create_task(run_experiment(config, on_delta=llm.log, on_t_delta=llm.log))
+        llm.task = asyncio.create_task(run_experiment(config, on_delta=llm.log, on_t_delta=llm.log) if argv is None
+                                       else main(argv))
         llm.task.add_done_callback(llm.ended)
         try:
             yield llm
