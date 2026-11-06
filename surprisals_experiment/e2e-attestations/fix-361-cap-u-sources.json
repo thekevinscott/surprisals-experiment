@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793994689,
+  "exit_code": 0,
+  "commit": "7ab32affa3256c74c8eb9b61ff032933f1864a80",
+  "branch": "fix-361-cap-u-sources"
+}
