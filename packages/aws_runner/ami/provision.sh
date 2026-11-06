@@ -17,6 +17,8 @@ curl -fsSL https://github.com/thekevinscott/botbox/archive/4fed2b153f15e216d9b07
 echo '18d3136f054a867b58d757086fadbef451183e6a04e2a2de66a1618ea4d395d3  /tmp/botbox.tar.gz' | sha256sum -c -
 tar -xzf /tmp/botbox.tar.gz -C /tmp
 botbox_source=/tmp/botbox-4fed2b153f15e216d9b07109355b83a6d7bdf819/packages/python/src/botbox
+# GitHub archives are group-writable; uv installs Botbox 644/755. BuildKit's COPY cache key includes the mode.
+chmod -R g-w "$botbox_source"
 
 docker buildx build --load --platform linux/amd64 --build-context "botbox=$botbox_source/relay" -t botbox-pi:latest "$botbox_source/agents/pi"
 docker buildx build --load --platform linux/amd64 -t botbox-proxy:latest "$botbox_source/proxy"
