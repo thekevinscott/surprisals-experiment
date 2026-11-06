@@ -20,6 +20,7 @@ class Script:
     solutions: deque = field(default_factory=deque)
     sessions: list = field(default_factory=list)
     commands: list = field(default_factory=list)
+    t_seconds: float = 0
 
 
 class FakeSession:
@@ -44,8 +45,8 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
-        if isinstance(reply, asyncio.Event):
-            await reply.wait()
+        if self.script.t_seconds:
+            await asyncio.sleep(self.script.t_seconds)
         (self.mounts["/solution"] / "main.py").write_text(reply)
         events = [
             {

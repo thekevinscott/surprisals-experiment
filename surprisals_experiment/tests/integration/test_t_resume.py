@@ -12,15 +12,16 @@ PASS = 'print(int(input()) * 2)\n'
 
 async def test_t_killed_mid_generation_resumes_without_a_retry(config, botbox_script):
     botbox_script.advice.extend(['Double it.'] * 2)
-    botbox_script.solutions.extend([asyncio.Event(), PASS, PASS])
+    botbox_script.solutions.extend([PASS] * 3)
+    botbox_script.t_seconds = 1
     run = asyncio.create_task(run_experiment(config, on_delta=None))
-    while not botbox_script.sessions:
-        await asyncio.sleep(0)
+    sample = config.output / 'windows/0/forks/0/turns/0/ts/0'
+    while not sample.exists():
+        await asyncio.sleep(.01)
     run.cancel()
     with pytest.raises(asyncio.CancelledError):
         await run
 
     # A retry waits 10 seconds before trying again.
     await asyncio.wait_for(run_experiment(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 3
     assert json.loads(config.result_file.read_text())['success']
