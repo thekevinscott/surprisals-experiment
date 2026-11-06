@@ -18,6 +18,7 @@ from aws_runner.remote.restore import restore
 from aws_runner.remote.result import result
 from aws_runner.remote.ship import ship
 from aws_runner.remote.start import start
+from aws_runner.remote.watch import watch
 from aws_runner.timestamp import timestamp
 
 
@@ -36,9 +37,13 @@ def run(ec2, config, directory, command):
         existing = find(ec2, directory)
         if existing:
             instance, volume = existing
+            stopped = instance["State"]["Name"] in {"stopped", "stopping"}
             instance = resume(ec2, config, instance)
-            if result(config, instance) is None and not active(config, instance):
-                execute(config, instance)
+            if result(config, instance) is None:
+                if not active(config, instance):
+                    execute(config, instance)
+            elif stopped:
+                watch(config, instance)
         else:
             surviving = surviving_volume(ec2, directory)
             if not surviving and not command:
@@ -50,6 +55,8 @@ def run(ec2, config, directory, command):
                 restore(config, instance)
                 if result(config, instance) is None:
                     execute(config, instance)
+                else:
+                    watch(config, instance)
             else:
                 working_directory = ship(config, instance, directory)
                 timestamp("shipped")

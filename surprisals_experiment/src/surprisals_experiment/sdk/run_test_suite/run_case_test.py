@@ -18,3 +18,11 @@ async def test_cancellation_reaps_the_case_process(tmp_path):
         await asyncio.wait_for(task, timeout=5)
     with pytest.raises(ProcessLookupError):
         os.kill(int((tmp_path / 'pid').read_text()), 0)
+
+
+@pytest.mark.parametrize('fd', [1, 2])
+async def test_output_beyond_the_limit_fails_without_keeping_it(tmp_path, fd):
+    (tmp_path / 'main.py').write_text(f"import os\nfor _ in range(64):\n    os.write({fd}, b'x' * (1 << 20))\n")
+    result = await run_case(0, '', '7', tmp_path, 30)
+    assert result.status == 'error'
+    assert len(result.stdout) + len(result.stderr) < 1 << 20
