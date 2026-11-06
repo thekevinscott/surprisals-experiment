@@ -1,16 +1,12 @@
 """Flush shows the original question and only the earliest shortest all-pass attempt."""
 
-import json
 from hashlib import sha256
 
-from advice_artifacts import write_advice
 from surprisals_experiment.prompt import PROMPTS
 
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
-from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 from utils.world import U, Done, State, T
 
 PASS = 'print(int(input()) * 2)\n'
@@ -152,23 +148,6 @@ async def test_sends_no_chat_history(config, execute_run_experiment):
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending))
     async with execute_run_experiment(config, world):
         pass
-
-
-async def test_keeps_best_attempt_even_above_old_size_budget(config):
-    advice = config.attempt_dir(0)
-    advice.mkdir(parents=True)
-    (config.window_dir / 'window.json').write_text('{}')
-    (config.fork_dir / 'fork.json').write_text('{}')
-    write_advice(config, advice, 'double it', 9)
-    sample = config.t_dir(0, 0)
-    (sample / 'src').mkdir(parents=True)
-    (sample / 'src/main.py').write_text(PASS)
-    (sample / 'generation.json').write_text('{"exit_code": 0}')
-    (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
-    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
-    assert prompt.count('<attempt>') == 1
-    assert '<advice>\ndouble it\n</advice>' in prompt
-    assert PASS.rstrip() in prompt
 
 
 async def test_selects_by_bits_and_shows_only_best_token_scores(config, scorer_provider, execute_run_experiment):

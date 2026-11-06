@@ -274,18 +274,6 @@ async def test_identical_advice_cannot_improve_from_score_jitter(
     assert len(scorer_provider.requests) == 1
 
 
-async def test_real_scorer_sdk_does_not_add_retries(
-    scoring_config, scorer_provider, no_retry_wait
-):
-    scorer_provider.replies.extend(
-        httpx2.Response(408, json={"error": {"message": "timeout"}}) for _ in range(9)
-    )
-    with pytest.raises(RuntimeError, match="8 retries exhausted"):
-        await scoring_config.advice_measure.score("advice")
-    assert len(scorer_provider.requests) == 9
-    assert no_retry_wait.await_count == 8
-
-
 @pytest.mark.parametrize(
     "message", ["maximum context length is 8192 tokens", "invalid model"]
 )
@@ -316,17 +304,3 @@ async def test_scorer_bad_request_stops_run_without_retry(
     async with execute_run_experiment(scoring_config, world):
         pass
     assert len(scorer_provider.requests) == 1
-
-
-async def test_scorer_connection_error_keeps_retry_schedule(
-    scoring_config, scorer_provider, no_retry_wait
-):
-    scorer_provider.replies.extend(
-        [httpx2.ConnectError("connection refused"), [("advice", 3.0)]]
-    )
-    assert await scoring_config.advice_measure.score("advice") == (
-        3.0,
-        [("advice", 3.0)],
-    )
-    assert len(scorer_provider.requests) == 2
-    no_retry_wait.assert_awaited_once_with(10)

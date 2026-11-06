@@ -9,7 +9,7 @@ import httpx2
 import pytest
 
 from openai import AsyncOpenAI
-from conftest import FakeSession
+from fake_botbox import FakeSession
 from run_one_window import run_one_window
 from surprisals_experiment.cli.main import main
 

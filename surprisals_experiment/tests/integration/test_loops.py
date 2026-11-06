@@ -146,7 +146,7 @@ def describe_advice_improvement():
 
 
     async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script):
-        from conftest import FakeSession
+        from fake_botbox import FakeSession
 
         config.max_u_turns = None
         botbox_script.advice.extend(['long advice', 'short'])
