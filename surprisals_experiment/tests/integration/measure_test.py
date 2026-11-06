@@ -1,5 +1,6 @@
 """Measurement, feedback and scorer recovery through the real HTTP client."""
 
+import math
 from hashlib import sha256
 
 import httpx2
@@ -272,6 +273,18 @@ async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execut
         score_state(rejected, {**chat(0, (QUESTION, rejected)), **unscored(first, rejected)},
                     status=400, message=message),
         Done(outcome=BadRequestError(error, response=response, body=None)),
+    ]
+    async with execute_run_experiment(scoring_config, world):
+        pass
+
+
+@pytest.mark.parametrize("bits", [math.nan, math.inf])
+async def test_non_finite_score_stops_run(scoring_config, execute_run_experiment, bits):
+    first = turn(0, 0)
+    world = [
+        u_state(scoring_config, first, QUESTION, 'x', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        score_state('x', {**chat(0, (QUESTION, 'x')), **unscored(first, 'x')}, bits=[('x', bits)]),
+        Done(outcome=ValueError(f"Scorer returned non-finite surprisal: [('x', {bits})]")),
     ]
     async with execute_run_experiment(scoring_config, world):
         pass
