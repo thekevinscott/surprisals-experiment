@@ -1,5 +1,6 @@
 """A run killed at any point restarts where it stopped, redoing no finished work."""
 
+import json
 from hashlib import sha256
 from itertools import accumulate
 from pathlib import Path
@@ -250,3 +251,28 @@ async def test_restart_from_every_kill_point(config, execute_run_experiment, sha
     assert {path: after.get(path) for path in before} == before
     assert sorted(config.output.parent.iterdir()) == folders
     assert found(config.output, final) == final
+
+
+@pytest.mark.parametrize('shape', SHAPES)
+@pytest.mark.parametrize('stale', [False, True], ids=['missing-result', 'stale-result'])
+async def test_restart_after_last_test_rewrites_result(config, execute_run_experiment, shape, stale):
+    """A kill after the last tests.json leaves every file but result.json."""
+    settings, rounds, failing, advices = SHAPES[shape]
+    config = Config(**(config.model_dump() | settings))
+    world = build(config.output, settings, rounds, failing, advices)[0]
+    async with execute_run_experiment(config, world):
+        pass
+    if stale:
+        config.result_file.write_text(json.dumps({'success': True, 'attempts': 1, 'solution': 'stale'}))
+    else:
+        config.result_file.unlink()
+    before = finished(config.output)
+    before.pop('result.json', None)
+    done = world[-1]
+
+    async with execute_run_experiment(Config(**config.model_dump()), [
+            Done(outcome=done.outcome, files={'result.json': done.files['result.json']})]):
+        pass
+
+    after = finished(config.output)
+    assert {path: after.get(path) for path in before} == before
