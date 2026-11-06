@@ -81,9 +81,7 @@ Run artifacts belong in `experiments/<experiment>/runs/<run>/`; experiment files
 - `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
 - Each T has its own `windows/0/forks/0/turns/<turn>/ts/<i>/` containing `t_transcripts/`, `src/`, `generation.json`, and `tests.json`, including when `--t-samples 1`.
 
-`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. The file is written at run completion. Restarting derives it again from persisted evaluations, repairing a missing or stale result after interruption. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
-
-Generate a dynamic summary of advice and T attempts with `./scripts/summarize-run.sh experiments/<experiment>/runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/README.md#summarize-a-run) for details.
+`result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. The file is written at run completion. Restarting derives it again from persisted evaluations, repairing a missing or stale result after interruption. Each sample's `tests.json` records whether it passed.
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 
