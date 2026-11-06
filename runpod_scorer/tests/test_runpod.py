@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -141,6 +142,27 @@ def test_readiness_transport_retry(fake_http):
     assert fake_http.call_count == 4
 
 
+def test_up_timestamps_each_step(fake_http, capsys):
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        httpx.ConnectError("not listening yet"),
+        response(502),
+        response(502),
+        response(),
+    ]
+    main(["up"])
+    lines = capsys.readouterr().err.splitlines()
+    stamps = [datetime.fromisoformat(line.split(" ", 1)[0]) for line in lines]
+    assert all(stamp.utcoffset() == timedelta(0) for stamp in stamps)
+    assert [line.split(" ", 1)[1] for line in lines] == [
+        "Created pod pod1",
+        "Pod pod1 not ready: ConnectError",
+        "Pod pod1 not ready: 502",
+        "Pod pod1 ready",
+    ]
+
+
 def test_create_failure_does_not_delete(fake_http):
     fake_http.side_effect = [response(body=[]), response(500)]
     with pytest.raises(httpx.HTTPStatusError):
@@ -176,7 +198,7 @@ def test_pod_id_saved_before_readiness(fake_http, state, capsys):
             return response(body=[])
         if method == "POST":
             return response(body={"id": "pod1"})
-        assert capsys.readouterr().err == "Created pod pod1\n"
+        assert capsys.readouterr().err.endswith(" Created pod pod1\n")
         assert read(state) == {"pod_id": "pod1"}
         return response()
 

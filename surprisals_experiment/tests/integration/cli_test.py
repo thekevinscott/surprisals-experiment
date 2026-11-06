@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import T_MODEL, U_MODEL
-from utils.world import Done, U
+from utils.world import Done, T, U, t_sent
 
 from u_flush_test import PASS, QUESTION, flush, played
 
@@ -39,11 +39,14 @@ def world(config, u_model, t_model, url):
     best = flush(0, 'Double.', bits='Double.<7.0>', codes=(PASS, PASS))
     states, pending = played([[(QUESTION, 'Double.', [PASS, PASS])], [(best, 'Double.', [PASS, PASS])]],
                              {'Double.': {'score': 7.0, 'tokens': [['Double.', 7.0]]}}, sequential=True,
-                             bits={'Double.': [('Double.', 7.0)]})
+                             bits={'Double.': [('Double.', 7.0)]}, config=config.model_copy(update={
+                                 'cap_strategy': 'surprisal', 'scorer_base_url': url, 't_samples': 2}))
     for state in states:
         state.logs = []
         if isinstance(state.reply, U):
             state.sent['model'] = u_model
+        if isinstance(state.reply, T):
+            state.sent = t_sent(state.sent['output'], 'Double.', model=t_model)
     solution = config.output / 'windows/0/forks/0/turns/0/ts/0/attempts/0/src'
     return [*states, Done(outcome=None, files={**pending, 'result.json': {
         'success': True, 'attempts': 2, 'solution': str(solution), 'best_measurement': 7.0,

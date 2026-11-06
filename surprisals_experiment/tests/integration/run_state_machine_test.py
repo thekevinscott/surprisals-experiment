@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, Score, State, T
+from utils.world import U, Done, Score, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)'
@@ -19,9 +19,9 @@ def settings(config):
             'window_solo_turns': 30, 'max_u_turns': 1, 'git_commit': ...}
 
 
-def u_body(user):
+def u_body(config, user, best):
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-            'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]}
+            'messages': [{'role': 'system', 'content': u_system(config, 1, best)}, {'role': 'user', 'content': user}]}
 
 
 def asked(user):
@@ -71,7 +71,7 @@ def window_world(config, windows):
                             f'windows/{window}/window.json': {}, f'windows/{window}/forks/0/fork.json': {}}
         if window == 0:
             files['settings.json'] = settings(config)
-        world.append(State(U(advice, thinking='Think.'), sent=u_body(user),
+        world.append(State(U(advice, thinking='Think.'), sent=u_body(config, user, best and best[2]),
                            logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)], files=files))
         pending = {f'{u_dir}/messages.jsonl': answered(user, advice),
                    f'{u_dir}/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}],
@@ -91,7 +91,7 @@ def window_world(config, windows):
             if sample == 0:
                 files |= pending
             world.append(State(T({'main.py': source}, thinking='Code.', text='Done.'),
-                               sent=(f'{turn}/ts/{sample}/attempts/0', advice),
+                               sent=t_sent(f'{turn}/ts/{sample}/attempts/0', advice),
                                logs=[(f'{turn}/ts/{sample}', 'thinking', 'Code.'),
                                      (f'{turn}/ts/{sample}', 'text', 'Done.')], files=files))
         previous = {}

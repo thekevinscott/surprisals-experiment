@@ -15,7 +15,7 @@ async def test_resume_after_last_test_rewrites_result(config, execute_run_experi
     world, pending = played([
         [(QUESTION, 'Double the input.', [PASS]), (flush(0, 'Double the input.', length=17), 'Double.', [PASS])],
         [(best, 'Double the input.', [PASS]), (best, 'Double.', [PASS])],
-    ], {'Double the input.': {'score': 17}, 'Double.': {'score': 7}})
+    ], {'Double the input.': {'score': 17}, 'Double.': {'score': 7}}, config=config)
     done = outcome(config, 'windows/0/forks/0/turns/1', 4, pending)
     async with execute_run_experiment(config, [*world, done]):
         pass
