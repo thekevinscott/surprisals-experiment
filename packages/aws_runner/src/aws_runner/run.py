@@ -36,8 +36,12 @@ def run(ec2, config, directory, command):
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        os.close(lock)
-        raise RuntimeError(f"aws_runner is already running on {directory}")
+        print(
+            f"aws_runner already running on {directory}; waiting",
+            file=sys.stderr,
+            flush=True,
+        )
+        fcntl.flock(lock, fcntl.LOCK_EX)
     previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
