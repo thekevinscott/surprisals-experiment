@@ -6,6 +6,7 @@ import json
 import pytest
 
 from advice_artifacts import write_advice
+from conftest import FakeSession
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.run import Run
@@ -65,3 +66,26 @@ async def test_other_sample_completion_does_not_skip_requested_sample(config, bo
     await run_sample(Run(config, database, problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 2
     assert (turn.t_dir(0) / 'tests.json').exists()
+
+
+async def test_interrupted_during_generation_resumes_without_a_failed_attempt(
+    config, botbox_script, monkeypatch, no_retry_wait,
+):
+    turn, database, problem = await setup(config)
+    botbox_script.solutions.append(PASS)
+    original = FakeSession.message
+
+    async def killed(self, text):
+        (self.mounts['/solution'] / 'partial.py').write_text('partial')
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(FakeSession, 'message', killed)
+    with pytest.raises(asyncio.CancelledError):
+        await run_sample(Run(config, database, problem, actions), Sample(turn, 0))
+
+    monkeypatch.setattr(FakeSession, 'message', original)
+    resumed = ExperimentDatabase(config.output)
+    await run_sample(Run(config, resumed, problem, actions), Sample(turn, 0))
+    no_retry_wait.assert_not_awaited()
+    assert len(botbox_script.sessions) == 2
+    assert await resumed.query('SELECT passed FROM test_results') == [{'passed': 1}]
