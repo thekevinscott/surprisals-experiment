@@ -303,7 +303,7 @@ def test_experiment_relaunch_continues_both_cells(
                 )
                 assert folders() == original, "Relaunch created new run folders"
                 wait_for(
-                    lambda original=original: all(
+                    lambda original=original, before=before: all(
                         set(folder.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
                         - before[folder][0].keys()
                         for folder in original
