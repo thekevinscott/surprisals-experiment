@@ -67,7 +67,7 @@ def scored(advice, score):
 
 
 def results(path, tests=PASSED):
-    return {f'{path}/ts/0/generation.json': {'exit_code': 0}, f'{path}/ts/0/tests.json': tests}
+    return {f'{path}/ts/0/attempts/0/generation.json': {'exit_code': 0}, f'{path}/ts/0/attempts/0/tests.json': tests}
 
 
 def u_state(path, user, advice, files):
@@ -80,14 +80,14 @@ def u_state(path, user, advice, files):
 def t_state(path, advice, code, files, logs=()):
     stdout = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
               '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
-    return State(T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(f'{path}/ts/0', advice),
+    return State(T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(f'{path}/ts/0/attempts/0', advice),
                  logs=[*logs, (f'{path}/ts/0', 'thinking', 'Write main.py.'), (f'{path}/ts/0', 'text', 'Done.')],
                  files={f'{path}/metadata.json': {'advice': advice_path(advice)}, f'{path}/u/advice.txt': advice,
-                        f'{path}/ts/0/stdout.txt': stdout, f'{path}/ts/0/src/main.py': code, **files})
+                        f'{path}/ts/0/attempts/0/stdout.txt': stdout, f'{path}/ts/0/attempts/0/src/main.py': code, **files})
 
 
 def result(config, solution, attempts, **scoring):
-    return {'result.json': {'success': True, 'attempts': attempts, 'solution': str(config.output / solution / 'ts/0/src'),
+    return {'result.json': {'success': True, 'attempts': attempts, 'solution': str(config.output / solution / 'ts/0/attempts/0/src'),
                             **scoring}}
 
 
@@ -112,7 +112,7 @@ async def test_character_metadata_has_no_tokens(config, scorer_provider, execute
         t_state(first, 'Use a loop', PASS, {**chat(0, (QUESTION, 'Use a loop')), **scored('Use a loop', {'score': 10})}),
         u_state(second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}),
         t_state(second, 'Use a loop', PASS, chat(1, (best, 'Use a loop'))),
-        Done(outcome=config.output / first / 'ts/0/src', files={**results(second), **result(config, first, 2)}),
+        Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(config, first, 2)}),
     ]
     async with execute_run_experiment(config, world):
         pass
@@ -148,7 +148,7 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, scorer
         t_state(second[1], longer, PASS, chat(1, *[(best, longer)] * 2)),
         u_state(second[2], best, longer, {**results(second[1]), **chat(1, *[(best, longer)] * 2, (best, None))}),
         t_state(second[2], longer, PASS, chat(1, *[(best, longer)] * 3)),
-        Done(outcome=config.output / first[1] / 'ts/0/src', files={**results(second[2]), **result(
+        Done(outcome=config.output / first[1] / 'ts/0/attempts/0/src', files={**results(second[2]), **result(
             config, first[1], 6, best_measurement=8.25, cap_strategy='surprisal',
             scorer_base_url='http://scorer/v1', scorer_model='t')}),
     ]
@@ -177,7 +177,7 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, scorer_p
         t_state(second[0], 'good', PASS, chat(1, (best, 'good'))),
         u_state(second[1], best, 'good', {**results(second[0]), **chat(1, (best, 'good'), (best, None))}),
         t_state(second[1], 'good', PASS, chat(1, *[(best, 'good')] * 2)),
-        Done(outcome=config.output / first[0] / 'ts/0/src', files={**results(second[1]), **result(
+        Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
             config, first[0], 4, best_measurement=10.0, cap_strategy='surprisal',
             scorer_base_url='http://scorer/v1', scorer_model='t')}),
     ]
@@ -209,7 +209,7 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, scorer_p
             'score': 10.0, 'tokens': [['Use a loop', 10.0]]})}, logs=[(f'{first}/u', 'retry', retry)]),
         u_state(second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}),
         t_state(second, 'Use a loop', PASS, chat(1, (best, 'Use a loop'))),
-        Done(outcome=config.output / first / 'ts/0/src', files={**results(second), **result(
+        Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
             config, first, 2, best_measurement=10.0, cap_strategy='surprisal',
             scorer_base_url='http://scorer/v1', scorer_model='t')}),
     ]
@@ -256,7 +256,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(
     )
     botbox_script.advice.extend(["same advice"] * 2)
     botbox_script.solutions.extend([PASS] * 2)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / "src"
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / "attempts/0/src"
     assert len(scorer_provider.requests) == 1
     assert json.loads(config.result_file.read_text())["attempts"] == 2
     for attempt in range(2):

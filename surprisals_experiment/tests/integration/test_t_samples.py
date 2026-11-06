@@ -28,7 +28,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
         assert directory == config.attempt_dir(0) / 'ts' / str(i)
         assert (directory / 'attempts/0/src/main.py').read_text() == source
         assert (directory / 'attempts/0/transcripts/session.jsonl').exists()
-        assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
+        assert json.loads((directory / 'attempts/0/tests.json').read_text())['all_passed'] == (source == PASS)
     settings_text = (config.output / 'settings.json').read_text()
     settings = json.loads(settings_text)
     assert settings.keys() == (type(config).model_fields.keys() - {'api_key'}) | {'git_commit'}
@@ -95,7 +95,7 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
     original = FakeSession.message
 
     async def message(self, text):
-        if self.mounts['/solution'].parent.name == '1':
+        if self.mounts['/solution'].parents[2].name == '1':
             blocked.set()
             await asyncio.Event().wait()
         return await original(self, text)
@@ -110,8 +110,8 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
         assert all(session.closed for session in botbox_script.sessions)
         assert (config.t_dir(0, 0) / 'attempts/0/src/main.py').read_text() == PASS
         assert (config.t_dir(0, 0) / 'attempts/0/transcripts/session.jsonl').exists()
-        assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
-        assert not (config.t_dir(0, 1) / 'tests.json').exists()
+        assert json.loads((config.t_dir(0, 0) / 'attempts/0/tests.json').read_text())['all_passed']
+        assert not (config.t_dir(0, 1) / 'attempts/0/tests.json').exists()
         assert not config.result_file.exists()
         summary, attempt = report(config.output)
         assert summary['completed_evaluation_attempts'] == 0

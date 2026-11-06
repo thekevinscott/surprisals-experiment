@@ -88,14 +88,15 @@ def run_world(config, turns, *, outcome, attempts):
         evaluated = {}
         for sample, source in enumerate(sources):
             t = f'{directory}/ts/{sample}'
+            attempt = f'{t}/attempts/0'
             world.append(State(
                 T({'main.py': source}, thinking='Write main.py.', text='Done.'),
-                sent=(t, advice),
+                sent=(attempt, advice),
                 logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                files={**files, f'{t}/stdout.txt': stdout('Write main.py.'), f'{t}/src/main.py': source},
+                files={**files, f'{attempt}/stdout.txt': stdout('Write main.py.'), f'{attempt}/src/main.py': source},
             ))
             files = {}
-            evaluated |= {f'{t}/generation.json': {'exit_code': 0}, f'{t}/tests.json': evaluation(source)}
+            evaluated |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': evaluation(source)}
     if outcome is None:
         evaluated['error.txt'] = f'No passing solution after {attempts} U turns\n'
     solution = outcome and str(outcome)
@@ -113,7 +114,7 @@ def describe_u_to_t_loop():
         advices = [f'advice {i}' for i in range(2 * count)]
         first = [(0, QUESTION, advices[i], [FAIL if i < failures else PASS]) for i in range(count)]
         second = [(1, best(failures, advices[failures], [PASS]), advices[count + i], [PASS]) for i in range(count)]
-        solution = config.output / f'windows/0/forks/0/turns/{failures}/ts/0/src'
+        solution = config.output / f'windows/0/forks/0/turns/{failures}/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution,
                                                             attempts=2 * count)):
             pass
@@ -139,7 +140,7 @@ def describe_advice_improvement():
         first = [(0, feedback[i], advice, sources) for i, (advice, sources) in enumerate(zip(advices, outcomes))]
         winner = advices[best_attempt]
         second = [(1, best(best_attempt, winner, [PASS, PASS]), winner, [PASS, PASS])] * len(advices)
-        solution = config.output / f'windows/0/forks/0/turns/{best_attempt}/ts/0/src'
+        solution = config.output / f'windows/0/forks/0/turns/{best_attempt}/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution,
                                                             attempts=2 * len(advices))):
             pass
@@ -155,7 +156,7 @@ def describe_advice_improvement():
         original = getattr(owner, method)
 
         async def cancel_later(session, *args, **kwargs):
-            if (config.t_dir(0, 0) / 'tests.json').exists():
+            if (config.t_dir(0, 0) / 'attempts/0/tests.json').exists():
                 raise asyncio.CancelledError
             return await original(session, *args, **kwargs)
 
@@ -173,6 +174,6 @@ def describe_run_layout():
         config.max_u_turns = 2
         first = [(0, QUESTION, 'long advice', [PASS]), (0, best(0, 'long advice', [PASS]), 'short', [PASS])]
         second = [(1, best(1, 'short', [PASS]), 'short', [PASS])] * 2
-        solution = config.output / 'windows/0/forks/0/turns/1/ts/0/src'
+        solution = config.output / 'windows/0/forks/0/turns/1/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution, attempts=4)):
             pass

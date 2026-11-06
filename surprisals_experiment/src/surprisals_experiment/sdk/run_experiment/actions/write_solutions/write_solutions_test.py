@@ -22,7 +22,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     async def message(self, text):
         nonlocal active, peak
-        sample = int(self.mounts['/solution'].parent.name)
+        sample = int(self.mounts['/solution'].parents[2].name)
         active += 1
         peak = max(peak, active)
         try:
@@ -58,7 +58,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
             await task
         assert peak == capacity
         assert completion[:capacity] == list(reversed(range(capacity)))
-        assert [json.loads((config.t_dir(0, sample) / 'tests.json').read_text())['all_passed']
+        assert [json.loads((config.t_dir(0, sample) / 'attempts/0/tests.json').read_text())['all_passed']
                 for sample in range(5)] == [True, False, True, False, True]
         assert [session.messages for session in botbox_script.sessions] == [['double it']] * 5
     finally:

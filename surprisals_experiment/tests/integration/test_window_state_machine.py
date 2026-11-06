@@ -91,11 +91,12 @@ def run_world(config, rounds, advice, code):
         scored = {}
         for fork in forks:
             text = advice(fork, position)
-            attempt = f'windows/{window}/forks/{fork}/turns/{position}/ts/0'
+            t = f'windows/{window}/forks/{fork}/turns/{position}/ts/0'
+            attempt = f'{t}/attempts/0'
             states.append(State(
                 T({'main.py': code(fork)}, thinking='Write main.py.', text='Done.'),
                 sent=(attempt, text),
-                logs=[(attempt, 'thinking', 'Write main.py.'), (attempt, 'text', 'Done.')],
+                logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                 files={**pending, f'{attempt}/stdout.txt': stdout(), f'{attempt}/src/main.py': code(fork)},
             ))
             pending = {}
@@ -110,7 +111,7 @@ def run_world(config, rounds, advice, code):
 async def test_finished_run_rerun_does_not_ask_u(config, execute_run_experiment):
     world, scored = run_world(config, [(0, 0, [0]), (1, 0, [0])], lambda fork, position: 'Double it.',
                               lambda fork: DOUBLE)
-    solution = config.t_dir(0, 0) / 'src'
+    solution = config.t_dir(0, 0) / 'attempts/0/src'
     result = {'success': True, 'attempts': 2, 'solution': str(solution)}
     async with execute_run_experiment(config, [*world, Done(outcome=solution, files={**scored, 'result.json': result})]):
         pass
@@ -133,7 +134,7 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
     ]]
     world, scored = run_world(config, rounds, lambda fork, position: chr(65 + fork) * ([20, 3, 8, 12][fork] - position),
                               lambda fork: DOUBLE if passes and fork != 1 else 'print(0)\n')
-    solution = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'src' if passes else None
+    solution = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'attempts/0/src' if passes else None
     attempts = 2 * (8 + window_solo_turns)
     scored['result.json'] = {'success': passes, 'attempts': attempts, 'solution': solution and str(solution)}
     if not passes:
@@ -182,12 +183,12 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
         with patch.dict(actions, {'unscored': interrupt}):
             with pytest.raises(asyncio.CancelledError):
                 await run_one_window(config, on_delta=None)
-        files = [*config.output.glob('windows/*/forks/*/turns/*/ts/*/generation.json'),
+        files = [*config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/generation.json'),
                  *config.output.glob('windows/*/forks/*/turns/*/u/advice.txt')]
         before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files}
         assert files
         result = await run_one_window(config, on_delta=None)
-    assert result == Turn(config, 3, 0, 2).t_dir(0) / 'src'
+    assert result == Turn(config, 3, 0, 2).t_dir(0) / 'attempts/0/src'
     assert len(calls) == len(set(calls)) == len(chat_provider) == 10
     assert len(botbox_script.sessions) == 10
     assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files} == before
@@ -210,7 +211,7 @@ async def test_later_window_preserves_global_best(config, botbox_script):
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await run_window(run, Window(config, 1))
         result, solution = await read_progress(run)
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts/0/src'
     assert result['attempts'] == 2
     assert (config.output / 'windows/1/forks/0/u/transcripts/messages.jsonl').exists()
 
@@ -222,7 +223,7 @@ async def test_parallel_windows_obey_run_stop_rule(config, execute_run_experimen
     config.max_u_turns = None
     rounds = [(window, position, forks) for window in range(2) for position, forks in [(0, range(4)), (1, [0])]]
     world, scored = run_world(config, rounds, lambda fork, position: 'Double.', lambda fork: DOUBLE)
-    solution = config.t_dir(0, 0) / 'src'
+    solution = config.t_dir(0, 0) / 'attempts/0/src'
     result = {'success': True, 'attempts': 10, 'solution': str(solution)}
     async with execute_run_experiment(config, [*world, Done(outcome=solution, files={**scored, 'result.json': result})]):
         pass

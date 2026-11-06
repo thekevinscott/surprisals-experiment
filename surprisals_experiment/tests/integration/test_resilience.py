@@ -136,7 +136,7 @@ async def test_cancellation_closes_t_and_keeps_u_artifacts(config, execute_run_e
         ),
         State(
             T({'main.py': PASS}, thinking='Write main.py.', text='Done.'),
-            sent=('windows/0/forks/0/turns/0/ts/0', 'double it'),
+            sent=('windows/0/forks/0/turns/0/ts/0/attempts/0', 'double it'),
             logs=[
                 ('windows/0/forks/0/turns/0/ts/0', 'thinking', 'Write main.py.'),
                 ('windows/0/forks/0/turns/0/ts/0', 'text', 'Done.'),
@@ -150,8 +150,8 @@ async def test_cancellation_closes_t_and_keeps_u_artifacts(config, execute_run_e
                 f'{advice}/advice.json': {'score': 9},
                 'windows/0/forks/0/turns/0/metadata.json': {'advice': advice},
                 'windows/0/forks/0/turns/0/u/advice.txt': 'double it',
-                'windows/0/forks/0/turns/0/ts/0/stdout.txt': ...,
-                'windows/0/forks/0/turns/0/ts/0/src/main.py': PASS,
+                'windows/0/forks/0/turns/0/ts/0/attempts/0/stdout.txt': ...,
+                'windows/0/forks/0/turns/0/ts/0/attempts/0/src/main.py': PASS,
             },
         ),
     ]
