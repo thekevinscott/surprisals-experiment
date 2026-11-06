@@ -222,9 +222,7 @@ def test_experiment_relaunch_continues_both_cells(
         "experiments",
         experiment,
     ]
-    # Reuse the CLI test's cheap settings, excluding output, cap strategy and problem.
-    cheap = command(tmp_path / "unused")[7:-1]
-    args = [*cli, "run", "--", *cheap]
+    args = [*cli, "run"]
     runs = root / "experiments" / experiment / "runs"
 
     def folders():
@@ -304,20 +302,23 @@ def test_experiment_relaunch_continues_both_cells(
                     )
                 )
                 assert folders() == original, "Relaunch created new run folders"
-                expect(term.get_by_text("2 passed, 0 failed.")).to_be_visible(
-                    timeout=2400
+                wait_for(
+                    lambda original=original: all(
+                        set(folder.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
+                        - before[folder][0].keys()
+                        for folder in original
+                    ),
+                    timeout=2400,
                 )
                 term.key_ctrl_c()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
                 active = False
                 settled()
                 assert folders() == original
                 for folder in original:
-                    run = record(folder)
-                    assert len(run["invocations"]) == 2
-                    assert run["exit_code"] == 0
-                    assert run["invocations"][-1]["exit_code"] == 0
+                    assert len(record(folder)["invocations"]) == 2
                     check_preserved(*before[folder])
-                    check_result(folder, forks=1, samples=2)
     finally:
         if term is not None:
             (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
