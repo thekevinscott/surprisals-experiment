@@ -2,25 +2,19 @@
 
 import json
 from advice_artifacts import write_advice
+from next_u_prompt import next_u_prompt
 
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
-from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 
 
 @pytest.mark.parametrize('measure', ['characters', 'surprisal'])
-async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
+async def test_selects_and_reads_best_from_run_folder_alone(config, botbox_script, chat_provider, measure):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 't_samples': 2,
     }))
-    config.fork_dir.mkdir(parents=True)
-    (config.window_dir / 'window.json').write_text('{}')
-    (config.fork_dir / 'fork.json').write_text('{}')
-    problem = QuestionDatabase(config.problem_dir)
-    database = ExperimentDatabase(config.output)
-    assert await prepare_flush(config, problem, database) == await problem.question
+    assert await next_u_prompt(config, botbox_script, chat_provider) == (config.problem_dir / 'question.txt').read_text()
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
     for number, measurement, results in [
@@ -41,7 +35,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         (src / 'nested').mkdir(parents=True)
         (src / 'main.py').write_text(f'print({sample})\n')
         (src / 'nested/helper.py').write_text(f'VALUE = {sample}\n')
-    prompt = await prepare_flush(config, problem, database)
+    prompt = await next_u_prompt(config, botbox_script, chat_provider)
     assert prompt.count('<attempt>') == 1
     assert '<index>2</index>' in prompt
     assert '<advice>\nadvice 2\n</advice>' in prompt
@@ -60,14 +54,14 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     write_advice(config, config.attempt_dir(2), 'updated advice', 5,
                  [['updated advice', 5]] if measure == 'surprisal' else None)
     (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
-    updated = await prepare_flush(config, problem, database)
+    updated = await next_u_prompt(config, botbox_script, chat_provider)
     assert '<advice>\nupdated advice\n</advice>' in updated
     assert 'print("updated")' in updated
 
 
-async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
+async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config, botbox_script, chat_provider):
     config.output.mkdir()
-    for turn in ['windows/10/forks/0/turns/1', 'windows/9/forks/2/turns/35', 'windows/9/forks/1/turns/35']:
+    for turn in ['windows/10/forks/1/turns/1', 'windows/9/forks/2/turns/35', 'windows/9/forks/1/turns/35']:
         directory = config.output / turn
         (directory / 'ts/0').mkdir(parents=True)
         (directory.parents[3] / 'window.json').write_text('{}')
@@ -75,6 +69,5 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
         write_advice(config, directory, turn, 5)
         (directory / 'ts/0/generation.json').write_text('{"exit_code": 0}')
         (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
-    config = Config(**(config.model_dump() | {'t_samples': 1}))
-    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    prompt = await next_u_prompt(config, botbox_script, chat_provider)
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt

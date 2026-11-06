@@ -2,45 +2,46 @@
 
 import asyncio
 import json
-from unittest.mock import patch
-from derived_prompt import derived_prompt
 from advice_artifacts import advice_directory, read_score
 
 import pytest
 
-from run_one_window import run_one_window
-from surprisals_experiment.sdk.database import QuestionDatabase
+from surprisals_experiment.sdk import run_experiment
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 
 
+def turns(config, window):
+    return sorted(int(path.name) for path in (config.output / f'windows/{window}/forks/0/turns').iterdir())
+
+
 def describe_u_to_t_loop():
     @pytest.mark.parametrize('failures', [0, 2])
     async def it_records_each_batch_with_an_explicit_iteration_limit(config, botbox_script, chat_provider, failures):
-        config.max_u_turns = min(failures + 1, 5)
-        # Extra scripted responses reveal accidental calls after completion.
-        botbox_script.advice.extend(f'advice {i}' for i in range(6))
-        botbox_script.solutions.extend([FAIL] * failures + [PASS, PASS])
-        result = await run_one_window(config, on_delta=None)
         count = min(failures + 1, 5)
+        config.max_u_turns = count
+        # Extra scripted responses reveal accidental calls after completion.
+        botbox_script.advice.extend(f'advice {i}' for i in range(2 * count + 6))
+        botbox_script.solutions.extend([FAIL] * failures + [PASS] + [FAIL] * count + [PASS])
+        result = await run_experiment(config, on_delta=None)
         expected = config.t_dir(count - 1, 0) / 'src' if failures < 5 else None
         assert result == expected
         assert json.loads(config.result_file.read_text()) == {
-            'success': failures < 5, 'attempts': count,
+            'success': failures < 5, 'attempts': 2 * count,
             'solution': str(expected) if expected else None,
         }
-        assert len(botbox_script.sessions) == count
-        assert [s.messages for s in botbox_script.sessions] == [[f'advice {i}'] for i in range(count)]
+        assert turns(config, 0) == turns(config, 1) == list(range(count))
+        assert len(botbox_script.advice) == 6
+        assert len(botbox_script.sessions) == 2 * count
+        assert [s.messages for s in botbox_script.sessions[:count]] == [[f'advice {i}'] for i in range(count)]
         for i in range(count):
-            attempt = config.attempt_dir(i)
             tests = json.loads((config.t_dir(i, 0) / 'tests.json').read_text())
             assert tests['passed'] == (2 if i == failures else 0)
             assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = chat_provider[i + 1]['messages'][-1]['content']
-                assert feedback == await QuestionDatabase(config.problem_dir).question
-                assert chat_provider[i + 1]['messages'][-1]['content'] == feedback
+                assert feedback == (config.problem_dir / 'question.txt').read_text()
         assert config.error_file.exists() == (failures == 5)
         assert all(s.closed for s in botbox_script.sessions)
 
@@ -51,9 +52,10 @@ def describe_advice_improvement():
         config.max_u_turns = limit
         botbox_script.advice.extend(['advice'] * 21)
         botbox_script.solutions.extend([FAIL] * 21)
-        assert await run_one_window(config, on_delta=None) is None
-        assert len(botbox_script.sessions) == limit
-        assert json.loads(config.result_file.read_text())['attempts'] == limit
+        assert await run_experiment(config, on_delta=None) is None
+        assert turns(config, 0) == turns(config, 1) == list(range(limit))
+        assert len(botbox_script.sessions) == 2 * limit
+        assert json.loads(config.result_file.read_text())['attempts'] == 2 * limit
 
     @pytest.mark.parametrize('advices,outcomes,best_attempt', [
         (['long advice', 'tiny', 'long advice', 'tiny'], [[PASS, PASS]] * 4, 1),
@@ -64,44 +66,41 @@ def describe_advice_improvement():
     ):
         config.max_u_turns = len(advices)
         config.t_samples = 2
-        botbox_script.advice.extend(advices + ['must not run'])
+        botbox_script.advice.extend(advices + ['window 1'] * len(advices) + ['must not run'])
         botbox_script.solutions.extend(source for batch in outcomes for source in batch)
-        result = await run_one_window(config, on_delta=None)
+        botbox_script.solutions.extend([FAIL] * 2 * len(advices))
+        result = await run_experiment(config, on_delta=None)
         assert result == config.t_dir(best_attempt, 0) / 'src'
-        assert len(botbox_script.sessions) == 2 * len(advices)
+        assert list(botbox_script.advice) == ['must not run']
+        assert len(botbox_script.sessions) == 4 * len(advices)
         assert json.loads(config.result_file.read_text()) == {
-            'success': True, 'attempts': len(advices), 'solution': str(result),
+            'success': True, 'attempts': 2 * len(advices), 'solution': str(result),
         }
         for attempt, advice in enumerate(advices):
             assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {
                 'advice': str(advice_directory(config, advice).relative_to(config.output)),
             }
             assert botbox_script.sessions[attempt * 2].messages == [advice]
-        feedback = await derived_prompt(config)
+        feedback = chat_provider[len(advices)]['messages'][-1]['content']
         assert f'<index>{best_attempt}</index>' in feedback
         assert f'<length>{len(advices[best_attempt])} characters</length>' in feedback
         assert all(session.closed for session in botbox_script.sessions)
 
-
-    async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script):
-        from conftest import FakeSession
-
+    async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script, chat_provider):
         config.max_u_turns = None
         botbox_script.advice.extend(['long advice', 'short'])
-        botbox_script.solutions.append(PASS)
-        owner, method = FakeSession, 'message'
-        original = getattr(owner, method)
-
-        async def cancel_later(session, *args, **kwargs):
-            if (config.t_dir(0, 0) / 'tests.json').exists():
-                raise asyncio.CancelledError
-            return await original(session, *args, **kwargs)
-
-        with patch.object(owner, method, cancel_later):
-            with pytest.raises(asyncio.CancelledError):
-                await run_one_window(config, on_delta=None)
+        botbox_script.solutions.extend([PASS, asyncio.Event()])
+        run = asyncio.create_task(run_experiment(config, on_delta=None))
+        async with asyncio.timeout(5):
+            while len(botbox_script.sessions) < 2:
+                await asyncio.sleep(0.01)
+        run.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await run
         assert not config.result_file.exists()
-        assert '<advice>\nlong advice\n</advice>' in await derived_prompt(config)
+        assert '<advice>\nlong advice\n</advice>' in chat_provider[1]['messages'][-1]['content']
+        assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
+        assert not (config.t_dir(1, 0) / 'tests.json').exists()
         assert all(session.closed for session in botbox_script.sessions)
         assert (config.u_transcripts / 'messages.jsonl').exists()
 
@@ -109,9 +108,9 @@ def describe_advice_improvement():
 def describe_run_layout():
     async def it_nests_each_turn_under_window_and_fork(config, botbox_script):
         config.max_u_turns = 2
-        botbox_script.advice.extend(['long advice', 'short'])
-        botbox_script.solutions.extend([PASS, PASS])
-        await run_one_window(config, on_delta=None)
+        botbox_script.advice.extend(['long advice', 'short', 'window 1', 'window 1'])
+        botbox_script.solutions.extend([PASS, PASS, FAIL, FAIL])
+        await run_experiment(config, on_delta=None)
         window = config.output / 'windows/0'
         fork = window / 'forks/0'
         assert json.loads((window / 'window.json').read_text()) == {}

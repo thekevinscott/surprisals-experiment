@@ -44,6 +44,8 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
+        if isinstance(reply, asyncio.Event):
+            await reply.wait()
         (self.mounts["/solution"] / "main.py").write_text(reply)
         events = [
             {
@@ -164,11 +166,16 @@ def chat_provider(botbox_script):
 
     requests = []
 
+    async def hang(event):
+        await event.wait()
+
     def respond(request):
         requests.append(json.loads(request.content))
         reply = botbox_script.advice.popleft()
         if isinstance(reply, Exception):
             raise reply
+        if isinstance(reply, asyncio.Event):
+            return hang(reply)
         if isinstance(reply, dict):
             status = reply.get("status", 200)
             if status != 200:
