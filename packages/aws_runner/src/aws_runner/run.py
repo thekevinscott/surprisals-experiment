@@ -1,3 +1,4 @@
+import fcntl
 import os
 import signal
 import sys
@@ -29,6 +30,13 @@ def run(ec2, config, directory, command):
         )
         os._exit(130)
 
+    os.makedirs(directory, exist_ok=True)
+    lock = os.open(directory, os.O_RDONLY)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(lock)
+        raise RuntimeError(f"aws_runner is already running on {directory}")
     previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
@@ -68,3 +76,4 @@ def run(ec2, config, directory, command):
     finally:
         signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
+        os.close(lock)
