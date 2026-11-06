@@ -289,3 +289,172 @@ cap-strategy = ["characters", "surprisal"]
                 expect(term.get_by_text("Stop them")).to_be_visible()
                 term.write("s")
             settled()
+
+
+@pytest.mark.parametrize("lost", ["local", "instance"])
+def test_aws_relaunch_after_losing_one_side(tmp_path, lost, terminal):
+    """Kill labnotes hard, or terminate the instance first; relaunch must recover."""
+    import boto3
+    import psutil
+
+    started_at = time.monotonic()
+
+    def step(name):
+        line = f"{time.monotonic() - started_at:7.1f}s {name}"
+        print(line, flush=True)
+        with (tmp_path / "timings.txt").open("a") as log:
+            log.write(line + "\n")
+
+    root = tmp_path / "project"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--shared", str(PACKAGE.parent), str(root)],
+        check=True,
+    )
+    shutil.copy2(PACKAGE.parent / ".labnotes.toml", root / ".labnotes.toml")
+    for name in ("data", ".env"):
+        target = root / name
+        if target.is_symlink():
+            target.unlink()
+        if not target.exists():
+            target.symlink_to((PACKAGE.parent / name).resolve())
+    experiment = "aws-restart"
+    ladder = LADDER.replace("--t-samples 2", "--t-samples 1")
+    run = (
+        "uv run --project packages/aws_runner aws_runner run {run_dir} --"
+        " uv run --directory surprisals_experiment python -m surprisals_experiment.cli.run"
+        f" --output {{run_dir}} {ladder} {PROBLEM}"
+    )
+    (root / "experiments" / experiment).mkdir(parents=True)
+    (root / "experiments" / experiment / "experiment.toml").write_text(f'''\
+name = "{experiment}"
+command = "{run}"
+repeats = 1
+continues = true
+concurrency = 1
+
+[params]
+cap-strategy = ["characters"]
+''')
+    state = tmp_path / "state"
+    env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
+    config_file = str(root / ".labnotes.toml")
+    cli = [
+        "uvx", "--from",
+        "git+https://github.com/thekevinscott/labnotes@main#subdirectory=packages/python",
+        "labnotes", "-c", config_file, "experiments", experiment, "run",
+    ]
+    args = ["sh", "-c", 'cd "$0" && exec "$@"', str(root), *cli]
+    runs = root / "experiments" / experiment / "runs"
+    config = json.loads((Path.home() / ".config/aws_runner/config.json").read_text())
+    ec2 = boto3.client("ec2", region_name=config["region"])
+
+    def tagged(folder):
+        return [{"Name": "tag:aws-runner:dir", "Values": [str(folder.resolve())]}]
+
+    def instances(folder):
+        return [i for r in ec2.describe_instances(Filters=tagged(folder))["Reservations"]
+                for i in r["Instances"]]
+
+    def live(folder):
+        return [i for i in instances(folder) if i["State"]["Name"] in ("pending", "running")]
+
+    def leftovers(folder):
+        return ([i["InstanceId"] for i in instances(folder) if i["State"]["Name"] != "terminated"]
+                + [v["VolumeId"] for v in ec2.describe_volumes(Filters=tagged(folder))["Volumes"]])
+
+    def record(folder):
+        return json.loads((folder / "run.json").read_text())
+
+    def wait(ready, timeout=float("inf"), detail=lambda: ""):
+        deadline = time.monotonic() + timeout
+        while not (value := ready()):
+            assert time.monotonic() < deadline, detail()
+            time.sleep(1)
+        return value
+
+    def kill_labnotes():
+        # The TUI gets -c as given, the detached daemon gets it resolved.
+        names = {config_file, str(Path(config_file).resolve())}
+        owners = [p for p in psutil.process_iter(["cmdline"])
+                  if names & set(p.info["cmdline"] or [])]
+        tree = {p for owner in owners for p in [owner, *owner.children(recursive=True)]}
+        commands = [" ".join(p.cmdline()) for p in tree]
+        for process in tree:
+            process.kill()
+        psutil.wait_procs(tree, timeout=30)
+        return commands
+
+    folder = None
+    term = None
+    try:
+        term = terminal(shlex.join(args), rows=40, cols=200, env=env)
+        [folder] = wait(lambda: [p.parent for p in runs.glob("*/run.json")], SETUP,
+                        lambda: term._get_screen_text())
+        [first] = wait(lambda: live(folder), LAUNCH, lambda: term._get_screen_text())
+        step("instance live")
+        volume = wait(lambda: [v["VolumeId"] for v in ec2.describe_volumes(Filters=tagged(folder))["Volumes"]
+                               if v["Attachments"]], LAUNCH)[0]
+        def stop_point():
+            assert not record(folder)["ended"], term._get_screen_text()
+            if lost == "local":
+                # The U turn is in flight on the box; nothing has to finish before the crash.
+                log = folder / "log.jsonl"
+                return (folder / "settings.json").exists() and log.exists() and log.stat().st_size
+            return list(folder.glob("windows/*/forks/*/turns/*/u/advice.txt"))
+
+        wait(stop_point)
+        step("stop point mirrored")
+        before = snapshot(folder) if lost == "instance" else ({}, {})
+        before[0].update({p: (p.read_bytes(), p.stat().st_mtime_ns)
+                          for p in (folder / "aws_runner.json", folder / "settings.json")})
+        before[1][folder / "log.jsonl"] = (folder / "log.jsonl").read_bytes()
+        if lost == "instance":
+            ec2.terminate_instances(InstanceIds=[first["InstanceId"]])
+            ec2.get_waiter("instance_terminated").wait(InstanceIds=[first["InstanceId"]])
+            step("instance terminated")
+        assert any("aws_runner run" in command for command in kill_labnotes())
+        step("labnotes killed")
+        if lost == "local":
+            [still] = live(folder)
+            assert still["InstanceId"] == first["InstanceId"]
+
+        term = terminal(shlex.join(args), rows=40, cols=200, env=env)
+        [second] = wait(lambda: live(folder), SETUP + LAUNCH, lambda: term._get_screen_text())
+        step("relaunched instance live")
+        if lost == "local":
+            assert second["InstanceId"] == first["InstanceId"]
+        else:
+            assert second["InstanceId"] != first["InstanceId"]
+            assert second["Placement"]["AvailabilityZone"] == first["Placement"]["AvailabilityZone"]
+            wait(lambda: any(a["InstanceId"] == second["InstanceId"] for v in
+                             ec2.describe_volumes(VolumeIds=[volume])["Volumes"] for a in v["Attachments"]),
+                 LAUNCH)
+            step("same volume attached to new instance")
+        while not (record(folder)["ended"] and len(record(folder)["invocations"]) == 2):
+            time.sleep(1)
+        step("run ended")
+        term.key_ctrl_c()
+        done = record(folder)
+        assert done["exit_code"] == 0, term._get_screen_text()
+        assert done["invocations"][0]["ended_by"] == "lost"
+        assert [p.parent for p in runs.glob("*/run.json")] == [folder]
+        assert (folder / "result.json").exists()
+        check_preserved(*before)
+        assert list(folder.glob(ATTEMPTS + "/tests.json"))
+        ids = {i["InstanceId"] for i in instances(folder)}
+        assert ids == ({first["InstanceId"]} if lost == "local"
+                       else {first["InstanceId"], second["InstanceId"]})
+        wait(lambda: not leftovers(folder), 80, lambda: f"Tagged AWS resources survived: {leftovers(folder)}")
+        step("no tagged resources left")
+    finally:
+        if term is not None:
+            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+        if folder is not None and leftovers(folder):
+            kill_labnotes()
+            for instance in instances(folder):
+                if instance["State"]["Name"] != "terminated":
+                    ec2.terminate_instances(InstanceIds=[instance["InstanceId"]])
+                    ec2.get_waiter("instance_terminated").wait(InstanceIds=[instance["InstanceId"]])
+            for disk in ec2.describe_volumes(Filters=tagged(folder))["Volumes"]:
+                ec2.get_waiter("volume_available").wait(VolumeIds=[disk["VolumeId"]])
+                ec2.delete_volume(VolumeId=disk["VolumeId"])
