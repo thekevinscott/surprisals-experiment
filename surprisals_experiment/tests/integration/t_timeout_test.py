@@ -5,11 +5,12 @@ from contextlib import chdir
 from hashlib import sha256
 import pytest
 
+from state_machine.testing import Done, State
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
 from run_state_machine_test import settings
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, Done, State, T, t_sent, u_system
+from utils.world import U, T, t_sent, u_system
 
 
 def u_state(config, window, turn, prompt, advice, files, previous=None):

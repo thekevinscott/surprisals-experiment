@@ -2,8 +2,9 @@
 
 from hashlib import sha256
 
+from state_machine.testing import Done, State
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, Done, State, T, t_sent, u_system
+from utils.world import U, T, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},

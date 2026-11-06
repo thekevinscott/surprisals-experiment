@@ -15,3 +15,9 @@ await state_machine(read_state, actions, turn)
 
 An unknown state raises `KeyError`.
 Actions must change what `state(*args)` reads, or the same action runs again.
+
+## Testing
+
+`state_machine.testing` runs a machine against a world and checks the files it leaves on disk.
+A world is a list of `State`s, each a reply to one request and the logs and files expected right after it, ending in `Done` unless the run is killed.
+Subclass `FakeWorld` to fake what the run calls, answering each call with `answer` and `delivered`; `execute(fake, run)` drives the run and checks every state and the end.

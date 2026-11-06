@@ -6,10 +6,11 @@ from contextlib import chdir
 import httpx2
 import pytest
 
+from state_machine.testing import Done, State
 from surprisals_experiment.config import U_MODEL
 from surprisals_experiment.retry_policy.constants import DELAYS
 from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
-from utils.world import U, Done, State, T, t_sent, u_system
+from utils.world import U, T, t_sent, u_system
 
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
