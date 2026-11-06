@@ -35,7 +35,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/integration"]
+testpaths = ["tests/integration", "src"]
 asyncio_mode = "auto"
 
 [tool.uv.sources]
