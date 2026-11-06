@@ -22,6 +22,23 @@ def say(stdout, kind, delta):
         file.write(json.dumps(event) + '\n')
 
 
+async def follow(path, on_event):
+    """botbox_run's follower, polling in loop time; the real one runs tail, a subprocess looptime does not wait for."""
+    def emit(seen):
+        lines = path.read_text().splitlines() if path.exists() else []
+        for line in lines[seen:]:
+            on_event(json.loads(line))
+        return len(lines)
+
+    seen = 0
+    try:
+        while True:
+            await asyncio.sleep(.05)
+            seen = emit(seen)
+    finally:
+        emit(seen)
+
+
 class FakeLLM:
     def __init__(self, world, output):
         self.states = [state for state in world if isinstance(state, State)]
@@ -41,6 +58,7 @@ class FakeLLM:
     def __enter__(self):
         self.patches = [
             patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', self.botbox),
+            patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.follow', follow),
             patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', self.openai),
             patch('surprisals_experiment.sdk.run_test_suite.run_test_suite_for_t.run_case', self.run_case),
         ]
