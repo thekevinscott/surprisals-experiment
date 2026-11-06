@@ -1,111 +1,156 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
-import json
-from derived_prompt import derived_prompt
 import signal
 from contextlib import nullcontext
+from hashlib import sha256
 from unittest.mock import patch
 import httpx2
 import pytest
 
 from openai import AsyncOpenAI
 from fake_botbox import FakeSession
-from run_one_window import run_one_window
 from surprisals_experiment.cli.main import main
+from test_run_state_machine import settings
+from test_u_flush import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
+from utils.world import U, Done, State, T
 
-async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, monkeypatch):
+
+def u_state(window, turn, prompt, advice, files):
+    path = f'windows/{window}/forks/0/turns/{turn}'
+    return State(U(advice, thinking='Think.'),
+                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                       'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': prompt}]},
+                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
+
+
+def t_state(window, turn, sample, attempt, advice, files, *, code=None, **reply):
+    code = code or {'main.py': PASS}
+    t = f'windows/{window}/forks/0/turns/{turn}/ts/{sample}'
+    path = f'{t}/attempts/{attempt}'
+    return State(T(code, thinking='Write main.py.', text='Done.', **reply),
+                 sent=(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
+                 files={**files, f'{path}/stdout.txt': STDOUT, **{f'{path}/src/{name}': text for name, text in code.items()}})
+
+
+def attempt(window, turn, sample, number=0):
+    return f'windows/{window}/forks/0/turns/{turn}/ts/{sample}/attempts/{number}'
+
+
+def opened(window):
+    return {f'windows/{window}/window.json': {}, f'windows/{window}/forks/0/fork.json': {}}
+
+
+def advised(window, turn, advice, score=None):
+    digest = f'advices/{sha256(advice.encode()).hexdigest()}'
+    path = f'windows/{window}/forks/0/turns/{turn}'
+    files = {f'{path}/metadata.json': {'advice': digest}, f'{path}/u/advice.txt': advice}
+    if score is not None:
+        files |= {f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}}
+    return files
+
+
+def evaluated(*paths):
+    return {path: content for p in paths for path, content in results(p, PASS).items()}
+
+
+def timed_out(path):
+    return {f'{path}/generation.json': {'timed_out': True}}
+
+
+def solved(config, path, attempts):
+    solution = config.output / path / 'src'
+    return {'result.json': {'success': True, 'attempts': attempts, 'solution': str(solution)}}
+
+
+async def test_retries_a_hung_sample_once_with_a_fresh_t(config, execute_run_experiment):
     config.t_samples = 3
     config.t_sample_timeout = .1
     config.t_sample_retries = 1
-    botbox_script.advice.append('Double.')
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 3)
-    original = FakeSession.message
-    hung = []
-
-    async def message(self, text):
-        if self.mounts['/solution'].parents[2].name == '1' and not hung:
-            hung.append(self)
-            (self.mounts['/solution'] / 'partial.py').write_text('partial')
-            await asyncio.Event().wait()
-        assert not (self.mounts['/solution'] / 'partial.py').exists()
-        return await original(self, text)
-
-    monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 4
-    assert all(s.closed for s in botbox_script.sessions)
-    assert json.loads(config.result_file.read_text())['success']
-    assert json.loads((config.t_dir(0, 1) / 'attempts/0/generation.json').read_text()) == {'timed_out': True}
-    assert not (config.attempt_dir(0) / 'error.txt').exists()
-    assert 'timed out' not in (await derived_prompt(config))
+    best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
+    world = [
+        u_state(0, 0, QUESTION, 'Double.', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)}),
+        t_state(0, 0, 1, 0, 'Double.', {}, code={'partial.py': 'partial'}, hang=True),
+        t_state(0, 0, 2, 0, 'Double.', {}),
+        t_state(0, 0, 1, 1, 'Double.', {**evaluated(attempt(0, 0, 0), attempt(0, 0, 2)), **timed_out(attempt(0, 0, 1))}),
+        u_state(1, 0, best, 'Double.', {**evaluated(attempt(0, 0, 1, 1)), **opened(1), **chat(1, (best, None))}),
+        t_state(1, 0, 0, 0, 'Double.', {**chat(1, (best, 'Double.')), **advised(1, 0, 'Double.')}),
+        t_state(1, 0, 1, 0, 'Double.', {}),
+        t_state(1, 0, 2, 0, 'Double.', {}),
+        Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={
+            **evaluated(*(attempt(1, 0, sample) for sample in range(3))), **solved(config, attempt(0, 0, 0), 2)}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
 
 
-async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(config, botbox_script, monkeypatch):
+async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(config, execute_run_experiment):
     config.max_u_turns = 2
     config.t_samples = 3
     config.t_sample_timeout = .1
     config.t_sample_retries = 1
-    botbox_script.advice.extend(['Double the input.', 'Double.'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 5)
-    original = FakeSession.message
+    long = 'Double the input.'
+    best = flush(0, long, length=17, codes=[PASS] * 3)
+    world = [
+        u_state(0, 0, QUESTION, long, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        t_state(0, 0, 0, 0, long, {**chat(0, (QUESTION, long)), **advised(0, 0, long, 17)}),
+        t_state(0, 0, 1, 0, long, {}),
+        t_state(0, 0, 2, 0, long, {}),
+        u_state(0, 1, best, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
+                                        **chat(0, (QUESTION, long), (best, None))}),
+        t_state(0, 1, 0, 0, 'Double.', {**chat(0, (QUESTION, long), (best, 'Double.')), **advised(0, 1, 'Double.', 7)}),
+        t_state(0, 1, 1, 0, 'Double.', {}),
+        t_state(0, 1, 2, 0, 'Double.', {}, hang=True),
+        t_state(0, 1, 2, 1, 'Double.', {**evaluated(attempt(0, 1, 0), attempt(0, 1, 1)), **timed_out(attempt(0, 1, 2))},
+                hang=True),
+        u_state(1, 0, best, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1), **chat(1, (best, None))}),
+        t_state(1, 0, 0, 0, long, {**chat(1, (best, long)), **advised(1, 0, long)}),
+        t_state(1, 0, 1, 0, long, {}),
+        t_state(1, 0, 2, 0, long, {}),
+        u_state(1, 1, best, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
+                                   **chat(1, (best, long), (best, None))}),
+        t_state(1, 1, 0, 0, long, {**chat(1, (best, long), (best, long)), **advised(1, 1, long)}),
+        t_state(1, 1, 1, 0, long, {}),
+        t_state(1, 1, 2, 0, long, {}),
+        Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={
+            **evaluated(*(attempt(1, 1, sample) for sample in range(3))), **solved(config, attempt(0, 0, 0), 4)}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
 
-    async def message(self, text):
-        output = self.mounts['/solution']
-        if output.parents[4].name == '1' and output.parents[2].name == '2':
-            await asyncio.Event().wait()
-        return await original(self, text)
 
-    monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 7
-    assert all(s.closed for s in botbox_script.sessions)
-    assert not (config.attempt_dir(1) / 'error.txt').exists()
-    assert [json.loads(path.read_text()) for path in sorted(config.t_dir(1, 2).glob('attempts/*/generation.json'))] == [{'timed_out': True}] * 2
-    assert not list(config.t_dir(1, 2).glob('**/tests.json'))
-    result = json.loads(config.result_file.read_text())
-    assert result['success'] and result['attempts'] == 2
-    assert result['solution'] == str(config.t_dir(0, 0) / 'attempts/0/src')
-
-
-async def test_gives_queued_samples_their_own_full_budget(config, botbox_script, monkeypatch):
+async def test_gives_queued_samples_their_own_full_budget(config, execute_run_experiment):
     config.t_samples = 3
     config.t_pool_size = 1
     config.t_sample_timeout = .2
-    botbox_script.advice.append('Double.')
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 3)
-    original = FakeSession.message
-
-    async def message(self, text):
-        await asyncio.sleep(.1)
-        return await original(self, text)
-
-    monkeypatch.setattr(FakeSession, 'message', message)
-    await run_one_window(config, on_delta=None)
-    assert json.loads(config.result_file.read_text())['success']
-    assert len(botbox_script.sessions) == 3
-    assert all(s.closed for s in botbox_script.sessions)
-    assert all('timed_out' not in json.loads(path.read_text()) for path in config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/generation.json'))
+    best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
+    states, pending = played([[(QUESTION, 'Double.', [PASS] * 3)], [(best, 'Double.', [PASS] * 3)]],
+                             {'Double.': {'score': 7}}, sequential=True)
+    for state in states:
+        if isinstance(state.reply, T):
+            state.reply.seconds = .1
+    async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/0', 2, pending)]):
+        pass
 
 
-async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypatch):
+async def test_does_not_retry_with_a_zero_budget(config, execute_run_experiment):
     config.t_sample_retries = 0
     config.t_sample_timeout = .05
-    botbox_script.advice.append('Double.')
-
-    async def message(self, text):
-        assert not list(self.mounts['/solution'].iterdir())
-        (self.mounts['/solution'] / 'partial.py').write_text('partial')
-        await asyncio.Event().wait()
-
-    monkeypatch.setattr(FakeSession, 'message', message)
-    await asyncio.wait_for(run_one_window(config, on_delta=None), 5)
-    assert len(botbox_script.sessions) == 1
-    assert all(s.closed for s in botbox_script.sessions)
-    assert not json.loads(config.result_file.read_text())['success']
-    assert [json.loads(path.read_text()) for path in config.t_dir(0, 0).glob('attempts/*/generation.json')] == [{'timed_out': True}]
-    assert (config.t_dir(0, 0) / 'attempts/0/src/partial.py').read_text() == 'partial'
-    assert not list(config.t_dir(0, 0).glob('**/tests.json'))
-    assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == 0
+    partial = {'partial.py': 'partial'}
+    world = [
+        u_state(0, 0, QUESTION, 'Double.', {'settings.json': {**settings(config), 't_sample_timeout': .05, 't_sample_retries': 0,
+                                                             'max_u_turns': config.max_u_turns},
+                                           **opened(0), **chat(0, (QUESTION, None))}),
+        t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)},
+                code=partial, hang=True),
+        u_state(1, 0, QUESTION, 'Double.', {**timed_out(attempt(0, 0, 0)), **opened(1), **chat(1, (QUESTION, None))}),
+        t_state(1, 0, 0, 0, 'Double.', {**chat(1, (QUESTION, 'Double.')), **advised(1, 0, 'Double.')},
+                code=partial, hang=True),
+        Done(outcome=None, files={**timed_out(attempt(1, 0, 0)), 'error.txt': 'No passing solution after 2 U turns\n',
+                                  'result.json': {'success': False, 'attempts': 2, 'solution': None}}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
 
 
 @pytest.mark.parametrize('phase', ['U', 'T'])

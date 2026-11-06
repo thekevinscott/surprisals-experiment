@@ -2,7 +2,7 @@
 
 from measure_surprisal import Client, measure_surprisal
 from openai import BadRequestError
-from tenacity import retry_if_not_exception_type
+from tenacity import retry_if_exception_type, retry_if_not_exception_type
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.retry_policy.constants import DELAYS
@@ -29,7 +29,7 @@ class AdviceMeasure:
                                   f"in {state.upcoming_sleep:g}s: {state.outcome.exception()}\n")
 
         @retried(operation="Scorer request", before_sleep=before_sleep,
-                 retry=retry_if_not_exception_type(BadRequestError))
+                 retry=retry_if_exception_type() & retry_if_not_exception_type(BadRequestError))
         async def score():
             return await measure_surprisal(advice, client=self.client)
 

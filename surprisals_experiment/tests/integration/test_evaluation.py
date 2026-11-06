@@ -1,28 +1,20 @@
 """Real preflight and evaluator behavior, with only model and Botbox calls mocked."""
 import json
 
-from botbox import RunResult
-
-from fake_botbox import FakeSession
 from run_one_window import run_one_window
+from test_u_flush import PASS, QUESTION, flush, outcome, played
+
+TURN = 'windows/0/forks/0/turns/0'
 
 
-async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, botbox_script, monkeypatch):
-    botbox_script.advice.append('Double it.')
-    botbox_script.solutions.append('print(int(input()) * 2)')
-    original = FakeSession.close
-
-    def close(self):
-        original(self)
-        return RunResult(exit_code=1)
-
-    monkeypatch.setattr(FakeSession, 'close', close)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
-    result = json.loads((config.t_dir(0, 0) / 'attempts/0/tests.json').read_text())
-    assert result['all_passed']
-    assert isinstance(result['duration_seconds'], float)
-    assert result['duration_seconds'] >= 0
-    assert json.loads((config.t_dir(0, 0) / 'attempts/0/generation.json').read_text())['exit_code'] == 1
+async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, execute_run_experiment):
+    attempt = f'{TURN}/ts/0/attempts/0'
+    states, pending = played([[(QUESTION, 'Double it.', [PASS])], [(flush(0, 'Double it.', length=10), 'Double it.', [PASS])]],
+                             {'Double it.': {'score': 10}})
+    states[1].reply.exit_code = 1
+    states[2].files[f'{attempt}/generation.json'] = {'exit_code': 1}
+    async with execute_run_experiment(config, [*states, outcome(config, TURN, 2, pending)]):
+        pass
 
 
 async def test_case_exceeding_five_seconds_fails(config, botbox_script):

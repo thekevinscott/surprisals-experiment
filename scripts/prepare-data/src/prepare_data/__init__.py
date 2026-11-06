@@ -1,0 +1,23 @@
+from pathlib import Path
+import tarfile
+import urllib.request
+
+URL = 'https://people.eecs.berkeley.edu/~hendrycks/APPS.tar.gz'
+
+
+def download(url, path, attempts=4):
+    for attempt in range(attempts):
+        try:
+            return urllib.request.urlretrieve(url, path)
+        except OSError:
+            if attempt == attempts - 1:
+                raise
+
+
+def main():
+    data = Path(__file__).resolve().parents[4] / 'data'
+    data.mkdir(exist_ok=True)
+    archive = data / 'APPS.tar.gz'
+    download(URL, archive)
+    with tarfile.open(archive) as tar:
+        tar.extractall(data, filter='data')

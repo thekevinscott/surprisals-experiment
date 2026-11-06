@@ -1,13 +1,9 @@
 """Integration tests through the real U/T adapters and local evaluator."""
 
-import asyncio
 from hashlib import sha256
-from unittest.mock import patch
-from derived_prompt import derived_prompt
 
 import pytest
 
-from run_one_window import run_one_window
 from utils.world import U, Done, State, T
 
 QUESTION = 'Read an integer and print its double.'
@@ -144,29 +140,6 @@ def describe_advice_improvement():
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution,
                                                             attempts=2 * len(advices))):
             pass
-
-
-    async def it_retains_the_best_completed_batch_on_cancellation(config, botbox_script):
-        from fake_botbox import FakeSession
-
-        config.max_u_turns = None
-        botbox_script.advice.extend(['long advice', 'short'])
-        botbox_script.solutions.append(PASS)
-        owner, method = FakeSession, 'message'
-        original = getattr(owner, method)
-
-        async def cancel_later(session, *args, **kwargs):
-            if (config.t_dir(0, 0) / 'attempts/0/tests.json').exists():
-                raise asyncio.CancelledError
-            return await original(session, *args, **kwargs)
-
-        with patch.object(owner, method, cancel_later):
-            with pytest.raises(asyncio.CancelledError):
-                await run_one_window(config, on_delta=None)
-        assert not config.result_file.exists()
-        assert '<advice>\nlong advice\n</advice>' in await derived_prompt(config)
-        assert all(session.closed for session in botbox_script.sessions)
-        assert (config.u_transcripts / 'messages.jsonl').exists()
 
 
 def describe_run_layout():

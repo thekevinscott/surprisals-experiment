@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793986265,
+  "exit_code": 0,
+  "commit": "282ddbf2a765c0d9cad7a6b5d03f6a500b1815b4",
+  "branch": "test/every-kill-point"
+}
