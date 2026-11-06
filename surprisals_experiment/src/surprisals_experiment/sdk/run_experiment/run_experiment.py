@@ -18,6 +18,7 @@ from .actions.write_advice import write_advice
 from .actions.write_result import read_progress, write_result
 from .actions.write_solutions import write_solutions
 from .actions.write_solutions.produce_code import produce_code
+from .check_test_suite import check_test_suite
 from .state import state
 from .state.run_fork import turn_pending
 from .state.run_window import fork_pending, solo_pending
@@ -49,6 +50,7 @@ async def run_experiment(
 ) -> Path | None:
     """Generate, test, and shorten advice until window improvement falls below 5% or interruption."""
     problem = QuestionDatabase(config.problem_dir)
+    await check_test_suite(config, problem)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
     async with open_u_chat(config) as u_chat:
