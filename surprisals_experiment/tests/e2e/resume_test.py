@@ -326,7 +326,7 @@ def test_terminated_relaunch_leaves_no_aws_runs(tmp_path):
         process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
     try:
         deadline = time.monotonic() + SETUP + LAUNCH
-        while len(aws_runs(inner)) < 2:
+        while not aws_runs(inner):
             assert process.poll() is None, "Inner test exited before launching AWS runs"
             assert time.monotonic() < deadline, "Inner test never launched AWS runs"
             time.sleep(5)
