@@ -76,7 +76,9 @@ def check_result(output, forks, samples):
 def exercise(output, ready, signum, forks=1, samples=2):
     args = command(output, forks, samples)
     with (output.parent / 'cli.log').open('w') as log:
-        process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
+        # A shell's background job inherits SIGINT ignored, and so would the CLI.
+        process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log,
+                                   preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         try:
             wait_until(process, ready)
             process.send_signal(signum)
