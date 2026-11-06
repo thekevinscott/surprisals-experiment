@@ -2,7 +2,7 @@
 
 from hashlib import sha256
 
-from u_flush_test import PASS, QUESTION, STDOUT, chat, results
+from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, Done, State, T, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
@@ -229,5 +229,17 @@ async def test_does_not_accept_empty_replies(config, execute_run_experiment):
 
 async def test_preserves_the_prompt_on_provider_failure(config, execute_run_experiment):
     world = exhausted(config, U(status=400), "Error code: 400 - {'error': {'message': 'provider failed'}}", completion_id=None)
+    async with execute_run_experiment(config, world):
+        pass
+
+
+async def test_records_and_uses_a_reply_with_a_lone_surrogate(config, execute_run_experiment):
+    config.max_u_turns = 1
+    advice = 'Use a loop �'
+    world, pending = played([[(QUESTION, advice, [PASS])], [(flush(0, advice, length=12), advice, [PASS])]],
+                            {advice: {'score': 12}}, config=config)
+    world[0].reply = U('Use a loop \ud83d', thinking='Think.')
+    world[0].logs[-1] = ('windows/0/forks/0/turns/0/u', 'text', 'Use a loop \ud83d')
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world):
         pass

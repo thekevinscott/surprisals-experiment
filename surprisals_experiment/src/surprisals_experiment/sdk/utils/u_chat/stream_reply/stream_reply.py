@@ -8,6 +8,7 @@ from openai import LengthFinishReasonError
 from ...write import write
 from .errors import IncompleteStreamError, ProviderError
 from .output_limit_error import output_limit_error
+from .well_formed import well_formed
 
 
 async def stream_reply(self, *, on_delta=None) -> str:
@@ -58,7 +59,8 @@ async def stream_reply(self, *, on_delta=None) -> str:
                 "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
         }) + "\n")
         if snapshot is not None and snapshot.choices:
-            message = snapshot.choices[0].message.model_dump(exclude_none=True)
+            message = json.loads(well_formed(json.dumps(
+                snapshot.choices[0].message.model_dump(exclude_none=True), ensure_ascii=False)))
             message.pop("parsed", None)
             message["role"] = "assistant"
             if provider_error is not None:
@@ -79,4 +81,4 @@ async def stream_reply(self, *, on_delta=None) -> str:
         raise IncompleteStreamError("U chat stream ended before completion")
     if choice.finish_reason != "stop" or not choice.message.content:
         raise RuntimeError(f"U chat did not produce complete advice ({choice.finish_reason})")
-    return choice.message.content
+    return well_formed(choice.message.content)
