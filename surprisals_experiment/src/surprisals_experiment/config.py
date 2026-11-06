@@ -54,14 +54,12 @@ class Config(BaseModel):
         path = self.output / "settings.json"
         if path.exists():
             recorded = json.loads(path.read_text())
+            current = self.model_dump(mode="json")
+            names = sorted(recorded.keys() & current.keys() - RESTART_OVERRIDES)
+            if changed := [f"{name} (saved {recorded[name]!r}, new {current[name]!r})" for name in names if recorded[name] != current[name]]:
+                raise ValueError(f"Run was started with different settings ({path}): {'; '.join(changed)}")
             if recorded.get("git_commit") != commit:
                 warnings.warn("Run was started with a different git commit", stacklevel=2)
-            current = self.model_dump(mode="json")
-            pinned = {name: recorded[name] for name in type(self).model_fields.keys() - RESTART_OVERRIDES if name in recorded}
-            if changed := sorted(name for name, value in pinned.items() if current[name] != value):
-                warnings.warn(f"Run was started with different {', '.join(changed)}; keeping its settings.json", stacklevel=2)
-            for name, value in pinned.items():
-                setattr(self, name, value)
             return
         write(path, json.dumps(self.model_dump(mode="json", exclude={"api_key"}) | {"git_commit": commit}, indent=2) + "\n")
 

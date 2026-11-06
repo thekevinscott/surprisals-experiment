@@ -72,6 +72,8 @@ async def test_restart_keeps_settings_and_warns_only_on_commit_change(config, ex
     before = path.read_bytes()
     commit.write_text(('b' if changed else 'a') * 40 + '\n')
     config.t_pool_size += 1
+    config.t_sample_timeout += 1
+    config.scorer_base_url = 'http://scorer/v1'
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         await start(config, execute_run_experiment)
@@ -92,12 +94,7 @@ async def test_restart_after_first_window_warns_on_commit_change(config, execute
     assert [str(w.message) for w in caught] == ['Run was started with a different git commit']
 
 
-@pytest.mark.parametrize('changed, fields', [({'t_samples': 2}, 't_samples'),
-                                             ({'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1'},
-                                              'cap_strategy')],
-                         ids=['t-samples', 'cap-strategy'])
-async def test_restart_with_different_flags_keeps_the_recorded_settings(config, execute_run_experiment, changed,
-                                                                         fields):
+async def test_restart_with_different_settings_refuses_and_writes_nothing(config, execute_run_experiment):
     best = flush(0, 'double it', length=9)
     states, pending = played([[(QUESTION, 'double it', [PASS])], [(best, 'double it', [PASS])]],
                              {'double it': {'score': 9}}, config=config)
@@ -105,10 +102,22 @@ async def test_restart_with_different_flags_keeps_the_recorded_settings(config, 
     async with execute_run_experiment(config, [*states, done]):
         pass
     before = run_files(config.output)
-    config = Config(**(config.model_dump() | changed))
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        async with execute_run_experiment(config, [Done(outcome=done.outcome)]):
-            pass
+    config = Config(**(config.model_dump() | {'t_samples': 2, 'cap_strategy': 'surprisal',
+                                              'scorer_base_url': 'http://scorer/v1'}))
+    path = config.output / 'settings.json'
+    refusal = ValueError(f"Run was started with different settings ({path}): "
+                         "cap_strategy (saved 'characters', new 'surprisal'); t_samples (saved 1, new 2)")
+    async with execute_run_experiment(config, [Done(outcome=refusal)]):
+        pass
     assert run_files(config.output) == before
-    assert f'Run was started with different {fields}; keeping its settings.json' in [str(w.message) for w in caught]
+
+
+async def test_restart_ignores_settings_missing_from_settings_json(config, execute_run_experiment, commit):
+    commit.write_text('a' * 40 + '\n')
+    path = config.output / 'settings.json'
+    path.parent.mkdir()
+    path.write_text(json.dumps({k: v for k, v in settings(config).items() if k != 't_samples'} | {'git_commit': 'a' * 40}))
+    before = path.read_bytes()
+    config.t_samples += 1
+    await start(config, execute_run_experiment)
+    assert path.read_bytes() == before
