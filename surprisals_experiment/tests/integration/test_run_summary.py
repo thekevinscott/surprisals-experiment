@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 import subprocess
 
-import pytest
-
-from run_one_window import run_one_window
 from advice_artifacts import write_advice
+from test_u_flush import QUESTION, Containing, flush, outcome, played
+from utils.world import Done, State, T
 
 SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
+TURN = 'windows/0/forks/0/turns/0'
 
 
 def report(folder):
@@ -21,28 +21,37 @@ def report(folder):
 
 
 def describe_run_summary():
-    async def it_counts_one_advice_per_evaluation(config, botbox_script):
-        failures = 2
-        count = min(failures + 1, 5)
-        config.max_u_turns = count
-        botbox_script.advice.extend(['ok'] * count)
-        botbox_script.solutions.extend([FAIL] * failures + [PASS])
-        await run_one_window(config, on_delta=None)
+    async def it_counts_one_advice_per_evaluation(config, execute_run_experiment):
+        config.max_u_turns = 3
+        best = flush(2, 'ok', length=2)
+        states, pending = played([[(QUESTION, 'ok', [FAIL])] * 2 + [(QUESTION, 'ok', [PASS])],
+                                  [(best, 'ok', [PASS])] * 3], {'ok': {'score': 2}})
+        async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/2', 6, pending)]):
+            pass
         summary, *attempts = report(config.output)
         assert summary['cap'] is None
         assert summary['cap_status'] == 'uncapped'
-        assert summary['completed_t_evaluations'] == count
-        assert summary['passing_ts'] == (1 if failures < 5 else 0)
-        assert summary['evaluation_attempts_to_success'] == (count if failures < 5 else None)
-        assert [row['attempt_index'] for row in attempts] == list(range(count))
+        assert summary['completed_t_evaluations'] == 6
+        assert summary['passing_ts'] == 4
+        assert summary['evaluation_attempts_to_success'] == 3
+        assert [row['attempt_index'] for row in attempts] == [0, 0, 1, 1, 2, 2]
         assert all(row['score'] == 2 for row in attempts)
-        assert [row['tests_passed'] for row in attempts] == [0] * failures + ([2] if failures < 5 else [])
+        assert sorted(row['tests_passed'] for row in attempts) == [0, 0, 2, 2, 2, 2]
 
-    async def it_does_not_count_missing_evaluations_as_failed_ts(config, botbox_script, no_retry_wait):
-        botbox_script.advice.append('ok')
-        botbox_script.solutions.extend([RuntimeError('provider unavailable')] * 9)
-        with pytest.raises(RuntimeError):
-            await run_one_window(config, on_delta=None)
+    async def it_does_not_count_missing_evaluations_as_failed_ts(config, execute_run_experiment):
+        [asked], pending = played([[(QUESTION, 'ok', [])]], {'ok': {'score': 2}})
+        error = RuntimeError('provider unavailable')
+        retries = [[]] + [[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {wait}s: provider unavailable\n')]
+                          for attempt, wait in enumerate([10, 20, 30, 60, 180, 300, 1200, 1800], 1)]
+        failure = 'T sample failed: provider unavailable; 8 retries exhausted'
+        world = [
+            asked,
+            *[State(T(error=error), sent=(f'{TURN}/ts/0/attempts/{attempt}', 'ok'), logs=retries[attempt],
+                    files=None if attempt else pending) for attempt in range(9)],
+            Done(outcome=RuntimeError(failure), files={f'{TURN}/error.txt': Containing(failure)}),
+        ]
+        async with execute_run_experiment(config, world):
+            pass
         summary, attempt = report(config.output)
         assert summary['completed_t_evaluations'] == 0
         assert summary['evaluation_attempts_to_success'] is None
