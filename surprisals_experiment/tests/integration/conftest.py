@@ -4,9 +4,7 @@ import asyncio
 import json
 import shlex
 from collections import deque
-from contextlib import ExitStack
 from dataclasses import dataclass, field
-from functools import partial
 from inspect import signature
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -15,9 +13,8 @@ import pytest
 from botbox import Botbox, RunResult
 from surprisals_experiment.config import Config
 
-pytest.register_assert_rewrite('utils.step')
-import utils.step  # noqa: E402
-from utils.fake_llm import FakeLLM
+pytest.register_assert_rewrite('utils')
+import utils.execute_run_experiment  # noqa: E402
 
 
 @dataclass
@@ -326,11 +323,5 @@ async def scorer_provider():
 
 
 @pytest.fixture(autouse=True)
-def fake_llm():
-    with ExitStack() as stack:
-        yield lambda run: stack.enter_context(FakeLLM(run))
-
-
-@pytest.fixture(autouse=True)
-def step(config, fake_llm):
-    return partial(utils.step.step, config, fake_llm)
+def execute_run_experiment():
+    return utils.execute_run_experiment.execute_run_experiment

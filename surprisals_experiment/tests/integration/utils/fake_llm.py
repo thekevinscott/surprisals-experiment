@@ -1,19 +1,18 @@
-"""Fakes U and T together; see llm_replies for the reply layout."""
+"""Fakes U and T from a world (see world.py), pausing the run after each reply to check its state."""
 
 import asyncio
 import json
-import re
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
 import httpx2
-import pytest
 from botbox import RunResult
 from openai import AsyncOpenAI
 from surprisals_experiment.sdk.run_test_suite import TestResult
 
-SAMPLE = re.compile(r'windows/(\d+)/forks/(\d+)/turns/(\d+)/ts/(\d+)(?:/attempts/\d+)?$')
+from utils.expected import decoded, masked
+from utils.run_files import run_files
+from utils.world import REMOVED, U, Done, State, T
 
 
 def say(stdout, kind, delta):
@@ -24,21 +23,22 @@ def say(stdout, kind, delta):
 
 
 class FakeLLM:
-    def __init__(self, run):
-        self.unasked = [u for window in run for fork in window for turn in fork for u in turn.us]
-        self.kill_target = None
-        self.calls = []
+    def __init__(self, world, output):
+        self.states = [state for state in world if isinstance(state, State)]
+        self.done = world[-1] if isinstance(world[-1], Done) else None
+        self.output = output
+        self.asked = 0
+        self.arrived = [asyncio.get_running_loop().create_future() for _ in self.states]
+        self.target = 0
+        self.advance = asyncio.Event()
+        self.events = []
+        self.seen = 0
+        self.files = run_files(output)
         self.boxes = []
-        self.samples = {
-            (w, f, n, s): list(sample)
-            for w, window in enumerate(run)
-            for f, fork in enumerate(window)
-            for n, turn in enumerate(fork)
-            for s, sample in enumerate(turn.samples)
-        }
+        self.failure = None
+        self.killed = False
 
     def __enter__(self):
-        self.task = asyncio.current_task()
         self.patches = [
             patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', self.botbox),
             patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', self.openai),
@@ -52,46 +52,90 @@ class FakeLLM:
         for p in self.patches:
             p.stop()
 
-    @property
-    def unused_replies(self):
-        return len(self.unasked) + sum(len(sample) for sample in self.samples.values())
+    async def reached(self, state):
+        """Let the run go on to `state`, and wait until that state has been checked."""
+        index = self.states.index(state)
+        self.target = max(self.target, index)
+        self.advance.set()
+        await self.arrived[index]
 
-    @contextmanager
-    def killed(self):
-        with pytest.raises(asyncio.CancelledError):
-            yield
-        self.task.uncancel()
+    def kill(self):
+        self.killed = True
+        self.task.cancel()
 
-    def kill_after(self, reply):
-        """Cancel the run once T has written this reply's files, before T finishes."""
-        self.kill_target = reply
+    def release(self):
+        self.target = len(self.states)
+        self.advance.set()
+
+    def log(self, *event):
+        self.events.append(event)
+
+    def ended(self, task):
+        outcome = 'cancelled' if task.cancelled() else task.exception() or task.result()
+        for index, future in enumerate(self.arrived):
+            if not future.done():
+                future.set_exception(self.failure or AssertionError(f'Run ended ({outcome!r}) before state {index}'))
+
+    def check(self, name, expected):
+        assert self.events[self.seen:] == expected.logs, f'{name} logs'
+        self.seen = len(self.events)
+        now = run_files(self.output)
+        changed = {path: content for path, content in now.items() if self.files.get(path) != content}
+        changed |= {path: REMOVED for path in self.files.keys() - now.keys()}
+        self.files = now
+        assert {path: decoded(expected.files[path], content) if path in expected.files else content
+                for path, content in changed.items()} == expected.files, f'{name} files'
+
+    async def checked(self, check, *args):
+        """Run a check inside the run; a failure stops the run instead of reaching its error handling."""
+        try:
+            return check(*args)
+        except AssertionError as error:
+            self.failure = error
+            self.task.cancel()
+            await asyncio.Future()
+
+    def ask(self, kind, sent):
+        index = self.asked
+        assert index < len(self.states), f'{kind.__name__} was asked with no reply left: {sent!r:.300}'
+        state = self.states[index]
+        assert isinstance(state.reply, kind), \
+            f'{kind.__name__} was asked, but state {index} is {type(state.reply).__name__}'
+        assert masked(state.sent, sent) == state.sent, f'state {index} sent'
+        self.asked += 1
+        return index, state.reply
+
+    async def delivered(self, index):
+        # follow() polls T's stdout every 50 ms.
+        await asyncio.sleep(.1)
+        await self.checked(self.check, f'state {index}', self.states[index])
+        self.arrived[index].set_result(None)
+        while index >= self.target:
+            self.advance.clear()
+            await self.advance.wait()
 
     def openai(self, **kwargs):
         async def respond(request):
             body = json.loads(request.content)
-            self.calls.append(('U', body))
-            assert self.unasked, f'U was asked with no reply left: {body["messages"][-1]!r:.200}'
-            reply = self.unasked.pop(0)
+            index, reply = await self.checked(self.ask, U, body)
             deltas = [({'reasoning': reply.thinking}, None), ({'content': reply.text}, 'stop')]
             chunks = [{'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
                        'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta},
                                     'finish_reason': finish}]}
                       for delta, finish in deltas]
-            stream = ''.join(f'data: {json.dumps(chunk)}\n\n' for chunk in chunks)
-            return httpx2.Response(200, headers={'content-type': 'text/event-stream'},
-                                   content=stream + 'data: [DONE]\n\n')
+
+            async def stream():
+                for chunk in chunks:
+                    yield f'data: {json.dumps(chunk)}\n\n'.encode()
+                await self.delivered(index)
+                yield b'data: [DONE]\n\n'
+
+            return httpx2.Response(200, headers={'content-type': 'text/event-stream'}, content=stream())
 
         return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
     async def run_case(self, index, stdin, expected, solution_dir, timeout_seconds):
         return TestResult(index, True, 'passed', expected, '', 0)
-
-    def t(self, output):
-        match = SAMPLE.search(Path(output).as_posix())
-        assert match, f'T ran outside a sample folder: {output}'
-        sample = self.samples.get(tuple(map(int, match.groups())))
-        assert sample, f'No T reply left for {match.group(0)}'
-        return match.group(0), sample.pop(0)
 
     @property
     def botbox(self):
@@ -114,19 +158,15 @@ class FakeLLM:
 
             async def run(self, command, *, mounts, workdir, output):
                 mounted = {target: Path(source) for source, target, _ in mounts}
-                solution = mounted['/solution']
-                attempt, t = llm.t(output)
-                llm.calls.append(('T', attempt, (mounted['/advice'] / 'advice.md').read_text()))
+                attempt = Path(output).relative_to(llm.output).as_posix()
+                index, t = await llm.checked(llm.ask, T, (attempt, (mounted['/advice'] / 'advice.md').read_text()))
                 stdout = Path(output) / 'stdout.txt'
                 stdout.parent.mkdir(parents=True, exist_ok=True)
                 say(stdout, 'thinking_delta', t.thinking)
                 for name, content in t.files.items():
-                    (solution / name).write_text(content)
-                if t is llm.kill_target:
-                    llm.kill_target = None
-                    llm.task.cancel()
-                    await asyncio.Future()
+                    (mounted['/solution'] / name).write_text(content)
                 say(stdout, 'text_delta', t.text)
+                await llm.delivered(index)
                 return RunResult(exit_code=0)
 
         return Botbox
