@@ -19,11 +19,10 @@ dist/
 outputs/
 # Legacy runs remain until the separate migration.
 /runs/
-/experiments/*/runs/
 data
 /notes/internal/
 
-# Per-experiment artifacts
-/experiments/*/files/internal/
+# Experiments and their runs live in the Hugging Face runs dataset
+/experiments/
 
 .worktrees
