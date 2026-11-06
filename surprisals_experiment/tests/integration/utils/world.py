@@ -9,9 +9,14 @@ REMOVED = object()
 
 
 class U:
-    def __init__(self, text, *, thinking):
+    """U streams its thinking and text, ending with `finish` and then `usage`; or the provider answers `status`."""
+
+    def __init__(self, text=None, *, thinking=None, finish='stop', usage=None, status=200):
         self.text = text
         self.thinking = thinking
+        self.finish = finish
+        self.usage = usage
+        self.status = status
 
 
 class T:
