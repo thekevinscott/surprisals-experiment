@@ -125,9 +125,9 @@ LADDER = (
 SETUP = 600
 # About twice the measured AWS launch-to-code-running (max 161 s).
 LAUNCH = 330
-# Twice the slowest measured U turn (thinking off) plus one T sample (~290 s).
-SAMPLE = 600
-TESTS = "windows/*/forks/*/turns/*/ts/*/attempts/*/tests.json"
+# Twice the slowest measured start to first T attempt (~53 s); T finishing depends on the model.
+ATTEMPT = 120
+ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
 
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
@@ -183,7 +183,7 @@ cap-strategy = ["characters", "surprisal"]
     ]
     args = [*cli, "run"]
     runs = root / "experiments" / experiment / "runs"
-    sample = SAMPLE + LAUNCH if aws else SAMPLE
+    attempt = ATTEMPT + LAUNCH if aws else ATTEMPT
 
     if aws:
         import boto3
@@ -254,8 +254,7 @@ cap-strategy = ["characters", "surprisal"]
                 for folder in folders():
                     [instances[folder, invocation]] = live(folder)
             if invocation == 1:
-                # The last run to finish a T sample is stopped while sampling the next.
-                wait_for(lambda f: any(f.glob(TESTS)), sample)
+                wait_for(lambda f: any(f.glob(ATTEMPTS)), attempt)
                 original = folders()
                 assert {
                     record(folder)["params"]["cap-strategy"] for folder in original
@@ -270,9 +269,9 @@ cap-strategy = ["characters", "surprisal"]
                 assert all(record(folder)["exit_code"] != 0 for folder in original)
                 settled()
                 before = {folder: snapshot(folder) for folder in original}
-                tested = {folder: set(folder.glob(TESTS)) for folder in original}
+                started = {folder: set(folder.glob(ATTEMPTS)) for folder in original}
             else:
-                wait_for(lambda f, tested=tested: set(f.glob(TESTS)) - tested[f], sample)
+                wait_for(lambda f, started=started: set(f.glob(ATTEMPTS)) - started[f], attempt)
                 going = not all(record(folder)["ended"] for folder in original)
                 term.key_ctrl_c()
                 if going:
