@@ -1,0 +1,19 @@
+import pytest
+
+from surprisals_experiment.sdk.run_test_suite import run_test_suite_for_t
+
+
+async def test_wrong_crashing_and_binary_candidates_fail(tmp_path):
+    sources = ['print(8)', 'raise RuntimeError("bad code")',
+               "import os; os.write(1, b'\\xff')",
+               "import os; os.write(2, b'\\xff'); print(7)"]
+    for source in sources:
+        (tmp_path / 'main.py').write_text(source)
+        results = await run_test_suite_for_t([{'input': '', 'output': '7'}], tmp_path)
+        assert not results.all_passed, source
+        assert results.passed == 0
+
+
+async def test_missing_candidate_directory_is_an_evaluator_error(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        await run_test_suite_for_t([{'input': '', 'output': '7'}], tmp_path / 'absent')
