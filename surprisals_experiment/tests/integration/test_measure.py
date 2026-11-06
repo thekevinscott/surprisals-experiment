@@ -5,14 +5,9 @@ from hashlib import sha256
 
 import httpx2
 import pytest
-from advice_artifacts import advice_directory, read_score
-from derived_prompt import derived_prompt
+from advice_artifacts import advice_directory
 from openai import BadRequestError
-from run_one_window import run_one_window
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.advice import Advice
-from surprisals_experiment.sdk.advice_measure import AdviceMeasure
-from surprisals_experiment.sdk.utils.write import write
 
 from utils.world import U, Done, State, T
 
@@ -247,30 +242,31 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(
 
 
 async def test_identical_advice_cannot_improve_from_score_jitter(
-    scoring_config, botbox_script, scorer_provider, tmp_path
+    scoring_config, scorer_provider, execute_run_experiment
 ):
     config = scoring_config
     config.max_u_turns = 2
-    scorer_provider.replies.extend(
-        [[("same", 4.0), (" advice", 6.0)], [("same advice", 9.0)]]
-    )
-    botbox_script.advice.extend(["same advice"] * 2)
-    botbox_script.solutions.extend([PASS] * 2)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / "attempts/0/src"
-    assert len(scorer_provider.requests) == 1
-    assert json.loads(config.result_file.read_text())["attempts"] == 2
-    for attempt in range(2):
-        metadata = read_score(config, attempt)
-        assert metadata["score"] == pytest.approx(10.0)
-        assert [token for token, _ in metadata["tokens"]] == ["same", " advice"]
-    assert "<index>0</index>" in (await derived_prompt(config))
-    fresh_measure = AdviceMeasure(
-        "surprisal", base_url=config.scorer_base_url, model=config.t_model
-    )
-    write(tmp_path / "advice.txt", "same advice")
-    assert await Advice(
-        tmp_path / "advice.txt", fresh_measure, config.output
-    ).score() == pytest.approx(10.0)
+    scorer_provider.replies.extend([[("same", 4.0), (" advice", 6.0)], [("same advice", 9.0)]])
+    same = 'same advice'
+    first = [turn(0, index) for index in range(2)]
+    second = [turn(1, index) for index in range(2)]
+    best = flush(0, same, bits='same<4.0> advice<6.0>')
+    world = [
+        u_state(first[0], QUESTION, same, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        t_state(first[0], same, PASS, {**chat(0, (QUESTION, same)), **scored(same, {
+            'score': 10.0, 'tokens': [['same', 4.0], [' advice', 6.0]]})}),
+        u_state(first[1], best, same, {**results(first[0]), **chat(0, (QUESTION, same), (best, None))}),
+        t_state(first[1], same, PASS, chat(0, (QUESTION, same), (best, same))),
+        u_state(second[0], best, same, {**results(first[1]), **opened(1), **chat(1, (best, None))}),
+        t_state(second[0], same, PASS, chat(1, (best, same))),
+        u_state(second[1], best, same, {**results(second[0]), **chat(1, (best, same), (best, None))}),
+        t_state(second[1], same, PASS, chat(1, *[(best, same)] * 2)),
+        Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
+            config, first[0], 4, best_measurement=10.0, cap_strategy='surprisal',
+            scorer_base_url='http://scorer/v1', scorer_model='t')}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
     assert len(scorer_provider.requests) == 1
 
 
