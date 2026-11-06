@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.2.4",
     "tenacity>=9.2.1",
     "labnotes>=0.2.25",
+    "posix-tools>=0.0.14",
 ]
 
 [build-system]
