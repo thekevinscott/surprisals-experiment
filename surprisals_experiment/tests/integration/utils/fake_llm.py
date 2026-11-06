@@ -11,6 +11,7 @@ import httpx2
 import pytest
 from botbox import RunResult
 from openai import AsyncOpenAI
+from surprisals_experiment.sdk.run_test_suite import TestResult
 
 SAMPLE = re.compile(r'windows/(\d+)/forks/(\d+)/turns/(\d+)/ts/(\d+)(?:/attempts/\d+)?$')
 
@@ -24,9 +25,10 @@ def say(stdout, kind, delta):
 
 class FakeLLM:
     def __init__(self, run):
-        self.turns = [turn for window in run for fork in window for turn in fork]
-        self.unasked = list(self.turns)
+        self.unasked = [u for window in run for fork in window for turn in fork for u in turn.us]
         self.kill_target = None
+        self.calls = []
+        self.boxes = []
         self.samples = {
             (w, f, n, s): list(sample)
             for w, window in enumerate(run)
@@ -40,6 +42,7 @@ class FakeLLM:
         self.patches = [
             patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', self.botbox),
             patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', self.openai),
+            patch('surprisals_experiment.sdk.run_test_suite.run_test_suite_for_t.run_case', self.run_case),
         ]
         for p in self.patches:
             p.start()
@@ -66,8 +69,9 @@ class FakeLLM:
     def openai(self, **kwargs):
         async def respond(request):
             body = json.loads(request.content)
-            assert self.unasked, f'U was asked with no turn left: {body["messages"][-1]!r:.200}'
-            reply = self.unasked.pop(0).u
+            self.calls.append(('U', body))
+            assert self.unasked, f'U was asked with no reply left: {body["messages"][-1]!r:.200}'
+            reply = self.unasked.pop(0)
             deltas = [({'reasoning': reply.thinking}, None), ({'content': reply.text}, 'stop')]
             chunks = [{'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
                        'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta},
@@ -79,12 +83,15 @@ class FakeLLM:
 
         return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
+    async def run_case(self, index, stdin, expected, solution_dir, timeout_seconds):
+        return TestResult(index, True, 'passed', expected, '', 0)
+
     def t(self, output):
         match = SAMPLE.search(Path(output).as_posix())
         assert match, f'T ran outside a sample folder: {output}'
         sample = self.samples.get(tuple(map(int, match.groups())))
         assert sample, f'No T reply left for {match.group(0)}'
-        return sample.pop(0)
+        return match.group(0), sample.pop(0)
 
     @property
     def botbox(self):
@@ -95,17 +102,21 @@ class FakeLLM:
                 pass
 
             async def __aenter__(self):
+                self.exited = False
+                llm.boxes.append(self)
                 return self
 
             async def __aexit__(self, *args):
-                pass
+                self.exited = True
 
             async def build(self):
                 return 'fake'
 
             async def run(self, command, *, mounts, workdir, output):
-                solution = next(Path(source) for source, target, _ in mounts if target == '/solution')
-                t = llm.t(output)
+                mounted = {target: Path(source) for source, target, _ in mounts}
+                solution = mounted['/solution']
+                attempt, t = llm.t(output)
+                llm.calls.append(('T', attempt, (mounted['/advice'] / 'advice.md').read_text()))
                 stdout = Path(output) / 'stdout.txt'
                 stdout.parent.mkdir(parents=True, exist_ok=True)
                 say(stdout, 'thinking_delta', t.thinking)

@@ -2,7 +2,7 @@
 
 Run(Window(Fork(Turn(U(...), Sample(T(...), ...), ...)))): the turn at Run[w][f][n] answers for
 windows/w/forks/f/turns/n, and its s-th Sample for ts/s. Each reply is used once: U calls take
-the next unanswered turn in tree order; each T call on a sample takes that sample's next T.
+the next U reply in tree order; each T call on a sample takes that sample's next T.
 """
 
 
@@ -28,9 +28,11 @@ class Sample(Node):
 
 
 class Turn:
-    def __init__(self, u, *samples):
-        self.u = u
-        self.samples = samples
+    """A turn's U replies in call order, and its samples; U is left out once the turn has its advice."""
+
+    def __init__(self, *replies):
+        self.us = [reply for reply in replies if isinstance(reply, U)]
+        self.samples = [reply for reply in replies if isinstance(reply, Sample)]
 
 
 class U:
