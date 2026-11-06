@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793991507,
+  "exit_code": 0,
+  "commit": "abdd5ddc48b159f5ef76d5b868d8d5aec8e7853d",
+  "branch": "test/settings-blackbox"
+}
