@@ -45,3 +45,11 @@ async def test_timeout_kills_processes_the_solution_spawned(tmp_path):
     async with asyncio.timeout(5):
         while os.path.exists(f'/proc/{pid}') and 'Z' not in open(f'/proc/{pid}/stat').read().split()[2]:
             await asyncio.sleep(0.05)
+
+
+@pytest.mark.parametrize('fd', [1, 2])
+async def test_output_beyond_the_limit_fails_without_keeping_it(tmp_path, fd):
+    (tmp_path / 'main.py').write_text(f"import os\nfor _ in range(64):\n    os.write({fd}, b'x' * (1 << 20))\n")
+    result = await run_case(0, '', '7', tmp_path, 30)
+    assert result.status == 'error'
+    assert len(result.stdout) + len(result.stderr) < 1 << 20
