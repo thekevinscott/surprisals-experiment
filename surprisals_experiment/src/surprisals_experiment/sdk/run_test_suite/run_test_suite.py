@@ -6,7 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from surprisals_experiment.config import Config
-from ..database import QuestionDatabase
+from run_database import QuestionDatabase
 from ..utils.write import write
 from .run_test_suite_for_t import run_test_suite_for_t
 

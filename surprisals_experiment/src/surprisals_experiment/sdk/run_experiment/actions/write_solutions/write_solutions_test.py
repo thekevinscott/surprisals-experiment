@@ -2,7 +2,7 @@ import asyncio
 import json
 from fake_botbox import FakeSession
 from surprisals_experiment.sdk.run_experiment.actions.write_solutions import write_solutions
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions

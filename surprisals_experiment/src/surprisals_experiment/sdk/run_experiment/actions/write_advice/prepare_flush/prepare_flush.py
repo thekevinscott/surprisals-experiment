@@ -4,7 +4,7 @@ from pathlib import Path
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import Prompt
-from .....database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from ....read_implementations import read_sources
 
 TURN = Prompt("u/flush/turn.txt")
