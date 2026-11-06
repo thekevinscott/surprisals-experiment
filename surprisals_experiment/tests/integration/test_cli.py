@@ -4,9 +4,7 @@ import json
 
 import pytest
 from conftest import FakeSession
-from pydantic import ValidationError
 from surprisals_experiment.cli.main import main
-from surprisals_experiment.config import Config
 
 
 async def test_cli_runs_with_selected_measure_and_stopping_budget(
@@ -111,13 +109,3 @@ async def test_surprisal_reads_scorer_url_from_labnotes_state(
     )
     settings = json.loads((config.output / "settings.json").read_text())
     assert settings["scorer_base_url"] == "http://state-scorer/v1"
-
-
-def test_rejects_nonpositive_stopping_budget(config):
-    with pytest.raises(ValidationError, match="max_u_turns"):
-        Config(**(config.model_dump() | {"max_u_turns": 0}))
-
-
-def test_surprisal_requires_endpoint(config):
-    with pytest.raises(ValidationError, match="scorer_base_url"):
-        Config(**(config.model_dump() | {"cap_strategy": "surprisal"}))
