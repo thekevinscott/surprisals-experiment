@@ -10,11 +10,10 @@ from unittest.mock import patch
 
 import pytest
 
+from state_machine.testing import Done, run_files
 from surprisals_experiment.config import Config
 from t_samples_test import settings
 from u_flush_test import PASS, QUESTION, flush, outcome, played
-from utils.run_files import run_files
-from utils.world import Done
 
 
 @pytest.fixture

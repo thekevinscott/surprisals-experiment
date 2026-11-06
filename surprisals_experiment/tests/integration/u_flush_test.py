@@ -2,12 +2,13 @@
 
 from hashlib import sha256
 
+from state_machine.testing import Done, State
 from surprisals_experiment.prompt import PROMPTS
 
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, Score, State, T, t_sent, u_system
+from utils.world import U, Score, T, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'

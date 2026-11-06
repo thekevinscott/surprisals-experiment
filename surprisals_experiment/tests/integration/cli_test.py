@@ -6,9 +6,10 @@ from contextlib import chdir
 from unittest.mock import patch
 
 import pytest
+from state_machine.testing import Done
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import T_MODEL, U_MODEL
-from utils.world import Done, T, U, t_sent
+from utils.world import T, U, t_sent
 
 from u_flush_test import PASS, QUESTION, flush, played
 

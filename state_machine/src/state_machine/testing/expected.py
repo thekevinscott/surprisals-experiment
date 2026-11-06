@@ -1,6 +1,6 @@
 import json
 
-from utils.world import REMOVED
+from .world import REMOVED
 
 
 def masked(expected, actual):

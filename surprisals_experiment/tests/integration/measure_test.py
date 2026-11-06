@@ -6,9 +6,10 @@ from hashlib import sha256
 import httpx2
 import pytest
 from openai import BadRequestError
+from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 
-from utils.world import U, Done, Score, State, T, t_sent, u_system
+from utils.world import U, Score, T, t_sent, u_system
 
 PASS = "print(int(input()) * 2)"
 QUESTION = 'Read an integer and print its double.'
