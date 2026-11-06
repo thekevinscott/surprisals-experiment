@@ -1,3 +1,4 @@
+import os
 import signal
 import subprocess
 import sys
@@ -181,3 +182,78 @@ def test_second_signal_exits_immediately(tmp_path, signum):
         in completed.stderr
     )
     assert "Cleanup done" not in completed.stderr
+
+
+def test_duplicate_stop_signal_still_terminates_launched_instance(tmp_path):
+    directory = tmp_path / "duplicate"
+    script = textwrap.dedent(
+        """\
+        import json
+        import signal
+        import sys
+        from argparse import Namespace
+        from pathlib import Path
+        from unittest.mock import patch
+
+        import boto3
+        from moto import mock_aws
+
+        from aws_runner.cloud.setup import setup
+        from aws_runner.run import run
+
+        directory = sys.argv[1]
+        with mock_aws():
+            ec2 = boto3.client("ec2", region_name="us-east-1")
+            args = Namespace(
+                config=Path(sys.argv[2]), region="us-east-1", ami="ami-12345678",
+                cidr="192.0.2.1/32", instance_type="t3.small", volume_size=20,
+            )
+            setup(ec2, args)
+            config = json.load(open(sys.argv[2]))
+            original_waiter = ec2.get_waiter
+            describe = ec2.describe_instances
+            pending = []
+
+            def waiter(name):
+                result = original_waiter(name)
+                if name == "instance_running":
+                    def interrupt(**kwargs):
+                        pending.append(signal.SIGINT)
+                        signal.raise_signal(signal.SIGINT)
+                    result.wait = interrupt
+                return result
+
+            def duplicate(**kwargs):
+                if pending:
+                    signal.raise_signal(pending.pop())
+                return describe(**kwargs)
+
+            try:
+                with (
+                    patch.object(ec2, "get_waiter", side_effect=waiter),
+                    patch.object(ec2, "describe_instances", side_effect=duplicate),
+                ):
+                    run(ec2, config, directory, ["true"])
+            except KeyboardInterrupt:
+                pass
+            filters = [{"Name": "tag:aws-runner:dir", "Values": [directory]}]
+            print(json.dumps([
+                instance["State"]["Name"]
+                for reservation in describe(Filters=filters)["Reservations"]
+                for instance in reservation["Instances"]
+            ]))
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(directory), str(tmp_path / "config.json")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        env={
+            **os.environ,
+            "AWS_ACCESS_KEY_ID": "testing",
+            "AWS_SECRET_ACCESS_KEY": "testing",
+        },
+    )
+    assert completed.stdout == '["terminated"]\n', completed.stderr
