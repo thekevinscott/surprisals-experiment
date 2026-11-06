@@ -9,7 +9,8 @@ def result(config, instance):
         ssh(config, instance)
         + [
             f"systemctl is-active aws-runner || true; "
-            f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; fi"
+            f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; "
+            f"[ -s {ROOT}/exit-code ] || echo 1; fi"
         ],
         check=True,
         capture_output=True,
