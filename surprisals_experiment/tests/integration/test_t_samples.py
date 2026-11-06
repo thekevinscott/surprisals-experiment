@@ -1,7 +1,7 @@
 """Independent T batches retain sample identity and complete feedback."""
 from test_run_result import evaluations, result
 from test_u_flush import QUESTION, STDOUT, flush, outcome, played
-from utils.world import State, T
+from utils.world import State, T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -20,7 +20,7 @@ def settings(config):
 
 def hung(sample, files=None):
     attempt = f'{TURN}/ts/{sample}/attempts/0'
-    return State(T({}, thinking='Write main.py.', text='Done.', hang=True), sent=(attempt, 'double it'),
+    return State(T({}, thinking='Write main.py.', text='Done.', hang=True), sent=t_sent(attempt, 'double it'),
                  logs=[(f'{TURN}/ts/{sample}', 'thinking', 'Write main.py.'), (f'{TURN}/ts/{sample}', 'text', 'Done.')],
                  files={**(files or {}), f'{attempt}/stdout.txt': STDOUT})
 

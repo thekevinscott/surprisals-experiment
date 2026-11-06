@@ -7,7 +7,7 @@ from surprisals_experiment.prompt import PROMPTS
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -82,7 +82,7 @@ def played(windows, scores, *, sequential=False):
                 t = f'{path}/ts/{sample}'
                 attempt = f'{t}/attempts/0'
                 states.append(State(
-                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(attempt, advice),
+                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=t_sent(attempt, advice),
                     logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                     files={**pending, f'{attempt}/stdout.txt': STDOUT, f'{attempt}/src/main.py': code},
                 ))

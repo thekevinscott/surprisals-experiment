@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)'
@@ -87,7 +87,7 @@ def window_world(config, windows):
                               f'advices/{record}/advice.json': {'score': bits} if measure == 'characters'
                               else {'score': pytest.approx(bits), 'tokens': [[advice, pytest.approx(bits)]]}}
             world.append(State(T({'main.py': source}, thinking='Code.', text='Done.'),
-                               sent=(f'{turn}/ts/{sample}/attempts/0', advice),
+                               sent=t_sent(f'{turn}/ts/{sample}/attempts/0', advice),
                                logs=[(f'{turn}/ts/{sample}', 'thinking', 'Code.'),
                                      (f'{turn}/ts/{sample}', 'text', 'Done.')], files=files))
         previous = {}

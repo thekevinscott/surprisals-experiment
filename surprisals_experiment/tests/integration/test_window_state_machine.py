@@ -11,7 +11,7 @@ from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import ChatSession
 from unittest.mock import patch
 from test_u_flush import PASS, flush, outcome, played
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 from run_one_window import run_one_window
 
@@ -96,7 +96,7 @@ def run_world(config, rounds, advice, code):
             attempt = f'{t}/attempts/0'
             states.append(State(
                 T({'main.py': code(fork)}, thinking='Write main.py.', text='Done.'),
-                sent=(attempt, text),
+                sent=t_sent(attempt, text),
                 logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                 files={**pending, f'{attempt}/stdout.txt': stdout(), f'{attempt}/src/main.py': code(fork)},
             ))

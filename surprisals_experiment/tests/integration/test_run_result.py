@@ -4,7 +4,7 @@ import json
 
 from test_measure import scoring_config
 from test_u_flush import QUESTION, Containing, flush, outcome, played
-from utils.world import Done, State, T
+from utils.world import Done, State, T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -46,7 +46,7 @@ def describe_run_result():
         failure = 'T sample failed: provider unavailable; 8 retries exhausted'
         world = [
             asked,
-            *[State(T(error=error), sent=(f'{TURN}/ts/0/attempts/{attempt}', 'ok'), logs=retries[attempt],
+            *[State(T(error=error), sent=t_sent(f'{TURN}/ts/0/attempts/{attempt}', 'ok'), logs=retries[attempt],
                     files=None if attempt else pending) for attempt in range(9)],
             Done(outcome=RuntimeError(failure), files={f'{TURN}/error.txt': Containing(failure)}),
         ]

@@ -4,7 +4,7 @@ from hashlib import sha256
 
 import pytest
 
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 QUESTION = 'Read an integer and print its double.'
 PASS = 'print(int(input()) * 2)\n'
@@ -87,7 +87,7 @@ def run_world(config, turns, *, outcome, attempts):
             attempt = f'{t}/attempts/0'
             world.append(State(
                 T({'main.py': source}, thinking='Write main.py.', text='Done.'),
-                sent=(attempt, advice),
+                sent=t_sent(attempt, advice),
                 logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                 files={**files, f'{attempt}/stdout.txt': stdout('Write main.py.'), f'{attempt}/src/main.py': source},
             ))

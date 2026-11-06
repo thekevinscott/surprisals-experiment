@@ -3,7 +3,7 @@
 from hashlib import sha256
 
 from test_u_flush import PASS, QUESTION, STDOUT, chat, results
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -69,7 +69,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         ts = f'{turn(window, number)}/ts/{sample}'
         src = {**helpers, 'main.py': code, 'hidden.json': io.read_text()}
         return State(T({'main.py': code, **helpers}, thinking='Write main.py.', text='Done.'),
-                     sent=(f'{ts}/attempts/0', advice),
+                     sent=t_sent(f'{ts}/attempts/0', advice),
                      logs=[(ts, 'thinking', 'Write main.py.'), (ts, 'text', 'Done.')],
                      files={**(files or {}), f'{ts}/attempts/0/stdout.txt': STDOUT,
                             **{f'{ts}/attempts/0/src/{name}': text for name, text in src.items()}})
@@ -158,7 +158,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         t = f'windows/{window}/forks/0/turns/{turn}'
         return State(
             T({'main.py': PASS}, thinking='Write it.', text='Done.'),
-            sent=(f'{t}/ts/0/attempts/0', advice),
+            sent=t_sent(f'{t}/ts/0/attempts/0', advice),
             logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
             files={
                 f'{transcripts(window)}/messages.jsonl': messages,

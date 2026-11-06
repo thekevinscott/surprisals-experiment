@@ -12,7 +12,7 @@ from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
 from test_run_state_machine import settings
 from test_u_flush import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 
 def u_state(window, turn, prompt, advice, files):
@@ -28,7 +28,7 @@ def t_state(window, turn, sample, attempt, advice, files, *, code=None, **reply)
     t = f'windows/{window}/forks/0/turns/{turn}/ts/{sample}'
     path = f'{t}/attempts/{attempt}'
     return State(T(code, thinking='Write main.py.', text='Done.', **reply),
-                 sent=(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
+                 sent=t_sent(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                  files={**files, f'{path}/stdout.txt': STDOUT, **{f'{path}/src/{name}': text for name, text in code.items()}})
 
 

@@ -5,7 +5,24 @@ dict (JSON) or list (JSON lines); REMOVED marks a deleted path; `...` at any dep
 "present, not checked".
 """
 
+import shlex
+
+from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
+
 REMOVED = object()
+
+
+def t_sent(attempt, advice, *, model='t'):
+    """What T is run with for `attempt` on `advice`."""
+    return {
+        'agent': {'provider': 'openrouter', 'model': model, 'api_key': 'test-key'},
+        'dockerfile': 'docker/Dockerfile.t',
+        'command': f'pi -p @/advice/advice.md --mode json --provider openrouter --model {model} '
+                   f'--append-system-prompt {shlex.quote(INSTRUCTIONS())}',
+        'mounts': {'/solution': (f'{attempt}/src', 'rw'), '/advice': ({'advice.md': advice}, 'ro')},
+        'workdir': '/solution',
+        'output': attempt,
+    }
 
 
 class U:

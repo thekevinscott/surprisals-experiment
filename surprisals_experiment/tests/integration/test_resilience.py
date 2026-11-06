@@ -10,7 +10,7 @@ import pytest
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
 from test_u_flush import PASS, QUESTION, chat, flush, outcome, played
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent
 
 
 def transcript(config):
@@ -26,6 +26,7 @@ def length_reply(tokens=None):
     return reply
 
 
+BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
 TURN = 'windows/0/forks/0/turns/0'
 OK = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 USAGE = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30,
@@ -94,8 +95,8 @@ async def test_credential_proxy_startup_retries(config, execute_run_experiment):
     for state in world:
         state.files = {path.replace(first, second): value for path, value in state.files.items()}
     built = world[1]
-    built.sent = (second, 'Use a loop')
-    retried = State(T(build_error=RuntimeError('botbox credential proxy did not start:\n')), sent=None,
+    built.sent = t_sent(second, 'Use a loop')
+    retried = State(T(build_error=RuntimeError('botbox credential proxy did not start:\n')), sent=BUILD,
                     files={path: value for path, value in built.files.items() if not path.startswith(second)})
     built.files = {path: value for path, value in built.files.items() if path.startswith(second)}
     built.logs = [(f'{TURN}/ts/0', 'retry', 'T 1/8 in 10s: botbox credential proxy did not start:\n\n'), *built.logs]
@@ -175,7 +176,7 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     generation = (lambda attempt: {f'{TURN}/ts/0/attempts/{attempt}/generation.json': {'exit_code': -1}}
                   if t.exit_code == -1 else {})
     for attempt in range(9):
-        world.append(State(t, sent=(f'{TURN}/ts/0/attempts/{attempt}', 'Use a loop'),
+        world.append(State(t, sent=t_sent(f'{TURN}/ts/0/attempts/{attempt}', 'Use a loop'),
                            logs=[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {DELAYS[attempt - 1]}s: {failure}\n')]
                            if attempt else [],
                            files=generation(attempt - 1) if attempt else pending))
