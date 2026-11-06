@@ -4,7 +4,6 @@ from hashlib import sha256
 
 import pytest
 
-from surprisals_experiment.sdk.turn import Turn
 from u_flush_test import PASS, flush, outcome, played
 from utils.world import U, Done, State, T, t_sent, u_system
 
@@ -130,7 +129,8 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
     ]]
     world, scored = run_world(config, rounds, lambda fork, position: chr(65 + fork) * ([20, 3, 8, 12][fork] - position),
                               lambda fork: DOUBLE if passes and fork != 1 else 'print(0)\n')
-    solution = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'attempts/0/src' if passes else None
+    solution = (config.output / f'windows/0/forks/{winner}/turns/{1 + window_solo_turns}/ts/0/attempts/0/src'
+                if passes else None)
     attempts = 2 * (8 + window_solo_turns)
     scored['result.json'] = {'success': passes, 'attempts': attempts, 'solution': solution and str(solution)}
     if not passes:
