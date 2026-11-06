@@ -181,3 +181,48 @@ def test_second_signal_exits_immediately(tmp_path, signum):
         in completed.stderr
     )
     assert "Cleanup done" not in completed.stderr
+
+
+@pytest.mark.parametrize("final_copy", [0, 255])
+def test_stop_mirrors_before_deleting_the_volume(
+    cloud, transport, tmp_path, capsys, final_copy
+):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    directory = tmp_path / "stopped"
+    state["polls"] = [""]
+    state["copy_codes"] = [0, 255, final_copy]
+    sleeps = []
+
+    def tick(_):
+        clock.return_value += 10
+        sleeps.append(len(execute.call_args_list))
+        if len(sleeps) == 3:
+            signal.raise_signal(signal.SIGTERM)
+
+    with (
+        patch("time.monotonic", return_value=0) as clock,
+        patch("time.sleep", side_effect=tick),
+        pytest.raises(KeyboardInterrupt),
+    ):
+        run(ec2, config, directory, ["sleep", "20"])
+    copies = [
+        args
+        for args in (call.args[0] for call in execute.call_args_list[sleeps[-1] :])
+        if args[0] == "rsync" and args[-2].startswith("ubuntu@")
+    ]
+    assert len(copies) == 1
+    filters = [{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
+    assert all(
+        instance["State"]["Name"] == "terminated"
+        for reservation in ec2.describe_instances(Filters=filters)["Reservations"]
+        for instance in reservation["Instances"]
+    )
+    volumes = ec2.describe_volumes(Filters=filters)["Volumes"]
+    output = capsys.readouterr().err
+    if final_copy:
+        assert [volume["State"] for volume in volumes] == ["available"]
+        assert f"keeping {volumes[0]['VolumeId']}" in output
+    else:
+        assert not volumes
+        assert f"Cleanup done: no instances or volumes left for {directory}" in output

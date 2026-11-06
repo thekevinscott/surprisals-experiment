@@ -1,6 +1,7 @@
 import fcntl
 import os
 import signal
+import subprocess
 import sys
 
 from aws_runner.cloud.cleanup import cleanup
@@ -13,6 +14,7 @@ from aws_runner.config import TAG
 from aws_runner.remote.active import active
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
+from aws_runner.remote.mirror import mirror
 from aws_runner.remote.monitor import monitor
 from aws_runner.remote.prepare import prepare
 from aws_runner.remote.restore import restore
@@ -43,6 +45,7 @@ def run(ec2, config, directory, command):
             flush=True,
         )
         fcntl.flock(lock, fcntl.LOCK_EX)
+    running = None
     previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
@@ -74,15 +77,23 @@ def run(ec2, config, directory, command):
                 timestamp("shipped")
                 start(config, instance, command, working_directory)
                 timestamp("command started")
+        running = instance
         code = monitor(config, instance, directory)
         collect(config, instance, directory)
+        running = None
         timestamp("collected")
         cleanup(ec2, instance, volume)
         return code
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, abort)
         signal.signal(signal.SIGTERM, abort)
-        stop(ec2, directory)
+        mirrored = True
+        if running:
+            try:
+                mirror(config, running, directory)
+            except subprocess.CalledProcessError:
+                mirrored = False
+        stop(ec2, directory, keep_volume=not mirrored)
         raise
     finally:
         signal.signal(signal.SIGINT, previous_int)
