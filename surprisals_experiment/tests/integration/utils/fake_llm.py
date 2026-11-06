@@ -194,12 +194,12 @@ class FakeLLM:
                 return httpx2.Response(reply.status, json={'error': {'message': reply.message}})
             tokens, bits = zip(*reply.bits)
             offsets = [sum(map(len, tokens[:position])) for position in range(len(tokens))]
-            return httpx2.Response(200, json={
+            return httpx2.Response(200, headers={'content-type': 'application/json'}, content=json.dumps({
                 'id': 'score', 'object': 'text_completion', 'created': 1, 'model': body['model'],
                 'choices': [{'index': 0, 'text': '', 'finish_reason': 'stop', 'logprobs': {
                     'tokens': tokens, 'token_logprobs': [-value * math.log(2) for value in bits],
                     'text_offset': offsets}}],
-            })
+            }))
 
         return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
