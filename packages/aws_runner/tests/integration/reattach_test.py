@@ -19,7 +19,8 @@ def test_reattach_collects_existing_run_without_restarting(
     state["polls"] = ["9"]
     assert run(ec2, config, directory, []) == 9
     calls = [call.args[0] for call in execute.call_args_list]
-    assert not any("systemd-run" in args[-1] for args in calls)
+    units = [args[-1].split()[2] for args in calls if "systemd-run" in args[-1]]
+    assert units == (["--unit=aws-runner-collect"] if stopped else [])
     assert not any(args[0] == "git" for args in calls)
     copy = next(i for i, args in enumerate(calls) if args[0] == "rsync")
     marker = next(
