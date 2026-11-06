@@ -3,7 +3,7 @@
 from hashlib import sha256
 
 from u_flush_test import PASS, QUESTION, STDOUT, chat, results
-from utils.world import U, Done, State, T, t_sent
+from utils.world import U, Done, State, T, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -22,7 +22,7 @@ def prompt(index, advice, *samples):
             f'<code>\n{code}\n</code>\n</attempt>')
 
 
-def exhausted(reply, error, *, recorded=None, usage=None, completion_id='u'):
+def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
     """U's first try and all 8 retries fail with `error`."""
     def messages(tries):
         return [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'], *[recorded] * tries]
@@ -33,7 +33,7 @@ def exhausted(reply, error, *, recorded=None, usage=None, completion_id='u'):
                 **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-            'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION}]}
+            'messages': [{'role': 'system', 'content': u_system(config, 1)}, {'role': 'user', 'content': QUESTION}]}
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
@@ -58,11 +58,12 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
 
-    def u(window, number, user, advice, files):
+    def u(window, number, user, advice, files, previous=None):
         path = f'{turn(window, number)}/u'
         return State(U(advice, thinking='Think.'),
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                           'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                           'messages': [{'role': 'system', 'content': u_system(config, number + 1, previous)},
+                                        {'role': 'user', 'content': user}]},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
 
     def t(window, number, sample, advice, code, files=None):
@@ -98,10 +99,10 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         t(0, 1, 0, 'short', PASS, {**chat(0, (QUESTION, 'long advice'), (first, 'short')),
                                    **advised(0, 1, 'short', 5)}),
         t(0, 1, 1, 'short', PASS),
-        u(1, 0, best, 'short', {**evaluated(0, 1), **opened(1), **chat(1, (best, None))}),
+        u(1, 0, best, 'short', {**evaluated(0, 1), **opened(1), **chat(1, (best, None))}, previous=5),
         t(1, 0, 0, 'short', PASS, {**chat(1, (best, 'short')), **advised(1, 0, 'short')}),
         t(1, 0, 1, 'short', PASS),
-        u(1, 1, best, 'short', {**evaluated(1, 0), **chat(1, (best, 'short'), (best, None))}),
+        u(1, 1, best, 'short', {**evaluated(1, 0), **chat(1, (best, 'short'), (best, None))}, previous=5),
         t(1, 1, 0, 'short', PASS, {**chat(1, (best, 'short'), (best, 'short')), **advised(1, 1, 'short')}),
         t(1, 1, 1, 'short', PASS),
         Done(outcome=solution, files={**evaluated(1, 1),
@@ -148,7 +149,8 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return State(
             U(advice, thinking='Think.'),
             sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                  'messages': [system, {'role': 'user', 'content': user}]},
+                  'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)},
+                               {'role': 'user', 'content': user}]},
             logs=[(f'windows/{window}/forks/0/turns/{turn}/u', 'thinking', 'Think.'),
                   (f'windows/{window}/forks/0/turns/{turn}/u', 'text', advice)],
             files={f'{transcripts(window)}/messages.jsonl': messages, **files},
@@ -211,7 +213,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
 
 async def test_records_an_exact_role_for_an_incomplete_reply(config, execute_run_experiment):
-    world = exhausted(U('partial', finish='length', usage=USAGE),
+    world = exhausted(config, U('partial', finish='length', usage=USAGE),
                       'U hit its output token limit (30 completion tokens, 20 reasoning tokens)',
                       recorded={'role': 'assistant', 'content': 'partial', '_complete': False}, usage=USAGE)
     async with execute_run_experiment(config, world):
@@ -219,13 +221,13 @@ async def test_records_an_exact_role_for_an_incomplete_reply(config, execute_run
 
 
 async def test_does_not_accept_empty_replies(config, execute_run_experiment):
-    world = exhausted(U(finish=None), 'U chat stream ended before completion',
+    world = exhausted(config, U(finish=None), 'U chat stream ended before completion',
                       recorded={'role': 'assistant', '_complete': False})
     async with execute_run_experiment(config, world):
         pass
 
 
 async def test_preserves_the_prompt_on_provider_failure(config, execute_run_experiment):
-    world = exhausted(U(status=400), "Error code: 400 - {'error': {'message': 'provider failed'}}", completion_id=None)
+    world = exhausted(config, U(status=400), "Error code: 400 - {'error': {'message': 'provider failed'}}", completion_id=None)
     async with execute_run_experiment(config, world):
         pass

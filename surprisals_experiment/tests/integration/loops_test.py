@@ -4,16 +4,17 @@ from hashlib import sha256
 
 import pytest
 
-from utils.world import U, Done, State, T, t_sent
+from utils.world import U, Done, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 
 
-def u_body(user):
+def u_body(config, turn, user, best):
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-            'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]}
+            'messages': [{'role': 'system', 'content': u_system(config, turn + 1, best)},
+                         {'role': 'user', 'content': user}]}
 
 
 def best(index, advice, sources):
@@ -43,7 +44,7 @@ def advice_path(advice):
 
 def run_world(config, turns, *, outcome, attempts):
     """States for `turns`, each (window, U's user message, advice, T sources), then Done."""
-    world, evaluated, transcripts, usage, advices, counts = [], {}, {}, {}, set(), {}
+    world, evaluated, transcripts, usage, advices, counts, passed = [], {}, {}, {}, set(), {}, []
     for window, user, advice, sources in turns:
         turn = counts[window] = counts.get(window, -1) + 1
         fork = f'windows/{window}/forks/0'
@@ -64,7 +65,7 @@ def run_world(config, turns, *, outcome, attempts):
         transcripts[root] += [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user, '_reset': True}]
         world.append(State(
             U(advice, thinking='Thinking.'),
-            sent=u_body(user),
+            sent=u_body(config, turn, user, min((score for w, score in passed if w < window), default=None)),
             logs=[(f'{directory}/u', 'thinking', 'Thinking.'), (f'{directory}/u', 'text', advice)],
             files={**files, f'{root}/messages.jsonl': list(transcripts[root])},
         ))
@@ -93,6 +94,8 @@ def run_world(config, turns, *, outcome, attempts):
             ))
             files = {}
             evaluated |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': evaluation(source)}
+        if sources and FAIL not in sources:
+            passed.append((window, len(advice)))
     if outcome is None:
         evaluated['error.txt'] = f'No passing solution after {attempts} U turns\n'
     solution = outcome and str(outcome)

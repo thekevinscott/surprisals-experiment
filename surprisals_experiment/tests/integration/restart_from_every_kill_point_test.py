@@ -3,13 +3,14 @@
 from hashlib import sha256
 from itertools import accumulate
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from surprisals_experiment.config import Config
 from utils.expected import decoded
 from utils.run_files import run_files
-from utils.world import U, Case, Done, Score, State, T, t_sent
+from utils.world import U, Case, Done, Score, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
@@ -64,6 +65,8 @@ def build(output, settings, rounds, failing, advices):
     its ask, apart from what the answer before it left."""
     surprisal = settings.get('cap_strategy') == 'surprisal'
     samples = settings['t_samples']
+    system = SimpleNamespace(**{'cap_strategy': 'characters', **settings})
+    previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{DOUBLE}</file>\n</T-{sample}>' for sample in range(samples))
     best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
             + ('' if surprisal else f'<length>{len(ADVICE)} characters</length>\n')
@@ -92,7 +95,8 @@ def build(output, settings, rounds, failing, advices):
             world.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                      'messages': [{'role': 'system', 'content': u_system(system, position + 1, previous if window else None)},
+                                   {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))

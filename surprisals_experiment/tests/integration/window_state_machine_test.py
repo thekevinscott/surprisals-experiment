@@ -6,7 +6,7 @@ import pytest
 
 from surprisals_experiment.sdk.turn import Turn
 from u_flush_test import PASS, flush, outcome, played
-from utils.world import U, Done, State, T, t_sent
+from utils.world import U, Done, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
@@ -40,9 +40,10 @@ def run_world(config, rounds, advice, code):
 
     Returns the states and the files the last T round leaves for Done.
     """
-    states, pending, transcripts, written, best = [], {}, {}, set(), None
+    states, pending, transcripts, written, best, starts = [], {}, {}, set(), None, {}
     for window, position, forks in rounds:
         user = prompt(best)
+        start = starts.setdefault(window, best)
         for fork in forks:
             text = advice(fork, position)
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
@@ -67,7 +68,8 @@ def run_world(config, rounds, advice, code):
             states.append(State(
                 U(text, thinking='Shorten.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                      'messages': [{'role': 'system', 'content': u_system(config, position + 1, start and len(start[1]))},
+                                   {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
                 files=files,
             ))
