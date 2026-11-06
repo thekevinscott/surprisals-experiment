@@ -317,10 +317,9 @@ async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_e
         pass
 
 
-async def test_advice_over_scorer_context_every_attempt_stops_run(scoring_config, execute_run_experiment):
-    config = scoring_config
+def overflowing(config):
+    """Every advice U writes for turn 0 is over the scorer's context."""
     first = turn(0, 0)
-    attempts = len(DELAYS) + 1
     error = f"Advice exceeded the scorer's context limit: Error code: 400 - {{'error': {{'message': '{OVERFLOW}'}}}}"
     response = httpx2.Response(400, request=httpx2.Request("POST", "http://scorer/v1/completions"))
     world = [
@@ -328,14 +327,30 @@ async def test_advice_over_scorer_context_every_attempt_stops_run(scoring_config
         score_state('too long 0', {**chat(0, (QUESTION, 'too long 0')), **unscored(first, 'too long 0')},
                     status=400, message=OVERFLOW),
     ]
-    for index in range(1, attempts):
+    for index in range(1, len(DELAYS) + 1):
         advice = f'too long {index}'
         world += [
             u_state(config, first, QUESTION, advice, {**retried_chat(index, None), **rejected(first, index - 1)}),
             score_state(advice, {**retried_chat(index, advice), **unscored(first, advice)}, status=400, message=OVERFLOW),
         ]
-    world.append(Done(outcome=BadRequestError(error, response=response, body=None)))
-    async with execute_run_experiment(config, world):
+    return world + [Done(outcome=BadRequestError(error, response=response, body=None))]
+
+
+async def test_advice_over_scorer_context_every_attempt_stops_run(scoring_config, execute_run_experiment):
+    world = overflowing(scoring_config)
+    async with execute_run_experiment(scoring_config, world):
+        pass
+
+
+async def test_relaunch_after_overflow_keeps_counting_attempts(scoring_config, execute_run_experiment):
+    world = overflowing(scoring_config)
+    killed = world[:4]
+    async with execute_run_experiment(scoring_config, killed) as run:
+        await run.reached(killed[-1])
+        run.kill()
+    relaunched = [score_state('too long 1', {}, status=400, message=OVERFLOW), *world[4:]]
+    config = Config(**scoring_config.model_dump())
+    async with execute_run_experiment(config, relaunched):
         pass
 
 
