@@ -1,7 +1,7 @@
 {
   "command": "uv run pytest tests/integration -q",
-  "ran_at": 1793994382,
+  "ran_at": 1793994725,
   "exit_code": 0,
-  "commit": "047bc6870fa7786cba57c8ad7b7cefaaadb60fd0",
+  "commit": "b15b4b33c89a16cbab85682e428695d1b97a7032",
   "branch": "fix-367-nonfinite-surprisal"
 }
