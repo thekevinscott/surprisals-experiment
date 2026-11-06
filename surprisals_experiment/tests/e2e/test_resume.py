@@ -272,7 +272,7 @@ cap-strategy = ["characters", "surprisal"]
                 before = {folder: snapshot(folder) for folder in original}
                 tested = {folder: set(folder.glob(TESTS)) for folder in original}
             else:
-                wait_for(lambda f: set(f.glob(TESTS)) - tested[f], sample)
+                wait_for(lambda f, tested=tested: set(f.glob(TESTS)) - tested[f], sample)
                 going = not all(record(folder)["ended"] for folder in original)
                 term.key_ctrl_c()
                 if going:
