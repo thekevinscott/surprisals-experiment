@@ -55,11 +55,11 @@ def test_complete_output_on_correct_streams_and_reattach(
             patch("aws_runner.remote.result.ROOT", str(root)),
             patch("aws_runner.remote.result.ssh", return_value=["sh", "-c"]),
         ):
-            assert monitor({}, {}, tmp_path / "local") == 17
+            assert monitor(None, {}, {}, tmp_path / "local") == 17
             captured = capfd.readouterr()
             assert captured.out == stdout
             assert captured.err == stderr
-            assert monitor({}, {}, tmp_path / "local") == 17
+            assert monitor(None, {}, {}, tmp_path / "local") == 17
             replay = capfd.readouterr()
             assert replay.out == stdout
             assert replay.err == stderr
@@ -143,7 +143,7 @@ def test_killed_follower_resumes_without_missing_or_duplicate_bytes(
         patch("aws_runner.remote.monitor.follow", side_effect=connect),
         patch("aws_runner.remote.monitor.result", side_effect=status),
     ):
-        assert monitor({}, {}, tmp_path / "local") == 17
+        assert monitor(None, {}, {}, tmp_path / "local") == 17
     captured = capfdbinary.readouterr()
     assert captured.out == stdout.read_bytes()
     assert captured.err == stderr.read_bytes()

@@ -16,7 +16,7 @@ from aws_runner.remote.active import active
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
 from aws_runner.remote.mirror import mirror
-from aws_runner.remote.monitor import monitor
+from aws_runner.remote.monitor import InstanceLost, monitor
 from aws_runner.remote.prepare import prepare
 from aws_runner.remote.restore import restore
 from aws_runner.remote.result import result
@@ -87,12 +87,14 @@ def run(ec2, config, directory, command):
                 start(config, instance, command, working_directory)
                 timestamp("command started")
         running = instance
-        code = monitor(config, instance, directory)
+        code = monitor(ec2, config, instance, directory)
         collect(config, instance, directory)
         running = None
         timestamp("collected")
         cleanup(ec2, instance, volume)
         return code
+    except InstanceLost:
+        pass
     except KeyboardInterrupt:
         mirrored = True
         if running:
@@ -106,3 +108,4 @@ def run(ec2, config, directory, command):
         signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
         os.close(lock)
+    return run(ec2, config, directory, [])
