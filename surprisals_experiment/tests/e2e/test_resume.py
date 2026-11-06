@@ -65,7 +65,7 @@ def check_result(output, forks, samples):
     for turn in turns:
         assert len(list((turn / 'ts').iterdir())) == samples
         assert len(list(turn.glob('ts/*/attempts/*/generation.json'))) == samples
-        assert len(list(turn.glob('ts/*/tests.json'))) == samples
+        assert len(list(turn.glob('ts/*/attempts/*/tests.json'))) == samples
     # Each completed U turn has one assistant reply, including across restarts.
     replies = [json.loads(line) for p in output.rglob('messages.jsonl')
                for line in p.read_text().splitlines()]
@@ -98,7 +98,7 @@ def describe_real_cli_resume():
 
         def sampling():
             # Keep a finished sample as well as an interrupted one.
-            return any((p.parent / '0/tests.json').exists() and not (p / 'tests.json').exists()
+            return any(any((p.parent / '0').glob('attempts/*/tests.json')) and not any(p.glob('attempts/*/tests.json'))
                        for p in output.glob('windows/0/forks/0/turns/0/ts/1'))
 
         exercise(output, sampling, signal.SIGTERM)
@@ -108,7 +108,7 @@ def describe_real_cli_resume():
 
         def fork_round():
             forks = output / 'windows/0/forks'
-            done = list(forks.glob('*/turns/0/ts/0/tests.json'))
+            done = list(forks.glob('*/turns/0/ts/0/attempts/*/tests.json'))
             return len(done) == 1 and len(list(forks.glob('*/fork.json'))) == 2
 
         exercise(output, fork_round, signal.SIGINT, forks=2, samples=1)
@@ -145,7 +145,7 @@ def describe_real_cli_resume():
         with (tmp_path / 'aws.log').open('w') as log:
             try:
                 process = subprocess.Popen(args, cwd=PACKAGE.parent, stdout=log, stderr=log)
-                wait_until(process, lambda: any(output.glob('windows/*/forks/*/turns/*/ts/0/tests.json')))
+                wait_until(process, lambda: any(output.glob('windows/*/forks/*/turns/*/ts/0/attempts/*/tests.json')))
                 instances, volumes = resources()
                 assert len(instances) == len(volumes) == 1
                 original_id = instances[0]['InstanceId']

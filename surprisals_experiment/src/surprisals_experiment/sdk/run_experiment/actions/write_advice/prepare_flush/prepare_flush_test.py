@@ -37,7 +37,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
             folder = config.t_dir(number, sample)
             (folder / 'attempts/0').mkdir(parents=True)
             (folder / 'attempts/0/generation.json').write_text('{"exit_code": 0}')
-            (folder / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': passed, 'status': 's', 'stdout': '', 'stderr': ''}]}))
+            (folder / 'attempts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': passed, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     for sample in range(2):
         src = config.t_dir(2, sample) / 'attempts/0/src'
         (src / 'nested').mkdir(parents=True)
@@ -76,7 +76,7 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
         (directory.parents[1] / 'fork.json').write_text('{}')
         write_advice(config, directory, turn, 5)
         (directory / 'ts/0/attempts/0/generation.json').write_text('{"exit_code": 0}')
-        (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
+        (directory / 'ts/0/attempts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt

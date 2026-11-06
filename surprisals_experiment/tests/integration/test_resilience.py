@@ -78,7 +78,7 @@ async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_
     botbox_script.advice.append('Use a loop')
     botbox_script.solutions.append(PASS)
     with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', FailingEntry):
-        assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
+        assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/1/src'
     assert len(builds) == 2
     no_retry_wait.assert_awaited_once_with(10)
 
@@ -209,6 +209,6 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
         diagnostics = (config.attempt_dir(0) / 'error.txt').read_text()
         assert failure in diagnostics
         assert 'Traceback' in diagnostics
-        assert not (config.t_dir(0, 0) / 'tests.json').exists()
+        assert not (config.t_dir(0, 0) / 'attempts/0/tests.json').exists()
         if failure == 'infrastructure':
             assert json.loads((config.t_dir(0, 0) / 'attempts/0/generation.json').read_text())['exit_code'] == -1

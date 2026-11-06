@@ -31,7 +31,7 @@ async def test_fresh_sample_generates_and_tests(config, botbox_script):
     botbox_script.solutions.append(PASS)
     await run_sample(Run(config, database, problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
-    assert json.loads((turn.t_dir(0) / 'tests.json').read_text())['all_passed']
+    assert json.loads((turn.t_dir(0) / 'attempts/0/tests.json').read_text())['all_passed']
     await run_sample(Run(config, ExperimentDatabase(config.output), problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
 
@@ -50,12 +50,12 @@ async def test_interrupted_after_generation_resumes_at_testing(config, botbox_sc
     source = turn.t_dir(0) / 'attempts/0/src/main.py'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns,
               source.read_bytes(), source.stat().st_mtime_ns)
-    assert not (turn.t_dir(0) / 'tests.json').exists()
+    assert not (turn.t_dir(0) / 'attempts/0/tests.json').exists()
     await run_sample(Run(config, ExperimentDatabase(config.output), problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 1
     assert (generation.read_bytes(), generation.stat().st_mtime_ns,
             source.read_bytes(), source.stat().st_mtime_ns) == before
-    assert json.loads((turn.t_dir(0) / 'tests.json').read_text())['all_passed']
+    assert json.loads((turn.t_dir(0) / 'attempts/0/tests.json').read_text())['all_passed']
 
 
 async def test_other_sample_completion_does_not_skip_requested_sample(config, botbox_script):
@@ -64,4 +64,4 @@ async def test_other_sample_completion_does_not_skip_requested_sample(config, bo
     await run_sample(Run(config, database, problem, actions), Sample(turn, 1))
     await run_sample(Run(config, database, problem, actions), Sample(turn, 0))
     assert len(botbox_script.sessions) == 2
-    assert (turn.t_dir(0) / 'tests.json').exists()
+    assert (turn.t_dir(0) / 'attempts/0/tests.json').exists()

@@ -18,7 +18,7 @@ async def test_nonzero_t_exit_can_produce_valid_solution_and_duration(config, bo
 
     monkeypatch.setattr(FakeSession, 'close', close)
     assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
-    result = json.loads((config.t_dir(0, 0) / 'tests.json').read_text())
+    result = json.loads((config.t_dir(0, 0) / 'attempts/0/tests.json').read_text())
     assert result['all_passed']
     assert isinstance(result['duration_seconds'], float)
     assert result['duration_seconds'] >= 0
@@ -30,7 +30,7 @@ async def test_case_exceeding_five_seconds_fails(config, botbox_script):
     botbox_script.advice.append('Print done.')
     botbox_script.solutions.append('import time; time.sleep(6); print("done")')
     assert await run_one_window(config, on_delta=None) is None
-    result = json.loads((config.t_dir(0, 0) / 'tests.json').read_text())
+    result = json.loads((config.t_dir(0, 0) / 'attempts/0/tests.json').read_text())
     assert result['passed'] == 0
     assert result['cases'][0]['stderr'] == 'Test exceeded 5 seconds'
     assert result['duration_seconds'] >= 5
