@@ -8,7 +8,9 @@ import pytest
 from openai import BadRequestError
 from surprisals_experiment.config import Config
 
-from utils.world import U, Done, Score, State, T, t_sent, u_system
+from surprisals_experiment.retry_policy.constants import DELAYS
+
+from utils.world import REMOVED, U, Done, Score, State, T, t_sent, u_system
 
 PASS = "print(int(input()) * 2)"
 QUESTION = 'Read an integer and print its double.'
@@ -258,23 +260,81 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         pass
 
 
-@pytest.mark.parametrize(
-    "message", ["maximum context length is 8192 tokens", "invalid model"]
-)
-async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execute_run_experiment, message):
+async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execute_run_experiment):
     first = turn(0, 0)
-    error = f"Error code: 400 - {{'error': {{'message': '{message}'}}}}"
-    if "maximum context length" in message:
-        error = f"Advice exceeded the scorer's context limit: {error}"
+    error = "Error code: 400 - {'error': {'message': 'invalid model'}}"
     response = httpx2.Response(400, request=httpx2.Request("POST", "http://scorer/v1/completions"))
     rejected = 'preserve rejected advice'
     world = [
         u_state(scoring_config, first, QUESTION, rejected, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         score_state(rejected, {**chat(0, (QUESTION, rejected)), **unscored(first, rejected)},
-                    status=400, message=message),
+                    status=400, message='invalid model'),
         Done(outcome=BadRequestError(error, response=response, body=None)),
     ]
     async with execute_run_experiment(scoring_config, world):
+        pass
+
+
+OVERFLOW = "maximum context length is 8192 tokens"
+
+
+def retried_chat(rejections, *last):
+    """Turn 0's transcript after U's advice was rejected `rejections` times, then `last` (advice, or None)."""
+    lines = chat(0, (QUESTION, 'too long 0'))['u/transcripts/messages.jsonl']
+    for advice in [f'too long {index}' for index in range(1, rejections)] + list(last):
+        lines = lines + [{'role': 'user', 'content': QUESTION, '_reset': True}]
+        if advice is not None:
+            lines = lines + [{'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True}]
+    replies = rejections + sum(advice is not None for advice in last)
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * replies}
+
+
+def rejected(path, index):
+    advice = f'too long {index}'
+    return {f'{path}/metadata.json': REMOVED, f'{path}/u/advice.txt': REMOVED, f'{path}/u/rejected/{index}.txt': advice}
+
+
+async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_experiment):
+    config = scoring_config
+    first, second = turn(0, 0), turn(1, 0)
+    best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
+    world = [
+        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        score_state('too long 0', {**chat(0, (QUESTION, 'too long 0')), **unscored(first, 'too long 0')},
+                    status=400, message=OVERFLOW),
+        u_state(config, first, QUESTION, 'Use a loop', {**retried_chat(1, None), **rejected(first, 0)}),
+        score_state('Use a loop', {**retried_chat(1, 'Use a loop'), **unscored(first, 'Use a loop')},
+                    bits=[('Use a loop', 10.0)]),
+        t_state(first, 'Use a loop', PASS, priced('Use a loop', {'score': 10.0, 'tokens': [['Use a loop', 10.0]]})),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10.0),
+        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
+            config, first, 2, best_measurement=10.0, **SCORING)}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
+
+
+async def test_advice_over_scorer_context_every_attempt_stops_run(scoring_config, execute_run_experiment):
+    config = scoring_config
+    first = turn(0, 0)
+    attempts = len(DELAYS) + 1
+    error = f"Advice exceeded the scorer's context limit: Error code: 400 - {{'error': {{'message': '{OVERFLOW}'}}}}"
+    response = httpx2.Response(400, request=httpx2.Request("POST", "http://scorer/v1/completions"))
+    world = [
+        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        score_state('too long 0', {**chat(0, (QUESTION, 'too long 0')), **unscored(first, 'too long 0')},
+                    status=400, message=OVERFLOW),
+    ]
+    for index in range(1, attempts):
+        advice = f'too long {index}'
+        world += [
+            u_state(config, first, QUESTION, advice, {**retried_chat(index, None), **rejected(first, index - 1)}),
+            score_state(advice, {**retried_chat(index, advice), **unscored(first, advice)}, status=400, message=OVERFLOW),
+        ]
+    world.append(Done(outcome=BadRequestError(error, response=response, body=None)))
+    async with execute_run_experiment(config, world):
         pass
 
 
