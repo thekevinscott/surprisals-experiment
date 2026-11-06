@@ -27,6 +27,6 @@ def find(ec2, directory):
             {"Name": "attachment.instance-id", "Values": [instance["InstanceId"]]},
         ]
     )["Volumes"]
-    if len(volumes) != 1:
+    if len(volumes) > 1:
         raise RuntimeError("Expected one tagged data volume for the existing run")
-    return instance, volumes[0]["VolumeId"]
+    return instance, volumes[0]["VolumeId"] if volumes else None
