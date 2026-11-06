@@ -3,8 +3,10 @@
 import asyncio
 import os
 import shlex
+from pathlib import Path
 
-from surprisals_experiment.sdk.prompt_t import RESOURCES, INSTRUCTIONS
+import surprisals_experiment
+from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
 from surprisals_experiment.sdk.utils.botbox_run.botbox_run import botbox_run
 from surprisals_experiment.sdk.utils.t_agent import TAgent
 
@@ -21,7 +23,7 @@ def describe_real_container_startup():
         async with asyncio.timeout(180):
             result = await botbox_run(
                 agent, f'python3 -c {shlex.quote(code)} && python3 main.py',
-                dockerfile=RESOURCES.joinpath('docker/Dockerfile.t'),
+                dockerfile=Path(surprisals_experiment.__file__).parent / 'docker/Dockerfile.t',
                 mounts=[(output, '/solution', 'rw')], workdir='/solution', output=tmp_path / 'logs',
                 on_event=agent.receive,
             )
