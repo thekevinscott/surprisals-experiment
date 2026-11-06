@@ -17,6 +17,7 @@ from aws_runner.remote.restore import restore
 from aws_runner.remote.result import result
 from aws_runner.remote.ship import ship
 from aws_runner.remote.start import start
+from aws_runner.timestamp import timestamp
 
 
 def run(ec2, config, directory, command):
@@ -44,15 +45,19 @@ def run(ec2, config, directory, command):
                 raise ValueError("A new run requires -- <cmd>")
             instance, volume = launch(ec2, config, directory, surviving)
             prepare(config, instance, volume)
+            timestamp("prepared")
             if surviving:
                 restore(config, instance)
                 if result(config, instance) is None:
                     execute(config, instance)
             else:
                 working_directory = ship(config, instance, directory)
+                timestamp("shipped")
                 start(config, instance, command, working_directory)
+                timestamp("command started")
         code = monitor(config, instance, directory)
         collect(config, instance, directory)
+        timestamp("collected")
         cleanup(ec2, instance, volume)
         return code
     except KeyboardInterrupt:
