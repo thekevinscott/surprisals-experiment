@@ -123,7 +123,7 @@ ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
 def test_experiment_relaunch_continues_both_cells(
-    tmp_path, experiment, terminal, monkeypatch
+    tmp_path, experiment, terminal
 ):
     """Drive launch, stop and relaunch through the TUI."""
     aws = experiment.endswith("-aws")
@@ -159,7 +159,6 @@ cap-strategy = ["characters", "surprisal"]
             target.unlink()
         if not target.exists():
             target.symlink_to((PACKAGE.parent / name).resolve())
-    monkeypatch.chdir(root)
     state = tmp_path / "state"
     env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
     cli = [
@@ -172,7 +171,7 @@ cap-strategy = ["characters", "surprisal"]
         "experiments",
         experiment,
     ]
-    args = [*cli, "run"]
+    args = ["sh", "-c", 'cd "$0" && exec "$@"', str(root), *cli, "run"]
     runs = root / "experiments" / experiment / "runs"
     attempt = ATTEMPT + LAUNCH if aws else ATTEMPT
 
