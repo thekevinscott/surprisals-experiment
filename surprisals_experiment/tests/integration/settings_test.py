@@ -10,7 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
+from surprisals_experiment.config import Config
 from t_samples_test import settings
+from u_flush_test import PASS, QUESTION, flush, outcome, played
+from utils.run_files import run_files
+from utils.world import Done
 
 
 @pytest.fixture
@@ -86,3 +90,22 @@ async def test_restart_after_first_window_warns_on_commit_change(config, execute
         await start(config, execute_run_experiment)
     assert path.read_bytes() == before
     assert [str(w.message) for w in caught] == ['Run was started with a different git commit']
+
+
+@pytest.mark.parametrize('changed', [{'t_samples': 2},
+                                     {'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1'}],
+                         ids=['t-samples', 'cap-strategy'])
+async def test_restart_with_different_flags_keeps_the_recorded_settings(config, execute_run_experiment, changed):
+    best = flush(0, 'double it', length=9)
+    states, pending = played([[(QUESTION, 'double it', [PASS])], [(best, 'double it', [PASS])]],
+                             {'double it': {'score': 9}}, config=config)
+    done = outcome(config, 'windows/0/forks/0/turns/0', 2, pending)
+    async with execute_run_experiment(config, [*states, done]):
+        pass
+    before = run_files(config.output)
+    config = Config(**(config.model_dump() | changed))
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        async with execute_run_experiment(config, [Done(outcome=done.outcome)]):
+            pass
+    assert run_files(config.output) == before
