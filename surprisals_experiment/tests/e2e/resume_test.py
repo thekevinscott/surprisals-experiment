@@ -381,7 +381,14 @@ cap-strategy = ["characters"]
         commands = [" ".join(p.cmdline()) for p in tree]
         for process in tree:
             process.kill()
-        psutil.wait_procs(tree, timeout=30)
+
+        def gone(process):
+            try:
+                return process.status() == psutil.STATUS_ZOMBIE
+            except psutil.NoSuchProcess:
+                return True
+
+        wait(lambda: all(gone(p) for p in tree), 30)
         return commands
 
     folder = None
