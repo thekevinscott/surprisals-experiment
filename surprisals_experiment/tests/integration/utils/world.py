@@ -5,7 +5,37 @@ dict (JSON) or list (JSON lines); REMOVED marks a deleted path; `...` at any dep
 "present, not checked".
 """
 
+import shlex
+
+from surprisals_experiment.prompt import Prompt
+from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
+
 REMOVED = object()
+
+
+def u_system(config, turn, best=None):
+    """U's system prompt at `turn`, after earlier windows' `best` measurement."""
+    surprisal = config.cap_strategy == 'surprisal'
+    target = None if best is None else best * 0.95
+    if best is not None:
+        best, target = (f'{best:.1f}', f'{target:.1f}') if surprisal else (str(round(best)), str(round(target)))
+    return Prompt('u/system.txt')(
+        measure_wording=Prompt('u/measure_surprisal.txt')() if surprisal else '',
+        implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples, turn=turn,
+        turns=config.max_u_turns, best=best, target=target, improvement='5%')
+
+
+def t_sent(attempt, advice, *, model='t'):
+    """What T is run with for `attempt` on `advice`."""
+    return {
+        'agent': {'provider': 'openrouter', 'model': model, 'api_key': 'test-key'},
+        'dockerfile': 'docker/Dockerfile.t',
+        'command': f'pi -p @/advice/advice.md --mode json --provider openrouter --model {model} '
+                   f'--append-system-prompt {shlex.quote(INSTRUCTIONS())}',
+        'mounts': {'/solution': (f'{attempt}/src', 'rw'), '/advice': ({'advice.md': advice}, 'ro')},
+        'workdir': '/solution',
+        'output': attempt,
+    }
 
 
 class U:

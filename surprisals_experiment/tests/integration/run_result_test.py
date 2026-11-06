@@ -4,7 +4,7 @@ import json
 
 from measure_test import scoring_config
 from u_flush_test import QUESTION, Containing, flush, outcome, played
-from utils.world import Done, State, T
+from utils.world import Done, State, T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -29,7 +29,7 @@ def describe_run_result():
         config.max_u_turns = 3
         best = flush(2, 'ok', length=2)
         states, pending = played([[(QUESTION, 'ok', [FAIL])] * 2 + [(QUESTION, 'ok', [PASS])],
-                                  [(best, 'ok', [PASS])] * 3], {'ok': {'score': 2}})
+                                  [(best, 'ok', [PASS])] * 3], {'ok': {'score': 2}}, config=config)
         async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/2', 6, pending)]):
             pass
         assert result(config)['attempts'] == 6
@@ -39,14 +39,14 @@ def describe_run_result():
         assert [json.loads((config.output / advice / 'advice.json').read_text()) for advice in advices] == [{'score': 2}]
 
     async def it_does_not_count_missing_evaluations_as_failed_ts(config, execute_run_experiment):
-        [asked], pending = played([[(QUESTION, 'ok', [])]], {'ok': {'score': 2}})
+        [asked], pending = played([[(QUESTION, 'ok', [])]], {'ok': {'score': 2}}, config=config)
         error = RuntimeError('provider unavailable')
         retries = [[]] + [[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {wait}s: provider unavailable\n')]
                           for attempt, wait in enumerate([10, 20, 30, 60, 180, 300, 1200, 1800], 1)]
         failure = 'T sample failed: provider unavailable; 8 retries exhausted'
         world = [
             asked,
-            *[State(T(error=error), sent=(f'{TURN}/ts/0/attempts/{attempt}', 'ok'), logs=retries[attempt],
+            *[State(T(error=error), sent=t_sent(f'{TURN}/ts/0/attempts/{attempt}', 'ok'), logs=retries[attempt],
                     files=None if attempt else pending) for attempt in range(9)],
             Done(outcome=RuntimeError(failure), files={f'{TURN}/error.txt': Containing(failure)}),
         ]
@@ -62,7 +62,7 @@ def describe_run_result():
         scorer_provider.replies.append([(advice, 3.25)])
         best = flush(0, advice, bits=f'{advice}<3.2>')
         states, pending = played([[(QUESTION, advice, [PASS])], [(best, advice, [PASS])]],
-                                 {advice: {'score': 3.25, 'tokens': [[advice, 3.25]]}})
+                                 {advice: {'score': 3.25, 'tokens': [[advice, 3.25]]}}, config=config)
         async with execute_run_experiment(config, [*states, outcome(
                 config, TURN, 2, pending, best_measurement=3.25, cap_strategy='surprisal',
                 scorer_base_url='http://scorer/v1', scorer_model='t')]):

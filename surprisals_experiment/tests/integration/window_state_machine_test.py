@@ -4,9 +4,8 @@ from hashlib import sha256
 
 import pytest
 
-from surprisals_experiment.sdk.turn import Turn
 from u_flush_test import PASS, flush, outcome, played
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
@@ -40,9 +39,10 @@ def run_world(config, rounds, advice, code):
 
     Returns the states and the files the last T round leaves for Done.
     """
-    states, pending, transcripts, written, best = [], {}, {}, set(), None
+    states, pending, transcripts, written, best, starts = [], {}, {}, set(), None, {}
     for window, position, forks in rounds:
         user = prompt(best)
+        start = starts.setdefault(window, best)
         for fork in forks:
             text = advice(fork, position)
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
@@ -67,7 +67,8 @@ def run_world(config, rounds, advice, code):
             states.append(State(
                 U(text, thinking='Shorten.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                      'messages': [{'role': 'system', 'content': u_system(config, position + 1, start and len(start[1]))},
+                                   {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
                 files=files,
             ))
@@ -89,7 +90,7 @@ def run_world(config, rounds, advice, code):
             attempt = f'{t}/attempts/0'
             states.append(State(
                 T({'main.py': code(fork)}, thinking='Write main.py.', text='Done.'),
-                sent=(attempt, text),
+                sent=t_sent(attempt, text),
                 logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                 files={**pending, f'{attempt}/stdout.txt': stdout(), f'{attempt}/src/main.py': code(fork)},
             ))
@@ -128,7 +129,8 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
     ]]
     world, scored = run_world(config, rounds, lambda fork, position: chr(65 + fork) * ([20, 3, 8, 12][fork] - position),
                               lambda fork: DOUBLE if passes and fork != 1 else 'print(0)\n')
-    solution = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'attempts/0/src' if passes else None
+    solution = (config.output / f'windows/0/forks/{winner}/turns/{1 + window_solo_turns}/ts/0/attempts/0/src'
+                if passes else None)
     attempts = 2 * (8 + window_solo_turns)
     scored['result.json'] = {'success': passes, 'attempts': attempts, 'solution': solution and str(solution)}
     if not passes:
@@ -142,7 +144,7 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
 
 async def test_later_window_preserves_global_best(config, execute_run_experiment):
     world, pending = played([[(QUESTION, 'A', [PASS])], [(flush(0, 'A', length=1), 'Longer advice', [PASS])]],
-                            {'A': {'score': 1}, 'Longer advice': {'score': 13}})
+                            {'A': {'score': 1}, 'Longer advice': {'score': 13}}, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world):
         pass

@@ -12,14 +12,15 @@ from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
 from run_state_machine_test import settings
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, Done, State, T
+from utils.world import U, Done, State, T, t_sent, u_system
 
 
-def u_state(window, turn, prompt, advice, files):
+def u_state(config, window, turn, prompt, advice, files, previous=None):
     path = f'windows/{window}/forks/0/turns/{turn}'
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                       'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': prompt}]},
+                       'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
+                                    {'role': 'user', 'content': prompt}]},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -28,7 +29,7 @@ def t_state(window, turn, sample, attempt, advice, files, *, code=None, **reply)
     t = f'windows/{window}/forks/0/turns/{turn}/ts/{sample}'
     path = f'{t}/attempts/{attempt}'
     return State(T(code, thinking='Write main.py.', text='Done.', **reply),
-                 sent=(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
+                 sent=t_sent(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                  files={**files, f'{path}/stdout.txt': STDOUT, **{f'{path}/src/{name}': text for name, text in code.items()}})
 
 
@@ -68,12 +69,12 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, execute_run_exp
     config.t_sample_retries = 1
     best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
     world = [
-        u_state(0, 0, QUESTION, 'Double.', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        u_state(config, 0, 0, QUESTION, 'Double.', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)}),
         t_state(0, 0, 1, 0, 'Double.', {}, code={'partial.py': 'partial'}, hang=True),
         t_state(0, 0, 2, 0, 'Double.', {}),
         t_state(0, 0, 1, 1, 'Double.', {**evaluated(attempt(0, 0, 0), attempt(0, 0, 2)), **timed_out(attempt(0, 0, 1))}),
-        u_state(1, 0, best, 'Double.', {**evaluated(attempt(0, 0, 1, 1)), **opened(1), **chat(1, (best, None))}),
+        u_state(config, 1, 0, best, 'Double.', {**evaluated(attempt(0, 0, 1, 1)), **opened(1), **chat(1, (best, None))}, previous=len('Double.')),
         t_state(1, 0, 0, 0, 'Double.', {**chat(1, (best, 'Double.')), **advised(1, 0, 'Double.')}),
         t_state(1, 0, 1, 0, 'Double.', {}),
         t_state(1, 0, 2, 0, 'Double.', {}),
@@ -92,23 +93,23 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     long = 'Double the input.'
     best = flush(0, long, length=17, codes=[PASS] * 3)
     world = [
-        u_state(0, 0, QUESTION, long, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        u_state(config, 0, 0, QUESTION, long, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         t_state(0, 0, 0, 0, long, {**chat(0, (QUESTION, long)), **advised(0, 0, long, 17)}),
         t_state(0, 0, 1, 0, long, {}),
         t_state(0, 0, 2, 0, long, {}),
-        u_state(0, 1, best, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
+        u_state(config, 0, 1, best, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
                                         **chat(0, (QUESTION, long), (best, None))}),
         t_state(0, 1, 0, 0, 'Double.', {**chat(0, (QUESTION, long), (best, 'Double.')), **advised(0, 1, 'Double.', 7)}),
         t_state(0, 1, 1, 0, 'Double.', {}),
         t_state(0, 1, 2, 0, 'Double.', {}, hang=True),
         t_state(0, 1, 2, 1, 'Double.', {**evaluated(attempt(0, 1, 0), attempt(0, 1, 1)), **timed_out(attempt(0, 1, 2))},
                 hang=True),
-        u_state(1, 0, best, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1), **chat(1, (best, None))}),
+        u_state(config, 1, 0, best, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1), **chat(1, (best, None))}, previous=len(long)),
         t_state(1, 0, 0, 0, long, {**chat(1, (best, long)), **advised(1, 0, long)}),
         t_state(1, 0, 1, 0, long, {}),
         t_state(1, 0, 2, 0, long, {}),
-        u_state(1, 1, best, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
-                                   **chat(1, (best, long), (best, None))}),
+        u_state(config, 1, 1, best, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
+                                   **chat(1, (best, long), (best, None))}, previous=len(long)),
         t_state(1, 1, 0, 0, long, {**chat(1, (best, long), (best, long)), **advised(1, 1, long)}),
         t_state(1, 1, 1, 0, long, {}),
         t_state(1, 1, 2, 0, long, {}),
@@ -125,7 +126,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, execute_run_ex
     config.t_sample_timeout = .2
     best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
     states, pending = played([[(QUESTION, 'Double.', [PASS] * 3)], [(best, 'Double.', [PASS] * 3)]],
-                             {'Double.': {'score': 7}}, sequential=True)
+                             {'Double.': {'score': 7}}, sequential=True, config=config)
     for state in states:
         if isinstance(state.reply, T):
             state.reply.seconds = .1
@@ -138,12 +139,12 @@ async def test_does_not_retry_with_a_zero_budget(config, execute_run_experiment)
     config.t_sample_timeout = .05
     partial = {'partial.py': 'partial'}
     world = [
-        u_state(0, 0, QUESTION, 'Double.', {'settings.json': {**settings(config), 't_sample_timeout': .05, 't_sample_retries': 0,
+        u_state(config, 0, 0, QUESTION, 'Double.', {'settings.json': {**settings(config), 't_sample_timeout': .05, 't_sample_retries': 0,
                                                              'max_u_turns': config.max_u_turns},
                                            **opened(0), **chat(0, (QUESTION, None))}),
         t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)},
                 code=partial, hang=True),
-        u_state(1, 0, QUESTION, 'Double.', {**timed_out(attempt(0, 0, 0)), **opened(1), **chat(1, (QUESTION, None))}),
+        u_state(config, 1, 0, QUESTION, 'Double.', {**timed_out(attempt(0, 0, 0)), **opened(1), **chat(1, (QUESTION, None))}),
         t_state(1, 0, 0, 0, 'Double.', {**chat(1, (QUESTION, 'Double.')), **advised(1, 0, 'Double.')},
                 code=partial, hang=True),
         Done(outcome=None, files={**timed_out(attempt(1, 0, 0)), 'error.txt': 'No passing solution after 2 U turns\n',
