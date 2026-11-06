@@ -7,7 +7,9 @@ from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS, prompt_t
 
 
 @pytest.mark.parametrize(
-    "advice", ["Use café.\r\nKeep 'quotes', $HOME and `literal` text.\n", "é" * 150_000]
+    "advice",
+    ["Use café.\r\nKeep 'quotes', $HOME and `literal` text.\n", "é" * 150_000],
+    ids=["special-characters", "large"],
 )
 @pytest.mark.parametrize("fails", [False, True])
 async def test_advice_file_preserves_bytes_and_never_enters_command(
