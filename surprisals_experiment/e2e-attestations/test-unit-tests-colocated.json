@@ -1,7 +1,7 @@
 {
-  "command": "sh -c 'uv run --frozen pytest src -q && uv run --frozen pytest tests/integration -q'",
-  "ran_at": 1793974666,
+  "command": "sh -c 'uv run --frozen pytest src tests/integration -q && uv run --frozen pytest src -q && uv run --frozen pytest tests/integration -q'",
+  "ran_at": 1793975074,
   "exit_code": 0,
-  "commit": "6b77291677f2e086f387a341e743f4ea01abd902",
+  "commit": "f97a055f5aecc7fa3e4c7f6487cf49d938312a32",
   "branch": "test/unit-tests-colocated"
 }
