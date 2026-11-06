@@ -61,7 +61,7 @@ async def test_records_null_commit_when_git_lookup_fails(config, execute_run_exp
 
 @pytest.mark.parametrize('changed', [False, True], ids=['same-commit', 'different-commit'])
 async def test_restart_keeps_settings_and_warns_only_on_commit_change(config, execute_run_experiment, commit, changed):
-    """A run stopped after settings.json, before its first window, starts again over different settings."""
+    """A run relaunched over different settings."""
     path = config.output / 'settings.json'
     path.parent.mkdir()
     path.write_text(json.dumps(settings(config) | {'git_commit': 'a' * 40}))
