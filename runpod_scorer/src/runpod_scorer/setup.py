@@ -1,12 +1,12 @@
 """Create a vLLM scorer and wait for readiness."""
 
-import sys
 import time
 
 import httpx
 import labnotes
 
 from . import teardown, users
+from .timestamp import timestamp
 
 READY_TIMEOUT = 1800
 
@@ -50,7 +50,7 @@ def create_pod(model, gpu, key):
     )
     result.raise_for_status()
     pod_id = result.json()["id"]
-    print(f"Created pod {pod_id}", file=sys.stderr, flush=True)
+    timestamp(f"Created pod {pod_id}")
     return pod_id
 
 
@@ -84,19 +84,29 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
                         f"Scorer {pod['id']} is {pod['desiredStatus']}; resume or delete it before up"
                     )
                 pod_id = pod["id"]
-                print(f"Reusing pod {pod_id}", file=sys.stderr, flush=True)
+                timestamp(f"Reusing pod {pod_id}")
             else:
                 pod_id = create_pod(model, gpu, key)
             users.register(pod_id, folder, pid)
             labnotes.set_state({"pod_id": pod_id})
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
         deadline = time.monotonic() + READY_TIMEOUT
+        last = None
         while time.monotonic() < deadline:
             try:
                 ready = teardown.request("GET", f"{base_url}/models")
                 ready.raise_for_status()
+                timestamp(f"Pod {pod_id} ready")
                 break
-            except (httpx.HTTPError, OSError):
+            except (httpx.HTTPError, OSError) as error:
+                outcome = (
+                    error.response.status_code
+                    if isinstance(error, httpx.HTTPStatusError)
+                    else type(error).__name__
+                )
+                if outcome != last:
+                    timestamp(f"Pod {pod_id} not ready: {outcome}")
+                    last = outcome
                 time.sleep(10)
         else:
             raise TimeoutError(f"Pod {pod_id} did not become ready")

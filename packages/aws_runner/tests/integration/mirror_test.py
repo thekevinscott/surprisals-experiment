@@ -1,9 +1,16 @@
+import re
 import subprocess
 from unittest.mock import patch
 
 import pytest
 
 from aws_runner.run import run
+
+
+def steps_removed(stderr):
+    return [
+        line for line in stderr.splitlines() if not re.match(r"\d{4}-\d\d-\d\dT", line)
+    ]
 
 
 def test_live_mirror_precedes_completion_and_final_copy(
@@ -60,7 +67,7 @@ def test_transient_ssh_failure_recovers(cloud, transport, tmp_path, operation, c
     assert not ec2.describe_volumes()["Volumes"]
     label = "Exit-code check" if operation == "polls" else "Live mirror"
     assert (
-        capsys.readouterr().err.splitlines()
+        steps_removed(capsys.readouterr().err)
         == [
             f"{label} SSH failed; retrying",
             f"{label} SSH recovered",
@@ -89,7 +96,7 @@ def test_long_ssh_outage_recovers(cloud, transport, tmp_path, operation, capsys)
         assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 7
     assert clock.return_value == (400 if operation == "polls" else 420)
     label = "Exit-code check" if operation == "polls" else "Live mirror"
-    assert capsys.readouterr().err.splitlines() == [
+    assert steps_removed(capsys.readouterr().err) == [
         f"{label} SSH failed; retrying",
         f"{label} SSH recovered",
     ]
