@@ -1,6 +1,9 @@
 """Run one stdin/stdout test case."""
 
 import asyncio
+import contextlib
+import os
+import signal
 import sys
 from pathlib import Path
 
@@ -11,6 +14,7 @@ async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, ti
     process = await asyncio.create_subprocess_exec(
         sys.executable, "main.py", cwd=solution_dir,
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        start_new_session=True,
     )
     try:
         async with asyncio.timeout(timeout_seconds):
@@ -26,6 +30,6 @@ async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, ti
     except UnicodeDecodeError as error:
         return TestResult(index, False, "error", "", str(error), None)
     finally:
-        if process.returncode is None:
-            process.kill()
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
         await process.communicate()
