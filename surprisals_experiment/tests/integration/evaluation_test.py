@@ -2,7 +2,7 @@
 import json
 
 from run_one_window import run_one_window
-from test_u_flush import PASS, QUESTION, flush, outcome, played
+from u_flush_test import PASS, QUESTION, flush, outcome, played
 
 TURN = 'windows/0/forks/0/turns/0'
 
