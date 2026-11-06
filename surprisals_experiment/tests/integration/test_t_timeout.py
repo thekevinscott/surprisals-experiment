@@ -23,7 +23,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     hung = []
 
     async def message(self, text):
-        if self.mounts['/solution'].parent.name == '1' and not hung:
+        if self.mounts['/solution'].parents[2].name == '1' and not hung:
             hung.append(self)
             (self.mounts['/solution'] / 'partial.py').write_text('partial')
             await asyncio.Event().wait()
@@ -51,7 +51,7 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
 
     async def message(self, text):
         output = self.mounts['/solution']
-        if output.parents[2].name == '1' and output.parent.name == '2':
+        if output.parents[4].name == '1' and output.parents[2].name == '2':
             await asyncio.Event().wait()
         return await original(self, text)
 
@@ -85,7 +85,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, botbox_script,
     assert json.loads(config.result_file.read_text())['success']
     assert len(botbox_script.sessions) == 3
     assert all(s.closed for s in botbox_script.sessions)
-    assert not list(config.output.glob('windows/*/forks/*/turns/*/ts/*/timeouts.txt'))
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/timeouts.txt'))
 
 
 async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypatch):

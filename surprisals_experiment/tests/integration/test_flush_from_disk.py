@@ -69,12 +69,12 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
     config.output.mkdir()
     for turn in ['windows/10/forks/0/turns/1', 'windows/9/forks/2/turns/35', 'windows/9/forks/1/turns/35']:
         directory = config.output / turn
-        (directory / 'ts/0').mkdir(parents=True)
+        (directory / 'ts/0/attempts/0').mkdir(parents=True)
         (directory.parents[3] / 'window.json').write_text('{}')
         (directory.parents[1] / 'fork.json').write_text('{}')
         write_advice(config, directory, turn, 5)
-        (directory / 'ts/0/generation.json').write_text('{"exit_code": 0}')
-        (directory / 'ts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
+        (directory / 'ts/0/attempts/0/generation.json').write_text('{"exit_code": 0}')
+        (directory / 'ts/0/attempts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt

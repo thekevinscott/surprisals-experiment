@@ -75,7 +75,7 @@ async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_
     assert set(calls) == {(fork, turn) for fork in range(4) for turn in range(2)} | {(winner, turn) for turn in range(2, 2 + window_solo_turns)}
     assert len(calls) == len(chat_provider) == 8 + window_solo_turns
     assert len({path for paths in chats.values() for path in paths}) == 4
-    expected = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'src' if passes else None
+    expected = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'attempts/0/src' if passes else None
     assert result == expected
     saved = json.loads(config.result_file.read_text())
     assert saved['success'] == passes
@@ -122,12 +122,12 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
         with patch.dict(actions, {'unscored': interrupt}):
             with pytest.raises(asyncio.CancelledError):
                 await run_one_window(config, on_delta=None)
-        files = [*config.output.glob('windows/*/forks/*/turns/*/ts/*/generation.json'),
+        files = [*config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/generation.json'),
                  *config.output.glob('windows/*/forks/*/turns/*/u/advice.txt')]
         before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files}
         assert files
         result = await run_one_window(config, on_delta=None)
-    assert result == Turn(config, 3, 0, 2).t_dir(0) / 'src'
+    assert result == Turn(config, 3, 0, 2).t_dir(0) / 'attempts/0/src'
     assert len(calls) == len(set(calls)) == len(chat_provider) == 10
     assert len(botbox_script.sessions) == 10
     assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files} == before

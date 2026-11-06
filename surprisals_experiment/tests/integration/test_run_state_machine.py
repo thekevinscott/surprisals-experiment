@@ -37,7 +37,7 @@ async def test_window_stop(config, botbox_script, chat_provider, scorer_provider
         botbox_script.solutions.extend(['print(int(input()) * 2)',
                                        'print(int(input()) * 2)' if success else 'print(0)'])
     solution = await run_experiment(config, on_delta=None)
-    expected = config.output / f'windows/{best}/forks/0/turns/0/ts/0/src' if best is not None else None
+    expected = config.output / f'windows/{best}/forks/0/turns/0/ts/0/attempts/0/src' if best is not None else None
     assert solution == expected
     database = ExperimentDatabase(config.output)
     assert await database.query('SELECT position FROM windows ORDER BY position') == [

@@ -30,7 +30,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     assert not (config.attempt_dir(0) / 'batch.json').exists()
     for i, source in enumerate(sources):
         directory = config.t_dir(0, i)
-        assert directory == config.attempt_dir(0) / 'ts' / str(i)
+        assert directory == config.attempt_dir(0) / 'ts' / str(i) / 'attempts/0'
         assert (directory / 'src/main.py').read_text() == source
         assert (directory / 'transcripts/session.jsonl').exists()
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
@@ -77,7 +77,7 @@ async def test_bounds_concurrency_and_retains_sample_order(config, botbox_script
 
     async def message(self, text):
         nonlocal active, peak
-        sample = int(self.mounts['/solution'].parent.name)
+        sample = int(self.mounts['/solution'].parents[2].name)
         active += 1
         peak = max(peak, active)
         try:
@@ -157,7 +157,7 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
     original = FakeSession.message
 
     async def message(self, text):
-        if self.mounts['/solution'].parent.name == '1':
+        if self.mounts['/solution'].parents[2].name == '1':
             blocked.set()
             await asyncio.Event().wait()
         return await original(self, text)

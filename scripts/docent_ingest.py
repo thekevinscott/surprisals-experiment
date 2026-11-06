@@ -84,14 +84,15 @@ def convert(run):
             "agent": "U", "success": result.get("success"), "attempts": result.get("attempts"),
         })
         agent_runs.append(u) if u else missing.append(f"{base['problem_run']} U")
-        for sample in sorted(problem_run.glob("windows/*/forks/*/turns/*/ts/*")):
+        for t_attempt in sorted(problem_run.glob("windows/*/forks/*/turns/*/ts/*/attempts/*")):
+            sample = t_attempt.parent.parent
             attempt = sample.parent.parent
             metadata_file = attempt / "metadata.json"
             metadata = json.loads(metadata_file.read_text()) if metadata_file.exists() else None
             advice = json.loads((problem_run / metadata["advice"] / "advice.json").read_text()) if metadata else None
-            tests_file = sample / "tests.json"
+            tests_file = t_attempt / "tests.json"
             tests = json.loads(tests_file.read_text()) if tests_file.exists() else None
-            t = transcript([sample / "transcripts", sample / "t_transcripts"], base | {
+            t = transcript([t_attempt / "transcripts", t_attempt / "t_transcripts"], base | {
                 "agent": "T",
                 "attempt": int(attempt.name),
                 "sample": int(sample.name),

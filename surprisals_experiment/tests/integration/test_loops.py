@@ -121,6 +121,6 @@ def describe_run_layout():
             directory = fork / 'turns' / str(turn)
             assert (advice_directory(config, advice) / 'advice.txt').read_text() == advice
             assert read_score(config, turn)['score'] == len(advice)
-            assert (directory / 'ts/0/tests.json').exists()
-            assert (directory / 'ts/0/src/main.py').read_text() == PASS
+            assert (directory / 'ts/0/attempts/0/tests.json').exists()
+            assert (directory / 'ts/0/attempts/0/src/main.py').read_text() == PASS
         assert not (config.output / 'attempts').exists()
