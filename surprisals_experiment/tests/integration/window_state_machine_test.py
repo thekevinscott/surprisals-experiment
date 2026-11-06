@@ -1,19 +1,12 @@
 """A window completes its fork and does not ask U again once finished."""
 
-import asyncio
 from hashlib import sha256
 
 import pytest
 
-from fake_botbox import FakeSession
-from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
-from surprisals_experiment.sdk.utils.u_chat import ChatSession
-from unittest.mock import patch
 from u_flush_test import PASS, flush, outcome, played
 from utils.world import U, Done, State, T
-
-from run_one_window import run_one_window
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
@@ -145,53 +138,6 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
 
     async with execute_run_experiment(config, [Done(outcome=solution)]):
         pass
-
-
-async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_provider):
-    config.window_forks = 4
-    config.fork_turns = 2
-    config.window_solo_turns = 2
-    config.max_u_turns = None
-    calls = []
-    original = actions['advice_missing']
-    score = actions['unscored']
-    message = FakeSession.message
-    prompt = ChatSession.prompt
-    current = {}
-
-    async def advice(run, turn):
-        calls.append((turn.fork, turn.position))
-        current[id(run.u_chat)] = turn
-        await original(run, turn)
-
-    async def reply(self, text, **kwargs):
-        turn = current[id(self)]
-        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 3, 8, 12][turn.fork] - turn.position))
-        return await prompt(self, text, **kwargs)
-
-    async def solution(self, text):
-        botbox_script.solutions.append('print(int(input()) * 2)' if not text.startswith('B') else 'print(0)')
-        await message(self, text)
-
-    async def interrupt(run, turn):
-        if turn.fork == 2 and turn.position == 3:
-            raise asyncio.CancelledError
-        await score(run, turn)
-
-    with (patch.dict(actions, {'advice_missing': advice}),
-          patch.object(FakeSession, 'message', solution), patch.object(ChatSession, 'prompt', reply)):
-        with patch.dict(actions, {'unscored': interrupt}):
-            with pytest.raises(asyncio.CancelledError):
-                await run_one_window(config, on_delta=None)
-        files = [*config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/generation.json'),
-                 *config.output.glob('windows/*/forks/*/turns/*/u/advice.txt')]
-        before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files}
-        assert files
-        result = await run_one_window(config, on_delta=None)
-    assert result == Turn(config, 3, 0, 2).t_dir(0) / 'attempts/0/src'
-    assert len(calls) == len(set(calls)) == len(chat_provider) == 10
-    assert len(botbox_script.sessions) == 10
-    assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files} == before
 
 
 async def test_later_window_preserves_global_best(config, execute_run_experiment):

@@ -1,8 +1,10 @@
 import subprocess
+from unittest.mock import patch
 
 import pytest
 
 from aws_runner.cloud.launch import launch
+from aws_runner.cloud.stop import stop
 from aws_runner.cloud.surviving_volume import surviving_volume
 from aws_runner.config import TAG
 from aws_runner.run import run
@@ -74,3 +76,27 @@ def test_stopped_mid_command_restarts_persisted_script(cloud, transport, tmp_pat
         "--unit=aws-runner " in call.args[0][-1] for call in execute.call_args_list
     )
     assert len(ec2.describe_instances()["Reservations"]) == 1
+
+
+def test_relaunch_right_after_stop_ships_fresh(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, _ = transport
+    directory = tmp_path / "relaunched"
+    _, old_volume = launch(ec2, config, directory)
+    stale = ec2.describe_volumes(VolumeIds=[old_volume])["Volumes"][0]
+    stale["Attachments"][0]["DeleteOnTermination"] = True
+    stop(ec2, directory)
+    describe = ec2.describe_volumes
+    snapshots = iter([{"Volumes": [stale]}])
+    with patch.object(
+        ec2,
+        "describe_volumes",
+        side_effect=lambda **kwargs: next(snapshots, None) or describe(**kwargs),
+    ):
+        assert run(ec2, config, directory, ["true"]) == 0
+    calls = [call.args[0] for call in execute.call_args_list]
+    assert any(args[0] == "rsync" and args[-1].startswith("ubuntu@") for args in calls)
+    volumes = ec2.describe_volumes(
+        Filters=[{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
+    )["Volumes"]
+    assert volumes == []
