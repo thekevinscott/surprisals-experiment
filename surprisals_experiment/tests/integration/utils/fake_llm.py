@@ -139,16 +139,28 @@ class FakeLLM:
         async def respond(request):
             body = json.loads(request.content)
             index, reply = await self.answer(U, body)
-            deltas = [({'reasoning': reply.thinking}, None), ({'content': reply.text}, 'stop')]
+            if reply.error:
+                await self.delivered(index)
+                raise reply.error
+            if reply.status != 200:
+                await self.delivered(index)
+                return httpx2.Response(reply.status, json={'error': {'message': 'provider failed'}})
+            deltas = [{key: value} for key, value in (('reasoning', reply.thinking), ('content', reply.text))
+                      if value is not None] or [{}]
             chunks = [{'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
-                       'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta},
-                                    'finish_reason': finish}]}
-                      for delta, finish in deltas]
+                       'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta}, 'finish_reason': None}]}
+                      for delta in deltas]
+            chunks[-1]['choices'][0] |= {'finish_reason': reply.finish, **reply.choice}
+            if reply.usage:
+                chunks.append({'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
+                               'choices': [], 'usage': reply.usage})
 
             async def stream():
                 for chunk in chunks:
                     yield f'data: {json.dumps(chunk)}\n\n'.encode()
                 await self.delivered(index)
+                if reply.drop:
+                    raise httpx2.RemoteProtocolError('stream disconnected')
                 yield b'data: [DONE]\n\n'
 
             return httpx2.Response(200, headers={'content-type': 'text/event-stream'}, content=stream())
@@ -205,6 +217,11 @@ class FakeLLM:
                 self.exited = True
 
             async def build(self):
+                state = llm.states[llm.asked] if llm.asked < len(llm.states) else None
+                if state and isinstance(state.reply, T) and state.reply.build_error:
+                    index, t = await llm.checked(llm.ask, T, None)
+                    await llm.delivered(index)
+                    raise t.build_error
                 return 'fake'
 
             async def run(self, command, *, mounts, workdir, output):
@@ -217,7 +234,14 @@ class FakeLLM:
                 if t.thinking is not None:
                     llm.say(stdout, 'thinking_delta', t.thinking)
                 for name, content in t.files.items():
-                    (mounted['/solution'] / name).write_text(content)
+                    path = mounted['/solution'] / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    if isinstance(content, Path):
+                        path.symlink_to(content)
+                    elif isinstance(content, bytes):
+                        path.write_bytes(content)
+                    else:
+                        path.write_text(content)
                 if t.text is not None:
                     llm.say(stdout, 'text_delta', t.text)
                 await llm.delivered(index)

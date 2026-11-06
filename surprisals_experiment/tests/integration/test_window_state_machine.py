@@ -10,6 +10,7 @@ from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import ChatSession
 from unittest.mock import patch
+from test_u_flush import PASS, flush, outcome, played
 from utils.world import U, Done, State, T
 
 from run_one_window import run_one_window
@@ -193,26 +194,12 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
     assert {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in files} == before
 
 
-async def test_later_window_preserves_global_best(config, botbox_script):
-    from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
-    from surprisals_experiment.sdk.run import Run
-    from surprisals_experiment.sdk.window import Window
-    from surprisals_experiment.sdk.run_experiment.actions.write_result import read_progress
-    from surprisals_experiment.sdk.run_experiment.state.run_window import run_window
-    from surprisals_experiment.sdk.utils.u_chat import open_u_chat
-
-    botbox_script.advice.extend(['A', 'Longer advice'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 2)
-    await run_one_window(config, on_delta=None)
-    database = ExperimentDatabase(config.output)
-    await database.dirsql.ready()
-    async with open_u_chat(config) as chat:
-        run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
-        await run_window(run, Window(config, 1))
-        result, solution = await read_progress(run)
-    assert solution == config.t_dir(0, 0) / 'attempts/0/src'
-    assert result['attempts'] == 2
-    assert (config.output / 'windows/1/forks/0/u/transcripts/messages.jsonl').exists()
+async def test_later_window_preserves_global_best(config, execute_run_experiment):
+    world, pending = played([[(QUESTION, 'A', [PASS])], [(flush(0, 'A', length=1), 'Longer advice', [PASS])]],
+                            {'A': {'score': 1}, 'Longer advice': {'score': 13}})
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
+    async with execute_run_experiment(config, world):
+        pass
 
 
 async def test_parallel_windows_obey_run_stop_rule(config, execute_run_experiment):
