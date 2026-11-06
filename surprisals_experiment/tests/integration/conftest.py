@@ -45,9 +45,9 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
+        (self.mounts["/solution"] / "main.py").write_text(reply)
         if self.script.t_seconds:
             await asyncio.sleep(self.script.t_seconds)
-        (self.mounts["/solution"] / "main.py").write_text(reply)
         events = [
             {
                 "type": "agent_end",
