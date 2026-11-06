@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793994323,
+  "exit_code": 0,
+  "commit": "cd77719bb92912943d6d0601c97bb23f89a4833b",
+  "branch": "fix-360-unsupported-suites"
+}

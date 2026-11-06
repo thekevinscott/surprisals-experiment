@@ -1,12 +1,16 @@
 WITH
 settings AS (
-    SELECT coalesce((SELECT content ->> 't_samples' FROM './settings.json'), 1) AS ts_per_advice
+    SELECT coalesce((SELECT content ->> 't_samples' FROM './settings.json'), 1) AS ts_per_advice,
+           coalesce((SELECT content ->> 't_sample_retries' FROM './settings.json'), 0) + 1 AS timeouts
 ),
 tested AS (
     SELECT ts.turn_id, min(test_results.passed) AS passed,
            sum(test_results.passed) AS tests_passed, count(*) AS tests_total
     FROM ts JOIN test_results ON test_results.t_id = ts.id
     GROUP BY ts.id
+    UNION ALL
+    SELECT turn_id, 0, NULL, NULL FROM t_attempts WHERE timed_out
+    GROUP BY turn_id, sample HAVING count(*) >= (SELECT timeouts FROM settings)
 ),
 evaluations AS (
     SELECT turn_id, count(*) AS completed, sum(passed) AS passing_ts,
