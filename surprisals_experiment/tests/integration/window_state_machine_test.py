@@ -7,6 +7,7 @@ import pytest
 from u_flush_test import PASS, flush, outcome, played
 from utils.world import U, Done, State, T, t_sent, u_system
 
+
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
 USAGE = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}

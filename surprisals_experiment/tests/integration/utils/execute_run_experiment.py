@@ -11,9 +11,10 @@ from utils.fake_llm import FakeLLM
 
 
 @asynccontextmanager
-async def execute_run_experiment(config, world):
+async def execute_run_experiment(config, world, *, run=None):
+    """`run` replaces the SDK call, e.g. with the CLI, which logs its own deltas."""
     with deterministic(), FakeLLM(world, config.output) as llm:
-        llm.task = asyncio.create_task(run_experiment(config, on_delta=llm.log, on_t_delta=llm.log))
+        llm.task = asyncio.create_task(run or run_experiment(config, on_delta=llm.log, on_t_delta=llm.log))
         llm.task.add_done_callback(llm.ended)
         try:
             yield llm

@@ -75,10 +75,12 @@ class Case:
 
 
 class Score:
-    """The scorer prices the advice as (token, bits) pairs. Only a world that lists one fakes the scorer."""
+    """The scorer prices the advice as (token, bits) pairs, or answers `status` with the error `message`."""
 
-    def __init__(self, bits):
+    def __init__(self, bits=None, *, status=200, message=None):
         self.bits = bits
+        self.status = status
+        self.message = message
 
 
 class State:
