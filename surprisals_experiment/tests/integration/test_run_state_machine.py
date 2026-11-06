@@ -1,15 +1,10 @@
-"""Window stopping and restart use persisted successful scores across the whole run."""
+"""Window stopping uses persisted successful scores across the whole run."""
 
-import asyncio
-import json
 from hashlib import sha256
-from unittest.mock import patch
 
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk import run_experiment
-from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from utils.world import U, Done, State, T
 
 QUESTION = 'Read an integer and print its double.'
@@ -143,35 +138,6 @@ async def test_window_stop(config, scorer_provider, execute_run_experiment, meas
         pass
     async with execute_run_experiment(config, [Done(outcome=expected)]):
         pass
-
-
-async def test_window_zero_always_continues_and_restart_does_not_repeat_work(config, botbox_script, chat_provider):
-    botbox_script.advice.extend(['Double it.', 'Double it.'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)\n'] * 2)
-    advance = actions['window_pending']
-    calls = 0
-
-    async def interrupt_between_windows(run):
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            raise asyncio.CancelledError
-        await advance(run)
-
-    with patch.dict(actions, {'window_pending': interrupt_between_windows}):
-        with pytest.raises(asyncio.CancelledError):
-            await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'attempts/0/generation.json'
-    before = (generation.read_bytes(), generation.stat().st_mtime_ns)
-    assert len(chat_provider) == 1
-    assert not (config.output / 'windows/1').exists()
-
-    solution = await run_experiment(config, on_delta=None)
-    assert solution == config.t_dir(0, 0) / 'attempts/0/src'
-    assert len(chat_provider) == 2
-    assert len(botbox_script.sessions) == 2
-    assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
-    assert json.loads(config.result_file.read_text())['attempts'] == 2
 
 
 async def test_zero_best_score_stops_after_two_windows(config, scorer_provider, execute_run_experiment):

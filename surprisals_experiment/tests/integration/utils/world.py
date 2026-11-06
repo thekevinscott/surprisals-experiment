@@ -29,11 +29,22 @@ class T:
 
 
 class Case:
-    """A test case has run. Only a world that lists one pauses there."""
+    """A sample's first test case has run. Only a world that lists one pauses there."""
+
+
+class Score:
+    """The scorer prices the advice as (token, bits) pairs. Only a world that lists one fakes the scorer."""
+
+    def __init__(self, bits):
+        self.bits = bits
 
 
 class State:
-    """`sent` is the U request body, (attempt path, advice) for T, or (attempt path, case index) for Case."""
+    """`sent` is the U request body, (attempt path, advice) for T, (attempt path, case index) for Case, or the
+    scored text for Score.
+
+    A world without Done is killed after its last state; every step the run reaches past it waits unanswered.
+    """
 
     def __init__(self, reply, *, sent, logs=(), files=None):
         self.reply = reply

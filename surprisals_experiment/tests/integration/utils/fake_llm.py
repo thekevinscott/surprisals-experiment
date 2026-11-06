@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -14,13 +15,13 @@ from surprisals_experiment.sdk.run_test_suite import TestResult
 
 from utils.expected import decoded, masked
 from utils.run_files import run_files
-from utils.world import REMOVED, U, Case, Done, State, T
+from utils.world import REMOVED, U, Case, Done, Score, State, T
 
 
 class FakeLLM:
     def __init__(self, world, output):
         self.states = [state for state in world if isinstance(state, State)]
-        self.done = world[-1] if isinstance(world[-1], Done) else None
+        self.done = world[-1] if world and isinstance(world[-1], Done) else None
         self.output = output
         self.asked = 0
         self.arrived = [asyncio.get_running_loop().create_future() for _ in self.states]
@@ -33,6 +34,7 @@ class FakeLLM:
         self.failure = None
         self.killed = False
         self.followers = {}
+        self.waiting = []
 
     def __enter__(self):
         self.patches = [
@@ -41,6 +43,8 @@ class FakeLLM:
             patch('surprisals_experiment.sdk.run_test_suite.run_test_suite_for_t.run_case', self.run_case),
             patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', self.openai),
         ]
+        if any(isinstance(state.reply, Score) for state in self.states):
+            self.patches.append(patch('measure_surprisal.utils.client.AsyncOpenAI', self.scorer))
         for p in self.patches:
             p.start()
         return self
@@ -59,6 +63,10 @@ class FakeLLM:
     def kill(self):
         self.killed = True
         self.task.cancel()
+
+    async def idle(self):
+        """Wait until no task of the run can go on. Loop time is virtual, so this sleep ends only then."""
+        await asyncio.sleep(1)
 
     def release(self):
         self.target = len(self.states)
@@ -92,7 +100,14 @@ class FakeLLM:
             self.task.cancel()
             await asyncio.Future()
 
+    async def answer(self, kind, sent):
+        if self.done is None and self.asked >= len(self.states) and not self.killed:
+            self.waiting.append(kind)
+            await asyncio.Future()
+        return await self.checked(self.ask, kind, sent)
+
     def ask(self, kind, sent):
+        assert not self.killed, f'{kind.__name__} was asked after the run was killed'
         index = self.asked
         assert index < len(self.states), f'{kind.__name__} was asked with no reply left: {sent!r:.300}'
         state = self.states[index]
@@ -123,7 +138,7 @@ class FakeLLM:
     def openai(self, **kwargs):
         async def respond(request):
             body = json.loads(request.content)
-            index, reply = await self.checked(self.ask, U, body)
+            index, reply = await self.answer(U, body)
             deltas = [({'reasoning': reply.thinking}, None), ({'content': reply.text}, 'stop')]
             chunks = [{'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
                        'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta},
@@ -146,11 +161,32 @@ class FakeLLM:
                                  capture_output=True, text=True)
         passed = process.returncode == 0 and process.stdout.strip() == expected.strip()
         status = 'passed' if passed else 'runtime_error' if process.returncode else 'wrong_answer'
-        if self.asked < len(self.states) and isinstance(self.states[self.asked].reply, Case):
-            attempt = Path(solution_dir).parent.relative_to(self.output).as_posix()
-            state, _ = await self.checked(self.ask, Case, (attempt, index))
+        sent = (Path(solution_dir).parent.relative_to(self.output).as_posix(), index)
+        turn = next((position for position in range(self.asked, len(self.states))
+                     if isinstance(self.states[position].reply, Case)
+                     and masked(self.states[position].sent, sent) == self.states[position].sent), None)
+        if index == 0 and (turn is not None or self.done is None and self.asked >= len(self.states)):
+            if turn:
+                await self.arrived[turn - 1]
+            state, _ = await self.answer(Case, sent)
             await self.delivered(state)
         return TestResult(index, passed, status, process.stdout, process.stderr, process.returncode)
+
+    def scorer(self, **kwargs):
+        async def respond(request):
+            body = json.loads(request.content)
+            index, reply = await self.answer(Score, body['prompt'])
+            await self.delivered(index)
+            tokens, bits = zip(*reply.bits)
+            offsets = [sum(map(len, tokens[:position])) for position in range(len(tokens))]
+            return httpx2.Response(200, json={
+                'id': 'score', 'object': 'text_completion', 'created': 1, 'model': body['model'],
+                'choices': [{'index': 0, 'text': '', 'finish_reason': 'stop', 'logprobs': {
+                    'tokens': tokens, 'token_logprobs': [-value * math.log(2) for value in bits],
+                    'text_offset': offsets}}],
+            })
+
+        return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
     @property
     def botbox(self):
@@ -174,7 +210,7 @@ class FakeLLM:
             async def run(self, command, *, mounts, workdir, output):
                 mounted = {target: Path(source) for source, target, _ in mounts}
                 attempt = Path(output).relative_to(llm.output).as_posix()
-                index, t = await llm.checked(llm.ask, T, (attempt, (mounted['/advice'] / 'advice.md').read_text()))
+                index, t = await llm.answer(T, (attempt, (mounted['/advice'] / 'advice.md').read_text()))
                 await asyncio.sleep(t.seconds)
                 stdout = Path(output) / 'stdout.txt'
                 stdout.parent.mkdir(parents=True, exist_ok=True)
