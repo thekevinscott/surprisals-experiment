@@ -53,11 +53,14 @@ async def test_orphan_holding_stdout_does_not_hang_the_case(tmp_path, script):
     assert not result.passed
 
 
-async def test_timeout_kills_processes_the_solution_spawned(tmp_path):
+async def test_timeout_kills_processes_the_solution_spawned_and_removes_the_sandbox(tmp_path):
     (tmp_path / 'main.py').write_text(
-        "import subprocess, time\nfrom pathlib import Path\n"
+        "import os, subprocess, time\nfrom pathlib import Path\n"
+        f"Path('{tmp_path}/cwd').write_text(os.getcwd())\n"
         f"Path('{tmp_path}/pid').write_text(str(subprocess.Popen(['sleep', '60']).pid))\ntime.sleep(30)\n")
-    await asyncio.wait_for(run_case(0, '', '', tmp_path, 2), timeout=15)
+    result = await asyncio.wait_for(run_case(0, '', '', tmp_path, 2), timeout=15)
+    assert result.status == 'error'
+    assert not os.path.exists((tmp_path / 'cwd').read_text())
     pid = int((tmp_path / 'pid').read_text())
     async with asyncio.timeout(5):
         while os.path.exists(f'/proc/{pid}') and 'Z' not in open(f'/proc/{pid}/stat').read().split()[2]:
