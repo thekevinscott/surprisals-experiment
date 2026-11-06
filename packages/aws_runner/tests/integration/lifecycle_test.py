@@ -1,5 +1,6 @@
 import json
 import subprocess
+from datetime import datetime, timedelta
 
 import pytest
 from botocore.exceptions import ClientError
@@ -75,3 +76,23 @@ def test_failed_collection_preserves_remote_copy(cloud, transport, tmp_path):
     assert mapping["Ebs"]["DeleteOnTermination"] is False
     with pytest.raises(ClientError):
         ec2.delete_volume(VolumeId=volume["VolumeId"])
+
+
+def test_run_timestamps_each_step(cloud, transport, tmp_path, capsys):
+    ec2, _, config = cloud
+    assert run(ec2, config, tmp_path / "run", ["true"]) == 0
+    lines = capsys.readouterr().err.splitlines()
+    stamps = [datetime.fromisoformat(line.split(" ", 1)[0]) for line in lines]
+    assert all(stamp.utcoffset() == timedelta(0) for stamp in stamps)
+    assert [line.split(" ", 1)[1] for line in lines] == [
+        "instance launched",
+        "instance running",
+        "volume attached",
+        "ssh ready",
+        "prepared",
+        "shipped",
+        "command started",
+        "collected",
+        "instance terminated",
+        "volume deleted",
+    ]

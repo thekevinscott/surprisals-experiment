@@ -83,7 +83,7 @@ Run artifacts belong in `experiments/<experiment>/runs/<run>/`; experiment files
 
 `result.json` retains the advice-attempt count and points `solution` to the first sample's source in the shortest successful batch. The file is written at run completion. Restarting derives it again from persisted evaluations, repairing a missing or stale result after interruption. Each sample's `tests.json` records whether it passed; the summary derives completed and passing T counts from those files.
 
-Generate a dynamic summary of advice and T attempts with `uv run --project scripts/report report experiments/<experiment>/runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [run-summary instructions](scripts/report/README.md) for details.
+Generate a dynamic summary of advice and T attempts with `uv run --project scripts/report report experiments/<experiment>/runs/<run>`. Output defaults to a table; add `--format json` for JSON. See the [report instructions](scripts/report/README.md) for details.
 
 See the [implementation documentation](surprisals_experiment/README.md) for session handling, retries, and diagnostics.
 

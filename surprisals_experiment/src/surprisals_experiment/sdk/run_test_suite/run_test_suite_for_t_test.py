@@ -17,3 +17,10 @@ async def test_wrong_crashing_and_binary_candidates_fail(tmp_path):
 async def test_missing_candidate_directory_is_an_evaluator_error(tmp_path):
     with pytest.raises(FileNotFoundError):
         await run_test_suite_for_t([{'input': '', 'output': '7'}], tmp_path / 'absent')
+
+
+async def test_case_exceeding_five_seconds_fails(tmp_path):
+    (tmp_path / 'main.py').write_text('import time; time.sleep(6); print("done")')
+    results = await run_test_suite_for_t([{'input': '', 'output': 'done'}], tmp_path)
+    assert results.passed == 0
+    assert results.cases[0].stderr == 'Test exceeded 5 seconds'

@@ -14,21 +14,6 @@ def local_only():
 
 
 @pytest.fixture
-def botbox_script():
-    pass
-
-
-@pytest.fixture
-def chat_provider():
-    pass
-
-
-@pytest.fixture
-def scorer_provider():
-    pass
-
-
-@pytest.fixture
 def config(tmp_path):
     return Config(
         api_key='unused-no-provider-calls', problem_dir=tmp_path / 'problem',

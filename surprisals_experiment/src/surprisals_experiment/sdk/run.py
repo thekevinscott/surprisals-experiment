@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from surprisals_experiment.config import Config
 
-from .database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from .utils.u_chat import ChatSession
 
 

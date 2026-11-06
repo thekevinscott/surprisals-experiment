@@ -7,7 +7,7 @@ from surprisals_experiment.prompt import PROMPTS
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, State, T
+from utils.world import U, Done, Score, State, T, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -51,38 +51,48 @@ def results(path, code):
         'cases': cases}}
 
 
-def played(windows, scores, *, sequential=False):
+def played(windows, scores, *, config, sequential=False, bits=None):
     """States for `windows`, each a list of turns (prompt, advice, codes), and the test results still due at Done.
 
-    `scores` holds each advice's advice.json. Test results land after a turn's last sample, or after each sample
-    when T runs one at a time.
+    `scores` holds each advice's advice.json, and `bits` the scorer's (token, bits) pairs for each advice it prices.
+    Test results land after a turn's last sample, or after each sample when T runs one at a time.
     """
-    states, pending, seen = [], {'settings.json': ...}, set()
-    for window, turns in enumerate(windows):
+    bits = bits or {}
+    states, pending, seen, passed = [], {'settings.json': ...}, set(), []
+    for window, window_turns in enumerate(windows):
+        best = min(passed, default=None)
         pending |= {f'windows/{window}/window.json': {}, f'windows/{window}/forks/0/fork.json': {}}
         answered = []
-        for index, (prompt, advice, codes) in enumerate(turns):
+        for index, (prompt, advice, codes) in enumerate(window_turns):
             path = f'windows/{window}/forks/0/turns/{index}'
             states.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': prompt}]},
+                      'messages': [{'role': 'system', 'content': u_system(config, index + 1, best)},
+                                   {'role': 'user', 'content': prompt}]},
                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)],
                 files={**pending, **chat(window, *answered, (prompt, None))},
             ))
             answered.append((prompt, advice))
+            if codes and FAIL not in codes:
+                passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
             pending = {**chat(window, *answered), f'{path}/metadata.json': {'advice': digest},
                        f'{path}/u/advice.txt': advice}
             if advice not in seen:
                 seen.add(advice)
-                pending |= {f'{digest}/advice.txt': advice, f'{digest}/advice.json': scores[advice]}
+                pending[f'{digest}/advice.txt'] = advice
+                if advice in bits:
+                    states.append(State(Score(bits[advice]), sent=advice,
+                                        files={**pending, f'{digest}/advice.json': {}}))
+                    pending = {}
+                pending[f'{digest}/advice.json'] = scores[advice]
             ran = {}
             for sample, code in enumerate(codes):
                 t = f'{path}/ts/{sample}'
                 attempt = f'{t}/attempts/0'
                 states.append(State(
-                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(attempt, advice),
+                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=t_sent(attempt, advice),
                     logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
                     files={**pending, f'{attempt}/stdout.txt': STDOUT, f'{attempt}/src/main.py': code},
                 ))
@@ -131,7 +141,7 @@ async def test_shows_only_best_all_pass_attempt(config, execute_run_experiment, 
     middle = [(..., advice, [PASS, OTHER_PASS if ok else FAIL]) for advice, ok in zip(advices[1:], passed[1:])]
     second = [(..., texts[winner], [PASS, OTHER_PASS])] * config.max_u_turns
     world, pending = played([[*first, *middle, (final, 'final', [PASS, OTHER_PASS])], second],
-                            {text: {'score': len(text)} for text in texts}, sequential=True)
+                            {text: {'score': len(text)} for text in texts}, sequential=True, config=config)
     context = (PROMPTS / 'u/flush/context.txt').read_text()
     world[3 * len(advices)].sent['messages'][0]['content'] = Containing(context)
     world.append(outcome(config, f'windows/0/forks/0/turns/{winner}', 2 * config.max_u_turns, pending))
@@ -145,16 +155,15 @@ async def test_sends_no_chat_history(config, execute_run_experiment):
     world, pending = played([
         [(QUESTION, 'double it', [PASS]), (best[0], 'double', [PASS]), (best[1], 'ok', [PASS])],
         [(best[2], 'ok', [PASS])] * 3,
-    ], {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}})
+    ], {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending))
     async with execute_run_experiment(config, world):
         pass
 
 
-async def test_selects_by_bits_and_shows_only_best_token_scores(config, scorer_provider, execute_run_experiment):
-    scores = [[('Use', 1.123), (' a', 0.4), (' two', 0.3), ('-pointer', 0.2)], [('Sweep', 7.9), ('.', 0.06)],
-              [('done', 1.0)]]
-    scorer_provider.replies.extend(scores)
+async def test_selects_by_bits_and_shows_only_best_token_scores(config, execute_run_experiment):
+    scores = {'Use a two-pointer': [('Use', 1.123), (' a', 0.4), (' two', 0.3), ('-pointer', 0.2)],
+              'Sweep.': [('Sweep', 7.9), ('.', 0.06)], 'done': [('done', 1.0)]}
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
         'max_u_turns': 3,
@@ -164,7 +173,9 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, scorer_p
     world, pending = played([
         [(QUESTION, 'Use a two-pointer', [PASS]), (two_pointer, 'Sweep.', [PASS]), (two_pointer, 'done', [PASS])],
         [(done, 'done', [PASS])] * 3,
-    ], dict.fromkeys(['Use a two-pointer', 'Sweep.', 'done'], ...))
+    ], {advice: {'score': pytest.approx(sum(bits for _, bits in pairs)),
+                 'tokens': [[token, pytest.approx(bits)] for token, bits in pairs]} for advice, pairs in scores.items()},
+        bits=scores, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending, best_measurement=1.0,
                          cap_strategy='surprisal', scorer_base_url='http://scorer/v1', scorer_model='t'))
     async with execute_run_experiment(config, world):
@@ -172,27 +183,27 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, scorer_p
 
 
 @pytest.mark.parametrize('measure', ['characters', 'surprisal'])
-async def test_shows_only_the_selected_measure_and_no_results(config, scorer_provider, execute_run_experiment, measure):
+async def test_shows_only_the_selected_measure_and_no_results(config, execute_run_experiment, measure):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1',
         'max_u_turns': 2, 't_samples': 2,
     }))
-    scorer_provider.replies.extend([[('double', 2.5)], [('next', 1.0)]])
     if measure == 'characters':
         double = flush(0, 'double', length=6, codes=(PASS, OTHER_PASS))
         best = flush(1, 'next', length=4, codes=(PASS, OTHER_PASS))
         scores = {'double': {'score': 6}, 'next': {'score': 4}}
-        scoring = {}
+        bits, scoring = {}, {}
     else:
         double = flush(0, 'double', bits='double<2.5>', codes=(PASS, OTHER_PASS))
         best = flush(1, 'next', bits='next<1.0>', codes=(PASS, OTHER_PASS))
-        scores = {'double': {'score': 2.5, 'tokens': [['double', 2.5]]}, 'next': {'score': 1.0, 'tokens': [['next', 1.0]]}}
+        bits = {'double': [('double', 2.5)], 'next': [('next', 1.0)]}
+        scores = {advice: {'score': pairs[0][1], 'tokens': [list(pairs[0])]} for advice, pairs in bits.items()}
         scoring = {'best_measurement': 1.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
                    'scorer_model': 't'}
     world, pending = played([
         [(QUESTION, 'double', [PASS, OTHER_PASS]), (double, 'next', [PASS, OTHER_PASS])],
         [(best, 'next', [PASS, OTHER_PASS])] * 2,
-    ], scores)
+    ], scores, bits=bits, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/1', 4, pending, **scoring))
     async with execute_run_experiment(config, world):
         pass

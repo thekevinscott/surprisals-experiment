@@ -1,14 +1,17 @@
 """Create a vLLM scorer and wait for readiness."""
 
-import sys
 import time
 
 import httpx
 import labnotes
 
 from . import teardown, users
+from .logs import save_logs
+from .timestamp import timestamp
 
 READY_TIMEOUT = 1800
+SLOW_START = 600
+STEP_FIELDS = ("lastStatusChange", "lastStartedAt", "portMappings")
 
 
 DEFAULT_MODEL = "openai/gpt-oss-120b"
@@ -50,7 +53,7 @@ def create_pod(model, gpu, key):
     )
     result.raise_for_status()
     pod_id = result.json()["id"]
-    print(f"Created pod {pod_id}", file=sys.stderr, flush=True)
+    timestamp(f"Created pod {pod_id}")
     return pod_id
 
 
@@ -59,6 +62,7 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
     pid = users.daemon_pid()
     key = teardown.api_key()
     pod_id = None
+    started = None
     try:
         with users.locked():
             pods = teardown.scorer_pods(key)
@@ -84,24 +88,50 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
                         f"Scorer {pod['id']} is {pod['desiredStatus']}; resume or delete it before up"
                     )
                 pod_id = pod["id"]
-                print(f"Reusing pod {pod_id}", file=sys.stderr, flush=True)
+                timestamp(f"Reusing pod {pod_id}")
             else:
                 pod_id = create_pod(model, gpu, key)
             users.register(pod_id, folder, pid)
             labnotes.set_state({"pod_id": pod_id})
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
-        deadline = time.monotonic() + READY_TIMEOUT
+        started = time.monotonic()
+        deadline = started + READY_TIMEOUT
+        last = None
+        steps = {}
         while time.monotonic() < deadline:
             try:
                 ready = teardown.request("GET", f"{base_url}/models")
                 ready.raise_for_status()
+                timestamp(f"Pod {pod_id} ready")
                 break
-            except (httpx.HTTPError, OSError):
+            except (httpx.HTTPError, OSError) as error:
+                outcome = (
+                    error.response.status_code
+                    if isinstance(error, httpx.HTTPStatusError)
+                    else type(error).__name__
+                )
+                if outcome != last:
+                    timestamp(f"Pod {pod_id} not ready: {outcome}")
+                    last = outcome
+                try:
+                    pod = teardown.request("GET", f"{teardown.API}/pods/{pod_id}", key)
+                    pod.raise_for_status()
+                    pod = pod.json()
+                except (httpx.HTTPError, OSError):
+                    pod = {}
+                for field in STEP_FIELDS:
+                    if field in pod and pod[field] != steps.get(field):
+                        timestamp(f"Pod {pod_id} {field}: {pod[field]}")
+                        steps[field] = pod[field]
                 time.sleep(10)
         else:
             raise TimeoutError(f"Pod {pod_id} did not become ready")
+        if time.monotonic() - started > SLOW_START:
+            save_logs(pod_id, key, folder)
         labnotes.set_state({"base_url": base_url})
     except BaseException:
+        if started is not None:
+            save_logs(pod_id, key, folder)
         if pod_id is not None:
             with users.locked():
                 teardown.release(pod_id, key, users.user_file(pod_id, folder))

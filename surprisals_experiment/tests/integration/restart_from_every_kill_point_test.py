@@ -1,15 +1,17 @@
 """A run killed at any point restarts where it stopped, redoing no finished work."""
 
+import json
 from hashlib import sha256
 from itertools import accumulate
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from surprisals_experiment.config import Config
 from utils.expected import decoded
 from utils.run_files import run_files
-from utils.world import U, Case, Done, Score, State, T
+from utils.world import U, Case, Done, Score, State, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
@@ -64,6 +66,8 @@ def build(output, settings, rounds, failing, advices):
     its ask, apart from what the answer before it left."""
     surprisal = settings.get('cap_strategy') == 'surprisal'
     samples = settings['t_samples']
+    system = SimpleNamespace(**{'cap_strategy': 'characters', **settings})
+    previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{DOUBLE}</file>\n</T-{sample}>' for sample in range(samples))
     best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
             + ('' if surprisal else f'<length>{len(ADVICE)} characters</length>\n')
@@ -92,7 +96,8 @@ def build(output, settings, rounds, failing, advices):
             world.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                      'messages': [{'role': 'system', 'content': u_system(system, position + 1, previous if window else None)},
+                                   {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))
@@ -120,7 +125,7 @@ def build(output, settings, rounds, failing, advices):
                 advice, _ = advices.get((fork, position), (ADVICE, BITS))
                 own.append({f'{done}/stdout.txt': STDOUT, f'{done}/src/main.py': source})
                 world.append(State(
-                    T({'main.py': source}, thinking='Write.', text='Done.'), sent=(done, advice),
+                    T({'main.py': source}, thinking='Write.', text='Done.'), sent=t_sent(done, advice),
                     logs=[(t, 'thinking', 'Write.'), (t, 'text', 'Done.')],
                     files={**pending, **own[-1]},
                 ))
@@ -164,7 +169,7 @@ def restart(world, own, first, last, answered):
             on_disk[messages] = [*on_disk[messages], *partial]
             on_disk[usage] = [*on_disk.get(usage, []), line]
         elif isinstance(state.reply, T):
-            old = state.sent[0]
+            old = state.sent['output']
             renames[old] = old.removesuffix('0') + '1'
             if not replied:
                 on_disk = {path: content for path, content in on_disk.items() if not path.startswith(f'{old}/')}
@@ -185,7 +190,10 @@ def restart(world, own, first, last, answered):
             files['result.json'] = {**files['result.json'], 'solution': renamed(files['result.json']['solution'])}
         return files
 
-    def resent(sent):
+    def resent(entry):
+        sent = entry.sent
+        if isinstance(entry.reply, T):
+            return t_sent(renames.get(sent['output'], sent['output']), sent['mounts']['/advice'][0]['advice.md'])
         return (renames.get(sent[0], sent[0]), sent[1]) if isinstance(sent, tuple) else sent
 
     killed = on_disk
@@ -194,7 +202,7 @@ def restart(world, own, first, last, answered):
         after = moved(snapshot)
         files = {path: content for path, content in after.items() if on_disk.get(path) != content}
         on_disk = {**on_disk, **after}
-        restarted.append(State(entry.reply, sent=resent(entry.sent), logs=entry.logs, files=files)
+        restarted.append(State(entry.reply, sent=resent(entry), logs=entry.logs, files=files)
                          if isinstance(entry, State) else
                          Done(outcome=Path(renamed(str(entry.outcome))), logs=entry.logs, files=files))
     return killed, restarted, on_disk
@@ -250,3 +258,28 @@ async def test_restart_from_every_kill_point(config, execute_run_experiment, sha
     assert {path: after.get(path) for path in before} == before
     assert sorted(config.output.parent.iterdir()) == folders
     assert found(config.output, final) == final
+
+
+@pytest.mark.parametrize('shape', SHAPES)
+@pytest.mark.parametrize('stale', [False, True], ids=['missing-result', 'stale-result'])
+async def test_restart_after_last_test_rewrites_result(config, execute_run_experiment, shape, stale):
+    """A kill after the last tests.json leaves every file but result.json."""
+    settings, rounds, failing, advices = SHAPES[shape]
+    config = Config(**(config.model_dump() | settings))
+    world = build(config.output, settings, rounds, failing, advices)[0]
+    async with execute_run_experiment(config, world):
+        pass
+    if stale:
+        config.result_file.write_text(json.dumps({'success': True, 'attempts': 1, 'solution': 'stale'}))
+    else:
+        config.result_file.unlink()
+    before = finished(config.output)
+    before.pop('result.json', None)
+    done = world[-1]
+
+    async with execute_run_experiment(Config(**config.model_dump()), [
+            Done(outcome=done.outcome, files={'result.json': done.files['result.json']})]):
+        pass
+
+    after = finished(config.output)
+    assert {path: after.get(path) for path in before} == before

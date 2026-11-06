@@ -1,4 +1,4 @@
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.utils.write import write

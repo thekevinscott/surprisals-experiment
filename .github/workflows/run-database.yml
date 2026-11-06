@@ -1,0 +1,24 @@
+name: run-database
+
+on:
+  pull_request:
+    paths: ['packages/run_database/**', '.github/workflows/run-database.yml']
+  push:
+    branches: [main]
+    paths: ['packages/run_database/**', '.github/workflows/run-database.yml']
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/run_database
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run pytest
+  conventions:
+    uses: thekevinscott/testing-conventions/.github/workflows/testing-conventions.yml@v0
+    with:
+      source: packages/run_database/src
+      gates: '["one-function-per-file"]'

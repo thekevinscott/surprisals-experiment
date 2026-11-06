@@ -1,5 +1,7 @@
 import json
 import os
+from contextlib import nullcontext
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -7,7 +9,7 @@ import httpx
 import pytest
 from runpod_scorer.cli import main
 
-from runpod_scorer import setup, teardown, users
+from runpod_scorer import logs, setup, teardown, users
 
 
 def response(status=200, body=None):
@@ -45,11 +47,31 @@ def fake_http(monkeypatch):
     return request
 
 
+LOG_STREAM = (
+    b"id: 2026-11-06T10:00:00Z/1\n"
+    b'data: {"ts":"2026-11-06T10:00:00Z","source":"system","line":"pulling image"}\n\n'
+    b"id: 2026-11-06T10:20:00Z/2\n"
+    b'data: {"ts":"2026-11-06T10:20:00Z","source":"container","line":"Loading weights"}\n\n'
+)
+
+
+@pytest.fixture(autouse=True)
+def fake_stream(monkeypatch):
+    stream = Mock(
+        side_effect=lambda *args, **kwargs: nullcontext(
+            httpx.Response(200, content=LOG_STREAM, request=httpx.Request(*args))
+        )
+    )
+    monkeypatch.setattr(logs.httpx, "stream", stream)
+    return stream
+
+
 def test_create_and_wait(fake_http, state):
     fake_http.side_effect = [
         response(body=[]),
         response(body={"id": "pod1"}),
         response(503),
+        response(body={}),
         response(body={"data": []}),
     ]
     main(["up"])
@@ -135,10 +157,128 @@ def test_readiness_transport_retry(fake_http):
         response(body=[]),
         response(body={"id": "pod1"}),
         httpx.ConnectError("not listening yet"),
+        response(body={}),
         response(),
     ]
     main(["up"])
-    assert fake_http.call_count == 4
+    assert fake_http.call_count == 5
+
+
+def test_up_timestamps_each_step(fake_http, capsys):
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        httpx.ConnectError("not listening yet"),
+        response(body={"lastStatusChange": "Rented by User"}),
+        response(502),
+        response(body={"lastStatusChange": "Rented by User", "portMappings": {}}),
+        response(502),
+        response(
+            body={
+                "lastStatusChange": "Rented by User",
+                "lastStartedAt": "2026-11-06T10:05:00Z",
+                "portMappings": {},
+            }
+        ),
+        response(),
+    ]
+    main(["up"])
+    lines = capsys.readouterr().err.splitlines()
+    stamps = [datetime.fromisoformat(line.split(" ", 1)[0]) for line in lines]
+    assert all(stamp.utcoffset() == timedelta(0) for stamp in stamps)
+    assert [line.split(" ", 1)[1] for line in lines] == [
+        "Created pod pod1",
+        "Pod pod1 not ready: ConnectError",
+        "Pod pod1 lastStatusChange: Rented by User",
+        "Pod pod1 not ready: 502",
+        "Pod pod1 portMappings: {}",
+        "Pod pod1 lastStartedAt: 2026-11-06T10:05:00Z",
+        "Pod pod1 ready",
+    ]
+    assert fake_http.call_args_list[3].args == ("GET", teardown.API + "/pods/pod1")
+    assert (
+        fake_http.call_args_list[3].kwargs["headers"]["Authorization"]
+        == "Bearer test-key"
+    )
+
+
+def test_status_failure_keeps_waiting(fake_http):
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        response(502),
+        response(500),
+        response(),
+    ]
+    main(["up"])
+    assert fake_http.call_count == 5
+
+
+def test_fast_up_saves_no_logs(fake_http, fake_stream, state):
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        response(),
+    ]
+    main(["up"])
+    fake_stream.assert_not_called()
+    assert not (state.parent / "runpod-logs.jsonl").exists()
+
+
+def test_slow_up_saves_logs(fake_http, fake_stream, state, monkeypatch, capsys):
+    monkeypatch.setattr(setup, "SLOW_START", -1)
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        response(),
+    ]
+    main(["up"])
+    call = fake_stream.call_args
+    assert call.args == ("GET", "https://api.runpod.io/v2/pods/pod1/logs")
+    assert call.kwargs["headers"]["Authorization"] == "Bearer test-key"
+    saved = (state.parent / "runpod-logs.jsonl").read_text().splitlines()
+    assert [json.loads(line)["line"] for line in saved] == [
+        "pulling image",
+        "Loading weights",
+    ]
+    assert read(state)["base_url"] == "https://pod1-8000.proxy.runpod.net/v1"
+    assert "Saved pod pod1 logs" in capsys.readouterr().err
+
+
+def test_failed_up_saves_logs_before_delete(fake_http, fake_stream, state, monkeypatch):
+    monkeypatch.setattr(setup, "READY_TIMEOUT", 0)
+    fake_stream.side_effect = lambda *args, **kwargs: (
+        nullcontext(
+            httpx.Response(200, content=LOG_STREAM, request=httpx.Request(*args))
+        )
+        if fake_http.call_count == 2
+        else pytest.fail("logs fetched after delete")
+    )
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        response(204),
+        response(404),
+    ]
+    with pytest.raises(TimeoutError):
+        main(["up"])
+    assert (state.parent / "runpod-logs.jsonl").exists()
+    assert fake_http.call_args_list[2].args == ("DELETE", teardown.API + "/pods/pod1")
+
+
+def test_log_failure_does_not_fail_up(
+    fake_http, fake_stream, state, monkeypatch, capsys
+):
+    monkeypatch.setattr(setup, "SLOW_START", -1)
+    fake_stream.side_effect = httpx.ConnectError("refused")
+    fake_http.side_effect = [
+        response(body=[]),
+        response(body={"id": "pod1"}),
+        response(),
+    ]
+    main(["up"])
+    assert "base_url" in read(state)
+    assert "Pod pod1 logs not saved" in capsys.readouterr().err
 
 
 def test_create_failure_does_not_delete(fake_http):
@@ -176,7 +316,7 @@ def test_pod_id_saved_before_readiness(fake_http, state, capsys):
             return response(body=[])
         if method == "POST":
             return response(body={"id": "pod1"})
-        assert capsys.readouterr().err == "Created pod pod1\n"
+        assert capsys.readouterr().err.endswith(" Created pod pod1\n")
         assert read(state) == {"pod_id": "pod1"}
         return response()
 
