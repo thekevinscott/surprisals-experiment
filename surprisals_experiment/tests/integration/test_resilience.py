@@ -3,22 +3,14 @@
 import asyncio
 import json
 import os
-from unittest.mock import patch
 
 import httpx2
 import pytest
 
-from botbox import RunResult
-
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
-from utils.world import U, State, T
-
-PASS = 'print(int(input()) * 2)'
-PROVIDER_ERROR = {
-    'deltas': [{'role': 'assistant', 'content': 'partial', 'reasoning': 'partial reasoning'}],
-    'finish': 'error', 'finish_choice': {'error': {'message': 'upstream failed', 'code': 502}},
-}
+from test_u_flush import PASS, QUESTION, chat, flush, outcome, played
+from utils.world import U, Done, State, T
 
 
 def transcript(config):
@@ -34,53 +26,84 @@ def length_reply(tokens=None):
     return reply
 
 
-@pytest.mark.parametrize('failure', [
-    pytest.param({'deltas': [{'role': 'assistant', 'reasoning': 'Hmm: what about'}], 'finish': 'stop'},
+TURN = 'windows/0/forks/0/turns/0'
+OK = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+USAGE = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30,
+         'completion_tokens_details': {'reasoning_tokens': 19}}
+PARTIAL = {'role': 'assistant', 'content': 'partial', '_complete': False}
+WINDOWS = [[(QUESTION, 'Use a loop', [PASS])], [(flush(0, 'Use a loop', length=10), 'Use a loop', [PASS])]]
+CHUNK = {'id': 'u', 'choices': [{'delta': {'content': 'partial', 'role': 'assistant'}, 'index': 0,
+                                 'finish_reason': 'error', 'error': {'message': 'upstream failed', 'code': 502}}],
+         'created': 1, 'model': 'u', 'object': 'chat.completion.chunk'}
+
+
+class Traceback(str):
+    """Equals a formatted traceback that ends in RuntimeError(self)."""
+
+    def __eq__(self, other):
+        return other.startswith('Traceback (most recent call last):\n') and other.endswith(f'RuntimeError: {self}\n')
+
+    __hash__ = str.__hash__
+
+
+@pytest.mark.parametrize('failure,shown,error,recorded,row', [
+    pytest.param(U(thinking='Hmm: what about'), [('thinking', 'Hmm: what about')],
+                 'U chat did not produce complete advice (stop)',
+                 {'role': 'assistant', 'reasoning': 'Hmm: what about', '_complete': False}, OK,
                  id='thinking-only-stop'),
-    pytest.param({'deltas': [{'role': 'assistant', 'content': 'partial'}], 'finish': 'content_filter'},
+    pytest.param(U('partial', finish='content_filter'), [('text', 'partial')],
+                 'Could not parse response content as the request was rejected by the content filter', PARTIAL, OK,
                  id='content-filter'),
-    pytest.param(httpx2.ConnectError('Connection error'), id='connection-error'),
-    pytest.param({'deltas': [{'role': 'assistant', 'content': 'partial'}],
-                  'finish': None, 'drop_stream': True}, id='dropped-stream'),
-    pytest.param(PROVIDER_ERROR, id='provider-error'),
-    pytest.param(length_reply(20), id='output-limit'),
+    pytest.param(U(error=httpx2.ConnectError('Connection error')), [], 'Connection error.', None,
+                 OK | {'completion_id': None}, id='connection-error'),
+    pytest.param(U('partial', finish=None, drop=True), [('text', 'partial')], 'Connection error.', PARTIAL, OK,
+                 id='dropped-stream'),
+    pytest.param(U('partial', thinking='partial reasoning', finish='error',
+                   choice={'error': CHUNK['choices'][0]['error']}),
+                 [('thinking', 'partial reasoning'), ('text', 'partial')],
+                 f'U chat provider error: {json.dumps(CHUNK)}',
+                 PARTIAL | {'reasoning': 'partial reasoning', 'provider_error': CHUNK}, OK, id='provider-error'),
+    pytest.param(U('partial', finish='length', usage=USAGE), [('text', 'partial')],
+                 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)', PARTIAL,
+                 OK | {'usage': USAGE}, id='output-limit'),
 ])
 async def test_failed_reply_retries_original_history(
-    config, botbox_script, chat_provider, no_retry_wait, failure,
+    config, execute_run_experiment, failure, shown, error, recorded, row,
 ):
-    botbox_script.advice.extend([failure, 'Use a loop'])
-    botbox_script.solutions.append(PASS)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
-    assert len(chat_provider) == 2
-    assert chat_provider[0]['messages'] == chat_provider[1]['messages']
-    no_retry_wait.assert_awaited_once_with(10)
-    messages = transcript(config)
-    if isinstance(failure, dict):
-        partial = next(m for m in messages if m.get('content') == 'partial' or
-                       m.get('reasoning') == 'Hmm: what about')
-        if failure.get('finish') == 'error':
-            assert partial['reasoning'] == 'partial reasoning'
-            assert partial['provider_error']['choices'][0]['error'] == failure['finish_choice']['error']
-    assert any(m.get('content') == 'Use a loop' for m in messages)
+    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}})
+    retried, tested = world[0], world[1]
+    asked = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
+    partial = [] if recorded is None else [recorded]
+    failed = State(failure, sent=retried.sent, logs=[(f'{TURN}/u', kind, text) for kind, text in shown],
+                   files=retried.files)
+    retried.logs = [(f'{TURN}/u', 'retry', f'1/8 in 10s: {error}\n'), *retried.logs]
+    retried.files = {'u/transcripts/usage.jsonl': [row]}
+    if partial:
+        retried.files['u/transcripts/messages.jsonl'] = [*asked, *partial]
+    answer = chat(0, (QUESTION, 'Use a loop'))['u/transcripts/messages.jsonl'][-1]
+    tested.files['u/transcripts/messages.jsonl'] = [*asked, *partial, answer]
+    tested.files['u/transcripts/usage.jsonl'] = [row, OK]
+    world = [failed, *world, outcome(config, TURN, 2, pending)]
+    async with execute_run_experiment(config, world):
+        pass
 
 
-async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_wait):
-    from surprisals_experiment.sdk.utils.botbox_run.botbox_run import Botbox
-    builds = []
-
-    class FailingEntry(Botbox):
-        async def build(self):
-            builds.append(self)
-            if len(builds) == 1:
-                raise RuntimeError('botbox credential proxy did not start:\n')
-            return await super().build()
-
-    botbox_script.advice.append('Use a loop')
-    botbox_script.solutions.append(PASS)
-    with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', FailingEntry):
-        assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/1/src'
-    assert len(builds) == 2
-    no_retry_wait.assert_awaited_once_with(10)
+async def test_credential_proxy_startup_retries(config, execute_run_experiment):
+    first, second = f'{TURN}/ts/0/attempts/0', f'{TURN}/ts/0/attempts/1'
+    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}})
+    for state in world:
+        state.files = {path.replace(first, second): value for path, value in state.files.items()}
+    built = world[1]
+    built.sent = (second, 'Use a loop')
+    retried = State(T(build_error=RuntimeError('botbox credential proxy did not start:\n')), sent=None,
+                    files={path: value for path, value in built.files.items() if not path.startswith(second)})
+    built.files = {path: value for path, value in built.files.items() if path.startswith(second)}
+    built.logs = [(f'{TURN}/ts/0', 'retry', 'T 1/8 in 10s: botbox credential proxy did not start:\n\n'), *built.logs]
+    solution = config.output / second / 'src'
+    world = [world[0], retried, *world[1:], Done(outcome=solution, files={**pending, 'result.json': {
+        'success': True, 'attempts': 2, 'solution': str(solution)}})]
+    async with execute_run_experiment(config, world):
+        pass
 
 
 async def test_length_and_http_errors_share_one_budget(
@@ -189,26 +212,23 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
     assert any(m.get('content') == 'double it' for m in transcript(config))
 
 
+@pytest.mark.parametrize('t,failure', [
+    pytest.param(T(exit_code=-1), 'T infrastructure failed: botbox could not obtain an exit code', id='infrastructure'),
+    pytest.param(T(error=OSError('disk failure')), 'disk failure', id='disk-failure'),
+])
 async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
-    config, botbox_script, no_retry_wait,
+    config, execute_run_experiment, t, failure,
 ):
-    from surprisals_experiment.sdk.utils.botbox_run.botbox_run import Botbox
-    root = config.output
-    for failure in ('infrastructure', 'disk failure'):
-        class BrokenBotbox(Botbox):
-            async def run(self, *args, **kwargs):
-                if failure == 'disk failure':
-                    raise OSError('disk failure')
-                return RunResult(exit_code=-1)
-
-        config.output = root / failure.replace(' ', '-')
-        botbox_script.advice.append('Use a loop')
-        with patch('surprisals_experiment.sdk.utils.botbox_run.botbox_run.Botbox', BrokenBotbox):
-            with pytest.raises(RuntimeError, match=failure):
-                await run_one_window(config, on_delta=None)
-        diagnostics = (config.attempt_dir(0) / 'error.txt').read_text()
-        assert failure in diagnostics
-        assert 'Traceback' in diagnostics
-        assert not (config.t_dir(0, 0) / 'attempts/0/tests.json').exists()
-        if failure == 'infrastructure':
-            assert json.loads((config.t_dir(0, 0) / 'attempts/0/generation.json').read_text())['exit_code'] == -1
+    world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}})
+    generation = (lambda attempt: {f'{TURN}/ts/0/attempts/{attempt}/generation.json': {'exit_code': -1}}
+                  if t.exit_code == -1 else {})
+    for attempt in range(9):
+        world.append(State(t, sent=(f'{TURN}/ts/0/attempts/{attempt}', 'Use a loop'),
+                           logs=[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {DELAYS[attempt - 1]}s: {failure}\n')]
+                           if attempt else [],
+                           files=generation(attempt - 1) if attempt else pending))
+    exhausted = f'T sample failed: {failure}; 8 retries exhausted'
+    world.append(Done(outcome=RuntimeError(exhausted),
+                      files={**generation(8), f'{TURN}/error.txt': Traceback(exhausted)}))
+    async with execute_run_experiment(config, world):
+        pass

@@ -124,6 +124,9 @@ class FakeLLM:
         async def respond(request):
             body = json.loads(request.content)
             index, reply = await self.checked(self.ask, U, body)
+            if reply.error:
+                await self.delivered(index)
+                raise reply.error
             if reply.status != 200:
                 await self.delivered(index)
                 return httpx2.Response(reply.status, json={'error': {'message': 'provider failed'}})
@@ -132,7 +135,7 @@ class FakeLLM:
             chunks = [{'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
                        'choices': [{'index': 0, 'delta': {'role': 'assistant', **delta}, 'finish_reason': None}]}
                       for delta in deltas]
-            chunks[-1]['choices'][0]['finish_reason'] = reply.finish
+            chunks[-1]['choices'][0] |= {'finish_reason': reply.finish, **reply.choice}
             if reply.usage:
                 chunks.append({'id': 'u', 'object': 'chat.completion.chunk', 'created': 1, 'model': body['model'],
                                'choices': [], 'usage': reply.usage})
@@ -141,6 +144,8 @@ class FakeLLM:
                 for chunk in chunks:
                     yield f'data: {json.dumps(chunk)}\n\n'.encode()
                 await self.delivered(index)
+                if reply.drop:
+                    raise httpx2.RemoteProtocolError('stream disconnected')
                 yield b'data: [DONE]\n\n'
 
             return httpx2.Response(200, headers={'content-type': 'text/event-stream'}, content=stream())
@@ -172,6 +177,11 @@ class FakeLLM:
                 self.exited = True
 
             async def build(self):
+                state = llm.states[llm.asked] if llm.asked < len(llm.states) else None
+                if state and isinstance(state.reply, T) and state.reply.build_error:
+                    index, t = await llm.checked(llm.ask, T, None)
+                    await llm.delivered(index)
+                    raise t.build_error
                 return 'fake'
 
             async def run(self, command, *, mounts, workdir, output):
