@@ -153,6 +153,8 @@ def test_experiment_relaunch_continues_both_cells(
     tmp_path, experiment, terminal
 ):
     """Drive launch, stop and relaunch through the TUI."""
+    # A timeout or kill sends SIGTERM, which otherwise skips the cleanup below.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     aws = experiment.endswith("-aws")
     # A separate checkout keeps both labnotes and AWS shipping rooted away from real runs.
     root = tmp_path / "project"
@@ -309,13 +311,21 @@ cap-strategy = ["characters", "surprisal"]
                         assert time.monotonic() < deadline, "Tagged AWS resources survived cleanup"
                         time.sleep(2)
     finally:
-        if term is not None:
-            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
-            if active and list(state.rglob("*.socket")):
-                term.key_ctrl_c()
-                expect(term.get_by_text("Stop them")).to_be_visible()
-                term.write("s")
-            settled()
+        try:
+            if term is not None:
+                (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+                if active and list(state.rglob("*.socket")):
+                    term.key_ctrl_c()
+                    expect(term.get_by_text("Stop them")).to_be_visible()
+                    term.write("s")
+                settled()
+        finally:
+            if aws:
+                stop_aws_runs(runs)
+                deadline = time.monotonic() + 80
+                while aws_runs(runs):
+                    assert time.monotonic() < deadline, f"AWS runs outlived the test: {aws_runs(runs)}"
+                    time.sleep(2)
 
 
 def test_terminated_relaunch_leaves_no_aws_runs(tmp_path):
