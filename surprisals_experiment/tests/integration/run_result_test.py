@@ -2,8 +2,8 @@
 
 import json
 
-from test_measure import scoring_config
-from test_u_flush import QUESTION, Containing, flush, outcome, played
+from measure_test import scoring_config
+from u_flush_test import QUESTION, Containing, flush, outcome, played
 from utils.world import Done, State, T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'

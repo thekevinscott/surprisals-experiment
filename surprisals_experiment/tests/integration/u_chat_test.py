@@ -2,7 +2,7 @@
 
 from hashlib import sha256
 
-from test_u_flush import PASS, QUESTION, STDOUT, chat, results
+from u_flush_test import PASS, QUESTION, STDOUT, chat, results
 from utils.world import U, Done, State, T, t_sent
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,

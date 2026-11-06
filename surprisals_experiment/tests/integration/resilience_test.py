@@ -3,13 +3,14 @@
 import asyncio
 import json
 import os
+from contextlib import chdir
 
 import httpx2
 import pytest
 
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
-from test_u_flush import PASS, QUESTION, chat, flush, outcome, played
+from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
 from utils.world import U, Done, State, T, t_sent
 
 
@@ -107,14 +108,19 @@ async def test_credential_proxy_startup_retries(config, execute_run_experiment):
         pass
 
 
+@pytest.fixture
+def in_problem_dir(config):
+    with chdir(config.problem_dir):
+        yield
+
+
 async def test_length_and_http_errors_share_one_budget(
-    config, botbox_script, chat_provider, no_retry_wait, monkeypatch, capsys,
+    config, botbox_script, chat_provider, no_retry_wait, in_problem_dir, capsys,
 ):
     botbox_script.advice.extend([{'status': 503}, length_reply()] * 4 + [length_reply(100)])
     from surprisals_experiment.cli.main import main
 
     (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-    monkeypatch.chdir(config.problem_dir)
     with pytest.raises(SystemExit) as raised:
         await main(['--window-forks', '1', '--output', str(config.output), '--t-samples', '1',
                     str(config.problem_dir)])
