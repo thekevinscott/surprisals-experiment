@@ -32,6 +32,9 @@ paths AS (
 ),
 attempts AS (
     SELECT cast(substr(p.attempt_path, instr(p.attempt_path, '/turns/') + 7) AS integer) AS attempt_index,
+           row_number() OVER (ORDER BY cast(substr(p.attempt_path, instr(p.attempt_path, 'windows/') + 8) AS integer),
+                                       cast(substr(p.attempt_path, instr(p.attempt_path, '/turns/') + 7) AS integer),
+                                       cast(substr(p.attempt_path, instr(p.attempt_path, '/forks/') + 7) AS integer)) AS attempt_order,
            a.score,
            e.tests_passed, e.tests_total,
            coalesce(e.completed, 0) AS completed_t_evaluations,
@@ -86,7 +89,7 @@ SELECT
              (SELECT max(expected) FROM evaluations)) AS ts_per_advice,
     CASE WHEN EXISTS (SELECT 1 FROM evaluations WHERE all_passed = 1)
          THEN (SELECT count(*) FROM attempts WHERE completed_evaluation_attempts = 1
-               AND attempt_index <= (SELECT min(attempt_index) FROM attempts WHERE all_passed = 1))
+               AND attempt_order <= (SELECT min(attempt_order) FROM attempts WHERE all_passed = 1))
          END AS evaluation_attempts_to_success,
     rows.*
 FROM rows
