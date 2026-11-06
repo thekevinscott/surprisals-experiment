@@ -1,3 +1,4 @@
+import os
 import signal
 import subprocess
 import sys
@@ -141,12 +142,14 @@ def test_second_signal_exits_immediately(tmp_path, signum):
         """\
         import signal
         import sys
+        import time
         from unittest.mock import Mock, patch
 
         from aws_runner.run import run
 
         def terminate(**kwargs):
             print("terminating", flush=True)
+            time.sleep(1.1)
             signal.raise_signal(int(sys.argv[2]))
             print("continued after second signal", flush=True)
 
@@ -181,6 +184,81 @@ def test_second_signal_exits_immediately(tmp_path, signum):
         in completed.stderr
     )
     assert "Cleanup done" not in completed.stderr
+
+
+def test_duplicate_stop_signal_still_terminates_launched_instance(tmp_path):
+    directory = tmp_path / "duplicate"
+    script = textwrap.dedent(
+        """\
+        import json
+        import signal
+        import sys
+        from argparse import Namespace
+        from pathlib import Path
+        from unittest.mock import patch
+
+        import boto3
+        from moto import mock_aws
+
+        from aws_runner.cloud.setup import setup
+        from aws_runner.run import run
+
+        directory = sys.argv[1]
+        with mock_aws():
+            ec2 = boto3.client("ec2", region_name="us-east-1")
+            args = Namespace(
+                config=Path(sys.argv[2]), region="us-east-1", ami="ami-12345678",
+                cidr="192.0.2.1/32", instance_type="t3.small", volume_size=20,
+            )
+            setup(ec2, args)
+            config = json.load(open(sys.argv[2]))
+            original_waiter = ec2.get_waiter
+            describe = ec2.describe_instances
+            pending = []
+
+            def waiter(name):
+                result = original_waiter(name)
+                if name == "instance_running":
+                    def interrupt(**kwargs):
+                        pending.append(signal.SIGINT)
+                        signal.raise_signal(signal.SIGINT)
+                    result.wait = interrupt
+                return result
+
+            def duplicate(**kwargs):
+                if pending:
+                    signal.raise_signal(pending.pop())
+                return describe(**kwargs)
+
+            try:
+                with (
+                    patch.object(ec2, "get_waiter", side_effect=waiter),
+                    patch.object(ec2, "describe_instances", side_effect=duplicate),
+                ):
+                    run(ec2, config, directory, ["true"])
+            except KeyboardInterrupt:
+                pass
+            filters = [{"Name": "tag:aws-runner:dir", "Values": [directory]}]
+            print(json.dumps([
+                instance["State"]["Name"]
+                for reservation in describe(Filters=filters)["Reservations"]
+                for instance in reservation["Instances"]
+            ]))
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(directory), str(tmp_path / "config.json")],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+        env={
+            **os.environ,
+            "AWS_ACCESS_KEY_ID": "testing",
+            "AWS_SECRET_ACCESS_KEY": "testing",
+        },
+    )
+    assert completed.stdout == '["terminated"]\n', completed.stderr
 
 
 @pytest.mark.parametrize("final_copy", [0, 255])
@@ -226,3 +304,38 @@ def test_stop_mirrors_before_deleting_the_volume(
     else:
         assert not volumes
         assert f"Cleanup done: no instances or volumes left for {directory}" in output
+
+
+def test_duplicate_stop_signal_during_final_mirror_is_ignored(
+    cloud, transport, tmp_path, capsys
+):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    directory = tmp_path / "duplicate-mirror"
+    state["polls"] = [""]
+    state["copy_codes"] = [0, 255, 0]
+    respond = execute.side_effect
+    sleeps = []
+
+    def tick(_):
+        sleeps.append(True)
+        if len(sleeps) == 3:
+            signal.raise_signal(signal.SIGTERM)
+
+    def duplicate(args, **kwargs):
+        if len(sleeps) == 3 and args[0] == "rsync" and args[-2].startswith("ubuntu@"):
+            signal.raise_signal(signal.SIGINT)
+        return respond(args, **kwargs)
+
+    execute.side_effect = duplicate
+    with (
+        patch("time.monotonic", return_value=0),
+        patch("time.sleep", side_effect=tick),
+        pytest.raises(KeyboardInterrupt),
+    ):
+        run(ec2, config, directory, ["sleep", "20"])
+    filters = [{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
+    assert not ec2.describe_volumes(Filters=filters)["Volumes"]
+    assert f"Cleanup done: no instances or volumes left for {directory}" in (
+        capsys.readouterr().err
+    )

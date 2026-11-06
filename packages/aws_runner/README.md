@@ -23,7 +23,8 @@ Stopping a run with Ctrl-C or SIGTERM makes one final rsync once the command has
 started, then terminates its instance and deletes its data disk, reporting cleanup
 actions and results to stderr, then exits non-zero. If that rsync fails, the disk
 is kept so a relaunch recovers from it.
-A second Ctrl-C or SIGTERM during stop cleanup prints an abort warning and exits
+A second Ctrl-C or SIGTERM during stop cleanup, more than a second after the first
+(earlier repeats are duplicate deliveries and are ignored), prints an abort warning and exits
 immediately; AWS resources may remain. Other failures, including SSH or collection
 failures, preserve the instance and disk for inspection and resume.
 The command's stdout and stderr are saved as `command.stdout.log` and `command.stderr.log` in the run folder and fully replayed to their corresponding local streams before returning, including on reattachment.
