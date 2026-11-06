@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.14"
-# dependencies = []
-# ///
 from pathlib import Path
 import tarfile
 import urllib.request
@@ -20,13 +15,9 @@ def download(url, path, attempts=4):
 
 
 def main():
-    data = Path(__file__).resolve().parents[2] / 'data'
+    data = Path(__file__).resolve().parents[4] / 'data'
     data.mkdir(exist_ok=True)
     archive = data / 'APPS.tar.gz'
     download(URL, archive)
     with tarfile.open(archive) as tar:
         tar.extractall(data, filter='data')
-
-
-if __name__ == '__main__':
-    main()

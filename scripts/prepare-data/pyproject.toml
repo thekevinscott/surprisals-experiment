@@ -1,0 +1,13 @@
+[project]
+name = "prepare-data"
+version = "0.1.0"
+description = "Download and extract the APPS dataset into data/"
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+prepare-data = "prepare_data:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"

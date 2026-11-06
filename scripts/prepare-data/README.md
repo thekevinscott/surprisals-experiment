@@ -3,7 +3,7 @@
 From the repository root, download the original archive linked by the [APPS authors](https://github.com/hendrycks/apps):
 
 ```bash
-./scripts/prepare-data/prepare-data
+uv run --project scripts/prepare-data prepare-data
 ```
 
 The archive contains its own `APPS/` directory. After extraction, the layout is:

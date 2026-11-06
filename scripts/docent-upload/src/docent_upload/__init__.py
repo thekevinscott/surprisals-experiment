@@ -1,11 +1,6 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.14"
-# dependencies = ["docent-python>=0.1.83"]
-# ///
 """Upload a run's U and T Pi transcripts to the Docent collection named after its experiment.
 
-Usage: uv run scripts/docent-upload/docent-upload experiments/<experiment>/runs/<run>
+Usage: uv run --project scripts/docent-upload docent-upload experiments/<experiment>/runs/<run>
 """
 
 import json
@@ -111,8 +106,8 @@ def convert(run):
     return experiment, agent_runs, missing
 
 
-def main(path):
-    experiment, agent_runs, missing = convert(Path(path).resolve())
+def main():
+    experiment, agent_runs, missing = convert(Path(sys.argv[1]).resolve())
     print(f"{len(agent_runs)} agent runs; {len(missing)} without a transcript: {missing}")
     print(format_check_report(check_agent_runs(agent_runs)))
     name = f"surprisals-experiment/{experiment}"
@@ -121,7 +116,3 @@ def main(path):
     collection = collection or client.create_collection(name=name, description="U and T Pi transcripts")
     print(client.add_agent_runs(collection, agent_runs))
     print(f"https://docent.transluce.org/collection/{collection}")
-
-
-if __name__ == "__main__":
-    main(sys.argv[1])

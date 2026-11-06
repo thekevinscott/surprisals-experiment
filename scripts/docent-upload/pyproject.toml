@@ -1,0 +1,13 @@
+[project]
+name = "docent-upload"
+version = "0.1.0"
+description = "Upload a run's U and T transcripts to Docent"
+requires-python = ">=3.14"
+dependencies = ["docent-python>=0.1.83"]
+
+[project.scripts]
+docent-upload = "docent_upload:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
