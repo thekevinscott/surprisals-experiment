@@ -16,7 +16,7 @@ on:
       - '.github/workflows/tests.yml'
 
 jobs:
-  tests:
+  unit:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,7 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
-      - run: uv run pytest
+      - run: uv run pytest src
+  integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: surprisals_experiment
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run pytest tests/integration
   conventions:
     uses: thekevinscott/testing-conventions/.github/workflows/testing-conventions.yml@v0
     with:
