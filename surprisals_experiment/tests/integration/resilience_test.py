@@ -1,13 +1,14 @@
 """Observed provider failures, bounded retries, and interrupted-run diagnostics."""
 
 import json
+from contextlib import chdir
 
 import httpx2
 import pytest
 
 from surprisals_experiment.config import U_MODEL
 from surprisals_experiment.retry_policy.constants import DELAYS
-from test_u_flush import PASS, QUESTION, chat, flush, outcome, played
+from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
 from utils.world import U, Done, State, T
 
 
@@ -98,11 +99,16 @@ async def exit_code(run):
         return exit.code
 
 
-async def test_length_and_http_errors_share_one_budget(config, monkeypatch, capsys, execute_run_experiment):
+@pytest.fixture
+def in_problem_dir(config):
+    with chdir(config.problem_dir):
+        yield
+
+
+async def test_length_and_http_errors_share_one_budget(config, in_problem_dir, capsys, execute_run_experiment):
     from surprisals_experiment.cli.main import main
 
     (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-    monkeypatch.chdir(config.problem_dir)
     limit = {'prompt_tokens': 10, 'completion_tokens': 100, 'total_tokens': 110,
              'completion_tokens_details': {'reasoning_tokens': 99}}
     replies = [U(status=503), U('partial', finish='length')] * 4 + [U('partial', finish='length', usage=limit)]

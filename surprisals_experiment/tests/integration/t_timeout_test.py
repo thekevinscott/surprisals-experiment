@@ -1,13 +1,14 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
 import signal
+from contextlib import chdir
 from hashlib import sha256
 import pytest
 
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
-from test_run_state_machine import settings
-from test_u_flush import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
+from run_state_machine_test import settings
+from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, Done, State, T
 
 
@@ -149,10 +150,15 @@ async def test_does_not_retry_with_a_zero_budget(config, execute_run_experiment)
         pass
 
 
+@pytest.fixture
+def in_tmp_path(tmp_path):
+    with chdir(tmp_path):
+        yield
+
+
 @pytest.mark.parametrize('phase', [U, T])
-async def test_cancels_and_cleans_up_on_sigterm(config, monkeypatch, tmp_path, execute_run_experiment, phase):
+async def test_cancels_and_cleans_up_on_sigterm(config, tmp_path, in_tmp_path, execute_run_experiment, phase):
     (tmp_path / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-    monkeypatch.chdir(tmp_path)
     asked = played([[(QUESTION, 'Double.', [PASS])]], {'Double.': {'score': 7}})[0][0]
     asked.sent['model'] = U_MODEL
     asked.logs = []

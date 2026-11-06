@@ -1,12 +1,37 @@
 """CLI options reach the real experiment, with providers replaced at the boundary."""
 
 import json
+import os
+from contextlib import chdir
+from unittest.mock import patch
 
+import pytest
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import T_MODEL, U_MODEL
 from utils.world import Done, U
 
-from test_u_flush import PASS, QUESTION, flush, played
+from u_flush_test import PASS, QUESTION, flush, played
+
+
+@pytest.fixture
+def in_problem_dir(config):
+    with chdir(config.problem_dir):
+        yield
+
+
+@pytest.fixture
+def labnotes_log(config):
+    log = config.problem_dir / "log.jsonl"
+    with patch.dict(os.environ, {"LABNOTES_LOG": str(log)}):
+        yield log
+
+
+@pytest.fixture
+def labnotes_run_state(tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"base_url": "http://state-scorer/v1"}))
+    with patch.dict(os.environ, {"LABNOTES_RUN_STATE": str(state)}):
+        yield
 
 
 def world(config, u_model, t_model, url):
@@ -25,11 +50,10 @@ def world(config, u_model, t_model, url):
         'cap_strategy': 'surprisal', 'scorer_base_url': url, 'scorer_model': t_model}})]
 
 
-async def test_cli_runs_with_selected_measure_and_stopping_budget(config, monkeypatch, execute_run_experiment):
-    log = config.problem_dir / "log.jsonl"
-    monkeypatch.setenv("LABNOTES_LOG", str(log))
+async def test_cli_runs_with_selected_measure_and_stopping_budget(
+    config, labnotes_log, in_problem_dir, execute_run_experiment
+):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    monkeypatch.chdir(config.problem_dir)
     settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 't_model': 'selected-t'}
     argv = [
         "--window-forks", "1", "--window-solo-turns", "2", "-U", "selected-u", "-T", "selected-t",
@@ -41,7 +65,7 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, monkey
     written = json.loads((config.output / "settings.json").read_text())
     assert written.items() >= settings.items()
     assert "window_turns" not in written
-    blocks = [json.loads(line) for line in log.read_text().splitlines()]
+    blocks = [json.loads(line) for line in labnotes_log.read_text().splitlines()]
     starts = {block["id"]: block for block in blocks if block.get("phase") == "start"}
     stops = {block["id"] for block in blocks if block.get("phase") == "stop"}
     assert starts.keys() == stops
@@ -51,12 +75,10 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(config, monkey
     assert {"thinking", "text"} <= {block["type"] for block in starts.values()}
 
 
-async def test_surprisal_reads_scorer_url_from_labnotes_state(config, monkeypatch, tmp_path, execute_run_experiment):
+async def test_surprisal_reads_scorer_url_from_labnotes_state(
+    config, labnotes_run_state, in_problem_dir, execute_run_experiment
+):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    monkeypatch.chdir(config.problem_dir)
-    state = tmp_path / "state.json"
-    state.write_text(json.dumps({"base_url": "http://state-scorer/v1"}))
-    monkeypatch.setenv("LABNOTES_RUN_STATE", str(state))
     argv = [
         "--window-forks", "1", "--window-solo-turns", "2", "--cap-strategy", "surprisal", "--max-u-turns", "1",
         "--t-samples", "2", "--t-pool-size", "1", "--output", str(config.output), str(config.problem_dir),

@@ -5,7 +5,7 @@ import json
 import pytest
 from utils.world import Done
 
-from test_u_flush import PASS, QUESTION, flush, outcome, played
+from u_flush_test import PASS, QUESTION, flush, outcome, played
 
 
 @pytest.mark.parametrize('stale_result', [False, True], ids=['missing-result', 'stale-result'])
