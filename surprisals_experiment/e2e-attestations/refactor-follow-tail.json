@@ -1,0 +1,7 @@
+{
+  "command": "uv run --frozen pytest tests/integration/test_streaming.py src/surprisals_experiment/sdk/utils/botbox_run -q",
+  "ran_at": 1793969360,
+  "exit_code": 0,
+  "commit": "a9e7782b7bbb6dca90ab5a483189970933fa448b",
+  "branch": "refactor/follow-tail"
+}
