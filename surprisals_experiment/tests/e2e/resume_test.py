@@ -2,6 +2,8 @@
 
 import json
 import os
+import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -9,6 +11,7 @@ import time
 from pathlib import Path
 
 import pytest
+from curtaincall import expect
 
 PACKAGE = Path(__file__).resolve().parents[2]
 PROBLEM = '../data/APPS/test/2286'
@@ -104,66 +107,185 @@ def describe_real_cli_resume():
                     process.wait(timeout=120)
         check_preserved(*before)
 
-    def it_resumes_on_a_fresh_aws_instance(tmp_path):
-        """AWS_RESUME_E2E=1 uv run --frozen --with boto3 pytest ... -k aws."""
-        if os.environ.get('AWS_RESUME_E2E') != '1':
-            pytest.skip('Set AWS_RESUME_E2E=1 to run the paid t3.small check')
+
+LADDER = (
+    "--u-thinking off --t-samples 2 --t-pool-size 1 --window-forks 1"
+    " --fork-turns 1 --window-solo-turns 0 --max-u-turns 1"
+)
+# RunPod scorer start over 10 minutes means something is wrong.
+SETUP = 600
+# About twice the measured AWS launch-to-code-running (max 161 s).
+LAUNCH = 330
+# Covers a U turn, measured 25 s to over 7 min; two of these fit a 30-minute cell.
+ATTEMPT = 600
+ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
+
+
+@pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
+def test_experiment_relaunch_continues_both_cells(
+    tmp_path, experiment, terminal
+):
+    """Drive launch, stop and relaunch through the TUI."""
+    aws = experiment.endswith("-aws")
+    # A separate checkout keeps both labnotes and AWS shipping rooted away from real runs.
+    root = tmp_path / "project"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--shared", str(PACKAGE.parent), str(root)],
+        check=True,
+    )
+    shutil.copy2(PACKAGE.parent / ".labnotes.toml", root / ".labnotes.toml")
+    run = (
+        "uv run --directory surprisals_experiment python -m surprisals_experiment.cli.run"
+        f" --output {{run_dir}} {LADDER} {PROBLEM}"
+    )
+    if aws:
+        run = f"uv run --project packages/aws_runner aws_runner run {{run_dir}} -- {run}"
+    (root / "experiments" / experiment).mkdir(parents=True, exist_ok=True)
+    (root / "experiments" / experiment / "experiment.toml").write_text(f'''\
+name = "{experiment}"
+setup = "uv run --project runpod_scorer runpod-scorer up"
+command = "{run}"
+teardown = "uv run --project runpod_scorer runpod-scorer down"
+repeats = 1
+continues = true
+concurrency = 2
+
+[params]
+cap-strategy = ["characters", "surprisal"]
+''')
+    for name in ("data", ".env"):
+        target = root / name
+        if target.is_symlink():
+            target.unlink()
+        if not target.exists():
+            target.symlink_to((PACKAGE.parent / name).resolve())
+    state = tmp_path / "state"
+    env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
+    cli = [
+        "uvx",
+        "--from",
+        "git+https://github.com/thekevinscott/labnotes@main#subdirectory=packages/python",
+        "labnotes",
+        "-c",
+        str(root / ".labnotes.toml"),
+        "experiments",
+        experiment,
+    ]
+    args = ["sh", "-c", 'cd "$0" && exec "$@"', str(root), *cli, "run"]
+    runs = root / "experiments" / experiment / "runs"
+    # Kevin: no run-time cap on the AWS cell beyond its infra waits.
+    attempt = float("inf") if aws else ATTEMPT
+
+    if aws:
         import boto3
 
-        config = json.loads((Path.home() / '.config/aws_runner/config.json').read_text())
-        assert config['instance_type'] == 't3.small'
-        ec2 = boto3.client('ec2', region_name=config['region'])
-        output = tmp_path / 'run'
-        filters = [{'Name': 'tag:aws-runner:dir', 'Values': [str(output)]}]
+        config = json.loads((Path.home() / ".config/aws_runner/config.json").read_text())
+        ec2 = boto3.client("ec2", region_name=config["region"])
 
-        def resources():
-            instances = [i for r in ec2.describe_instances(Filters=filters)['Reservations']
-                         for i in r['Instances'] if i['State']['Name'] != 'terminated']
-            volumes = ec2.describe_volumes(Filters=filters)['Volumes']
-            return instances, volumes
+    def resources(folder):
+        filters = [{"Name": "tag:aws-runner:dir", "Values": [str(folder.resolve())]}]
+        instances = [i for r in ec2.describe_instances(Filters=filters)["Reservations"]
+                     for i in r["Instances"] if i["State"]["Name"] != "terminated"]
+        return instances, ec2.describe_volumes(Filters=filters)["Volumes"]
 
-        def await_cleanup():
-            deadline = time.monotonic() + 180
-            while any(resources()):
-                assert time.monotonic() < deadline, 'Tagged AWS resources survived cleanup'
-                time.sleep(2)
+    def live(folder):
+        return {i["InstanceId"] for i in resources(folder)[0]
+                if i["State"]["Name"] in ("pending", "running")}
 
-        args = ['uv', 'run', '--frozen', '--project', 'packages/aws_runner',
-                'aws_runner', 'run', str(output), '--',
-                'uv', 'run', '--frozen', '--directory', 'surprisals_experiment',
-                'python', *command(output, forks=2, samples=1)[1:]]
-        process = None
-        with (tmp_path / 'aws.log').open('w') as log:
-            try:
-                process = subprocess.Popen(args, cwd=PACKAGE.parent, stdout=log, stderr=log)
-                wait_until(process, lambda: any(output.glob('windows/*/forks/*/turns/*/ts/0/attempts/*/tests.json')))
-                instances, volumes = resources()
-                assert len(instances) == len(volumes) == 1
-                original_id = instances[0]['InstanceId']
-                assert not (output / 'result.json').exists(), 'Run finished before stop'
-                process.send_signal(signal.SIGTERM)
-                assert process.wait(timeout=120) != 0
-                await_cleanup()
-                before = snapshot(output)
-                process = subprocess.Popen(args, cwd=PACKAGE.parent, stdout=log, stderr=log)
-                wait_until(process, lambda: bool(resources()[0]), timeout=180)
-                replacement = resources()[0]
-                assert len(replacement) == 1 and replacement[0]['InstanceId'] != original_id
-                assert process.wait(timeout=2400) == 0, 'AWS resume failed; see aws.log'
-                await_cleanup()
-                check_preserved(*before)
-                check_result(output, forks=2, samples=1)
-            finally:
-                if process is not None and process.poll() is None:
-                    process.terminate()
-                    process.wait(timeout=120)
-                # Cleanup is restricted to this test's canonical run-directory tag.
-                instances, volumes = resources()
-                if instances:
-                    ec2.terminate_instances(InstanceIds=[i['InstanceId'] for i in instances])
-                    ec2.get_waiter('instance_terminated').wait(
-                        InstanceIds=[i['InstanceId'] for i in instances],
-                        WaiterConfig={'Delay': 5, 'MaxAttempts': 36})
-                for volume in resources()[1]:
-                    ec2.delete_volume(VolumeId=volume['VolumeId'])
-                await_cleanup()
+    def folders():
+        return {path.parent for path in runs.glob("*/run.json")}
+
+    def record(folder):
+        return json.loads((folder / "run.json").read_text())
+
+    def settled():
+        # Daemons drop discovery records after all runs AND teardown finish and the view leaves.
+        deadline = time.monotonic() + 180
+        while list(state.rglob("*.socket")):
+            assert time.monotonic() < deadline, (
+                "Labnotes daemon/teardown did not finish"
+            )
+            time.sleep(0.2)
+
+    term = None
+    active = False
+    original = set()
+    instances = {}
+
+    def wait_for(reached, timeout):
+        deadline = time.monotonic() + timeout
+        while not (len(folders()) >= 2 and all(reached(f) for f in folders())):
+            dead = [f.name for f in folders()
+                    if len(record(f)["invocations"]) == invocation
+                    and record(f)["ended"] and not reached(f)]
+            assert not dead, f"Runs ended early: {dead}\n{term._get_screen_text()}"
+            assert time.monotonic() < deadline, term._get_screen_text()
+            time.sleep(1)
+
+    try:
+        for invocation in (1, 2):
+            term = terminal(
+                shlex.join(args),
+                rows=40,
+                cols=200,
+                env=env,
+            )
+            active = True
+            for cell in ("characters", "surprisal"):
+                expect(term.get_by_text(cell)).to_be_visible(timeout=SETUP)
+            wait_for(
+                lambda f, original=original, invocation=invocation: f not in original
+                or len(record(f)["invocations"]) == invocation,
+                SETUP,
+            )
+            if invocation == 2:
+                assert folders() == original, "Relaunch created new run folders"
+            if aws:
+                wait_for(live, LAUNCH)
+                for folder in folders():
+                    [instances[folder, invocation]] = live(folder)
+            if invocation == 1:
+                wait_for(lambda f: any(f.glob(ATTEMPTS)), attempt)
+                original = folders()
+                assert {
+                    record(folder)["params"]["cap-strategy"] for folder in original
+                } == {"characters", "surprisal"}
+                term.key_ctrl_c()
+                expect(term.get_by_text("2 runs still going.")).to_be_visible()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+                active = False
+                wait_for(lambda f: record(f)["ended"], 180)
+                assert all(record(folder)["ended_by"] == "stop" for folder in original)
+                assert all(record(folder)["exit_code"] != 0 for folder in original)
+                settled()
+                before = {folder: snapshot(folder) for folder in original}
+                started = {folder: set(folder.glob(ATTEMPTS)) for folder in original}
+            else:
+                wait_for(lambda f, started=started: set(f.glob(ATTEMPTS)) - started[f], attempt)
+                going = not all(record(folder)["ended"] for folder in original)
+                term.key_ctrl_c()
+                if going:
+                    expect(term.get_by_text("Stop them")).to_be_visible()
+                    term.write("s")
+                active = False
+                settled()
+                assert folders() == original
+                for folder in original:
+                    assert len(record(folder)["invocations"]) == 2
+                    check_preserved(*before[folder])
+                    if aws:
+                        assert instances[folder, 2] != instances[folder, 1]
+                if aws:
+                    deadline = time.monotonic() + 80
+                    while any(any(resources(folder)) for folder in original):
+                        assert time.monotonic() < deadline, "Tagged AWS resources survived cleanup"
+                        time.sleep(2)
+    finally:
+        if term is not None:
+            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+            if active and list(state.rglob("*.socket")):
+                term.key_ctrl_c()
+                expect(term.get_by_text("Stop them")).to_be_visible()
+                term.write("s")
+            settled()

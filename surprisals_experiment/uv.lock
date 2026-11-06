@@ -159,6 +159,19 @@ wheels = [
 ]
 
 [[package]]
+name = "curtaincall"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pexpect" },
+    { name = "pyte" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4c/c3/14a2abeb4d38d1c381c33fb3fbd4d55675a0f98be8c39b15d688c546b3f3/curtaincall-0.4.0.tar.gz", hash = "sha256:b68c9652cb33eb0955e5b9307573302e8b6f260930a67ab69152c48db79b75cc", size = 33924, upload-time = "2026-10-26T14:16:25.535Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/43/6c5749737b1fbb9a2757adf6df70ded2a38e832b63d4b4f9e75b6adf1080/curtaincall-0.4.0-py3-none-any.whl", hash = "sha256:2294a8b8e2d8cd10f47f5004ae7bc9b68ce9f7f1182c364dba294b3d190aa726", size = 29057, upload-time = "2026-10-26T14:16:24.342Z" },
+]
+
+[[package]]
 name = "debugpy"
 version = "1.8.22"
 source = { registry = "https://pypi.org/simple" }
@@ -878,6 +891,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pyte"
+version = "0.8.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/ab/b599762933eba04de7dc5b31ae083112a6c9a9db15b01d3109ad797559d9/pyte-0.8.2.tar.gz", hash = "sha256:5af970e843fa96a97149d64e170c984721f20e52227a2f57f0a54207f08f083f", size = 92301, upload-time = "2023-11-12T09:33:43.217Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/59/d0/bb522283b90853afbf506cd5b71c650cf708829914efd0003d615cf426cd/pyte-0.8.2-py3-none-any.whl", hash = "sha256:85db42a35798a5aafa96ac4d8da78b090b2c933248819157fc0e6f78876a0135", size = 31627, upload-time = "2023-11-12T09:33:41.096Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1083,6 +1108,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "curtaincall" },
     { name = "looptime" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1107,6 +1133,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "curtaincall", specifier = ">=0.4.0" },
     { name = "looptime", specifier = ">=0.9" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
