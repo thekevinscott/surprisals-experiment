@@ -1,6 +1,6 @@
 """Exercise one window for adapter and turn integration tests; run tests cover orchestration."""
 
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.window import Window
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions

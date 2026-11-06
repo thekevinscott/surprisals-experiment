@@ -1,4 +1,4 @@
-from surprisals_experiment.sdk.database import ExperimentDatabase
+from run_database import ExperimentDatabase
 
 
 async def test_experiment_database_creates_schema_tables(tmp_path):

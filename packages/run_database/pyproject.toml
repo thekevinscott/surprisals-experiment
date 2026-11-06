@@ -1,0 +1,18 @@
+[project]
+name = "run-database"
+version = "0.1.0"
+description = "SQL over a run folder and an APPS problem folder"
+requires-python = ">=3.14"
+dependencies = ["dirsql>=0.4.136"]
+
+[build-system]
+requires = ["uv_build>=0.13.3,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["src"]
+python_files = ["*_test.py"]
+asyncio_mode = "auto"

@@ -6,7 +6,7 @@ import pytest
 
 from advice_artifacts import write_advice as seed_advice
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.run_experiment.actions.write_advice import write_advice

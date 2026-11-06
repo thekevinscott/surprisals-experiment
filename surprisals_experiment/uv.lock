@@ -998,6 +998,23 @@ wheels = [
 ]
 
 [[package]]
+name = "run-database"
+version = "0.1.0"
+source = { directory = "../packages/run_database" }
+dependencies = [
+    { name = "dirsql" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "dirsql", specifier = ">=0.4.136" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
+]
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1059,6 +1076,7 @@ dependencies = [
     { name = "posix-tools" },
     { name = "pydantic" },
     { name = "python-dotenv" },
+    { name = "run-database" },
     { name = "state-machine" },
     { name = "tenacity" },
 ]
@@ -1082,6 +1100,7 @@ requires-dist = [
     { name = "posix-tools", specifier = ">=0.0.14" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
+    { name = "run-database", directory = "../packages/run_database" },
     { name = "state-machine", directory = "../state_machine" },
     { name = "tenacity", specifier = ">=9.2.1" },
 ]

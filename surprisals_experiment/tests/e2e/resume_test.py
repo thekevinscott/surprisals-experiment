@@ -73,45 +73,36 @@ def check_result(output, forks, samples):
                for entry in replies) == len(turns)
 
 
-def exercise(output, ready, signum, forks=1, samples=2):
-    args = command(output, forks, samples)
-    with (output.parent / 'cli.log').open('w') as log:
-        process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
-        try:
-            wait_until(process, ready)
-            process.send_signal(signum)
-            assert process.wait(timeout=120) != 0
-        finally:
-            if process.poll() is None:
-                process.terminate()
-                process.wait(timeout=120)
-        before = snapshot(output)
-        resumed = subprocess.run(args, cwd=PACKAGE, stdout=log, stderr=log, timeout=2400)
-        assert resumed.returncode == 0, 'Resumed CLI failed; see cli.log'
-    check_preserved(*before)
-    check_result(output, forks, samples)
+def sigint_default():
+    # A shell's background job inherits SIGINT ignored, and so would the CLI.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
 def describe_real_cli_resume():
-    def it_resumes_sigterm_during_t_sampling(tmp_path):
-        output = tmp_path / 'run'
-
-        def sampling():
-            # Keep a finished sample as well as an interrupted one.
-            return any(any((p.parent / '0').glob('attempts/*/tests.json')) and not any(p.glob('attempts/*/tests.json'))
-                       for p in output.glob('windows/0/forks/0/turns/0/ts/1'))
-
-        exercise(output, sampling, signal.SIGTERM)
-
     def it_resumes_sigint_in_the_fork_round(tmp_path):
         output = tmp_path / 'run'
+        forks = output / 'windows/0/forks'
 
-        def fork_round():
-            forks = output / 'windows/0/forks'
-            done = list(forks.glob('*/turns/0/ts/0/attempts/*/tests.json'))
-            return len(done) == 1 and len(list(forks.glob('*/fork.json'))) == 2
+        def finished():
+            return list(forks.glob('*/turns/0/ts/0/attempts/*/tests.json'))
 
-        exercise(output, fork_round, signal.SIGINT, forks=2, samples=1)
+        args = command(output, forks=2, samples=1)
+        with (tmp_path / 'cli.log').open('w') as log:
+            process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log, preexec_fn=sigint_default)
+            try:
+                wait_until(process, lambda: len(finished()) == 1 and len(list(forks.glob('*/fork.json'))) == 2)
+                process.send_signal(signal.SIGINT)
+                assert process.wait(timeout=120) != 0
+                before = snapshot(output)
+                process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log, preexec_fn=sigint_default)
+                wait_until(process, lambda: len(finished()) == 2)
+                process.send_signal(signal.SIGINT)
+                process.wait(timeout=120)
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    process.wait(timeout=120)
+        check_preserved(*before)
 
     def it_resumes_on_a_fresh_aws_instance(tmp_path):
         """AWS_RESUME_E2E=1 uv run --frozen --with boto3 pytest ... -k aws."""

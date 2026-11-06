@@ -1,4 +1,4 @@
-from surprisals_experiment.sdk.database import QuestionDatabase
+from run_database import QuestionDatabase
 
 
 async def test_question_database_reads_question_and_test_suite(tmp_path):

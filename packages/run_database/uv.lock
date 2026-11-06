@@ -1,0 +1,136 @@
+version = 1
+revision = 5
+requires-python = ">=3.14"
+
+[options]
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer-span = "P3D"
+
+[options.exclude-newer-package]
+botbox = false
+cachetta = false
+coaxer = false
+curtaincall = false
+dirsql = false
+labnotes = false
+lamp-the-djinn = false
+pyskillet = false
+repo-name-checker = false
+
+[[package]]
+name = "bin-shim"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/fc/2e09f2de12c0937834fc3f2bacde597f6e25499b0bf4b3d71292b7dbf822/bin_shim-0.1.1.tar.gz", hash = "sha256:9972911c22754a5370f666245cbe5d9d9aa04d9f7289d166142c9c3c6ee3b8c3", size = 10431, upload-time = "2026-08-20T21:45:24.392Z" }
+
+[[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697, upload-time = "2022-10-25T02:36:22.414Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
+]
+
+[[package]]
+name = "dirsql"
+version = "0.4.154"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bin-shim" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/40/2c/c4e98a0bc5b216424496961042a021857d88f2e4d6668f27f7a1e2d6d798/dirsql-0.4.154.tar.gz", hash = "sha256:6f388798a2d16cb52b924654ce1b21c4068e7f38cfd3f99ede56b8a6e43f1984", size = 762025, upload-time = "2026-11-05T12:16:10.171Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/59/09/2fbbadc1a9422873a62874025af1b06bb40a26b400fa03990afe792fc365/dirsql-0.4.154-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:e86a130f7ad8b24462d272277d4fafc0bc85fa9bf3daa7cb7a65537f37ac35ed", size = 3661677, upload-time = "2026-11-05T12:16:01.335Z" },
+    { url = "https://files.pythonhosted.org/packages/64/77/54f81a30c3a18bb4b8e8e16c8618cea954e89c2e4e251cf0feebe9807841/dirsql-0.4.154-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:9f1aeb0194a2dc1581382cd4b5d8c7eee4ea6ced0e93279f2c082a7bedd87162", size = 3455694, upload-time = "2026-11-05T12:16:03.52Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/54/fc7477cce9637883053f6e8d76de4ca84dc2c32825308d5db583c2b86d4c/dirsql-0.4.154-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:1d65258135375f9a04fe3a309d167033173ef72ba7fc9a8add28141fbbc2e194", size = 3696286, upload-time = "2026-11-05T12:16:05.066Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/87/06aa09ff5ef263aa4a830d3fb27722a461448babb6764cc63187b7c9bfd0/dirsql-0.4.154-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:c5887a5ade3ac2fdc6b828642ca8f77d53e3586e33604c3e3d0ee9fead0b7663", size = 3902993, upload-time = "2026-11-05T12:16:06.857Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/90/fcf82847345136fc24cb9b750d0660a2db59339066f9c1b6e3eafe77caf7/dirsql-0.4.154-cp310-abi3-win_amd64.whl", hash = "sha256:12d3a355d3c53c48818f42e0a43c6f319ff86fc5c1404e7176ea364bb9bf7076", size = 3889211, upload-time = "2026-11-05T12:16:08.597Z" },
+]
+
+[[package]]
+name = "iniconfig"
+version = "2.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/e1/2069291243c926a2ff1cd706c7f3eeb9b62144bf60f77c9fb9ff2fb26bd3/iniconfig-2.3.1.tar.gz", hash = "sha256:67f4b9c50da0dedf52af349e7749a80a9057a5031199791b906c3bb3ae878960", size = 21209, upload-time = "2026-10-06T22:48:38.076Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl", hash = "sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7", size = 7552, upload-time = "2026-10-06T22:48:36.959Z" },
+]
+
+[[package]]
+name = "packaging"
+version = "26.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412, upload-time = "2026-08-04T18:15:28.737Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
+]
+
+[[package]]
+name = "pluggy"
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/db/7fc19e6f2dc92a966727031389fc2e08b558f0f25eb7403c1119ad4713cd/pluggy-1.7.0.tar.gz", hash = "sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8", size = 123304, upload-time = "2026-10-15T09:50:58.343Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl", hash = "sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec", size = 27082, upload-time = "2026-10-15T09:50:56.808Z" },
+]
+
+[[package]]
+name = "pygments"
+version = "2.21.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/2e/ced460408999b33da6b31b0021b0f37d329e202d4169aeb164493778f25b/pygments-2.21.0.tar.gz", hash = "sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c", size = 5005329, upload-time = "2026-08-17T08:02:48.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl", hash = "sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9", size = 1250147, upload-time = "2026-08-17T08:02:44.912Z" },
+]
+
+[[package]]
+name = "pytest"
+version = "9.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/42/bb4641652e58dedeac2ec51abc1f8cae4fee4ec63899a0999016229a0f2a/pytest-9.2.0.tar.gz", hash = "sha256:97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b", size = 1797555, upload-time = "2026-10-27T21:30:20.728Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl", hash = "sha256:07acdcf88ec174f907dc01af70bf52d49b014bbab03faeeade31c96b18c2e588", size = 411776, upload-time = "2026-10-27T21:30:19.131Z" },
+]
+
+[[package]]
+name = "pytest-asyncio"
+version = "1.4.1.post1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/7f/c60a4338420b33453d4f814ac0c930abd399f162b9bdd21af4b9e363037f/pytest_asyncio-1.4.1.post1.tar.gz", hash = "sha256:f582d9ea4a1c082195abe8bd29a1fe106aeb1cd435e3dad2d3bc2749935c36a2", size = 145360, upload-time = "2026-11-01T18:26:03.732Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/de/adbc7578959cfab07e5e7c05cf6d54224a51e7667ea2c07458b6bc571e75/pytest_asyncio-1.4.1.post1-py3-none-any.whl", hash = "sha256:0755e488cc0a2b9bd2eab7292cc6390d4cbb8390f1020745647bae5a708e0165", size = 17140, upload-time = "2026-11-01T18:26:02.168Z" },
+]
+
+[[package]]
+name = "run-database"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "dirsql" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "dirsql", specifier = ">=0.4.136" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
+]

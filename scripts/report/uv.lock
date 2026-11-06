@@ -44,8 +44,25 @@ name = "report"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "run-database" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "run-database", editable = "../../packages/run_database" }]
+
+[[package]]
+name = "run-database"
+version = "0.1.0"
+source = { editable = "../../packages/run_database" }
+dependencies = [
     { name = "dirsql" },
 ]
 
 [package.metadata]
 requires-dist = [{ name = "dirsql", specifier = ">=0.4.136" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=1.4.0" },
+]
