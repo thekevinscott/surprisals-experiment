@@ -11,7 +11,6 @@ from aws_runner.cloud.resume import resume
 from aws_runner.cloud.stop import stop
 from aws_runner.cloud.surviving_volume import surviving_volume
 from aws_runner.config import TAG
-from aws_runner.remote.active import active
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
 from aws_runner.remote.mirror import mirror
@@ -54,8 +53,9 @@ def run(ec2, config, directory, command):
             instance, volume = existing
             stopped = instance["State"]["Name"] in {"stopped", "stopping"}
             instance = resume(ec2, config, instance)
-            if result(config, instance) is None:
-                if not active(config, instance):
+            code, running = result(config, instance)
+            if code is None:
+                if not running:
                     execute(config, instance)
             elif stopped:
                 watch(config, instance)
@@ -68,7 +68,7 @@ def run(ec2, config, directory, command):
             timestamp("prepared")
             if surviving:
                 restore(config, instance)
-                if result(config, instance) is None:
+                if result(config, instance)[0] is None:
                     execute(config, instance)
                 else:
                     watch(config, instance)

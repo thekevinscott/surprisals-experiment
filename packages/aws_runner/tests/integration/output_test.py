@@ -54,6 +54,7 @@ def test_complete_output_on_correct_streams_and_reattach(
             patch("aws_runner.remote.follow.ssh", return_value=["sh", "-c"]),
             patch("aws_runner.remote.result.ROOT", str(root)),
             patch("aws_runner.remote.result.ssh", return_value=["sh", "-c"]),
+            patch("aws_runner.remote.monitor.execute"),
         ):
             assert monitor({}, {}, tmp_path / "local") == 17
             captured = capfd.readouterr()
