@@ -46,8 +46,8 @@ async def test_interrupted_after_generation_resumes_at_testing(config, botbox_sc
     run = Run(config, database, problem, {**actions, "untested": interrupt})
     with pytest.raises(asyncio.CancelledError):
         await run_sample(run, Sample(turn, 0))
-    generation = turn.t_dir(0) / 'generation.json'
-    source = turn.t_dir(0) / 'src/main.py'
+    generation = turn.t_dir(0) / 'attempts/0/generation.json'
+    source = turn.t_dir(0) / 'attempts/0/src/main.py'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns,
               source.read_bytes(), source.stat().st_mtime_ns)
     assert not (turn.t_dir(0) / 'tests.json').exists()

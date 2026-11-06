@@ -38,7 +38,7 @@ def snapshot(output):
         paths.update(output.rglob(name))
     # advice.json is complete only after scoring, not when initially created.
     paths.update(p for p in output.rglob('advice.json') if 'score' in json.loads(p.read_text()))
-    for generation in output.glob('**/ts/*/generation.json'):
+    for generation in output.glob('**/ts/*/attempts/*/generation.json'):
         paths.update(p for p in (generation.parent / 'src').rglob('*') if p.is_file())
     artifacts = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in paths}
     transcripts = {p: p.read_bytes() for p in output.rglob('messages.jsonl')}
@@ -64,7 +64,7 @@ def check_result(output, forks, samples):
             assert [p.name for p in (fork / 'turns').iterdir()] == ['0']
     for turn in turns:
         assert len(list((turn / 'ts').iterdir())) == samples
-        assert len(list(turn.glob('ts/*/generation.json'))) == samples
+        assert len(list(turn.glob('ts/*/attempts/*/generation.json'))) == samples
         assert len(list(turn.glob('ts/*/tests.json'))) == samples
     # Each completed U turn has one assistant reply, including across restarts.
     replies = [json.loads(line) for p in output.rglob('messages.jsonl')

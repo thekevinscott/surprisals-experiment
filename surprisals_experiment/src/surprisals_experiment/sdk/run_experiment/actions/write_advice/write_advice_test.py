@@ -29,11 +29,11 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
     prior = Turn(config, 0)
     prior.attempt_dir.mkdir(parents=True)
     seed_advice(config, prior.attempt_dir, 'x' * 412, best)
-    write(prior.t_dir(0) / 'generation.json', '{"exit_code": 0}')
+    write(prior.t_dir(0) / 'attempts/0/generation.json', '{"exit_code": 0}')
     write(prior.t_dir(0) / 'tests.json', json.dumps({'cases': [
         {'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''},
     ]}))
-    write(prior.t_dir(0) / 'src/main.py', 'print(int(input()) * 2)')
+    write(prior.t_dir(0) / 'attempts/0/src/main.py', 'print(int(input()) * 2)')
     write(config.output / f'windows/{window}/window.json', '{}')
     write(config.output / f'windows/{window}/forks/0/fork.json', '{}')
     database = ExperimentDatabase(config.output)

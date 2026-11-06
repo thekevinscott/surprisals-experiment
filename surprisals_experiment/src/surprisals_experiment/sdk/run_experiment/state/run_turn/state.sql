@@ -11,7 +11,10 @@ SELECT CASE
   WHEN NOT EXISTS (SELECT 1 FROM current_turn) THEN 'advice_missing'
   WHEN (SELECT score FROM current_turn) IS NULL THEN 'unscored'
   WHEN coalesce((SELECT samples FROM evaluated_turns
-                 WHERE id = (SELECT id FROM current_turn)), 0) < :samples
+                 WHERE id = (SELECT id FROM current_turn)), 0)
+       + (SELECT count(*) FROM (SELECT position FROM t_timeouts
+            WHERE turn_id = (SELECT id FROM current_turn)
+            GROUP BY position HAVING count(*) >= :timeouts)) < :samples
     THEN 'solutions_missing'
   ELSE 'turn_done'
 END AS state

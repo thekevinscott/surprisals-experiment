@@ -36,16 +36,30 @@ CREATE TABLE ts (
   UNIQUE (turn_id, position)
 );
 
+CREATE TABLE t_attempts (
+  id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S/attempts/A'
+  t_id      TEXT NOT NULL REFERENCES ts(id),
+  position  INTEGER NOT NULL,           -- A
+  exit_code INTEGER NOT NULL,
+  UNIQUE (t_id, position)
+);
+
+CREATE TABLE t_timeouts (
+  id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S/timeouts.txt#<line>'
+  turn_id   TEXT NOT NULL REFERENCES turns(id),
+  position  INTEGER NOT NULL            -- S
+);
+
 CREATE TABLE files (
-  id      TEXT PRIMARY KEY,             -- 'windows/W/forks/F/turns/N/ts/S/src/<path>'
-  t_id    TEXT NOT NULL REFERENCES ts(id),
-  path    TEXT NOT NULL,                -- relative to the T's src/
-  content TEXT NOT NULL,
-  UNIQUE (t_id, path)
+  id         TEXT PRIMARY KEY,          -- 'windows/W/forks/F/turns/N/ts/S/attempts/A/src/<path>'
+  attempt_id TEXT NOT NULL REFERENCES t_attempts(id),
+  path       TEXT NOT NULL,             -- relative to the attempt's src/
+  content    TEXT NOT NULL,
+  UNIQUE (attempt_id, path)
 );
 
 CREATE TABLE test_results (
-  id     TEXT PRIMARY KEY,              -- 'windows/W/forks/F/turns/N/ts/S/tests.json#<test>'
+  id     TEXT PRIMARY KEY,              -- 'windows/W/forks/F/turns/N/ts/S/attempts/A/tests.json#<test>'
   t_id   TEXT NOT NULL REFERENCES ts(id),
   test   INTEGER NOT NULL,              -- test case number in the suite
   stdout TEXT NOT NULL,

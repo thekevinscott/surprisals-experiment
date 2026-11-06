@@ -23,7 +23,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     hung = []
 
     async def message(self, text):
-        if self.mounts['/solution'].parent.name == '1' and not hung:
+        if self.mounts['/solution'].parents[2].name == '1' and not hung:
             hung.append(self)
             (self.mounts['/solution'] / 'partial.py').write_text('partial')
             await asyncio.Event().wait()
@@ -51,7 +51,7 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
 
     async def message(self, text):
         output = self.mounts['/solution']
-        if output.parents[2].name == '1' and output.parent.name == '2':
+        if output.parents[4].name == '1' and output.parents[2].name == '2':
             await asyncio.Event().wait()
         return await original(self, text)
 
@@ -61,11 +61,10 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     assert all(s.closed for s in botbox_script.sessions)
     assert not (config.attempt_dir(1) / 'error.txt').exists()
     assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
-    tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
-    assert tests['passed'] == 0 and not tests['all_passed']
+    assert not list(config.t_dir(1, 2).glob('**/tests.json'))
     result = json.loads(config.result_file.read_text())
     assert result['success'] and result['attempts'] == 2
-    assert result['solution'] == str(config.t_dir(0, 0) / 'src')
+    assert result['solution'] == str(config.t_dir(0, 0) / 'attempts/0/src')
 
 
 async def test_gives_queued_samples_their_own_full_budget(config, botbox_script, monkeypatch):
@@ -104,8 +103,8 @@ async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypa
     assert all(s.closed for s in botbox_script.sessions)
     assert not json.loads(config.result_file.read_text())['success']
     assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == 1
-    assert not list((config.t_dir(0, 0) / 'src').iterdir())
-    assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['passed'] == 0
+    assert (config.t_dir(0, 0) / 'attempts/0/src/partial.py').read_text() == 'partial'
+    assert not list(config.t_dir(0, 0).glob('**/tests.json'))
     assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == 0
 
 

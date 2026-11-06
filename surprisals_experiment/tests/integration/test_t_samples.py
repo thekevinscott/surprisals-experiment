@@ -18,7 +18,7 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     botbox_script.advice.append('double it')
     botbox_script.solutions.extend(sources)
     result = await run_one_window(config, on_delta=None)
-    assert result == config.t_dir(0, 0) / "src"
+    assert result == config.t_dir(0, 0) / "attempts/0/src"
     assert [s.messages for s in botbox_script.sessions] == [['double it']] * n
     assert len({id(s.agent) for s in botbox_script.sessions}) == n
     assert len(chat_provider) == 1
@@ -26,8 +26,8 @@ async def test_requires_every_sample_to_pass(config, botbox_script, chat_provide
     for i, source in enumerate(sources):
         directory = config.t_dir(0, i)
         assert directory == config.attempt_dir(0) / 'ts' / str(i)
-        assert (directory / 'src/main.py').read_text() == source
-        assert (directory / 'transcripts/session.jsonl').exists()
+        assert (directory / 'attempts/0/src/main.py').read_text() == source
+        assert (directory / 'attempts/0/transcripts/session.jsonl').exists()
         assert json.loads((directory / 'tests.json').read_text())['all_passed'] == (source == PASS)
     settings_text = (config.output / 'settings.json').read_text()
     settings = json.loads(settings_text)
@@ -49,7 +49,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, botbox_script
     config.max_u_turns = 2
     botbox_script.advice.extend(['one', 'two'])
     botbox_script.solutions.extend([PASS, FAIL, PASS] + [PASS] * 3)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'attempts/0/src'
     assert [s.messages for s in botbox_script.sessions] == [['one']] * 3 + [['two']] * 3
     feedback = chat_provider[1]['messages'][-1]['content']
     assert feedback == await QuestionDatabase(config.problem_dir).question
@@ -108,8 +108,8 @@ async def test_preserves_partial_batches_without_claiming_success(config, botbox
         with pytest.raises(asyncio.CancelledError):
             await task
         assert all(session.closed for session in botbox_script.sessions)
-        assert (config.t_dir(0, 0) / 'src/main.py').read_text() == PASS
-        assert (config.t_dir(0, 0) / 'transcripts/session.jsonl').exists()
+        assert (config.t_dir(0, 0) / 'attempts/0/src/main.py').read_text() == PASS
+        assert (config.t_dir(0, 0) / 'attempts/0/transcripts/session.jsonl').exists()
         assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
         assert not (config.t_dir(0, 1) / 'tests.json').exists()
         assert not config.result_file.exists()

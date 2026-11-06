@@ -27,6 +27,6 @@ async def test_interrupted_after_advice_resumes_at_scoring(config, botbox_script
 
     solution = await run_one_window(config, on_delta=None)
     assert len(chat_provider) == 1
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts/0/src'
     assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['all_passed']
     assert json.loads(config.result_file.read_text())['success']
