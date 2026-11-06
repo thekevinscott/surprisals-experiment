@@ -1,5 +1,7 @@
 """Advice units, scoring, and wording for both experimental arms."""
 
+import math
+
 from measure_surprisal import Client, measure_surprisal
 from openai import BadRequestError
 from tenacity import retry_if_exception_type, retry_if_not_exception_type
@@ -31,7 +33,10 @@ class AdviceMeasure:
         @retried(operation="Scorer request", before_sleep=before_sleep,
                  retry=retry_if_exception_type() & retry_if_not_exception_type(BadRequestError))
         async def score():
-            return await measure_surprisal(advice, client=self.client)
+            tokens = await measure_surprisal(advice, client=self.client)
+            if not math.isfinite(sum(bits for _, bits in tokens)):
+                raise ValueError(f"Scorer returned non-finite surprisal: {tokens}")
+            return tokens
 
         try:
             tokens = await score()

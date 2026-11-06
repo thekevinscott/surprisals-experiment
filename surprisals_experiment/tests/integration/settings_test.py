@@ -73,3 +73,16 @@ async def test_restart_keeps_settings_and_warns_only_on_commit_change(config, ex
         await start(config, execute_run_experiment)
     assert path.read_bytes() == before
     assert [str(w.message) for w in caught] == (['Run was started with a different git commit'] if changed else [])
+
+
+async def test_restart_after_first_window_warns_on_commit_change(config, execute_run_experiment, commit):
+    commit.write_text('a' * 40 + '\n')
+    path = await start(config, execute_run_experiment)
+    assert (config.window_dir / 'window.json').exists()
+    before = path.read_bytes()
+    commit.write_text('b' * 40 + '\n')
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        await start(config, execute_run_experiment)
+    assert path.read_bytes() == before
+    assert [str(w.message) for w in caught] == ['Run was started with a different git commit']

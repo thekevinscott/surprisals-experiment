@@ -6,6 +6,9 @@ import pytest
 
 from aws_runner.run import run
 
+run_process = subprocess.run
+popen_process = subprocess.Popen
+
 
 def steps_removed(stderr):
     return [
@@ -41,6 +44,42 @@ def test_files_vanishing_during_mirror_do_not_fail_the_run(
     state["copy_code"] = 24
     assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 7
     assert not ec2.describe_volumes()["Volumes"]
+
+
+def test_mirror_leaves_labnotes_files_alone(cloud, transport, ticking_clock, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    state["polls"] = ["", "", "7"]
+    directory = tmp_path / "run"
+    remote = tmp_path / "remote"
+    owned = [
+        "run.json",
+        "run.lock",
+        "memory.jsonl",
+        "stdout-20261106-194326-120983.txt",
+        "stderr-20261106-194326-120983.txt",
+    ]
+    for folder, contents in ((directory, "live"), (remote, "shipped")):
+        folder.mkdir()
+        for name in owned:
+            (folder / name).write_text(contents)
+    (remote / "log.jsonl").write_text("remote output")
+    assert run(ec2, config, directory, ["sleep", "20"]) == 7
+    copy = next(
+        call.args[0]
+        for call in execute.call_args_list
+        if call.args[0][0] == "rsync" and call.args[0][-2].startswith("ubuntu@")
+    )
+    with patch("subprocess.Popen", popen_process):
+        run_process(
+            [arg for arg in copy[:-2] if arg != "-e" and not arg.startswith("ssh ")]
+            + [str(remote) + "/", copy[-1]],
+            check=True,
+        )
+    assert {name: (directory / name).read_text() for name in owned} == {
+        name: "live" for name in owned
+    }
+    assert (directory / "log.jsonl").read_text() == "remote output"
 
 
 @pytest.mark.parametrize("operation", ["polls", "copy_codes"])
