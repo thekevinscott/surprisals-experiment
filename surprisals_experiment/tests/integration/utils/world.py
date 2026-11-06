@@ -23,8 +23,12 @@ class T:
         self.text = text
 
 
+class Case:
+    """A test case has run. Only a world that lists one pauses there."""
+
+
 class State:
-    """`sent` is the U request body, or (attempt path, advice) for T."""
+    """`sent` is the U request body, (attempt path, advice) for T, or (attempt path, case index) for Case."""
 
     def __init__(self, reply, *, sent, logs=(), files=None):
         self.reply = reply

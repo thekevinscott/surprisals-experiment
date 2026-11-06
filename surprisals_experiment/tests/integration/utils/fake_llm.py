@@ -14,7 +14,7 @@ from surprisals_experiment.sdk.run_test_suite import TestResult
 
 from utils.expected import decoded, masked
 from utils.run_files import run_files
-from utils.world import REMOVED, U, Done, State, T
+from utils.world import REMOVED, U, Case, Done, State, T
 
 
 class FakeLLM:
@@ -146,6 +146,10 @@ class FakeLLM:
                                  capture_output=True, text=True)
         passed = process.returncode == 0 and process.stdout.strip() == expected.strip()
         status = 'passed' if passed else 'runtime_error' if process.returncode else 'wrong_answer'
+        if self.asked < len(self.states) and isinstance(self.states[self.asked].reply, Case):
+            attempt = Path(solution_dir).parent.relative_to(self.output).as_posix()
+            state, _ = await self.checked(self.ask, Case, (attempt, index))
+            await self.delivered(state)
         return TestResult(index, passed, status, process.stdout, process.stderr, process.returncode)
 
     @property
