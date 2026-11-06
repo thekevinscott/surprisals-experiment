@@ -17,10 +17,11 @@ from ....utils.write import write
 
 async def produce_code(run: Run, sample: Sample) -> None:
     config = sample.turn.config
-    output = sample.t_dir
+    attempts = sample.t_dir / "attempts"
+    output = attempts / str(len(list(attempts.glob("*"))))
     advice = sample.turn.advice.text
     on_delta = (
-        partial(run.on_t_delta, str(output.relative_to(config.output)))
+        partial(run.on_t_delta, str(sample.t_dir.relative_to(config.output)))
         if run.on_t_delta
         else None
     )

@@ -44,7 +44,7 @@ class ExperimentDatabase(Database):
 
         def t(path):
             t = relative(path).parent
-            return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
+            return [{"id": str(t), "turn_id": str(t.parents[3]), "position": int(t.parents[1].name)}]
 
         def generation(path):
             return [] if json.loads(Path(path).read_text()).get("exit_code") == -1 else t(path)
@@ -63,8 +63,8 @@ class ExperimentDatabase(Database):
             "turns": (f"{TURN}/metadata.json", turn),
             "advices": ("advices/*/advice.json", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
-            "ts": (f"{TURN}/ts/*/generation.json", generation),
-            "test_results": (f"{TURN}/ts/*/tests.json", test_results),
+            "ts": (f"{TURN}/ts/*/attempts/*/generation.json", generation),
+            "test_results": (f"{TURN}/ts/*/attempts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]
         super().__init__(root, [

@@ -30,14 +30,14 @@ CREATE TABLE turn_advice (
 );
 
 CREATE TABLE ts (
-  id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S'
+  id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S/attempts/A'
   turn_id   TEXT NOT NULL REFERENCES turns(id),
   position  INTEGER NOT NULL,           -- S
   UNIQUE (turn_id, position)
 );
 
 CREATE TABLE files (
-  id      TEXT PRIMARY KEY,             -- 'windows/W/forks/F/turns/N/ts/S/src/<path>'
+  id      TEXT PRIMARY KEY,             -- 'windows/W/forks/F/turns/N/ts/S/attempts/A/src/<path>'
   t_id    TEXT NOT NULL REFERENCES ts(id),
   path    TEXT NOT NULL,                -- relative to the T's src/
   content TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE files (
 );
 
 CREATE TABLE test_results (
-  id     TEXT PRIMARY KEY,              -- 'windows/W/forks/F/turns/N/ts/S/tests.json#<test>'
+  id     TEXT PRIMARY KEY,              -- 'windows/W/forks/F/turns/N/ts/S/attempts/A/tests.json#<test>'
   t_id   TEXT NOT NULL REFERENCES ts(id),
   test   INTEGER NOT NULL,              -- test case number in the suite
   stdout TEXT NOT NULL,

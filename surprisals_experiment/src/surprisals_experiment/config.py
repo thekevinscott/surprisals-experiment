@@ -85,7 +85,7 @@ class Config(BaseModel):
         return self.fork_dir / "turns" / str(attempt)
 
     def t_dir(self, attempt: int, sample: int) -> Path:
-        return self.attempt_dir(attempt) / "ts" / str(sample)
+        return self.attempt_dir(attempt) / "ts" / str(sample) / "attempts" / "0"
 
     @field_validator("problem_dir", "output")
     @classmethod
