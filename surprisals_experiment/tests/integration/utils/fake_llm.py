@@ -21,7 +21,7 @@ from utils.world import REMOVED, U, Case, Done, Score, State, T
 class FakeLLM:
     def __init__(self, world, output):
         self.states = [state for state in world if isinstance(state, State)]
-        self.done = world[-1] if world and isinstance(world[-1], Done) else None
+        self.done = world[-1] if len(world) > 0 and isinstance(world[-1], Done) else None
         self.output = output
         self.asked = 0
         self.arrived = [asyncio.get_running_loop().create_future() for _ in self.states]
