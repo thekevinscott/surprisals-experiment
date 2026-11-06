@@ -117,9 +117,7 @@ def describe_real_cli_resume():
         exercise(output, fork_round, signal.SIGINT, forks=2, samples=1)
 
     def it_resumes_on_a_fresh_aws_instance(tmp_path):
-        """AWS_RESUME_E2E=1 uv run --frozen --with boto3 pytest ... -k aws."""
-        if os.environ.get('AWS_RESUME_E2E') != '1':
-            pytest.skip('Set AWS_RESUME_E2E=1 to run the paid t3.small check')
+        """uv run --frozen --with boto3 pytest ... -k aws."""
         import boto3
 
         config = json.loads((Path.home() / '.config/aws_runner/config.json').read_text())
@@ -185,12 +183,7 @@ def describe_real_cli_resume():
 def test_experiment_relaunch_continues_both_cells(
     tmp_path, experiment, terminal, monkeypatch
 ):
-    """RESUME_E2E=1; AWS also needs AWS_RESUME_E2E=1. Drive launch, stop and relaunch through the TUI."""
-    if os.environ.get("RESUME_E2E") != "1":
-        pytest.skip("Set RESUME_E2E=1 to run paid experiment relaunch checks")
-    if experiment.endswith("-aws") and os.environ.get("AWS_RESUME_E2E") != "1":
-        pytest.skip("Set AWS_RESUME_E2E=1 to run the paid AWS experiment check")
-
+    """Drive launch, stop and relaunch through the TUI."""
     # A separate checkout keeps both labnotes and AWS shipping rooted away from real runs.
     root = tmp_path / "project"
     subprocess.run(
