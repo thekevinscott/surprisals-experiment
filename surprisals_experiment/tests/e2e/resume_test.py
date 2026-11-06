@@ -1,5 +1,6 @@
 """Real CLI resume checks; explicitly invoked, excluded from CI by local_only."""
 
+import contextlib
 import json
 import os
 import shlex
@@ -380,7 +381,8 @@ cap-strategy = ["characters"]
         tree = {p for owner in owners for p in [owner, *owner.children(recursive=True)]}
         commands = [" ".join(p.cmdline()) for p in tree]
         for process in tree:
-            process.kill()
+            with contextlib.suppress(psutil.NoSuchProcess):
+                process.kill()
 
         def gone(process):
             try:
