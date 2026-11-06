@@ -1,55 +1,114 @@
 """Real chat streaming, feedback, and incident regressions at the HTTP boundary."""
 
-import json
+from hashlib import sha256
 
-import pytest
-
-from run_one_window import run_one_window
+from test_u_flush import PASS, QUESTION, STDOUT, chat, results
 from utils.world import U, Done, State, T
 
-PASS = 'print(int(input()) * 2)\n'
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
          'completion_tokens_details': {'reasoning_tokens': 20}, 'cost': 0.000123}
+DELAYS = [10, 20, 30, 60, 180, 300, 1200, 1800]
+MUTATING = ("from pathlib import Path\nn = input()\nPath('evaluation-only.txt').write_text(n)\n"
+            "Path('helper.py').write_text('MUTATED')\nprint(int(n) * 2)\n")
 
 
-async def test_feeds_every_t_source_of_the_best_attempt_back(
-    config, botbox_script, chat_provider, monkeypatch,
-):
-    from fake_botbox import FakeSession
+def prompt(index, advice, *samples):
+    code = '\n'.join(f'<T-{sample}>\n' + ''.join(f'<file path="{path}">\n{text.rstrip()}\n</file>\n'
+                                                 for path, text in files.items()) + f'</T-{sample}>'
+                     for sample, files in enumerate(samples))
+    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
+            f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
+            f'<code>\n{code}\n</code>\n</attempt>')
 
+
+def exhausted(reply, error, *, recorded=None, usage=None, completion_id='u'):
+    """U's first try and all 8 retries fail with `error`."""
+    def messages(tries):
+        return [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'], *[recorded] * tries]
+
+    def files(tries):
+        row = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}
+        return {'u/transcripts/usage.jsonl': [row] * tries,
+                **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
+
+    sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+            'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION}]}
+    u = 'windows/0/forks/0/turns/0/u'
+    text = [(u, 'text', reply.text)] if reply.text else []
+    first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
+             'u/transcripts/messages.jsonl': messages(0)}
+    return [State(reply, sent=sent, logs=text, files=first),
+            *(State(reply, sent=sent, logs=[(u, 'retry', f'{tries}/8 in {delay}s: {error}\n'), *text],
+                    files=files(tries)) for tries, delay in enumerate(DELAYS, 1)),
+            Done(outcome=RuntimeError(f'U chat request failed: {error}; 8 retries exhausted'), files=files(9))]
+
+
+async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run_experiment):
     config.t_samples = 2
     config.max_u_turns = 2
-    botbox_script.advice.extend(['long advice', 'short'])
-    mutating_code = ("from pathlib import Path\nn = input()\nPath('evaluation-only.txt').write_text(n)\n"
-                     "Path('helper.py').write_text('MUTATED')\nprint(int(n) * 2)\n")
-    botbox_script.solutions.extend([mutating_code, PASS, PASS, PASS])
-    original = FakeSession.message
+    io = config.problem_dir / 'input_output.json'
+    helpers = {'helper.py': 'VALUE = 42\n', 'nested/extra.py': 'EXTRA = 7\n', 'binary.dat': b'\xff', 'hidden.json': io}
+    mutated = {'evaluation-only.txt': '7', 'helper.py': 'MUTATED', 'main.py': MUTATING,
+               'nested/extra.py': 'EXTRA = 7\n'}
+    clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
+    first = prompt(0, 'long advice', mutated, clean)
+    best = prompt(1, 'short', clean, clean)
 
-    async def write_helpers(session, text):
-        result = await original(session, text)
-        output = session.mounts['/solution']
-        (output / 'helper.py').write_text('VALUE = 42\n')
-        (output / 'nested').mkdir()
-        (output / 'nested/extra.py').write_text('EXTRA = 7\n')
-        (output / 'binary.dat').write_bytes(b'\xff')
-        (output / 'hidden.json').symlink_to((config.problem_dir / 'input_output.json'))
-        return result
+    def turn(window, number):
+        return f'windows/{window}/forks/0/turns/{number}'
 
-    monkeypatch.setattr(FakeSession, 'message', write_helpers)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'attempts/0/src'
-    assert len(botbox_script.sessions) == 4
-    feedback = chat_provider[1]['messages'][-1]['content']
-    assert '/solutions/' not in feedback
-    assert '<length>11 characters</length>' in feedback
-    assert feedback.count('<file path="helper.py">\nVALUE = 42\n</file>') == 1
-    assert '<file path="helper.py">\nMUTATED\n</file>' in feedback
-    assert feedback.count('<file path="nested/extra.py">\nEXTRA = 7\n</file>') == 2
-    assert mutating_code.rstrip() in feedback
-    assert '<file path="evaluation-only.txt">' in feedback
-    assert PASS.rstrip() in feedback
-    assert 'hidden.json' not in feedback
-    assert 'binary.dat' not in feedback
+    def u(window, number, user, advice, files):
+        path = f'{turn(window, number)}/u'
+        return State(U(advice, thinking='Think.'),
+                     sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                           'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                     logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
+
+    def t(window, number, sample, advice, code, files=None):
+        ts = f'{turn(window, number)}/ts/{sample}'
+        src = {**helpers, 'main.py': code, 'hidden.json': io.read_text()}
+        return State(T({'main.py': code, **helpers}, thinking='Write main.py.', text='Done.'),
+                     sent=(f'{ts}/attempts/0', advice),
+                     logs=[(ts, 'thinking', 'Write main.py.'), (ts, 'text', 'Done.')],
+                     files={**(files or {}), f'{ts}/attempts/0/stdout.txt': STDOUT,
+                            **{f'{ts}/attempts/0/src/{name}': text for name, text in src.items()}})
+
+    def advised(window, number, advice, score=None):
+        digest = f'advices/{sha256(advice.encode()).hexdigest()}'
+        path = turn(window, number)
+        files = {f'{path}/metadata.json': {'advice': digest}, f'{path}/u/advice.txt': advice}
+        return files | ({f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}} if score else {})
+
+    def evaluated(window, number):
+        return {path: content for sample in range(2)
+                for path, content in results(f'{turn(window, number)}/ts/{sample}/attempts/0', PASS).items()}
+
+    def opened(window):
+        return {f'windows/{window}/window.json': {}, f'windows/{window}/forks/0/fork.json': {}}
+
+    solution = config.output / turn(0, 1) / 'ts/0/attempts/0/src'
+    world = [
+        u(0, 0, QUESTION, 'long advice', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        t(0, 0, 0, 'long advice', MUTATING, {**chat(0, (QUESTION, 'long advice')), **advised(0, 0, 'long advice', 11)}),
+        t(0, 0, 1, 'long advice', PASS),
+        u(0, 1, first, 'short', {**evaluated(0, 0), **chat(0, (QUESTION, 'long advice'), (first, None)),
+                                 f'{turn(0, 0)}/ts/0/attempts/0/src/evaluation-only.txt': '7',
+                                 f'{turn(0, 0)}/ts/0/attempts/0/src/helper.py': 'MUTATED'}),
+        t(0, 1, 0, 'short', PASS, {**chat(0, (QUESTION, 'long advice'), (first, 'short')),
+                                   **advised(0, 1, 'short', 5)}),
+        t(0, 1, 1, 'short', PASS),
+        u(1, 0, best, 'short', {**evaluated(0, 1), **opened(1), **chat(1, (best, None))}),
+        t(1, 0, 0, 'short', PASS, {**chat(1, (best, 'short')), **advised(1, 0, 'short')}),
+        t(1, 0, 1, 'short', PASS),
+        u(1, 1, best, 'short', {**evaluated(1, 0), **chat(1, (best, 'short'), (best, None))}),
+        t(1, 1, 0, 'short', PASS, {**chat(1, (best, 'short'), (best, 'short')), **advised(1, 1, 'short')}),
+        t(1, 1, 1, 'short', PASS),
+        Done(outcome=solution, files={**evaluated(1, 1),
+                                      'result.json': {'success': True, 'attempts': 4, 'solution': str(solution)}}),
+    ]
+    async with execute_run_experiment(config, world):
+        pass
 
 
 async def test_sends_and_records_exact_roles(config, execute_run_experiment):
@@ -151,30 +210,22 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         pass
 
 
-async def test_records_an_exact_role_for_an_incomplete_reply(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{
-        'deltas': [{'role': 'assistant', 'content': 'par'}, {'role': 'assistant', 'content': 'tial'}],
-        'finish': 'length', 'usage': USAGE,
-    }] * 9)
-    with pytest.raises(RuntimeError, match='U chat'):
-        await run_one_window(config, on_delta=None)
-    transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
-    assert transcript[-1] == {'role': 'assistant', 'content': 'partial', '_complete': False}
-    usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
-    assert len(usage) == 9
-    assert all(entry['usage'] == USAGE for entry in usage)
+async def test_records_an_exact_role_for_an_incomplete_reply(config, execute_run_experiment):
+    world = exhausted(U('partial', finish='length', usage=USAGE),
+                      'U hit its output token limit (30 completion tokens, 20 reasoning tokens)',
+                      recorded={'role': 'assistant', 'content': 'partial', '_complete': False}, usage=USAGE)
+    async with execute_run_experiment(config, world):
+        pass
 
 
-async def test_does_not_accept_empty_replies(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{'deltas': [{'role': 'assistant'}], 'finish': None}] * 9)
-    with pytest.raises(RuntimeError, match='U chat'):
-        await run_one_window(config, on_delta=None)
-    assert not botbox_script.sessions
+async def test_does_not_accept_empty_replies(config, execute_run_experiment):
+    world = exhausted(U(finish=None), 'U chat stream ended before completion',
+                      recorded={'role': 'assistant', '_complete': False})
+    async with execute_run_experiment(config, world):
+        pass
 
 
-async def test_preserves_the_prompt_on_provider_failure(config, botbox_script, no_retry_wait):
-    botbox_script.advice.extend([{'status': 400}] * 9)
-    with pytest.raises(RuntimeError, match='provider failed'):
-        await run_one_window(config, on_delta=None)
-    assert not botbox_script.sessions
-    assert (config.problem_dir / 'question.txt').read_text() in (config.u_transcripts / 'messages.jsonl').read_text()
+async def test_preserves_the_prompt_on_provider_failure(config, execute_run_experiment):
+    world = exhausted(U(status=400), "Error code: 400 - {'error': {'message': 'provider failed'}}", completion_id=None)
+    async with execute_run_experiment(config, world):
+        pass
