@@ -70,7 +70,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     (config.window_dir / 'window.json').write_text('{}')
     (config.fork_dir / 'fork.json').write_text('{}')
     write_advice(config, advice, 'double it', 9)
-    sample = config.t_dir(0, 0)
+    sample = config.t_dir(0, 0) / 'attempts' / '0'
     (sample / 'src').mkdir(parents=True)
     (sample / 'src/main.py').write_text(PASS)
     (sample / 'generation.json').write_text('{"exit_code": 0}')

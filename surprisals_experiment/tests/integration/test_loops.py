@@ -24,7 +24,7 @@ def describe_u_to_t_loop():
         botbox_script.solutions.extend([FAIL] * failures + [PASS, PASS])
         result = await run_one_window(config, on_delta=None)
         count = min(failures + 1, 5)
-        expected = config.t_dir(count - 1, 0) / 'src' if failures < 5 else None
+        expected = config.t_dir(count - 1, 0) / 'attempts' / '0' / 'src' if failures < 5 else None
         assert result == expected
         assert json.loads(config.result_file.read_text()) == {
             'success': failures < 5, 'attempts': count,
@@ -34,9 +34,9 @@ def describe_u_to_t_loop():
         assert [s.messages for s in botbox_script.sessions] == [[f'advice {i}'] for i in range(count)]
         for i in range(count):
             attempt = config.attempt_dir(i)
-            tests = json.loads((config.t_dir(i, 0) / 'tests.json').read_text())
+            tests = json.loads((config.t_dir(i, 0) / 'attempts' / '0' / 'tests.json').read_text())
             assert tests['passed'] == (2 if i == failures else 0)
-            assert (config.t_dir(i, 0) / 'transcripts/session.jsonl').exists()
+            assert (config.t_dir(i, 0) / 'attempts' / '0' / 'transcripts/session.jsonl').exists()
             if i + 1 < count:
                 feedback = chat_provider[i + 1]['messages'][-1]['content']
                 assert feedback == await QuestionDatabase(config.problem_dir).question
@@ -67,7 +67,7 @@ def describe_advice_improvement():
         botbox_script.advice.extend(advices + ['must not run'])
         botbox_script.solutions.extend(source for batch in outcomes for source in batch)
         result = await run_one_window(config, on_delta=None)
-        assert result == config.t_dir(best_attempt, 0) / 'src'
+        assert result == config.t_dir(best_attempt, 0) / 'attempts' / '0' / 'src'
         assert len(botbox_script.sessions) == 2 * len(advices)
         assert json.loads(config.result_file.read_text()) == {
             'success': True, 'attempts': len(advices), 'solution': str(result),
@@ -93,7 +93,7 @@ def describe_advice_improvement():
         original = getattr(owner, method)
 
         async def cancel_later(session, *args, **kwargs):
-            if (config.t_dir(0, 0) / 'tests.json').exists():
+            if (config.t_dir(0, 0) / 'attempts' / '0' / 'tests.json').exists():
                 raise asyncio.CancelledError
             return await original(session, *args, **kwargs)
 

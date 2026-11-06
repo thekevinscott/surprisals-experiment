@@ -54,7 +54,7 @@ async def test_bits_drive_improvement_feedback_and_result(
     scorer_provider.replies.extend(pairs)
     botbox_script.advice.extend("".join(token for token, _ in reply) for reply in pairs)
     botbox_script.solutions.extend([PASS] * 3)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / "src"
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'attempts' / '0' / "src"
     result = json.loads(config.result_file.read_text())
     assert result["best_measurement"] == pytest.approx(8.25)
     assert result["cap_strategy"] == "surprisal"
@@ -92,7 +92,7 @@ async def test_failed_lower_bits_do_not_replace_success(
     scorer_provider.replies.extend([[("good", 10.0)], [("bad", 1.0)]])
     botbox_script.advice.extend(["good", "bad"])
     botbox_script.solutions.extend([PASS, "print(0)"])
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / "src"
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts' / '0' / "src"
     assert json.loads(config.result_file.read_text())[
         "best_measurement"
     ] == pytest.approx(10.0)
@@ -176,7 +176,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(
     )
     botbox_script.advice.extend(["same advice"] * 2)
     botbox_script.solutions.extend([PASS] * 2)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / "src"
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts' / '0' / "src"
     assert len(scorer_provider.requests) == 1
     assert json.loads(config.result_file.read_text())["attempts"] == 2
     for attempt in range(2):

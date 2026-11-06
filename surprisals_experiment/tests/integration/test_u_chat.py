@@ -62,7 +62,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
         return result
 
     monkeypatch.setattr(FakeSession, 'message', write_helpers)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'attempts' / '0' / 'src'
     assert len(botbox_script.sessions) == 4
     feedback = chat_provider[1]['messages'][-1]['content']
     assert '/solutions/' not in feedback
@@ -84,7 +84,7 @@ async def test_sends_and_records_exact_roles(
     chunked = lambda text: {'deltas': [{'role': 'assistant', 'content': c} for c in text]}
     botbox_script.advice.extend(map(chunked, ['tiny', 'long advice', 'longer advice']))
     botbox_script.solutions.extend([PASS] * 3)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert len(chat_provider) == 3
     for request in chat_provider:
         assert {m['role'] for m in request['messages']} <= {'system', 'user', 'assistant'}

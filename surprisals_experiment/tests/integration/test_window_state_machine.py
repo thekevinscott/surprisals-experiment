@@ -19,7 +19,7 @@ async def test_finished_window_rerun_does_not_ask_u(config, botbox_script, chat_
     botbox_script.solutions.append('print(int(input()) * 2)\n')
 
     solution = await run_one_window(config, on_delta=None)
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert json.loads(config.result_file.read_text())['success']
     assert len(chat_provider) == 1
     assert len(botbox_script.sessions) == 1
@@ -150,7 +150,7 @@ async def test_later_window_preserves_global_best(config, botbox_script):
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await run_window(run, Window(config, 1))
         result, solution = await read_progress(run)
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert result['attempts'] == 2
     assert (config.output / 'windows/1/forks/0/u/transcripts/messages.jsonl').exists()
 
@@ -167,7 +167,7 @@ async def test_parallel_windows_obey_run_stop_rule(config, botbox_script, chat_p
 
     solution = await run_experiment(config, on_delta=None)
 
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert len(chat_provider) == len(botbox_script.sessions) == 10
     assert {path.name for path in (config.output / 'windows').iterdir()} == {'0', '1'}
     for window in range(2):

@@ -81,7 +81,7 @@ async def test_resume_after_last_test_rewrites_result(config, botbox_script, cha
     if stale_result:
         config.output.mkdir()
         config.result_file.write_text(json.dumps({
-            'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'src'),
+            'success': True, 'attempts': 1, 'solution': str(config.t_dir(0, 0) / 'attempts' / '0' / 'src'),
         }))
     original = actions['untested']
 
@@ -104,7 +104,7 @@ async def test_resume_after_last_test_rewrites_result(config, botbox_script, cha
                wraps=write_result) as writer:
         solution = await run_experiment(config, on_delta=None)
         writer.assert_awaited_once()
-    assert solution == config.t_dir(1, 0) / 'src'
+    assert solution == config.t_dir(1, 0) / 'attempts' / '0' / 'src'
     assert json.loads(config.result_file.read_text()) == {
         'success': True, 'attempts': 4, 'solution': str(solution),
     }

@@ -70,13 +70,13 @@ async def test_window_zero_always_continues_and_restart_does_not_repeat_work(con
     with patch.dict(actions, {'window_pending': interrupt_between_windows}):
         with pytest.raises(asyncio.CancelledError):
             await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'generation.json'
+    generation = config.t_dir(0, 0) / 'attempts' / '0' / 'generation.json'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns)
     assert len(chat_provider) == 1
     assert not (config.output / 'windows/1').exists()
 
     solution = await run_experiment(config, on_delta=None)
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
@@ -96,11 +96,11 @@ async def test_incomplete_second_window_resumes_before_comparing(config, botbox_
     with patch.dict(actions, {'solutions_missing': interrupt}):
         with pytest.raises(asyncio.CancelledError):
             await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'generation.json'
+    generation = config.t_dir(0, 0) / 'attempts' / '0' / 'generation.json'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns)
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 1
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
@@ -114,6 +114,6 @@ async def test_zero_best_score_stops_after_two_windows(config, botbox_script, sc
     botbox_script.advice.extend(['zero'] * 2)
     botbox_script.solutions.extend(['print(int(input()) * 2)'] * 2)
     scorer_provider.replies.append([('zero', 0.0)])
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'attempts' / '0' / 'src'
     assert json.loads(config.result_file.read_text())['attempts'] == 2
     assert len(scorer_provider.requests) == 1

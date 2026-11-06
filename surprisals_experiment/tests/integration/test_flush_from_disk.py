@@ -32,12 +32,12 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         write_advice(config, directory, f'advice {number}', measurement,
                      [[f'advice {number}', measurement]] if measure == 'surprisal' else None)
         for sample, passed in enumerate(results):
-            folder = config.t_dir(number, sample)
+            folder = config.t_dir(number, sample) / 'attempts' / '0'
             folder.mkdir(parents=True)
             (folder / 'generation.json').write_text('{"exit_code": 0}')
             (folder / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': passed, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     for sample in range(2):
-        src = config.t_dir(2, sample) / 'src'
+        src = config.t_dir(2, sample) / 'attempts' / '0' / 'src'
         (src / 'nested').mkdir(parents=True)
         (src / 'main.py').write_text(f'print({sample})\n')
         (src / 'nested/helper.py').write_text(f'VALUE = {sample}\n')
@@ -59,7 +59,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     # Files, not a retained Attempt instance, supply each call's text and code.
     write_advice(config, config.attempt_dir(2), 'updated advice', 5,
                  [['updated advice', 5]] if measure == 'surprisal' else None)
-    (config.t_dir(2, 1) / 'src/main.py').write_text('print("updated")')
+    (config.t_dir(2, 1) / 'attempts' / '0' / 'src/main.py').write_text('print("updated")')
     updated = await prepare_flush(config, problem, database)
     assert '<advice>\nupdated advice\n</advice>' in updated
     assert 'print("updated")' in updated

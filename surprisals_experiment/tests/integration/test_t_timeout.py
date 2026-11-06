@@ -35,7 +35,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     assert len(botbox_script.sessions) == 4
     assert all(s.closed for s in botbox_script.sessions)
     assert json.loads(config.result_file.read_text())['success']
-    assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
+    assert (config.t_dir(0, 1) / 'attempts' / '0' / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
     assert not (config.attempt_dir(0) / 'error.txt').exists()
     assert 'timed out' not in (await derived_prompt(config))
 
@@ -60,12 +60,12 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     assert len(botbox_script.sessions) == 7
     assert all(s.closed for s in botbox_script.sessions)
     assert not (config.attempt_dir(1) / 'error.txt').exists()
-    assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
-    tests = json.loads((config.t_dir(1, 2) / 'tests.json').read_text())
+    assert (config.t_dir(1, 2) / 'attempts' / '0' / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
+    tests = json.loads((config.t_dir(1, 2) / 'attempts' / '0' / 'tests.json').read_text())
     assert tests['passed'] == 0 and not tests['all_passed']
     result = json.loads(config.result_file.read_text())
     assert result['success'] and result['attempts'] == 2
-    assert result['solution'] == str(config.t_dir(0, 0) / 'src')
+    assert result['solution'] == str(config.t_dir(0, 0) / 'attempts' / '0' / 'src')
 
 
 async def test_gives_queued_samples_their_own_full_budget(config, botbox_script, monkeypatch):
@@ -103,9 +103,9 @@ async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypa
     assert len(botbox_script.sessions) == 1
     assert all(s.closed for s in botbox_script.sessions)
     assert not json.loads(config.result_file.read_text())['success']
-    assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == 1
-    assert not list((config.t_dir(0, 0) / 'src').iterdir())
-    assert json.loads((config.t_dir(0, 0) / 'tests.json').read_text())['passed'] == 0
+    assert len((config.t_dir(0, 0) / 'attempts' / '0' / 'timeouts.txt').read_text().splitlines()) == 1
+    assert not list((config.t_dir(0, 0) / 'attempts' / '0' / 'src').iterdir())
+    assert json.loads((config.t_dir(0, 0) / 'attempts' / '0' / 'tests.json').read_text())['passed'] == 0
     assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == 0
 
 
