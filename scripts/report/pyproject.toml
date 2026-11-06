@@ -14,3 +14,11 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 run-database = { path = "../../packages/run_database", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["src"]
+python_files = ["*_test.py"]
+asyncio_mode = "auto"

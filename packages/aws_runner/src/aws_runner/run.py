@@ -1,3 +1,4 @@
+import fcntl
 import os
 import signal
 import sys
@@ -17,6 +18,7 @@ from aws_runner.remote.restore import restore
 from aws_runner.remote.result import result
 from aws_runner.remote.ship import ship
 from aws_runner.remote.start import start
+from aws_runner.remote.watch import watch
 from aws_runner.timestamp import timestamp
 
 
@@ -29,6 +31,17 @@ def run(ec2, config, directory, command):
         )
         os._exit(130)
 
+    os.makedirs(directory, exist_ok=True)
+    lock = os.open(directory, os.O_RDONLY)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(
+            f"aws_runner already running on {directory}; waiting",
+            file=sys.stderr,
+            flush=True,
+        )
+        fcntl.flock(lock, fcntl.LOCK_EX)
     previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
@@ -37,8 +50,11 @@ def run(ec2, config, directory, command):
             instance, volume = existing
             stopped = instance["State"]["Name"] in {"stopped", "stopping"}
             instance = resume(ec2, config, instance)
-            if stopped and result(config, instance) is None:
-                execute(config, instance)
+            if stopped:
+                if result(config, instance) is None:
+                    execute(config, instance)
+                else:
+                    watch(config, instance)
         else:
             surviving = surviving_volume(ec2, directory)
             if not surviving and not command:
@@ -50,6 +66,8 @@ def run(ec2, config, directory, command):
                 restore(config, instance)
                 if result(config, instance) is None:
                     execute(config, instance)
+                else:
+                    watch(config, instance)
             else:
                 working_directory = ship(config, instance, directory)
                 timestamp("shipped")
@@ -68,3 +86,4 @@ def run(ec2, config, directory, command):
     finally:
         signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
+        os.close(lock)

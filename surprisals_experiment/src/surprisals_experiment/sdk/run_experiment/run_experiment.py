@@ -48,6 +48,7 @@ async def run_experiment(
     on_t_delta: Callable[[str, str, str], None] | None = None,
 ) -> Path | None:
     """Generate, test, and shorten advice until window improvement falls below 5% or interruption."""
+    config.save_settings()
     problem = QuestionDatabase(config.problem_dir)
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
