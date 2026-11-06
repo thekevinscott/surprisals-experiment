@@ -15,12 +15,14 @@ class U:
 
 
 class T:
-    """T thinks, writes its files, then says its text."""
+    """T thinks, writes its files, then says its text. Then it raises `error`, or hangs, or returns."""
 
-    def __init__(self, files, *, thinking, text):
-        self.files = files
+    def __init__(self, files=None, *, thinking=None, text=None, hang=False, error=None):
+        self.files = files or {}
         self.thinking = thinking
         self.text = text
+        self.hang = hang
+        self.error = error
 
 
 class State:

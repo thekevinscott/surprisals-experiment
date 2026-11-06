@@ -173,11 +173,17 @@ class FakeLLM:
                 index, t = await llm.checked(llm.ask, T, (attempt, (mounted['/advice'] / 'advice.md').read_text()))
                 stdout = Path(output) / 'stdout.txt'
                 stdout.parent.mkdir(parents=True, exist_ok=True)
-                llm.say(stdout, 'thinking_delta', t.thinking)
+                if t.thinking is not None:
+                    llm.say(stdout, 'thinking_delta', t.thinking)
                 for name, content in t.files.items():
                     (mounted['/solution'] / name).write_text(content)
-                llm.say(stdout, 'text_delta', t.text)
+                if t.text is not None:
+                    llm.say(stdout, 'text_delta', t.text)
                 await llm.delivered(index)
+                if t.error:
+                    raise t.error
+                if t.hang:
+                    await asyncio.Future()
                 return RunResult(exit_code=0)
 
         return Botbox
