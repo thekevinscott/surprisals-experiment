@@ -33,7 +33,10 @@ class AdviceMeasure:
         @retried(operation="Scorer request", before_sleep=before_sleep,
                  retry=retry_if_exception_type() & retry_if_not_exception_type(BadRequestError))
         async def score():
-            return await measure_surprisal(advice, client=self.client)
+            tokens = await measure_surprisal(advice, client=self.client)
+            if not math.isfinite(sum(bits for _, bits in tokens)):
+                raise ValueError(f"Scorer returned non-finite surprisal: {tokens}")
+            return tokens
 
         try:
             tokens = await score()
@@ -42,10 +45,7 @@ class AdviceMeasure:
                 raise
             raise BadRequestError(f"Advice exceeded the scorer's context limit: {error}",
                                   response=error.response, body=error.body) from error
-        score = sum(bits for _, bits in tokens)
-        if not math.isfinite(score):
-            raise ValueError(f"Scorer returned non-finite surprisal: {tokens}")
-        return score, tokens
+        return sum(bits for _, bits in tokens), tokens
 
     @property
     def unit(self) -> str:
