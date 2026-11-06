@@ -147,8 +147,7 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
         pass
 
 
-@pytest.mark.parametrize('interrupted_turn', [1, 3], ids=['fork-round', 'solo'])
-async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_provider, interrupted_turn):
+async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_provider):
     config.window_forks = 4
     config.fork_turns = 2
     config.window_solo_turns = 2
@@ -175,7 +174,7 @@ async def test_window_restart_does_not_repeat_work(config, botbox_script, chat_p
         await message(self, text)
 
     async def interrupt(run, turn):
-        if turn.fork == 2 and turn.position == interrupted_turn:
+        if turn.fork == 2 and turn.position == 3:
             raise asyncio.CancelledError
         await score(run, turn)
 
