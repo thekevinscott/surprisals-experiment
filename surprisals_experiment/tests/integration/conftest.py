@@ -44,6 +44,8 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
+        if isinstance(reply, asyncio.Event):
+            await reply.wait()
         (self.mounts["/solution"] / "main.py").write_text(reply)
         events = [
             {
