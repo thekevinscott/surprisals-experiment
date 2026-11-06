@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793993914,
+  "exit_code": 0,
+  "commit": "4359c3fdb4b48335df6596c259f39beb368309e6",
+  "branch": "fix-358-orphan-hang"
+}
