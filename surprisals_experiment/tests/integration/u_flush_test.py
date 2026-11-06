@@ -218,5 +218,6 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
                       config=config)
     world[1].reply.files['data.txt'] = data
     world[1].files['windows/0/forks/0/turns/0/ts/0/attempts/0/src/data.txt'] = data
-    async with execute_run_experiment(config, world[:3]):
-        pass
+    async with execute_run_experiment(config, world[:3]) as run:
+        await run.reached(world[2])
+        run.kill()
