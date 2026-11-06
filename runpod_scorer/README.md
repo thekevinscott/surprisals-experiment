@@ -18,6 +18,12 @@ a stopped scorer, or multiple pre-existing scorers makes up fail instead of
 creating another pod. Up saves `pod_id` to labnotes state before releasing the
 lock. It then waits for readiness outside the lock and adds `base_url` to state.
 The pod ID is printed to stderr on creation or reuse.
+While the pod is not ready, up also polls RunPod's pod record and prints, with
+a UTC timestamp, each change to `lastStatusChange`, `lastStartedAt`, and
+`portMappings`. If readiness takes over ten minutes or up fails, it saves the
+pod's system and container logs (last 5000 lines, each with RunPod's own
+timestamp) to `runpod-logs.jsonl` in the state folder before any deletion.
+Image pull and weight download appear only in those logs.
 
 Each invocation has a JSON file under `~/.runpod/users/<pod_id>/`, keyed by its
 state folder. It records the folder containing `$LABNOTES_STATE` and the nearest

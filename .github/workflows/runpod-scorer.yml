@@ -1,0 +1,21 @@
+name: runpod-scorer
+
+on:
+  pull_request:
+    paths: ['runpod_scorer/**', '.github/workflows/runpod-scorer.yml']
+  push:
+    branches: [main]
+    paths: ['runpod_scorer/**', '.github/workflows/runpod-scorer.yml']
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: runpod_scorer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
+      - run: uv run --locked pytest
