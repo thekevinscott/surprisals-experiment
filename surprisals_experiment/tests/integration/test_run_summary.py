@@ -9,7 +9,7 @@ import pytest
 from run_one_window import run_one_window
 from advice_artifacts import write_advice
 
-SQL = (Path(__file__).resolve().parents[3] / 'scripts/run-summary.sql').read_text()
+SQL = (Path(__file__).resolve().parents[3] / 'scripts/report/src/report/run-summary.sql').read_text()
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 

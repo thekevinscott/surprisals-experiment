@@ -5,14 +5,14 @@ on:
     paths:
       - 'surprisals_experiment/**'
       - 'state_machine/**'
-      - 'scripts/run-summary.sql'
+      - 'scripts/report/**'
       - '.github/workflows/tests.yml'
   push:
     branches: [main]
     paths:
       - 'surprisals_experiment/**'
       - 'state_machine/**'
-      - 'scripts/run-summary.sql'
+      - 'scripts/report/**'
       - '.github/workflows/tests.yml'
 
 jobs:

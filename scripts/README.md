@@ -37,21 +37,21 @@ The dataset is also available [on Hugging Face](https://huggingface.co/datasets/
 From the repository root, pass one run folder (not a batch containing multiple runs):
 
 ```bash
-./scripts/summarize-run.sh experiments/phase-2/runs/<run>
+uv run --project scripts/report report experiments/phase-2/runs/<run>
 ```
 
 Use `--format json` for JSON output, or `--format table` explicitly (the default):
 
 ```bash
-./scripts/summarize-run.sh experiments/phase-2/runs/<run> --format json
+uv run --project scripts/report report experiments/phase-2/runs/<run> --format json
 ```
 
-This runs [run-summary.sql](run-summary.sql) through dirsql. The table shows only the cap and evaluation attempts needed to reach all-T success (null if success has not been reached). JSON includes all fields, with one `run` summary followed by an `attempt` row for each attempt. It reads saved advice metadata and test results dynamically; no model calls or transcript parsing are needed.
+This runs [run-summary.sql](report/src/report/run-summary.sql) through dirsql. The table shows only the cap and evaluation attempts needed to reach all-T success (null if success has not been reached). JSON includes all fields, with one `run` summary followed by an `attempt` row for each attempt. It reads saved advice metadata and test results dynamically; no model calls or transcript parsing are needed.
 
 You can also run the SQL directly from a run directory:
 
 ```bash
-uvx dirsql --no-ignore --format json -- "$(cat /path/to/repo/scripts/run-summary.sql)"
+uvx dirsql --no-ignore --format json -- "$(cat /path/to/repo/scripts/report/src/report/run-summary.sql)"
 ```
 
 - `completed_t_evaluations` counts individual T solutions with saved test results; `completed_evaluation_attempts` counts completed advice batches. `evaluation_attempts_to_success` is null until an evaluation passes; it does not treat an interrupted run as a failed solution.
