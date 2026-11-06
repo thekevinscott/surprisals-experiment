@@ -285,9 +285,10 @@ def retried_chat(rejections, *last):
         lines = lines + [{'role': 'user', 'content': QUESTION, '_reset': True}]
         if advice is not None:
             lines = lines + [{'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True}]
-    replies = rejections + sum(advice is not None for advice in last)
+    if last[-1] is None:
+        return {'u/transcripts/messages.jsonl': lines}
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * replies}
+    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * (rejections + 1)}
 
 
 def rejected(path, index):
