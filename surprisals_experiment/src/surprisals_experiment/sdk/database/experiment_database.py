@@ -42,17 +42,26 @@ class ExperimentDatabase(Database):
             metadata = json.loads(Path(path).read_text())
             return [{"turn_id": str(relative(path).parent), "advice_id": metadata["advice"]}]
 
-        def t(path):
-            t = relative(path).parent
+        def generation(path):
+            if json.loads(Path(path).read_text()).get("exit_code", -1) == -1:
+                return []
+            t = relative(path).parent.parent.parent
             return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
 
-        def generation(path):
-            return [] if json.loads(Path(path).read_text()).get("exit_code") == -1 else t(path)
+        def t_attempt(path):
+            attempt = relative(path).parent
+            t = attempt.parent.parent
+            generation = json.loads(Path(path).read_text())
+            return [{
+                "id": str(attempt), "turn_id": str(t.parent.parent), "sample": int(t.name),
+                "position": int(attempt.name), "exit_code": generation.get("exit_code"),
+                "timed_out": generation.get("timed_out", False),
+            }]
 
         def test_results(path):
             tests = relative(path)
             return [{
-                "id": f"{tests}#{case['index']}", "t_id": str(tests.parent), "test": case["index"],
+                "id": f"{tests}#{case['index']}", "t_id": str(tests.parent.parent.parent), "test": case["index"],
                 "stdout": case["stdout"], "stderr": case["stderr"], "passed": case["passed"], "status": case["status"],
             } for case in json.loads(Path(path).read_text())["cases"]]
 
@@ -63,8 +72,9 @@ class ExperimentDatabase(Database):
             "turns": (f"{TURN}/metadata.json", turn),
             "advices": ("advices/*/advice.json", advice),
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
-            "ts": (f"{TURN}/ts/*/generation.json", generation),
-            "test_results": (f"{TURN}/ts/*/tests.json", test_results),
+            "ts": (f"{TURN}/ts/*/attempts/*/generation.json", generation),
+            "t_attempts": (f"{TURN}/ts/*/attempts/*/generation.json", t_attempt),
+            "test_results": (f"{TURN}/ts/*/attempts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]
         super().__init__(root, [

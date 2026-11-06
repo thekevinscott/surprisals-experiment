@@ -37,7 +37,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(
         return result
 
     monkeypatch.setattr(FakeSession, 'message', write_helpers)
-    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'src'
+    assert await run_one_window(config, on_delta=None) == config.t_dir(1, 0) / 'attempts/0/src'
     assert len(botbox_script.sessions) == 4
     feedback = chat_provider[1]['messages'][-1]['content']
     assert '/solutions/' not in feedback
@@ -82,8 +82,8 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
 
     def tested(window, turn):
-        return {f'windows/{window}/forks/0/turns/{turn}/ts/0/generation.json': {'exit_code': 0},
-                f'windows/{window}/forks/0/turns/{turn}/ts/0/tests.json': tests}
+        return {f'windows/{window}/forks/0/turns/{turn}/ts/0/attempts/0/generation.json': {'exit_code': 0},
+                f'windows/{window}/forks/0/turns/{turn}/ts/0/attempts/0/tests.json': tests}
 
     def u_state(window, turn, user, advice, messages, files):
         return State(
@@ -99,15 +99,15 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         t = f'windows/{window}/forks/0/turns/{turn}'
         return State(
             T({'main.py': PASS}, thinking='Write it.', text='Done.'),
-            sent=(f'{t}/ts/0', advice),
+            sent=(f'{t}/ts/0/attempts/0', advice),
             logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
             files={
                 f'{transcripts(window)}/messages.jsonl': messages,
                 f'{transcripts(window)}/usage.jsonl': [usage] * (turn + 1),
                 f'{t}/metadata.json': {'advice': advices[advice]},
                 f'{t}/u/advice.txt': advice,
-                f'{t}/ts/0/stdout.txt': stdout,
-                f'{t}/ts/0/src/main.py': PASS,
+                f'{t}/ts/0/attempts/0/stdout.txt': stdout,
+                f'{t}/ts/0/attempts/0/src/main.py': PASS,
                 **(files or {}),
             },
         )
@@ -115,7 +115,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     def new_advice(advice, score):
         return {f'{advices[advice]}/advice.txt': advice, f'{advices[advice]}/advice.json': {'score': score}}
 
-    solution = config.output / 'windows/0/forks/0/turns/0/ts/0/src'
+    solution = config.output / 'windows/0/forks/0/turns/0/ts/0/attempts/0/src'
     world = [
         u_state(0, 0, question, 'tiny', chat((question, None)), {
             'settings.json': {

@@ -12,7 +12,7 @@ sample_results AS (
            content ->> 'passed' AS tests_passed,
            content ->> 'total' AS tests_total,
            content ->> 'all_passed' AS all_passed
-    FROM './windows/*/forks/*/turns/*/ts/*/tests.json'
+    FROM './windows/*/forks/*/turns/*/ts/*/attempts/*/tests.json'
 ),
 evaluations AS (
     SELECT attempt_path,
