@@ -15,12 +15,17 @@ QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
 BITS = [('Double', 1.5), (' it.', 0.5)]
 DOUBLE = 'print(int(input()) * 2)\n'
+ZERO = 'print(0)\n'
 ADVICE_DIR = f'advices/{sha256(ADVICE.encode()).hexdigest()}'
 USAGE = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 UNANSWERED = {**USAGE, 'completion_id': None}
 TESTS = {'duration_seconds': 0.0, 'passed': 2, 'failed': 0, 'total': 2, 'all_passed': True, 'cases': [
     {'index': 0, 'passed': True, 'status': 'passed', 'stdout': '6\n', 'stderr': '', 'exit_code': 0},
     {'index': 1, 'passed': True, 'status': 'passed', 'stdout': '14\n', 'stderr': '', 'exit_code': 0},
+]}
+FAILED = {'duration_seconds': 0.0, 'passed': 0, 'failed': 2, 'total': 2, 'all_passed': False, 'cases': [
+    {'index': 0, 'passed': False, 'status': 'wrong_answer', 'stdout': '0\n', 'stderr': '', 'exit_code': 0},
+    {'index': 1, 'passed': False, 'status': 'wrong_answer', 'stdout': '0\n', 'stderr': '', 'exit_code': 0},
 ]}
 STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write."}}\n'
           '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
@@ -29,9 +34,11 @@ REWRITTEN = {'messages.jsonl', 'usage.jsonl', 'window.json', 'fork.json'}
 SHAPES = {
     'sequential': ({'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1', 'window_forks': 1,
                     'fork_turns': 1, 'window_solo_turns': 1, 'max_u_turns': None, 't_samples': 2, 't_pool_size': 1},
-                   [[(0, 0, 0)], [(0, 0, 1)], [(1, 0, 0)], [(1, 0, 1)]]),
+                   [[(0, 0, 0)], [(0, 0, 1)], [(1, 0, 0)], [(1, 0, 1)]], set()),
     'parallel': ({'window_forks': 2, 'fork_turns': 1, 'window_solo_turns': 1, 'max_u_turns': None, 't_samples': 1},
-                 [[(0, 0, 0), (0, 1, 0)], [(0, 0, 1)], [(1, 0, 0), (1, 1, 0)], [(1, 0, 1)]]),
+                 [[(0, 0, 0), (0, 1, 0)], [(0, 0, 1)], [(1, 0, 0), (1, 1, 0)], [(1, 0, 1)]], set()),
+    'later-fork': ({'window_forks': 2, 'fork_turns': 1, 'window_solo_turns': 1, 'max_u_turns': None, 't_samples': 1},
+                   [[(0, 0, 0), (0, 1, 0)], [(0, 1, 1)], [(1, 0, 0), (1, 1, 0)], [(1, 1, 1)]], {0}),
 }
 
 
@@ -47,7 +54,7 @@ def attempt(window, fork, position, sample):
     return f'windows/{window}/forks/{fork}/turns/{position}/ts/{sample}/attempts/0'
 
 
-def build(output, settings, rounds):
+def build(output, settings, rounds, failing):
     """The uninterrupted run, its kill points as (state index, answered, name), and the files each state writes before
     its ask, apart from what the answer before it left."""
     surprisal = settings.get('cap_strategy') == 'surprisal'
@@ -102,9 +109,10 @@ def build(output, settings, rounds):
                 done = attempt(window, fork, position, sample)
                 name = f'w{window}-f{fork}-turn{position}-sample{sample}'
                 kills += [(len(world), False, f'{name}-t-asked'), (len(world), True, f'{name}-t-mid-sample')]
-                own.append({f'{done}/stdout.txt': STDOUT, f'{done}/src/main.py': DOUBLE})
+                source = ZERO if fork in failing else DOUBLE
+                own.append({f'{done}/stdout.txt': STDOUT, f'{done}/src/main.py': source})
                 world.append(State(
-                    T({'main.py': DOUBLE}, thinking='Write.', text='Done.'), sent=(done, ADVICE),
+                    T({'main.py': source}, thinking='Write.', text='Done.'), sent=(done, ADVICE),
                     logs=[(t, 'thinking', 'Write.'), (t, 'text', 'Done.')],
                     files={**pending, **own[-1]},
                 ))
@@ -114,8 +122,8 @@ def build(output, settings, rounds):
                 kills.append((len(world), True, f'w{window}-f{fork}-turn{position}-sample{sample}-tests-mid-run'))
                 own.append({f'{done}/generation.json': {'exit_code': 0}})
                 world.append(State(Case(), sent=(done, 0), files={**pending, **own[-1]}))
-                pending = {f'{done}/tests.json': TESTS}
-    solution = output / attempt(0, 0, 0, 0) / 'src'
+                pending = {f'{done}/tests.json': FAILED if fork in failing else TESTS}
+    solution = output / attempt(0, rounds[1][0][1], 0, 0) / 'src'
     scoring = {'best_measurement': 2.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
                'scorer_model': 't'} if surprisal else {}
     world.append(Done(outcome=solution, files={**pending, 'result.json': {
@@ -123,8 +131,8 @@ def build(output, settings, rounds):
     return world, kills, own
 
 
-KILLS = [(shape, *kill) for shape, (settings, rounds) in SHAPES.items()
-         for kill in build(Path('run'), settings, rounds)[1]]
+KILLS = [(shape, *kill) for shape, (settings, rounds, failing) in SHAPES.items()
+         for kill in build(Path('run'), settings, rounds, failing)[1]]
 
 
 def restart(world, own, first, last, answered):
@@ -197,18 +205,18 @@ def finished(output):
 
 @pytest.mark.parametrize('shape', SHAPES)
 async def test_uninterrupted(config, execute_run_experiment, shape):
-    settings, rounds = SHAPES[shape]
+    settings, rounds, failing = SHAPES[shape]
     config = Config(**(config.model_dump() | settings))
-    async with execute_run_experiment(config, build(config.output, settings, rounds)[0]):
+    async with execute_run_experiment(config, build(config.output, settings, rounds, failing)[0]):
         pass
 
 
 @pytest.mark.parametrize('shape,kill,answered', [kill[:3] for kill in KILLS],
                          ids=[f'{shape}-{name}' for shape, _, _, name in KILLS])
 async def test_restart_from_every_kill_point(config, execute_run_experiment, shape, kill, answered):
-    settings, rounds = SHAPES[shape]
+    settings, rounds, failing = SHAPES[shape]
     config = Config(**(config.model_dump() | settings))
-    world, _, own = build(config.output, settings, rounds)
+    world, _, own = build(config.output, settings, rounds, failing)
 
     async with execute_run_experiment(config, world[:kill + answered]) as run:
         if answered:
