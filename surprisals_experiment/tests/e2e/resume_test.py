@@ -123,7 +123,7 @@ ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
 def test_experiment_relaunch_continues_both_cells(
-    tmp_path, experiment, terminal
+    tmp_path, experiment, terminal, request
 ):
     """Drive launch, stop and relaunch through the TUI."""
     aws = experiment.endswith("-aws")
@@ -208,7 +208,6 @@ cap-strategy = ["characters", "surprisal"]
             time.sleep(0.2)
 
     scorer_users = Path.home() / ".runpod/users"
-    hold = None
 
     def ours(user):
         cmdline = Path(f"/proc/{json.loads(user.read_text())['pid']}/cmdline")
@@ -216,11 +215,18 @@ cap-strategy = ["characters", "surprisal"]
 
     def hold_scorer():
         # Keeps the pod alive through invocation 1's teardown so the relaunch finds it warm.
-        nonlocal hold
         [pod] = {path.parent for path in scorer_users.glob("*/*.json") if ours(path)}
         hold = pod / f"test-{os.getpid()}.json"
         hold.with_suffix(".tmp").write_text(json.dumps({"state_dir": str(tmp_path), "pid": os.getpid()}))
         hold.with_suffix(".tmp").replace(hold)
+        request.addfinalizer(lambda: release_scorer(hold))
+
+    def release_scorer(hold):
+        hold.unlink()
+        subprocess.run(
+            ["uv", "run", "--project", "runpod_scorer", "runpod-scorer", "reap"],
+            cwd=root, check=True,
+        )
 
     term = None
     active = False
@@ -305,9 +311,3 @@ cap-strategy = ["characters", "surprisal"]
                 expect(term.get_by_text("Stop them")).to_be_visible()
                 term.write("s")
             settled()
-        if hold is not None:
-            hold.unlink(missing_ok=True)
-            subprocess.run(
-                ["uv", "run", "--project", "runpod_scorer", "runpod-scorer", "reap"],
-                cwd=root, check=True,
-            )
