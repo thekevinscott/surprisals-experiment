@@ -7,7 +7,10 @@ from aws_runner.remote.ssh import ssh
 def result(config, instance):
     status = subprocess.run(
         ssh(config, instance)
-        + [f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; fi"],
+        + [
+            f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; "
+            f"[ -s {ROOT}/exit-code ] || echo 1; fi"
+        ],
         check=True,
         capture_output=True,
         text=True,
