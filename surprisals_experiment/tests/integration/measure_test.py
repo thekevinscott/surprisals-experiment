@@ -1,5 +1,6 @@
 """Measurement, feedback and scorer recovery through the real HTTP client."""
 
+import math
 from hashlib import sha256
 
 import httpx2
@@ -274,4 +275,25 @@ async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execut
         Done(outcome=BadRequestError(error, response=response, body=None)),
     ]
     async with execute_run_experiment(scoring_config, world):
+        pass
+
+
+@pytest.mark.parametrize("bits", [math.nan, math.inf])
+async def test_non_finite_score_retries_like_a_scorer_failure(scoring_config, execute_run_experiment, bits):
+    config = scoring_config
+    first, second = turn(0, 0), turn(1, 0)
+    best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
+    retry = f"Scorer 1/8 in 10s: Scorer returned non-finite surprisal: [('Use a loop', {bits})]\n"
+    world = [
+        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        score_state('Use a loop', {**chat(0, (QUESTION, 'Use a loop')), **unscored(first, 'Use a loop')},
+                    bits=[('Use a loop', bits)]),
+        score_state('Use a loop', {}, bits=[('Use a loop', 10.0)], logs=[(f'{first}/u', 'retry', retry)]),
+        t_state(first, 'Use a loop', PASS, priced('Use a loop', {'score': 10.0, 'tokens': [['Use a loop', 10.0]]})),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10.0),
+        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
+            config, first, 2, best_measurement=10.0, **SCORING)}),
+    ]
+    async with execute_run_experiment(config, world):
         pass

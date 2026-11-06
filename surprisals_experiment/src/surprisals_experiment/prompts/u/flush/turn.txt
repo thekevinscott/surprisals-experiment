@@ -19,9 +19,13 @@
 {% for index in range(t_samples) %}
 <T-{{ index }}>
 {% for path, source in attempt.sources.get(index | string, {}).items() %}
+{% if source is integer %}
+<file path="{{ path }}" omitted="{{ source }} bytes"/>
+{% else %}
 <file path="{{ path }}">
 {{ source.rstrip("\n") }}
 </file>
+{% endif %}
 {% endfor %}
 </T-{{ index }}>
 {% endfor %}

@@ -7,9 +7,13 @@ from aws_runner.remote.ssh import ssh
 def result(config, instance):
     status = subprocess.run(
         ssh(config, instance)
-        + [f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; fi"],
+        + [
+            f"systemctl is-active aws-runner || true; "
+            f"if [ -f {ROOT}/exit-code ]; then cat {ROOT}/exit-code; fi"
+        ],
         check=True,
         capture_output=True,
         text=True,
     )
-    return int(status.stdout.strip()) if status.stdout.strip() else None
+    unit, _, code = status.stdout.partition("\n")
+    return (int(code) if code.strip() else None), unit.strip() == "active"

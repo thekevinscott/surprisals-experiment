@@ -207,3 +207,17 @@ async def test_shows_only_the_selected_measure_and_no_results(config, execute_ru
     world.append(outcome(config, 'windows/0/forks/0/turns/1', 4, pending, **scoring))
     async with execute_run_experiment(config, world):
         pass
+
+
+async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
+    config.max_u_turns = 2
+    data = 'x' * (1 << 20)
+    shown = flush(0, 'double', length=6).replace(
+        '<file path="main.py">', f'<file path="data.txt" omitted="{len(data)} bytes"/>\n<file path="main.py">')
+    world, _ = played([[(QUESTION, 'double', [PASS]), (shown, 'ok', [PASS])]], {'double': {'score': 6}, 'ok': {'score': 2}},
+                      config=config)
+    world[1].reply.files['data.txt'] = data
+    world[1].files['windows/0/forks/0/turns/0/ts/0/attempts/0/src/data.txt'] = data
+    async with execute_run_experiment(config, world[:3]) as run:
+        await run.reached(world[2])
+        run.kill()

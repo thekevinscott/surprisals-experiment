@@ -2,12 +2,17 @@ import subprocess
 import sys
 import time
 
+from aws_runner.remote.execute import execute
 from aws_runner.remote.follow import follow
 from aws_runner.remote.mirror import mirror
 from aws_runner.remote.result import result
 
 
-def monitor(config, instance, directory):
+class InstanceLost(Exception):
+    pass
+
+
+def monitor(ec2, config, instance, directory):
     result_failing = False
     mirror_failing = False
     offsets = [0, 0]
@@ -19,10 +24,20 @@ def monitor(config, instance, directory):
                 reader.join()
                 stream, reader = follow(config, instance, offsets)
             try:
-                code = result(config, instance)
+                code, running = result(config, instance)
+                if code is None and not running:
+                    execute(config, instance)
             except subprocess.CalledProcessError as error:
                 if error.returncode != 255:
                     raise
+                state = ec2.describe_instances(InstanceIds=[instance["InstanceId"]])[
+                    "Reservations"
+                ][0]["Instances"][0]["State"]["Name"]
+                if state not in ("pending", "running"):
+                    print(
+                        f"Instance is {state}; recovering", file=sys.stderr, flush=True
+                    )
+                    raise InstanceLost(state)
                 if not result_failing:
                     print(
                         "Exit-code check SSH failed; retrying",

@@ -10,7 +10,7 @@ def execute(config, instance):
     subprocess.run(
         ssh(config, instance)
         + [
-            f"sudo systemd-run --unit=aws-runner --property=User=ubuntu "
+            f"sudo systemd-run --unit=aws-runner --collect --property=User=ubuntu "
             f"--property=StandardOutput=journal --property=StandardError=journal /bin/sh {ROOT}/command.sh"
         ],
         check=True,

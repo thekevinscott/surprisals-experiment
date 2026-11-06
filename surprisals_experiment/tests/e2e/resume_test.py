@@ -120,6 +120,33 @@ LAUNCH = 330
 # Covers a U turn, measured 25 s to over 7 min; two of these fit a 30-minute cell.
 ATTEMPT = 600
 ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
+STOP = (
+    "import json, sys, boto3; from aws_runner.cloud.stop import stop;"
+    " from aws_runner.config import CONFIG;"
+    " ec2 = boto3.client('ec2', region_name=json.loads(CONFIG.read_text())['region']);"
+    " [stop(ec2, d) for d in sys.argv[1:]]"
+)
+
+
+def aws_runs(under):
+    import boto3
+
+    config = json.loads((Path.home() / ".config/aws_runner/config.json").read_text())
+    ec2 = boto3.client("ec2", region_name=config["region"])
+    filters = [{"Name": "tag:aws-runner:dir", "Values": [f"{Path(under).resolve()}/*"]}]
+    tagged = [i for r in ec2.describe_instances(Filters=filters)["Reservations"]
+              for i in r["Instances"] if i["State"]["Name"] != "terminated"]
+    tagged += ec2.describe_volumes(Filters=filters)["Volumes"]
+    return {t["Value"] for item in tagged for t in item["Tags"] if t["Key"] == "aws-runner:dir"}
+
+
+def stop_aws_runs(under):
+    if directories := aws_runs(under):
+        subprocess.run(
+            ["uv", "run", "--project", str(PACKAGE.parent / "packages/aws_runner"),
+             "python", "-c", STOP, *sorted(directories)],
+            check=True,
+        )
 
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
@@ -127,6 +154,8 @@ def test_experiment_relaunch_continues_both_cells(
     tmp_path, experiment, terminal
 ):
     """Drive launch, stop and relaunch through the TUI."""
+    # A timeout or kill sends SIGTERM, which otherwise skips the cleanup below.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     aws = experiment.endswith("-aws")
     # A separate checkout keeps both labnotes and AWS shipping rooted away from real runs.
     root = tmp_path / "project"
@@ -283,13 +312,45 @@ cap-strategy = ["characters", "surprisal"]
                         assert time.monotonic() < deadline, "Tagged AWS resources survived cleanup"
                         time.sleep(2)
     finally:
-        if term is not None:
-            (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
-            if active and list(state.rglob("*.socket")):
-                term.key_ctrl_c()
-                expect(term.get_by_text("Stop them")).to_be_visible()
-                term.write("s")
-            settled()
+        try:
+            if term is not None:
+                (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+                if active and list(state.rglob("*.socket")):
+                    term.key_ctrl_c()
+                    expect(term.get_by_text("Stop them")).to_be_visible()
+                    term.write("s")
+                settled()
+        finally:
+            if aws:
+                stop_aws_runs(runs)
+                deadline = time.monotonic() + 80
+                while aws_runs(runs):
+                    assert time.monotonic() < deadline, f"AWS runs outlived the test: {aws_runs(runs)}"
+                    time.sleep(2)
+
+
+def test_terminated_relaunch_leaves_no_aws_runs(tmp_path):
+    inner = tmp_path / "inner"
+    args = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "--basetemp", str(inner),
+            f"{__file__}::test_experiment_relaunch_continues_both_cells[forks-testing-aws]"]
+    with (tmp_path / "pytest.log").open("w") as log:
+        process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
+    try:
+        deadline = time.monotonic() + SETUP + LAUNCH
+        while not aws_runs(inner):
+            assert process.poll() is None, "Inner test exited before launching AWS runs"
+            assert time.monotonic() < deadline, "Inner test never launched AWS runs"
+            time.sleep(5)
+        process.terminate()
+        process.wait(timeout=SETUP)
+        deadline = time.monotonic() + 80
+        while aws_runs(inner):
+            assert time.monotonic() < deadline, f"AWS runs outlived the test: {aws_runs(inner)}"
+            time.sleep(2)
+    finally:
+        if process.poll() is None:
+            process.kill()
+        stop_aws_runs(inner)
 
 
 @pytest.mark.parametrize("lost", ["local", "instance"])
@@ -459,11 +520,4 @@ cap-strategy = ["characters"]
         if term is not None:
             (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
         kill_labnotes()
-        if folder is not None and leftovers(folder):
-            for instance in instances(folder):
-                if instance["State"]["Name"] != "terminated":
-                    ec2.terminate_instances(InstanceIds=[instance["InstanceId"]])
-                    ec2.get_waiter("instance_terminated").wait(InstanceIds=[instance["InstanceId"]])
-            for disk in ec2.describe_volumes(Filters=tagged(folder))["Volumes"]:
-                ec2.get_waiter("volume_available").wait(VolumeIds=[disk["VolumeId"]])
-                ec2.delete_volume(VolumeId=disk["VolumeId"])
+        stop_aws_runs(runs)

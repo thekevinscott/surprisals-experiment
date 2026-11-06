@@ -46,6 +46,7 @@ def transport(tmp_path):
             "checkout": str(tmp_path / "checkout"),
             "polls": ["0"],
             "fail_copy": False,
+            "shipped": True,
         }
         execute.side_effect = partial(respond, state)
         yield execute, stream, state
