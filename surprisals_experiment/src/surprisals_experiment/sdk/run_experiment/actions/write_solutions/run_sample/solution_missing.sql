@@ -8,6 +8,6 @@ SELECT NOT EXISTS (
   SELECT count(*) FROM windows
   JOIN forks ON forks.window_id = windows.id AND forks.position = :fork
   JOIN turns ON turns.fork_id = forks.id AND turns.position = :turn
-  JOIN t_timeouts ON t_timeouts.turn_id = turns.id AND t_timeouts.position = :sample
+  JOIN t_attempts ON t_attempts.turn_id = turns.id AND t_attempts.sample = :sample AND t_attempts.timed_out
   WHERE windows.position = :window
 ) < :timeouts AS missing

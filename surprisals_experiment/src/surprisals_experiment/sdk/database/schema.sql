@@ -38,16 +38,12 @@ CREATE TABLE ts (
 
 CREATE TABLE t_attempts (
   id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S/attempts/A'
-  t_id      TEXT NOT NULL REFERENCES ts(id),
-  position  INTEGER NOT NULL,           -- A
-  exit_code INTEGER NOT NULL,
-  UNIQUE (t_id, position)
-);
-
-CREATE TABLE t_timeouts (
-  id        TEXT PRIMARY KEY,           -- 'windows/W/forks/F/turns/N/ts/S/timeouts.txt#<line>'
   turn_id   TEXT NOT NULL REFERENCES turns(id),
-  position  INTEGER NOT NULL            -- S
+  sample    INTEGER NOT NULL,           -- S
+  position  INTEGER NOT NULL,           -- A
+  exit_code INTEGER,                    -- NULL when timed out
+  timed_out INTEGER NOT NULL,
+  UNIQUE (turn_id, sample, position)
 );
 
 CREATE TABLE files (

@@ -35,7 +35,7 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, botbox_script, 
     assert len(botbox_script.sessions) == 4
     assert all(s.closed for s in botbox_script.sessions)
     assert json.loads(config.result_file.read_text())['success']
-    assert (config.t_dir(0, 1) / 'timeouts.txt').read_text() == 'T exceeded 0.1 seconds\n'
+    assert json.loads((config.t_dir(0, 1) / 'attempts/0/generation.json').read_text()) == {'timed_out': True}
     assert not (config.attempt_dir(0) / 'error.txt').exists()
     assert 'timed out' not in (await derived_prompt(config))
 
@@ -60,7 +60,7 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     assert len(botbox_script.sessions) == 7
     assert all(s.closed for s in botbox_script.sessions)
     assert not (config.attempt_dir(1) / 'error.txt').exists()
-    assert (config.t_dir(1, 2) / 'timeouts.txt').read_text().count('exceeded 0.1 seconds') == 2
+    assert [json.loads(path.read_text()) for path in sorted(config.t_dir(1, 2).glob('attempts/*/generation.json'))] == [{'timed_out': True}] * 2
     assert not list(config.t_dir(1, 2).glob('**/tests.json'))
     result = json.loads(config.result_file.read_text())
     assert result['success'] and result['attempts'] == 2
@@ -84,7 +84,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, botbox_script,
     assert json.loads(config.result_file.read_text())['success']
     assert len(botbox_script.sessions) == 3
     assert all(s.closed for s in botbox_script.sessions)
-    assert not list(config.output.glob('windows/*/forks/*/turns/*/ts/*/timeouts.txt'))
+    assert all('timed_out' not in json.loads(path.read_text()) for path in config.output.glob('windows/*/forks/*/turns/*/ts/*/attempts/*/generation.json'))
 
 
 async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypatch):
@@ -102,7 +102,7 @@ async def test_does_not_retry_with_a_zero_budget(config, botbox_script, monkeypa
     assert len(botbox_script.sessions) == 1
     assert all(s.closed for s in botbox_script.sessions)
     assert not json.loads(config.result_file.read_text())['success']
-    assert len((config.t_dir(0, 0) / 'timeouts.txt').read_text().splitlines()) == 1
+    assert [json.loads(path.read_text()) for path in config.t_dir(0, 0).glob('attempts/*/generation.json')] == [{'timed_out': True}]
     assert (config.t_dir(0, 0) / 'attempts/0/src/partial.py').read_text() == 'partial'
     assert not list(config.t_dir(0, 0).glob('**/tests.json'))
     assert json.loads((config.output / 'settings.json').read_text())['t_sample_retries'] == 0

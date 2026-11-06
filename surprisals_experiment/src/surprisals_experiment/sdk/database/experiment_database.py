@@ -43,23 +43,20 @@ class ExperimentDatabase(Database):
             return [{"turn_id": str(relative(path).parent), "advice_id": metadata["advice"]}]
 
         def generation(path):
-            if json.loads(Path(path).read_text()).get("exit_code") == -1:
+            if json.loads(Path(path).read_text()).get("exit_code", -1) == -1:
                 return []
             t = relative(path).parent.parent.parent
             return [{"id": str(t), "turn_id": str(t.parent.parent), "position": int(t.name)}]
 
         def t_attempt(path):
             attempt = relative(path).parent
+            t = attempt.parent.parent
+            generation = json.loads(Path(path).read_text())
             return [{
-                "id": str(attempt), "t_id": str(attempt.parent.parent), "position": int(attempt.name),
-                "exit_code": json.loads(Path(path).read_text())["exit_code"],
+                "id": str(attempt), "turn_id": str(t.parent.parent), "sample": int(t.name),
+                "position": int(attempt.name), "exit_code": generation.get("exit_code"),
+                "timed_out": generation.get("timed_out", False),
             }]
-
-        def t_timeouts(path):
-            log = relative(path)
-            sample = log.parent
-            return [{"id": f"{log}#{line}", "turn_id": str(sample.parent.parent), "position": int(sample.name)}
-                    for line in range(len(Path(path).read_text().splitlines()))]
 
         def test_results(path):
             tests = relative(path)
@@ -77,7 +74,6 @@ class ExperimentDatabase(Database):
             "turn_advice": (f"{TURN}/metadata.json", turn_advice),
             "ts": (f"{TURN}/ts/*/attempts/*/generation.json", generation),
             "t_attempts": (f"{TURN}/ts/*/attempts/*/generation.json", t_attempt),
-            "t_timeouts": (f"{TURN}/ts/*/timeouts.txt", t_timeouts),
             "test_results": (f"{TURN}/ts/*/attempts/*/tests.json", test_results),
         }
         statements = [statement for statement in SCHEMA.read_text().split(";") if statement.strip()]

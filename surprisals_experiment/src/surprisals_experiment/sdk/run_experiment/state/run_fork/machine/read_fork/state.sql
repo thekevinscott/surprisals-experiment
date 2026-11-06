@@ -8,7 +8,7 @@ WITH fork_turns AS (
   JOIN advices ON advices.id = turn_advice.advice_id
   LEFT JOIN evaluated_turns ON evaluated_turns.id = turns.id
   LEFT JOIN (SELECT turn_id, count(*) AS samples FROM (
-    SELECT turn_id FROM t_timeouts GROUP BY turn_id, position HAVING count(*) >= :timeouts
+    SELECT turn_id FROM t_attempts WHERE timed_out GROUP BY turn_id, sample HAVING count(*) >= :timeouts
   ) GROUP BY turn_id) AS exhausted ON exhausted.turn_id = turns.id
   WHERE windows.position = :window
 )

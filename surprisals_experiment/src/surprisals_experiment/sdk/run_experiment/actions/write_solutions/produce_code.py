@@ -24,10 +24,10 @@ async def produce_code(run: Run, sample: Sample) -> None:
         else None
     )
     attempts = output / "attempts"
-    log = output / "timeouts.txt"
 
     def timeouts() -> int:
-        return len(log.read_text().splitlines()) if log.exists() else 0
+        return sum(json.loads(generation.read_text()).get("timed_out", False)
+                   for generation in attempts.glob("*/generation.json"))
 
     def next_attempt() -> Path:
         attempts.mkdir(parents=True, exist_ok=True)
@@ -63,9 +63,6 @@ async def produce_code(run: Run, sample: Sample) -> None:
                         )
                     return source
             except TimeoutError:
-                previous = log.read_text() if log.exists() else ""
-                write(
-                    log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n"
-                )
+                write(attempt / "generation.json", json.dumps({"timed_out": True}, indent=2) + "\n")
 
     await generate()
