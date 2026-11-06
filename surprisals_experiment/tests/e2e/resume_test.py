@@ -173,7 +173,8 @@ cap-strategy = ["characters", "surprisal"]
     ]
     args = ["sh", "-c", 'cd "$0" && exec "$@"', str(root), *cli, "run"]
     runs = root / "experiments" / experiment / "runs"
-    attempt = ATTEMPT + LAUNCH if aws else ATTEMPT
+    # Kevin: no run-time cap on the AWS cell beyond its infra waits.
+    attempt = float("inf") if aws else ATTEMPT
 
     if aws:
         import boto3
