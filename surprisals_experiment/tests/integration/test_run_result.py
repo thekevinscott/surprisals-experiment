@@ -56,17 +56,15 @@ def describe_run_result():
         assert evaluations(config) == {}
         assert (config.output / TURN / 'error.txt').exists()
 
-    async def it_reads_shared_advice_scores(scoring_config, scorer_provider, execute_run_experiment):
+    async def it_reads_shared_advice_scores(scoring_config, execute_run_experiment):
         config = scoring_config
         advice = 'Use café.'
-        scorer_provider.replies.append([(advice, 3.25)])
         best = flush(0, advice, bits=f'{advice}<3.2>')
         states, pending = played([[(QUESTION, advice, [PASS])], [(best, advice, [PASS])]],
-                                 {advice: {'score': 3.25, 'tokens': [[advice, 3.25]]}})
+                                 {advice: {'score': 3.25, 'tokens': [[advice, 3.25]]}}, bits={advice: [(advice, 3.25)]})
         async with execute_run_experiment(config, [*states, outcome(
                 config, TURN, 2, pending, best_measurement=3.25, cap_strategy='surprisal',
                 scorer_base_url='http://scorer/v1', scorer_model='t')]):
             pass
         assert len(list((config.output / 'advices').iterdir())) == 1
-        assert len(scorer_provider.requests) == 1
         assert result(config)['best_measurement'] == 3.25
