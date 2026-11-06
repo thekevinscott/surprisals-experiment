@@ -1,9 +1,9 @@
 # Add the APPS dataset
 
-From `experiments/surprisals-experiment/`, download the original archive linked by the [APPS authors](https://github.com/hendrycks/apps):
+From the repository root, download the original archive linked by the [APPS authors](https://github.com/hendrycks/apps):
 
 ```bash
-./scripts/download-apps.sh
+./scripts/prepare-data
 ```
 
 The archive contains its own `APPS/` directory. After extraction, the layout is:
