@@ -458,8 +458,8 @@ cap-strategy = ["characters"]
     finally:
         if term is not None:
             (tmp_path / "labnotes-screen.txt").write_text(term._get_screen_text())
+        kill_labnotes()
         if folder is not None and leftovers(folder):
-            kill_labnotes()
             for instance in instances(folder):
                 if instance["State"]["Name"] != "terminated":
                     ec2.terminate_instances(InstanceIds=[instance["InstanceId"]])
