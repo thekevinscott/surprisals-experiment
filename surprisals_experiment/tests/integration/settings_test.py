@@ -10,7 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
+from surprisals_experiment.config import Config
 from t_samples_test import settings
+from u_flush_test import PASS, QUESTION, flush, outcome, played
+from utils.run_files import run_files
+from utils.world import Done
 
 
 @pytest.fixture
@@ -67,7 +71,9 @@ async def test_restart_keeps_settings_and_warns_only_on_commit_change(config, ex
     path.write_text(json.dumps(settings(config) | {'git_commit': 'a' * 40}))
     before = path.read_bytes()
     commit.write_text(('b' if changed else 'a') * 40 + '\n')
-    config.t_samples += 1
+    config.t_pool_size += 1
+    config.t_sample_timeout += 1
+    config.scorer_base_url = 'http://scorer/v1'
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         await start(config, execute_run_experiment)
@@ -86,3 +92,32 @@ async def test_restart_after_first_window_warns_on_commit_change(config, execute
         await start(config, execute_run_experiment)
     assert path.read_bytes() == before
     assert [str(w.message) for w in caught] == ['Run was started with a different git commit']
+
+
+async def test_restart_with_different_settings_refuses_and_writes_nothing(config, execute_run_experiment):
+    best = flush(0, 'double it', length=9)
+    states, pending = played([[(QUESTION, 'double it', [PASS])], [(best, 'double it', [PASS])]],
+                             {'double it': {'score': 9}}, config=config)
+    done = outcome(config, 'windows/0/forks/0/turns/0', 2, pending)
+    async with execute_run_experiment(config, [*states, done]):
+        pass
+    before = run_files(config.output)
+    config = Config(**(config.model_dump() | {'t_samples': 2, 'cap_strategy': 'surprisal',
+                                              'scorer_base_url': 'http://scorer/v1'}))
+    path = config.output / 'settings.json'
+    refusal = ValueError(f"Run was started with different settings ({path}): "
+                         "cap_strategy (saved 'characters', new 'surprisal'); t_samples (saved 1, new 2)")
+    async with execute_run_experiment(config, [Done(outcome=refusal)]):
+        pass
+    assert run_files(config.output) == before
+
+
+async def test_restart_ignores_settings_missing_from_settings_json(config, execute_run_experiment, commit):
+    commit.write_text('a' * 40 + '\n')
+    path = config.output / 'settings.json'
+    path.parent.mkdir()
+    path.write_text(json.dumps({k: v for k, v in settings(config).items() if k != 't_samples'} | {'git_commit': 'a' * 40}))
+    before = path.read_bytes()
+    config.t_samples += 1
+    await start(config, execute_run_experiment)
+    assert path.read_bytes() == before

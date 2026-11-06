@@ -13,6 +13,7 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 T_MODEL = "openai/gpt-oss-120b"
 TEST_TIMEOUT_SECONDS = 5
+RESTART_OVERRIDES = {"api_key", "problem_dir", "output", "scorer_base_url", "t_pool_size", "t_sample_timeout"}
 
 
 class Config(BaseModel):
@@ -52,7 +53,12 @@ class Config(BaseModel):
         commit = git_commit()
         path = self.output / "settings.json"
         if path.exists():
-            if json.loads(path.read_text()).get("git_commit") != commit:
+            recorded = json.loads(path.read_text())
+            current = self.model_dump(mode="json")
+            names = sorted(recorded.keys() & current.keys() - RESTART_OVERRIDES)
+            if changed := [f"{name} (saved {recorded[name]!r}, new {current[name]!r})" for name in names if recorded[name] != current[name]]:
+                raise ValueError(f"Run was started with different settings ({path}): {'; '.join(changed)}")
+            if recorded.get("git_commit") != commit:
                 warnings.warn("Run was started with a different git commit", stacklevel=2)
             return
         write(path, json.dumps(self.model_dump(mode="json", exclude={"api_key"}) | {"git_commit": commit}, indent=2) + "\n")
