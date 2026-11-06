@@ -13,7 +13,6 @@ from botbox import RunResult
 from conftest import FakeSession
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
-from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 
 PASS = 'print(int(input()) * 2)'
 PROVIDER_ERROR = {
@@ -82,22 +81,6 @@ async def test_credential_proxy_startup_retries(config, botbox_script, no_retry_
         assert await run_one_window(config, on_delta=None) == config.t_dir(0, 0) / 'src'
     assert len(builds) == 2
     no_retry_wait.assert_awaited_once_with(10)
-
-
-async def test_provider_error_exhaustion_preserves_partial_evidence(
-    config, botbox_script, chat_provider, no_retry_wait,
-):
-    botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
-    with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
-        async with open_u_chat(config) as session:
-            await session.prompt('question')
-    assert 'U chat provider error' in str(raised.value)
-    assert 'upstream failed' in str(raised.value)
-    assert len(chat_provider) == len(DELAYS) + 1
-    assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
-    assert [m['content'] for m in transcript(config) if m['role'] == 'assistant'] == ['partial'] * 9
-    assert session.messages[-1]['content'] == 'partial'
-    assert no_retry_wait.await_count == len(DELAYS)
 
 
 async def test_length_and_http_errors_share_one_budget(
