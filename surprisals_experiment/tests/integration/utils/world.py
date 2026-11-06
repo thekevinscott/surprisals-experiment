@@ -15,12 +15,17 @@ class U:
 
 
 class T:
-    """T thinks, writes its files, then says its text."""
+    """After `seconds`, T thinks, writes its files, then says its text. Then it raises `error`, or hangs,
+    or exits with `exit_code`."""
 
-    def __init__(self, files, *, thinking, text):
-        self.files = files
+    def __init__(self, files=None, *, thinking=None, text=None, hang=False, error=None, seconds=0, exit_code=0):
+        self.files = files or {}
         self.thinking = thinking
         self.text = text
+        self.hang = hang
+        self.error = error
+        self.seconds = seconds
+        self.exit_code = exit_code
 
 
 class Case:
