@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import shutil
 from functools import partial
 from pathlib import Path
 
@@ -24,11 +23,19 @@ async def produce_code(run: Run, sample: Sample) -> None:
         if run.on_t_delta
         else None
     )
-    output.mkdir(parents=True, exist_ok=True)
-    source = output / "src"
+    attempts = output / "attempts"
+
+    def timeouts() -> int:
+        return sum(json.loads(generation.read_text()).get("timed_out", False)
+                   for generation in attempts.glob("*/generation.json"))
+
+    def next_attempt() -> Path:
+        attempts.mkdir(parents=True, exist_ok=True)
+        attempt = attempts / str(len(list(attempts.iterdir())))
+        attempt.mkdir()
+        return attempt
 
     def before_sleep(state):
-        shutil.rmtree(source, ignore_errors=True)
         if on_delta is not None:
             on_delta(
                 "retry",
@@ -38,14 +45,16 @@ async def produce_code(run: Run, sample: Sample) -> None:
 
     @retried(operation="T sample", before_sleep=before_sleep)
     async def generate() -> Path:
-        for _ in range(config.t_sample_retries + 1):
+        while timeouts() <= config.t_sample_retries:
+            attempt = next_attempt()
+            source = attempt / "src"
             try:
                 async with asyncio.timeout(config.t_sample_timeout):
                     t_run = await prompt_t(
-                        config, advice, output=source, logs=output, on_delta=on_delta
+                        config, advice, output=source, logs=attempt, on_delta=on_delta
                     )
                     write(
-                        output / "generation.json",
+                        attempt / "generation.json",
                         json.dumps({"exit_code": t_run.exit_code}, indent=2) + "\n",
                     )
                     if t_run.exit_code == -1:
@@ -54,14 +63,6 @@ async def produce_code(run: Run, sample: Sample) -> None:
                         )
                     return source
             except TimeoutError:
-                log = output / "timeouts.txt"
-                previous = log.read_text() if log.exists() else ""
-                write(
-                    log, previous + f"T exceeded {config.t_sample_timeout:g} seconds\n"
-                )
-                shutil.rmtree(source)
-        source.mkdir()
-        write(output / "generation.json", json.dumps({"timed_out": True}) + "\n")
-        return source
+                write(attempt / "generation.json", json.dumps({"timed_out": True}, indent=2) + "\n")
 
     await generate()

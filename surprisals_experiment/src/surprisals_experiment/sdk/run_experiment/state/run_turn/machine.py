@@ -9,7 +9,10 @@ STATE = Path(__file__).with_name("state.sql")
 
 
 async def state(run: Run, turn: Turn) -> str:
-    row, = await run.database.query(STATE, **turn.params, samples=turn.config.t_samples)
+    row, = await run.database.query(
+        STATE, **turn.params, samples=turn.config.t_samples,
+        timeouts=turn.config.t_sample_retries + 1,
+    )
     return row["state"]
 
 

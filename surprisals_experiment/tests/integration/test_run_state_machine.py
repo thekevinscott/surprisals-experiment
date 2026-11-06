@@ -79,7 +79,7 @@ def window_world(config, windows):
         world.append(State(U(advice, thinking='Think.'), sent=u_body(user),
                            logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)], files=files))
         for sample, source in enumerate(codes):
-            files = {f'{turn}/ts/{sample}/stdout.txt': stdout(), f'{turn}/ts/{sample}/src/main.py': source}
+            files = {f'{turn}/ts/{sample}/attempts/0/stdout.txt': stdout(), f'{turn}/ts/{sample}/attempts/0/src/main.py': source}
             if sample == 0:
                 files |= {f'{u_dir}/messages.jsonl': answered(user, advice),
                           f'{u_dir}/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u',
@@ -92,16 +92,16 @@ def window_world(config, windows):
                               f'advices/{record}/advice.json': {'score': bits} if measure == 'characters'
                               else {'score': pytest.approx(bits), 'tokens': [[advice, pytest.approx(bits)]]}}
             world.append(State(T({'main.py': source}, thinking='Code.', text='Done.'),
-                               sent=(f'{turn}/ts/{sample}', advice),
+                               sent=(f'{turn}/ts/{sample}/attempts/0', advice),
                                logs=[(f'{turn}/ts/{sample}', 'thinking', 'Code.'),
                                      (f'{turn}/ts/{sample}', 'text', 'Done.')], files=files))
         previous = {}
         for sample, source in enumerate(codes):
-            previous |= {f'{turn}/ts/{sample}/generation.json': {'exit_code': 0},
-                         f'{turn}/ts/{sample}/tests.json': results(source == DOUBLE)}
+            previous |= {f'{turn}/ts/{sample}/attempts/0/generation.json': {'exit_code': 0},
+                         f'{turn}/ts/{sample}/attempts/0/tests.json': results(source == DOUBLE)}
         if all(source == DOUBLE for source in codes) and (best is None or bits < best[2]):
             best = (window, advice, bits, codes)
-    solution = config.output / f'windows/{best[0]}/forks/0/turns/0/ts/0/src' if best else None
+    solution = config.output / f'windows/{best[0]}/forks/0/turns/0/ts/0/attempts/0/src' if best else None
     result = {'success': best is not None, 'attempts': len(windows), 'solution': str(solution) if best else None}
     if measure == 'surprisal':
         result |= {'cap_strategy': 'surprisal', 'best_measurement': best[2] if best else None, 'scorer_model': 't',
@@ -136,7 +136,7 @@ async def test_window_stop(config, scorer_provider, execute_run_experiment, meas
         attempts.append((advice, score if measure == 'characters' else score / 10,
                          [DOUBLE, DOUBLE if success else 'print(0)']))
     world = window_world(config, attempts)
-    expected = config.output / f'windows/{best}/forks/0/turns/0/ts/0/src' if best is not None else None
+    expected = config.output / f'windows/{best}/forks/0/turns/0/ts/0/attempts/0/src' if best is not None else None
     assert world[-1].outcome == expected
     assert len(world) == windows * 3 + 1
     async with execute_run_experiment(config, world):
@@ -161,13 +161,13 @@ async def test_window_zero_always_continues_and_restart_does_not_repeat_work(con
     with patch.dict(actions, {'window_pending': interrupt_between_windows}):
         with pytest.raises(asyncio.CancelledError):
             await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'generation.json'
+    generation = config.t_dir(0, 0) / 'attempts/0/generation.json'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns)
     assert len(chat_provider) == 1
     assert not (config.output / 'windows/1').exists()
 
     solution = await run_experiment(config, on_delta=None)
-    assert solution == config.t_dir(0, 0) / 'src'
+    assert solution == config.t_dir(0, 0) / 'attempts/0/src'
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
@@ -187,11 +187,11 @@ async def test_incomplete_second_window_resumes_before_comparing(config, botbox_
     with patch.dict(actions, {'solutions_missing': interrupt}):
         with pytest.raises(asyncio.CancelledError):
             await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'generation.json'
+    generation = config.t_dir(0, 0) / 'attempts/0/generation.json'
     before = (generation.read_bytes(), generation.stat().st_mtime_ns)
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 1
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'src'
+    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
     assert len(chat_provider) == 2
     assert len(botbox_script.sessions) == 2
     assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
@@ -204,7 +204,7 @@ async def test_zero_best_score_stops_after_two_windows(config, scorer_provider, 
     }))
     scorer_provider.replies.append([('zero', 0.0)])
     world = window_world(config, [('zero', 0.0, [DOUBLE])] * 2)
-    assert world[-1].outcome == config.t_dir(0, 0) / 'src'
+    assert world[-1].outcome == config.t_dir(0, 0) / 'attempts/0/src'
     async with execute_run_experiment(config, world):
         pass
     assert len(scorer_provider.requests) == 1

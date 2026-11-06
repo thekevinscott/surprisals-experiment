@@ -80,12 +80,13 @@ def played(windows, scores, *, sequential=False):
             ran = {}
             for sample, code in enumerate(codes):
                 t = f'{path}/ts/{sample}'
+                attempt = f'{t}/attempts/0'
                 states.append(State(
-                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(t, advice),
+                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=(attempt, advice),
                     logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                    files={**pending, f'{t}/stdout.txt': STDOUT, f'{t}/src/main.py': code},
+                    files={**pending, f'{attempt}/stdout.txt': STDOUT, f'{attempt}/src/main.py': code},
                 ))
-                pending, ran = {}, ran | results(t, code)
+                pending, ran = {}, ran | results(attempt, code)
                 if sequential:
                     pending, ran = ran, {}
             pending |= ran
@@ -102,7 +103,7 @@ class Containing(str):
 
 
 def outcome(config, path, attempts, pending, **scoring):
-    solution = config.output / path / 'ts/0/src'
+    solution = config.output / path / 'ts/0/attempts/0/src'
     return Done(outcome=solution, files={**pending, 'result.json': {
         'success': True, 'attempts': attempts, 'solution': str(solution), **scoring}})
 

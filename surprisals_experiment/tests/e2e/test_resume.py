@@ -38,7 +38,7 @@ def snapshot(output):
         paths.update(output.rglob(name))
     # advice.json is complete only after scoring, not when initially created.
     paths.update(p for p in output.rglob('advice.json') if 'score' in json.loads(p.read_text()))
-    for generation in output.glob('**/ts/*/generation.json'):
+    for generation in output.glob('**/ts/*/attempts/*/generation.json'):
         paths.update(p for p in (generation.parent / 'src').rglob('*') if p.is_file())
     artifacts = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in paths}
     transcripts = {p: p.read_bytes() for p in output.rglob('messages.jsonl')}
@@ -64,8 +64,8 @@ def check_result(output, forks, samples):
             assert [p.name for p in (fork / 'turns').iterdir()] == ['0']
     for turn in turns:
         assert len(list((turn / 'ts').iterdir())) == samples
-        assert len(list(turn.glob('ts/*/generation.json'))) == samples
-        assert len(list(turn.glob('ts/*/tests.json'))) == samples
+        assert len(list(turn.glob('ts/*/attempts/*/generation.json'))) == samples
+        assert len(list(turn.glob('ts/*/attempts/*/tests.json'))) == samples
     # Each completed U turn has one assistant reply, including across restarts.
     replies = [json.loads(line) for p in output.rglob('messages.jsonl')
                for line in p.read_text().splitlines()]
@@ -98,7 +98,7 @@ def describe_real_cli_resume():
 
         def sampling():
             # Keep a finished sample as well as an interrupted one.
-            return any((p.parent / '0/tests.json').exists() and not (p / 'tests.json').exists()
+            return any(any((p.parent / '0').glob('attempts/*/tests.json')) and not any(p.glob('attempts/*/tests.json'))
                        for p in output.glob('windows/0/forks/0/turns/0/ts/1'))
 
         exercise(output, sampling, signal.SIGTERM)
@@ -108,7 +108,7 @@ def describe_real_cli_resume():
 
         def fork_round():
             forks = output / 'windows/0/forks'
-            done = list(forks.glob('*/turns/0/ts/0/tests.json'))
+            done = list(forks.glob('*/turns/0/ts/0/attempts/*/tests.json'))
             return len(done) == 1 and len(list(forks.glob('*/fork.json'))) == 2
 
         exercise(output, fork_round, signal.SIGINT, forks=2, samples=1)
@@ -145,7 +145,7 @@ def describe_real_cli_resume():
         with (tmp_path / 'aws.log').open('w') as log:
             try:
                 process = subprocess.Popen(args, cwd=PACKAGE.parent, stdout=log, stderr=log)
-                wait_until(process, lambda: any(output.glob('windows/*/forks/*/turns/*/ts/0/tests.json')))
+                wait_until(process, lambda: any(output.glob('windows/*/forks/*/turns/*/ts/0/attempts/*/tests.json')))
                 instances, volumes = resources()
                 assert len(instances) == len(volumes) == 1
                 original_id = instances[0]['InstanceId']
