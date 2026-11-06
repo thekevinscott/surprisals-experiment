@@ -10,8 +10,8 @@ import pytest
 from openai import AsyncOpenAI
 from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
-from test_run_state_machine import settings
-from test_u_flush import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
+from run_state_machine_test import settings
+from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, Done, State, T
 
 

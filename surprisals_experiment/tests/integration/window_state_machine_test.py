@@ -10,7 +10,7 @@ from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import ChatSession
 from unittest.mock import patch
-from test_u_flush import PASS, flush, outcome, played
+from u_flush_test import PASS, flush, outcome, played
 from utils.world import U, Done, State, T
 
 from run_one_window import run_one_window

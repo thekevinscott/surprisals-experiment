@@ -9,7 +9,7 @@ import pytest
 
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
-from test_u_flush import PASS, QUESTION, chat, flush, outcome, played
+from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
 from utils.world import U, Done, State, T
 
 

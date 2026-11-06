@@ -1,6 +1,6 @@
 """Independent T batches retain sample identity and complete feedback."""
-from test_run_result import evaluations, result
-from test_u_flush import QUESTION, STDOUT, flush, outcome, played
+from run_result_test import evaluations, result
+from u_flush_test import QUESTION, STDOUT, flush, outcome, played
 from utils.world import State, T
 
 PASS = 'print(int(input()) * 2)\n'
