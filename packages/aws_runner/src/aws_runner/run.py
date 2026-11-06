@@ -1,5 +1,7 @@
+import fcntl
 import os
 import signal
+import subprocess
 import sys
 
 from aws_runner.cloud.cleanup import cleanup
@@ -9,8 +11,10 @@ from aws_runner.cloud.resume import resume
 from aws_runner.cloud.stop import stop
 from aws_runner.cloud.surviving_volume import surviving_volume
 from aws_runner.config import TAG
+from aws_runner.remote.active import active
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
+from aws_runner.remote.mirror import mirror
 from aws_runner.remote.monitor import InstanceLost, monitor
 from aws_runner.remote.prepare import prepare
 from aws_runner.remote.restore import restore
@@ -30,6 +34,18 @@ def run(ec2, config, directory, command):
         )
         os._exit(130)
 
+    os.makedirs(directory, exist_ok=True)
+    lock = os.open(directory, os.O_RDONLY)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(
+            f"aws_runner already running on {directory}; waiting",
+            file=sys.stderr,
+            flush=True,
+        )
+        fcntl.flock(lock, fcntl.LOCK_EX)
+    running = None
     previous_int = signal.getsignal(signal.SIGINT)
     previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
     try:
@@ -38,11 +54,11 @@ def run(ec2, config, directory, command):
             instance, volume = existing
             stopped = instance["State"]["Name"] in {"stopped", "stopping"}
             instance = resume(ec2, config, instance)
-            if stopped:
-                if result(config, instance) is None:
+            if result(config, instance) is None:
+                if not active(config, instance):
                     execute(config, instance)
-                else:
-                    watch(config, instance)
+            elif stopped:
+                watch(config, instance)
         else:
             surviving = surviving_volume(ec2, directory)
             if not surviving and not command:
@@ -61,8 +77,10 @@ def run(ec2, config, directory, command):
                 timestamp("shipped")
                 start(config, instance, command, working_directory)
                 timestamp("command started")
+        running = instance
         code = monitor(ec2, config, instance, directory)
         collect(config, instance, directory)
+        running = None
         timestamp("collected")
         cleanup(ec2, instance, volume)
         return code
@@ -71,9 +89,16 @@ def run(ec2, config, directory, command):
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, abort)
         signal.signal(signal.SIGTERM, abort)
-        stop(ec2, directory)
+        mirrored = True
+        if running:
+            try:
+                mirror(config, running, directory)
+            except subprocess.CalledProcessError:
+                mirrored = False
+        stop(ec2, directory, keep_volume=not mirrored)
         raise
     finally:
         signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
+        os.close(lock)
     return run(ec2, config, directory, [])

@@ -5,7 +5,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from aws_runner.config import TAG
 
 
-def stop(ec2, directory):
+def stop(ec2, directory, keep_volume=False):
     print(f"Stopping: cleaning up AWS resources for {directory}", file=sys.stderr)
     filters = [{"Name": f"tag:{TAG}", "Values": [str(directory)]}]
     reservations = ec2.describe_instances(Filters=filters)["Reservations"]
@@ -18,6 +18,13 @@ def stop(ec2, directory):
                 for mapping in instance.get("BlockDeviceMappings", []):
                     if mapping["DeviceName"] == "/dev/sdf":
                         volume_id = mapping["Ebs"]["VolumeId"]
+                        if keep_volume:
+                            print(
+                                f"Final mirror failed; keeping {volume_id} so a "
+                                "relaunch recovers from it",
+                                file=sys.stderr,
+                            )
+                            continue
                         print(
                             f"deleting {volume_id} on termination of {instance_id}",
                             file=sys.stderr,
@@ -36,6 +43,8 @@ def stop(ec2, directory):
             except (BotoCoreError, ClientError) as error:
                 print(f"Could not clean up {instance_id}: {error}", file=sys.stderr)
     for volume in ec2.describe_volumes(Filters=filters)["Volumes"]:
+        if keep_volume:
+            break
         volume_id = volume["VolumeId"]
         try:
             if volume["State"] == "creating":

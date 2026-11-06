@@ -2,6 +2,8 @@ import subprocess
 import sys
 import time
 
+from aws_runner.remote.active import active
+from aws_runner.remote.execute import execute
 from aws_runner.remote.follow import follow
 from aws_runner.remote.mirror import mirror
 from aws_runner.remote.result import result
@@ -24,6 +26,8 @@ def monitor(ec2, config, instance, directory):
                 stream, reader = follow(config, instance, offsets)
             try:
                 code = result(config, instance)
+                if result_failing and code is None and not active(config, instance):
+                    execute(config, instance)
             except subprocess.CalledProcessError as error:
                 if error.returncode != 255:
                     raise
