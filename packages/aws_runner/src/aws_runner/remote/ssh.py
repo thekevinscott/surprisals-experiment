@@ -1,4 +1,8 @@
+from pathlib import Path
+
+
 def ssh(config, instance):
+    known_hosts = Path(config["key"]).with_name(f"known_hosts-{instance['InstanceId']}")
     return [
         "ssh",
         "-i",
@@ -7,6 +11,8 @@ def ssh(config, instance):
         "BatchMode=yes",
         "-o",
         "StrictHostKeyChecking=accept-new",
+        "-o",
+        f"UserKnownHostsFile={known_hosts}",
         "-o",
         "ConnectTimeout=10",
         "-o",
