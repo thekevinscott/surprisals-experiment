@@ -1,5 +1,5 @@
 """Independent T batches retain sample identity and complete feedback."""
-from test_run_summary import report
+from test_run_result import evaluations, result
 from test_u_flush import QUESTION, STDOUT, flush, outcome, played
 from utils.world import State, T
 
@@ -33,12 +33,11 @@ async def test_requires_every_sample_to_pass(config, execute_run_experiment):
     states[0].files['settings.json'] = settings(config)
     async with execute_run_experiment(config, [*states, outcome(config, TURN, 2, pending)]):
         pass
-    summary, *attempts = report(config.output)
-    assert summary['ts_per_advice'] == 3
-    assert summary['completed_t_evaluations'] == 6
-    assert summary['completed_evaluation_attempts'] == 2
-    assert summary['evaluation_attempts_to_success'] == 1
-    assert [attempt['passing_ts'] for attempt in attempts] == [3, 3]
+    assert result(config)['attempts'] == 2
+    assert result(config)['solution'] == str(config.output / TURN / 'ts/0/attempts/0/src')
+    assert sorted(evaluations(config)) == [f'windows/{window}/forks/0/turns/0/ts/{sample}/attempts/0/tests.json'
+                                          for window in range(2) for sample in range(3)]
+    assert all(tests['all_passed'] for tests in evaluations(config).values())
 
 
 async def test_returns_all_outcomes_before_revising_advice(config, execute_run_experiment):
@@ -51,9 +50,10 @@ async def test_returns_all_outcomes_before_revising_advice(config, execute_run_e
     ], {'one': {'score': 3}, 'two': {'score': 3}})
     async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/1', 4, pending)]):
         pass
-    summary, *_ = report(config.output)
-    assert summary['completed_t_evaluations'] == 12
-    assert summary['evaluation_attempts_to_success'] == 2
+    assert result(config)['attempts'] == 4
+    assert len(evaluations(config)) == 12
+    assert [tests['all_passed'] for path, tests in sorted(evaluations(config).items())
+            if path.startswith('windows/0/forks/0/turns/0/')] == [True, False, True]
 
 
 async def test_closes_all_t_sessions_on_cancellation(config, execute_run_experiment):
@@ -75,8 +75,4 @@ async def test_preserves_partial_batches_without_claiming_success(config, execut
         await run.reached(world[-1])
         run.kill()
     assert not (config.output / 'result.json').exists()
-    summary, attempt = report(config.output)
-    assert summary['completed_evaluation_attempts'] == 0
-    assert summary['completed_t_evaluations'] == 1
-    assert summary['evaluation_attempts_to_success'] is None
-    assert attempt['outcome'] == 'incomplete_batch'
+    assert list(evaluations(config)) == [f'{TURN}/ts/0/attempts/0/tests.json']
