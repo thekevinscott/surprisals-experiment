@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 
 from surprisals_experiment.config import Config
-from utils.world import U, Done, State, T
+from utils.world import U, Done, Score, State, T
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)'
@@ -73,19 +73,23 @@ def window_world(config, windows):
             files['settings.json'] = settings(config)
         world.append(State(U(advice, thinking='Think.'), sent=u_body(user),
                            logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)], files=files))
+        pending = {f'{u_dir}/messages.jsonl': answered(user, advice),
+                   f'{u_dir}/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}],
+                   f'{turn}/metadata.json': {'advice': f'advices/{record}'},
+                   f'{turn}/u/advice.txt': advice}
+        if record not in scored:
+            scored.add(record)
+            pending[f'advices/{record}/advice.txt'] = advice
+            if measure == 'surprisal':
+                world.append(State(Score([(advice, bits)]), sent=advice,
+                                   files={**pending, f'advices/{record}/advice.json': {}}))
+                pending = {}
+            pending[f'advices/{record}/advice.json'] = ({'score': bits} if measure == 'characters' else
+                                                        {'score': pytest.approx(bits), 'tokens': [[advice, pytest.approx(bits)]]})
         for sample, source in enumerate(codes):
             files = {f'{turn}/ts/{sample}/attempts/0/stdout.txt': stdout(), f'{turn}/ts/{sample}/attempts/0/src/main.py': source}
             if sample == 0:
-                files |= {f'{u_dir}/messages.jsonl': answered(user, advice),
-                          f'{u_dir}/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u',
-                                                    'usage': None}],
-                          f'{turn}/metadata.json': {'advice': f'advices/{record}'},
-                          f'{turn}/u/advice.txt': advice}
-                if record not in scored:
-                    scored.add(record)
-                    files |= {f'advices/{record}/advice.txt': advice,
-                              f'advices/{record}/advice.json': {'score': bits} if measure == 'characters'
-                              else {'score': pytest.approx(bits), 'tokens': [[advice, pytest.approx(bits)]]}}
+                files |= pending
             world.append(State(T({'main.py': source}, thinking='Code.', text='Done.'),
                                sent=(f'{turn}/ts/{sample}/attempts/0', advice),
                                logs=[(f'{turn}/ts/{sample}', 'thinking', 'Code.'),
@@ -120,33 +124,30 @@ def window_world(config, windows):
     ([100, 90], [False, False], 2, None),
 ], ids=['under-five', 'exactly-five', 'over-five', 'equal', 'worse',
         'cumulative-best', 'failed-lower-score', 'first-success-later', 'no-success'])
-async def test_window_stop(config, scorer_provider, execute_run_experiment, measure, scores, passed, windows, best):
+async def test_window_stop(config, execute_run_experiment, measure, scores, passed, windows, best):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 't_samples': 2,
     }))
     attempts = []
     for score, success in zip(scores, passed):
         advice = 'x' * score if measure == 'characters' else f'score {score}'
-        scorer_provider.replies.append([(advice, score / 10)])
         attempts.append((advice, score if measure == 'characters' else score / 10,
                          [DOUBLE, DOUBLE if success else 'print(0)']))
     world = window_world(config, attempts)
     expected = config.output / f'windows/{best}/forks/0/turns/0/ts/0/attempts/0/src' if best is not None else None
     assert world[-1].outcome == expected
-    assert len(world) == windows * 3 + 1
+    assert len(world) == windows * 3 + 1 + (measure == 'surprisal') * len(set(scores))
     async with execute_run_experiment(config, world):
         pass
     async with execute_run_experiment(config, [Done(outcome=expected)]):
         pass
 
 
-async def test_zero_best_score_stops_after_two_windows(config, scorer_provider, execute_run_experiment):
+async def test_zero_best_score_stops_after_two_windows(config, execute_run_experiment):
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
     }))
-    scorer_provider.replies.append([('zero', 0.0)])
     world = window_world(config, [('zero', 0.0, [DOUBLE])] * 2)
     assert world[-1].outcome == config.t_dir(0, 0) / 'attempts/0/src'
     async with execute_run_experiment(config, world):
         pass
-    assert len(scorer_provider.requests) == 1
