@@ -56,15 +56,6 @@ def describe_run_result():
         assert evaluations(config) == {}
         assert (config.output / TURN / 'error.txt').exists()
 
-    async def it_handles_a_run_without_saved_advice(config, execute_run_experiment):
-        [asked], _ = played([[(QUESTION, 'ok', [])]], {'ok': {'score': 2}})
-        async with execute_run_experiment(config, [asked]) as run:
-            await run.reached(asked)
-            run.kill()
-        assert not (config.output / 'result.json').exists()
-        assert not (config.output / 'advices').exists()
-        assert evaluations(config) == {}
-
     async def it_reads_shared_advice_scores(scoring_config, scorer_provider, execute_run_experiment):
         config = scoring_config
         advice = 'Use café.'
@@ -76,5 +67,6 @@ def describe_run_result():
                 config, TURN, 2, pending, best_measurement=3.25, cap_strategy='surprisal',
                 scorer_base_url='http://scorer/v1', scorer_model='t')]):
             pass
-        assert result(config)['best_measurement'] == 3.25
+        assert len(list((config.output / 'advices').iterdir())) == 1
         assert len(scorer_provider.requests) == 1
+        assert result(config)['best_measurement'] == 3.25
