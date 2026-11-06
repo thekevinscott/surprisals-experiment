@@ -1,7 +1,7 @@
 """A window completes its fork and does not ask U again once finished."""
 
 import asyncio
-import json
+from hashlib import sha256
 
 import pytest
 
@@ -10,79 +10,139 @@ from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import ChatSession
 from unittest.mock import patch
+from utils.world import U, Done, State, T
 
 from run_one_window import run_one_window
 
+QUESTION = 'Read an integer and print its double.'
+DOUBLE = 'print(int(input()) * 2)\n'
+USAGE = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 
-async def test_finished_window_rerun_does_not_ask_u(config, botbox_script, chat_provider):
-    botbox_script.advice.append('Double it.')
-    botbox_script.solutions.append('print(int(input()) * 2)\n')
 
-    solution = await run_one_window(config, on_delta=None)
-    assert solution == config.t_dir(0, 0) / 'src'
-    assert json.loads(config.result_file.read_text())['success']
-    assert len(chat_provider) == 1
-    assert len(botbox_script.sessions) == 1
+def suite(passed):
+    return {'duration_seconds': 0.0, 'passed': 2 if passed else 0, 'failed': 0 if passed else 2, 'total': 2,
+            'all_passed': passed, 'cases': [
+                {'index': index, 'passed': passed, 'status': 'passed' if passed else 'wrong_answer',
+                 'stdout': stdout if passed else '0\n', 'stderr': '', 'exit_code': 0}
+                for index, stdout in enumerate(['6\n', '14\n'])]}
 
-    with patch('surprisals_experiment.sdk.utils.u_chat.ChatSession.prompt',
-               side_effect=AssertionError('Finished window asked U again')) as prompt:
-        assert await run_one_window(config, on_delta=None) == solution
-        prompt.assert_not_awaited()
-    assert len(chat_provider) == 1
-    assert len(botbox_script.sessions) == 1
+
+def stdout():
+    return ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
+            '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
+
+
+def prompt(best):
+    if best is None:
+        return QUESTION
+    position, advice = best
+    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{position}</index>\n'
+            f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n<code>\n<T-0>\n'
+            f'<file path="main.py">\n{DOUBLE}</file>\n</T-0>\n</code>\n</attempt>')
+
+
+def run_world(config, rounds, advice, code):
+    """States for `rounds` of (window, position, forks): U for each fork in order, then T for each fork.
+
+    Returns the states and the files the last T round leaves for Done.
+    """
+    states, pending, transcripts, written, best = [], {}, {}, set(), None
+    for window, position, forks in rounds:
+        user = prompt(best)
+        for fork in forks:
+            text = advice(fork, position)
+            turn = f'windows/{window}/forks/{fork}/turns/{position}'
+            path = 'u/transcripts' if (window, fork) == (0, 0) else f'windows/{window}/forks/{fork}/u/transcripts'
+            messages = transcripts.setdefault(path, [])
+            messages += [{'role': 'system', 'content': ...}] * (1 if messages else 2)
+            messages.append({'role': 'user', 'content': user, '_reset': True})
+            files = {**pending, f'{path}/messages.jsonl': list(messages)}
+            if not states:
+                files['settings.json'] = {
+                    'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
+                    'u_thinking': 'high', 't_model': 't', 'cap_strategy': 'characters', 'scorer_base_url': None,
+                    't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3,
+                    'window_forks': config.window_forks, 'fork_turns': config.fork_turns,
+                    'window_solo_turns': config.window_solo_turns, 'max_u_turns': config.max_u_turns,
+                    'git_commit': ...,
+                }
+            if position == 0:
+                files[f'windows/{window}/forks/{fork}/fork.json'] = {}
+                if fork == 0:
+                    files[f'windows/{window}/window.json'] = {}
+            states.append(State(
+                U(text, thinking='Shorten.'),
+                sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                      'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user}]},
+                logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
+                files=files,
+            ))
+            messages.append({'content': text, 'role': 'assistant', 'reasoning': 'Shorten.', '_complete': True})
+            stored = 'advices/' + sha256(text.encode()).hexdigest()
+            pending = {
+                f'{turn}/metadata.json': {'advice': stored},
+                f'{turn}/u/advice.txt': text,
+                f'{path}/messages.jsonl': list(messages),
+                f'{path}/usage.jsonl': [USAGE] * sum(message['role'] == 'assistant' for message in messages),
+            }
+            if stored not in written:
+                written.add(stored)
+                pending |= {f'{stored}/advice.txt': text, f'{stored}/advice.json': {'score': len(text)}}
+        scored = {}
+        for fork in forks:
+            text = advice(fork, position)
+            attempt = f'windows/{window}/forks/{fork}/turns/{position}/ts/0'
+            states.append(State(
+                T({'main.py': code(fork)}, thinking='Write main.py.', text='Done.'),
+                sent=(attempt, text),
+                logs=[(attempt, 'thinking', 'Write main.py.'), (attempt, 'text', 'Done.')],
+                files={**pending, f'{attempt}/stdout.txt': stdout(), f'{attempt}/src/main.py': code(fork)},
+            ))
+            pending = {}
+            passed = code(fork) == DOUBLE
+            scored |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': suite(passed)}
+            if passed and (best is None or len(text) < len(best[1])):
+                best = (position, text)
+        pending = scored
+    return states, pending
+
+
+async def test_finished_run_rerun_does_not_ask_u(config, execute_run_experiment):
+    world, scored = run_world(config, [(0, 0, [0]), (1, 0, [0])], lambda fork, position: 'Double it.',
+                              lambda fork: DOUBLE)
+    solution = config.t_dir(0, 0) / 'src'
+    result = {'success': True, 'attempts': 2, 'solution': str(solution)}
+    async with execute_run_experiment(config, [*world, Done(outcome=solution, files={**scored, 'result.json': result})]):
+        pass
+
+    async with execute_run_experiment(config, [Done(outcome=solution)]):
+        pass
 
 
 @pytest.mark.parametrize('passes', [True, False])
 @pytest.mark.parametrize('window_solo_turns', [0, 2])
-async def test_parallel_forks_then_winner_continues(config, botbox_script, chat_provider, passes, window_solo_turns):
+async def test_parallel_forks_then_winner_continues(config, execute_run_experiment, passes, window_solo_turns):
     config.window_forks = 4
     config.fork_turns = 2
     config.window_solo_turns = window_solo_turns
     config.max_u_turns = None
-    entered = set()
-    together = asyncio.Event()
-    calls = []
-    chats = {}
-    original = actions['advice_missing']
-    message = FakeSession.message
-    prompt = ChatSession.prompt
-    current = {}
-
-    async def advice(run, turn):
-        calls.append((turn.fork, turn.position))
-        chats.setdefault(turn.fork, set()).add(run.u_chat.transcript)
-        if turn.position == 0:
-            entered.add(turn.fork)
-            if len(entered) == 4:
-                together.set()
-            await asyncio.wait_for(together.wait(), 5)
-        current[id(run.u_chat)] = turn
-        await original(run, turn)
-
-    async def reply(self, text, **kwargs):
-        turn = current[id(self)]
-        botbox_script.advice.append(chr(65 + turn.fork) * ([20, 3, 8, 12][turn.fork] - turn.position))
-        return await prompt(self, text, **kwargs)
-
-    async def solution(self, text):
-        botbox_script.solutions.append('print(int(input()) * 2)' if passes and not text.startswith('B') else 'print(0)')
-        await message(self, text)
-
-    with (patch.dict(actions, {'advice_missing': advice}),
-          patch.object(FakeSession, 'message', solution), patch.object(ChatSession, 'prompt', reply)):
-        result = await run_one_window(config, on_delta=None)
     winner = 2 if passes else 0
-    assert set(calls) == {(fork, turn) for fork in range(4) for turn in range(2)} | {(winner, turn) for turn in range(2, 2 + window_solo_turns)}
-    assert len(calls) == len(chat_provider) == 8 + window_solo_turns
-    assert len({path for paths in chats.values() for path in paths}) == 4
-    expected = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'src' if passes else None
-    assert result == expected
-    saved = json.loads(config.result_file.read_text())
-    assert saved['success'] == passes
-    assert saved['solution'] == (str(expected) if passes else None)
-    with patch('surprisals_experiment.sdk.utils.u_chat.ChatSession.prompt',
-               side_effect=AssertionError('Finished window asked U again')):
-        assert await run_one_window(config, on_delta=None) == expected
+    rounds = [(window, position, forks) for window in range(2) for position, forks in [
+        *((position, range(4)) for position in range(2)),
+        *((position, [winner]) for position in range(2, 2 + window_solo_turns)),
+    ]]
+    world, scored = run_world(config, rounds, lambda fork, position: chr(65 + fork) * ([20, 3, 8, 12][fork] - position),
+                              lambda fork: DOUBLE if passes and fork != 1 else 'print(0)\n')
+    solution = Turn(config, 1 + window_solo_turns, 0, winner).t_dir(0) / 'src' if passes else None
+    attempts = 2 * (8 + window_solo_turns)
+    scored['result.json'] = {'success': passes, 'attempts': attempts, 'solution': solution and str(solution)}
+    if not passes:
+        scored['error.txt'] = f'No passing solution after {attempts} U turns\n'
+    async with execute_run_experiment(config, [*world, Done(outcome=solution, files=scored)]):
+        pass
+
+    async with execute_run_experiment(config, [Done(outcome=solution)]):
+        pass
 
 
 @pytest.mark.parametrize('interrupted_turn', [1, 3], ids=['fork-round', 'solo'])
@@ -155,24 +215,14 @@ async def test_later_window_preserves_global_best(config, botbox_script):
     assert (config.output / 'windows/1/forks/0/u/transcripts/messages.jsonl').exists()
 
 
-async def test_parallel_windows_obey_run_stop_rule(config, botbox_script, chat_provider):
-    from surprisals_experiment.sdk import run_experiment
-
+async def test_parallel_windows_obey_run_stop_rule(config, execute_run_experiment):
     config.window_forks = 4
     config.fork_turns = 1
     config.window_solo_turns = 1
     config.max_u_turns = None
-    botbox_script.advice.extend(['Double.'] * 10)
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 10)
-
-    solution = await run_experiment(config, on_delta=None)
-
-    assert solution == config.t_dir(0, 0) / 'src'
-    assert len(chat_provider) == len(botbox_script.sessions) == 10
-    assert {path.name for path in (config.output / 'windows').iterdir()} == {'0', '1'}
-    for window in range(2):
-        assert {path.relative_to(config.output).as_posix() for path in
-                (config.output / 'windows' / str(window)).glob('forks/*/turns/*')} == {
-                    f'windows/{window}/forks/{fork}/turns/0' for fork in range(4)
-                } | {f'windows/{window}/forks/0/turns/1'}
-    assert json.loads(config.result_file.read_text())['attempts'] == 10
+    rounds = [(window, position, forks) for window in range(2) for position, forks in [(0, range(4)), (1, [0])]]
+    world, scored = run_world(config, rounds, lambda fork, position: 'Double.', lambda fork: DOUBLE)
+    solution = config.t_dir(0, 0) / 'src'
+    result = {'success': True, 'attempts': 10, 'solution': str(solution)}
+    async with execute_run_experiment(config, [*world, Done(outcome=solution, files={**scored, 'result.json': result})]):
+        pass

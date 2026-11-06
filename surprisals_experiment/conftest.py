@@ -13,6 +13,8 @@ from botbox import Botbox
 from fake_botbox import FakeSession, Script
 from surprisals_experiment.config import Config
 
+pytest.register_assert_rewrite('utils')
+
 
 @pytest.fixture(autouse=True)
 def botbox_script():
@@ -71,7 +73,7 @@ def no_retry_wait(monkeypatch):
     return waits
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def config(tmp_path):
     problem = tmp_path / "problem"
     problem.mkdir()
@@ -199,7 +201,7 @@ def chat_provider(botbox_script):
         yield requests
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def scorer_provider():
     """Serve prompt logprobs over mocked HTTP, keeping measurement and retries real."""
     import math
@@ -258,3 +260,10 @@ async def scorer_provider():
         yield script
     for client in clients:
         await client.aclose()
+
+
+@pytest.fixture
+def execute_run_experiment():
+    # utils sits in tests/integration, which is on sys.path only once a test module there is collected.
+    from utils.execute_run_experiment import execute_run_experiment
+    return execute_run_experiment

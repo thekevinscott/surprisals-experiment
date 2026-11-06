@@ -10,9 +10,9 @@ import pytest
 
 from botbox import RunResult
 
-from fake_botbox import FakeSession
 from surprisals_experiment.retry_policy.constants import DELAYS
 from run_one_window import run_one_window
+from utils.world import U, State, T
 
 PASS = 'print(int(input()) * 2)'
 PROVIDER_ERROR = {
@@ -113,25 +113,52 @@ async def test_run_continues_after_u_output_limit_exhaustion(config, botbox_scri
     await run_one_window(config, on_delta=None)
 
 
-async def test_cancellation_closes_t_and_keeps_u_artifacts(config, botbox_script, monkeypatch):
-    botbox_script.advice.append('double it')
-    started = asyncio.Event()
-
-    async def block(self, text):
-        started.set()
-        await asyncio.Event().wait()
-
-    monkeypatch.setattr(FakeSession, 'message', block)
-    task = asyncio.create_task(run_one_window(config, on_delta=None))
-    try:
-        await asyncio.wait_for(started.wait(), timeout=5)
-    finally:
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await asyncio.wait_for(task, timeout=5)
+async def test_cancellation_closes_t_and_keeps_u_artifacts(config, execute_run_experiment):
+    question = 'Read an integer and print its double.'
+    advice = 'advices/2aaeab9c9ac9f05b410e758c97bd7357adf65eeb0fbfdef5eb92107315271625'
+    asked = [{'role': 'system', 'content': ...}, {'role': 'system', 'content': ...},
+             {'role': 'user', 'content': question, '_reset': True}]
+    world = [
+        State(
+            U('double it', thinking='Ask for doubling.'),
+            sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                  'messages': [{'role': 'system', 'content': ...}, {'role': 'user', 'content': question}]},
+            logs=[
+                ('windows/0/forks/0/turns/0/u', 'thinking', 'Ask for doubling.'),
+                ('windows/0/forks/0/turns/0/u', 'text', 'double it'),
+            ],
+            files={
+                'settings.json': ...,
+                'u/transcripts/messages.jsonl': asked,
+                'windows/0/window.json': {},
+                'windows/0/forks/0/fork.json': {},
+            },
+        ),
+        State(
+            T({'main.py': PASS}, thinking='Write main.py.', text='Done.'),
+            sent=('windows/0/forks/0/turns/0/ts/0', 'double it'),
+            logs=[
+                ('windows/0/forks/0/turns/0/ts/0', 'thinking', 'Write main.py.'),
+                ('windows/0/forks/0/turns/0/ts/0', 'text', 'Done.'),
+            ],
+            files={
+                'u/transcripts/messages.jsonl': [*asked, {'role': 'assistant', 'content': 'double it',
+                                                          'reasoning': 'Ask for doubling.', '_complete': True}],
+                'u/transcripts/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u',
+                                               'usage': None}],
+                f'{advice}/advice.txt': 'double it',
+                f'{advice}/advice.json': {'score': 9},
+                'windows/0/forks/0/turns/0/metadata.json': {'advice': advice},
+                'windows/0/forks/0/turns/0/u/advice.txt': 'double it',
+                'windows/0/forks/0/turns/0/ts/0/stdout.txt': ...,
+                'windows/0/forks/0/turns/0/ts/0/src/main.py': PASS,
+            },
+        ),
+    ]
+    async with execute_run_experiment(config, world) as run:
+        await run.reached(world[1])
+        run.kill()
     assert not config.result_file.exists()
-    assert botbox_script.sessions and all(session.closed for session in botbox_script.sessions)
-    assert any(m.get('content') == 'double it' for m in transcript(config))
 
 
 async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script):

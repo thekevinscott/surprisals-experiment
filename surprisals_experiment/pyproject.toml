@@ -30,6 +30,7 @@ exclude-newer = "0 seconds"
 
 [dependency-groups]
 dev = [
+    "looptime>=0.9",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-describe>=3.2.0",
