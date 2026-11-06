@@ -32,10 +32,12 @@ def boot(ec2, config, tags, zone=None):
                 TagSpecifications=[{"ResourceType": "instance", "Tags": tags}],
             )["Instances"][0]
         except ClientError as error:
-            if not zone or error.response["Error"]["Code"] not in {
+            code = error.response["Error"]["Code"]
+            capacity = zone and code in {
                 "InsufficientInstanceCapacity",
                 "InsufficientHostCapacity",
                 "InsufficientVolumeCapacity",
-            }:
+            }
+            if code != "VcpuLimitExceeded" and not capacity:
                 raise
             time.sleep(30)
