@@ -151,7 +151,7 @@ def stop_aws_runs(under):
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
 def test_experiment_relaunch_continues_both_cells(
-    tmp_path, experiment, terminal
+    tmp_path, experiment, terminal, request
 ):
     """Drive launch, stop and relaunch through the TUI."""
     # A timeout or kill sends SIGTERM, which otherwise skips the cleanup below.
@@ -237,6 +237,27 @@ cap-strategy = ["characters", "surprisal"]
             )
             time.sleep(0.2)
 
+    scorer_users = Path.home() / ".runpod/users"
+
+    def ours(user):
+        cmdline = Path(f"/proc/{json.loads(user.read_text())['pid']}/cmdline")
+        return cmdline.exists() and str(root).encode() in cmdline.read_bytes()
+
+    def hold_scorer():
+        # Keeps the pod alive through invocation 1's teardown so the relaunch finds it warm.
+        [pod] = {path.parent for path in scorer_users.glob("*/*.json") if ours(path)}
+        hold = pod / f"test-{os.getpid()}.json"
+        hold.with_suffix(".tmp").write_text(json.dumps({"state_dir": str(tmp_path), "pid": os.getpid()}))
+        hold.with_suffix(".tmp").replace(hold)
+        request.addfinalizer(lambda: release_scorer(hold))
+
+    def release_scorer(hold):
+        hold.unlink()
+        subprocess.run(
+            ["uv", "run", "--project", "runpod_scorer", "runpod-scorer", "reap"],
+            cwd=root, check=True,
+        )
+
     term = None
     active = False
     original = set()
@@ -275,6 +296,7 @@ cap-strategy = ["characters", "surprisal"]
                 for folder in folders():
                     [instances[folder, invocation]] = live(folder)
             if invocation == 1:
+                hold_scorer()
                 wait_for(lambda f: any(f.glob(ATTEMPTS)), attempt)
                 original = folders()
                 assert {

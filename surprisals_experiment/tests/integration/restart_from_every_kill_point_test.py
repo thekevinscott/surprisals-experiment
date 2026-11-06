@@ -8,10 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from state_machine.testing import Done, State, decoded, run_files
 from surprisals_experiment.config import Config
-from utils.expected import decoded
-from utils.run_files import run_files
-from utils.world import U, Case, Done, Score, State, T, t_sent, u_system
+from utils.world import U, Case, Score, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'

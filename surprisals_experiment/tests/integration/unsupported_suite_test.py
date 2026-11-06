@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from utils.world import Done
+from state_machine.testing import Done
 
 
 @pytest.mark.parametrize('suite,reason', [

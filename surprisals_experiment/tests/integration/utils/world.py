@@ -1,16 +1,13 @@
-"""A world: the replies a run gets, in call order, each with what must be true right after it.
+"""The replies a world (see state_machine.testing) gives this experiment.
 
-Expected `files` hold only what changed since the previous state. Contents are str (text), bytes,
-dict (JSON) or list (JSON lines); REMOVED marks a deleted path; `...` at any depth means
-"present, not checked".
+A State's `sent` is the U request body, (attempt path, advice) for T, (attempt path, case index) for Case,
+or the scored text for Score.
 """
 
 import shlex
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
-
-REMOVED = object()
 
 
 def u_system(config, turn, best=None):
@@ -81,24 +78,3 @@ class Score:
         self.bits = bits
         self.status = status
         self.message = message
-
-
-class State:
-    """`sent` is the U request body, (attempt path, advice) for T, (attempt path, case index) for Case, or the
-    scored text for Score.
-
-    A world without Done is killed after its last state; every step the run reaches past it waits unanswered.
-    """
-
-    def __init__(self, reply, *, sent, logs=(), files=None):
-        self.reply = reply
-        self.sent = sent
-        self.logs = list(logs)
-        self.files = files or {}
-
-
-class Done:
-    def __init__(self, *, outcome, logs=(), files=None):
-        self.outcome = outcome
-        self.logs = list(logs)
-        self.files = files or {}

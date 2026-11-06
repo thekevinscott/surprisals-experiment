@@ -4,8 +4,9 @@ from hashlib import sha256
 
 import pytest
 
+from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
-from utils.world import U, Done, Score, State, T, t_sent, u_system
+from utils.world import U, Score, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)'

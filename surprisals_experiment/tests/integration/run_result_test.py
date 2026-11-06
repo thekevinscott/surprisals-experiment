@@ -4,7 +4,9 @@ import json
 
 from measure_test import scoring_config
 from u_flush_test import QUESTION, Containing, flush, outcome, played
-from utils.world import Done, State, T, t_sent
+from state_machine.testing import Done, State
+
+from utils.world import T, t_sent
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
