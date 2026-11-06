@@ -1,15 +1,11 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
 import signal
-from contextlib import nullcontext
 from hashlib import sha256
-from unittest.mock import patch
-import httpx2
 import pytest
 
-from openai import AsyncOpenAI
-from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
+from surprisals_experiment.config import U_MODEL
 from test_run_state_machine import settings
 from test_u_flush import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, Done, State, T
@@ -153,36 +149,21 @@ async def test_does_not_retry_with_a_zero_budget(config, execute_run_experiment)
         pass
 
 
-@pytest.mark.parametrize('phase', ['U', 'T'])
-async def test_cancels_and_cleans_up_on_sigterm(config, botbox_script, monkeypatch, tmp_path, phase):
+@pytest.mark.parametrize('phase', [U, T])
+async def test_cancels_and_cleans_up_on_sigterm(config, monkeypatch, tmp_path, execute_run_experiment, phase):
     (tmp_path / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
     monkeypatch.chdir(tmp_path)
-    botbox_script.advice.append('Double.')
-    started = asyncio.Event()
-
-    async def block(*args, **kwargs):
-        started.set()
-        await asyncio.Event().wait()
-
-    if phase == 'U':
-        def client(**kwargs):
-            return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(
-                transport=httpx2.MockTransport(block)))
-    else:
-        monkeypatch.setattr(FakeSession, 'message', block)
-    with (patch('surprisals_experiment.sdk.utils.u_chat.opener.AsyncOpenAI', client)
-          if phase == 'U' else nullcontext()):
-        task = asyncio.create_task(main([
-            '--output', str(config.output), '--t-samples', '1', '--t-sample-timeout', '1.5',
-            str(config.problem_dir),
-        ]))
-        try:
-            await asyncio.wait_for(started.wait(), 5)
-            signal.raise_signal(signal.SIGTERM)
-            with pytest.raises(asyncio.CancelledError):
-                await asyncio.wait_for(task, 5)
-            assert all(s.closed for s in botbox_script.sessions)
-            assert config.u_transcripts.joinpath('messages.jsonl').exists()
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+    asked = played([[(QUESTION, 'Double.', [PASS])]], {'Double.': {'score': 7}})[0][0]
+    asked.sent['model'] = U_MODEL
+    asked.logs = []
+    world = [asked] if phase is T else []
+    argv = ['--window-forks', '1', '--output', str(config.output), '--t-samples', '1', str(config.problem_dir)]
+    async with execute_run_experiment(config, world, run=main(argv)) as run:
+        run.release()
+        await run.idle()
+        assert run.waiting == [phase]
+        run.killed = True
+        signal.raise_signal(signal.SIGTERM)
+        with pytest.raises(asyncio.CancelledError):
+            await run.task
+    assert config.u_transcripts.joinpath('messages.jsonl').exists()
