@@ -9,6 +9,8 @@ from surprisals_experiment.config import Config
 from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 
+PASS = 'print(int(input()) * 2)\n'
+
 
 @pytest.mark.parametrize('measure', ['characters', 'surprisal'])
 async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
@@ -78,3 +80,19 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
     config = Config(**(config.model_dump() | {'t_samples': 1}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt
+
+async def test_keeps_best_attempt_even_above_old_size_budget(config):
+    advice = config.attempt_dir(0)
+    advice.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
+    write_advice(config, advice, 'double it', 9)
+    sample = config.t_dir(0, 0)
+    (sample / 'src').mkdir(parents=True)
+    (sample / 'src/main.py').write_text(PASS)
+    (sample / 'generation.json').write_text('{"exit_code": 0}')
+    (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
+    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    assert prompt.count('<attempt>') == 1
+    assert '<advice>\ndouble it\n</advice>' in prompt
+    assert PASS.rstrip() in prompt

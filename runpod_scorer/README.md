@@ -1,6 +1,6 @@
 # Shared RunPod scorer
 
-All labnotes invocations on mentees share one pod named `surprisal-scorer`.
+All labnotes invocations on mentees share one pod named `surprisal-scorer-24k`.
 Up and down run as setup and teardown hooks, using labnotes state
 (`labnotes.set_state` / `get_state`). Both require the hook context; up also
 requires a parent labnotes daemon (`python -m labnotes ... daemon`).
