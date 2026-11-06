@@ -3,8 +3,7 @@
 import asyncio
 import json
 import math
-import subprocess
-import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,7 +12,7 @@ from botbox import RunResult
 from openai import AsyncOpenAI
 
 import surprisals_experiment
-from surprisals_experiment.sdk.run_test_suite import TestResult
+from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 
 from utils.expected import decoded, masked
 from utils.run_files import run_files
@@ -172,11 +171,9 @@ class FakeLLM:
         return AsyncOpenAI(**kwargs, http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(respond)))
 
     async def run_case(self, index, stdin, expected, solution_dir, timeout_seconds):
-        # Blocking: under looptime, awaiting a real subprocess jumps virtual time to the case timeout.
-        process = subprocess.run([sys.executable, 'main.py'], cwd=solution_dir, input=stdin,
-                                 capture_output=True, text=True)
-        passed = process.returncode == 0 and process.stdout.strip() == expected.strip()
-        status = 'passed' if passed else 'runtime_error' if process.returncode else 'wrong_answer'
+        # Blocking, on its own loop: under looptime, awaiting a real subprocess jumps virtual time to the case timeout.
+        with ThreadPoolExecutor(1) as pool:
+            result = pool.submit(asyncio.run, run_case(index, stdin, expected, solution_dir, timeout_seconds)).result()
         sent = (Path(solution_dir).parent.relative_to(self.output).as_posix(), index)
         turn = next((position for position in range(self.asked, len(self.states))
                      if isinstance(self.states[position].reply, Case)
@@ -186,7 +183,7 @@ class FakeLLM:
                 await self.arrived[turn - 1]
             state, _ = await self.answer(Case, sent)
             await self.delivered(state)
-        return TestResult(index, passed, status, process.stdout, process.stderr, process.returncode)
+        return result
 
     def scorer(self, **kwargs):
         async def respond(request):

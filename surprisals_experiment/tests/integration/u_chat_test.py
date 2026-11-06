@@ -49,8 +49,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     config.max_u_turns = 2
     io = config.problem_dir / 'input_output.json'
     helpers = {'helper.py': 'VALUE = 42\n', 'nested/extra.py': 'EXTRA = 7\n', 'binary.dat': b'\xff', 'hidden.json': io}
-    mutated = {'evaluation-only.txt': '7', 'helper.py': 'MUTATED', 'main.py': MUTATING,
-               'nested/extra.py': 'EXTRA = 7\n'}
+    mutated = {'helper.py': 'VALUE = 42\n', 'main.py': MUTATING, 'nested/extra.py': 'EXTRA = 7\n'}
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     first = prompt(0, 'long advice', mutated, clean)
     best = prompt(1, 'short', clean, clean)
@@ -93,9 +92,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         u(0, 0, QUESTION, 'long advice', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         t(0, 0, 0, 'long advice', MUTATING, {**chat(0, (QUESTION, 'long advice')), **advised(0, 0, 'long advice', 11)}),
         t(0, 0, 1, 'long advice', PASS),
-        u(0, 1, first, 'short', {**evaluated(0, 0), **chat(0, (QUESTION, 'long advice'), (first, None)),
-                                 f'{turn(0, 0)}/ts/0/attempts/0/src/evaluation-only.txt': '7',
-                                 f'{turn(0, 0)}/ts/0/attempts/0/src/helper.py': 'MUTATED'}),
+        u(0, 1, first, 'short', {**evaluated(0, 0), **chat(0, (QUESTION, 'long advice'), (first, None))}),
         t(0, 1, 0, 'short', PASS, {**chat(0, (QUESTION, 'long advice'), (first, 'short')),
                                    **advised(0, 1, 'short', 5)}),
         t(0, 1, 1, 'short', PASS),
