@@ -2,6 +2,7 @@ import fcntl
 import os
 import signal
 import sys
+import time
 
 from aws_runner.cloud.cleanup import cleanup
 from aws_runner.cloud.find import find
@@ -23,7 +24,15 @@ from aws_runner.timestamp import timestamp
 
 
 def run(ec2, config, directory, command):
-    def abort(signum, frame):
+    interrupted = []
+
+    def interrupt(signum, frame):
+        if not interrupted:
+            interrupted.append(time.monotonic())
+            raise KeyboardInterrupt
+        # labnotes signals the whole process tree, so uv's forwarded copy lands moments later.
+        if time.monotonic() - interrupted[0] < 1:
+            return
         print(
             f"Cleanup aborted: AWS resources tagged {TAG}={directory} may remain",
             file=sys.stderr,
@@ -42,8 +51,8 @@ def run(ec2, config, directory, command):
             flush=True,
         )
         fcntl.flock(lock, fcntl.LOCK_EX)
-    previous_int = signal.getsignal(signal.SIGINT)
-    previous = signal.signal(signal.SIGTERM, signal.default_int_handler)
+    previous_int = signal.signal(signal.SIGINT, interrupt)
+    previous = signal.signal(signal.SIGTERM, interrupt)
     try:
         existing = find(ec2, directory)
         if existing:
@@ -79,8 +88,6 @@ def run(ec2, config, directory, command):
         cleanup(ec2, instance, volume)
         return code
     except KeyboardInterrupt:
-        signal.signal(signal.SIGINT, abort)
-        signal.signal(signal.SIGTERM, abort)
         stop(ec2, directory)
         raise
     finally:

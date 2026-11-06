@@ -142,12 +142,14 @@ def test_second_signal_exits_immediately(tmp_path, signum):
         """\
         import signal
         import sys
+        import time
         from unittest.mock import Mock, patch
 
         from aws_runner.run import run
 
         def terminate(**kwargs):
             print("terminating", flush=True)
+            time.sleep(1.1)
             signal.raise_signal(int(sys.argv[2]))
             print("continued after second signal", flush=True)
 
