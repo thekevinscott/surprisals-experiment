@@ -1,15 +1,19 @@
 """Run one stdin/stdout test case."""
 
 import asyncio
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from .results import TestResult
 
 
 async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, timeout_seconds: float) -> TestResult:
+    sandbox = Path(tempfile.mkdtemp())
+    shutil.copytree(solution_dir, sandbox / "src")
     process = await asyncio.create_subprocess_exec(
-        sys.executable, "main.py", cwd=solution_dir,
+        sys.executable, "main.py", cwd=sandbox / "src", env={},
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
     try:
@@ -29,3 +33,4 @@ async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, ti
         if process.returncode is None:
             process.kill()
         await process.communicate()
+        shutil.rmtree(sandbox, ignore_errors=True)
