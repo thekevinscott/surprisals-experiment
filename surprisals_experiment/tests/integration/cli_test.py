@@ -1,15 +1,38 @@
 """CLI options reach the real experiment, with providers replaced at the boundary."""
 
 import json
+import os
+from contextlib import chdir
+from unittest.mock import patch
 
 import pytest
 from fake_botbox import FakeSession
 from surprisals_experiment.cli.main import main
 
 
-async def test_cli_runs_with_selected_measure_and_stopping_budget(
-    config, botbox_script, scorer_provider, chat_provider, monkeypatch
-):
+@pytest.fixture
+def in_problem_dir(config):
+    with chdir(config.problem_dir):
+        yield
+
+
+@pytest.fixture
+def labnotes_log(config):
+    log = config.problem_dir / "log.jsonl"
+    with patch.dict(os.environ, {"LABNOTES_LOG": str(log)}):
+        yield log
+
+
+@pytest.fixture
+def labnotes_run_state(tmp_path):
+    state = tmp_path / "state.json"
+    state.write_text(json.dumps({"base_url": "http://state-scorer/v1"}))
+    with patch.dict(os.environ, {"LABNOTES_RUN_STATE": str(state)}):
+        yield
+
+
+@pytest.fixture
+def t_text_delta():
     original_message = FakeSession.message
 
     async def message(self, text):
@@ -24,11 +47,14 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(
         )
         await original_message(self, text)
 
-    monkeypatch.setattr(FakeSession, "message", message)
-    log = config.problem_dir / "log.jsonl"
-    monkeypatch.setenv("LABNOTES_LOG", str(log))
+    with patch.object(FakeSession, "message", message):
+        yield
+
+
+async def test_cli_runs_with_selected_measure_and_stopping_budget(
+    config, botbox_script, scorer_provider, chat_provider, t_text_delta, labnotes_log, in_problem_dir
+):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    monkeypatch.chdir(config.problem_dir)
     scorer_provider.replies.append([("Double.", 7.0)])
     botbox_script.advice.extend(["Double."] * 2)
     botbox_script.solutions.extend(["print(int(input()) * 2)"] * 4)
@@ -65,7 +91,7 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(
     assert result["cap_strategy"] == "surprisal"
     assert result["best_measurement"] == pytest.approx(7.0)
     assert len(botbox_script.sessions) == 4
-    blocks = [json.loads(line) for line in log.read_text().splitlines()]
+    blocks = [json.loads(line) for line in labnotes_log.read_text().splitlines()]
     starts = {block["id"]: block for block in blocks if block.get("phase") == "start"}
     stops = {block["id"] for block in blocks if block.get("phase") == "stop"}
     assert starts.keys() == stops
@@ -78,13 +104,9 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(
 
 
 async def test_surprisal_reads_scorer_url_from_labnotes_state(
-    config, botbox_script, scorer_provider, chat_provider, monkeypatch, tmp_path
+    config, botbox_script, scorer_provider, chat_provider, labnotes_run_state, in_problem_dir
 ):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    monkeypatch.chdir(config.problem_dir)
-    state = tmp_path / "state.json"
-    state.write_text(json.dumps({"base_url": "http://state-scorer/v1"}))
-    monkeypatch.setenv("LABNOTES_RUN_STATE", str(state))
     scorer_provider.replies.append([("Double.", 7.0)])
     botbox_script.advice.extend(["Double."] * 2)
     botbox_script.solutions.extend(["print(int(input()) * 2)"] * 4)

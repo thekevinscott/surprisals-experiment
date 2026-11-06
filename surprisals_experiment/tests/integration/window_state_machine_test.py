@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 
 from surprisals_experiment.sdk.turn import Turn
-from test_u_flush import PASS, flush, outcome, played
+from u_flush_test import PASS, flush, outcome, played
 from utils.world import U, Done, State, T
 
 QUESTION = 'Read an integer and print its double.'
