@@ -210,11 +210,14 @@ cap-strategy = ["characters", "surprisal"]
     scorer_users = Path.home() / ".runpod/users"
     hold = None
 
+    def ours(user):
+        cmdline = Path(f"/proc/{json.loads(user.read_text())['pid']}/cmdline")
+        return cmdline.exists() and str(root).encode() in cmdline.read_bytes()
+
     def hold_scorer():
         # Keeps the pod alive through invocation 1's teardown so the relaunch finds it warm.
         nonlocal hold
-        [pod] = {path.parent for path in scorer_users.glob("*/*.json")
-                 if json.loads(path.read_text())["state_dir"].startswith(str(state))}
+        [pod] = {path.parent for path in scorer_users.glob("*/*.json") if ours(path)}
         hold = pod / f"test-{os.getpid()}.json"
         hold.with_suffix(".tmp").write_text(json.dumps({"state_dir": str(tmp_path), "pid": os.getpid()}))
         hold.with_suffix(".tmp").replace(hold)
