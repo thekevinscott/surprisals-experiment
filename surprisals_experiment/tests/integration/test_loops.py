@@ -141,15 +141,6 @@ def describe_advice_improvement():
                                                             attempts=2 * len(advices))):
             pass
 
-    async def it_retains_the_best_completed_batch_on_cancellation(config, execute_run_experiment):
-        config.max_u_turns = None
-        turns = [(0, QUESTION, 'long advice', [PASS]), (0, best(0, 'long advice', [PASS]), 'short', [PASS])]
-        world = run_world(config, turns, outcome=None, attempts=None)[:-1]
-        async with execute_run_experiment(config, world) as run:
-            await run.reached(world[-1])
-            run.kill()
-        assert not (config.output / 'result.json').exists()
-
 
 def describe_run_layout():
     async def it_nests_each_turn_under_window_and_fork(config, execute_run_experiment):

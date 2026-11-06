@@ -21,5 +21,10 @@ def surviving_volume(ec2, directory):
             ec2.get_waiter("instance_terminated").wait(InstanceIds=[instance_id])
         elif old["State"]["Name"] != "terminated":
             raise RuntimeError("The previous volume writer is not terminated")
+    if volume["State"] == "deleting" or any(
+        attachment.get("DeleteOnTermination") for attachment in volume["Attachments"]
+    ):
+        ec2.get_waiter("volume_deleted").wait(VolumeIds=[volume["VolumeId"]])
+        return None
     ec2.get_waiter("volume_available").wait(VolumeIds=[volume["VolumeId"]])
     return volume
