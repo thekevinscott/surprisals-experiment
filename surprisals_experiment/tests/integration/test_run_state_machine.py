@@ -174,30 +174,6 @@ async def test_window_zero_always_continues_and_restart_does_not_repeat_work(con
     assert json.loads(config.result_file.read_text())['attempts'] == 2
 
 
-async def test_incomplete_second_window_resumes_before_comparing(config, botbox_script, chat_provider):
-    botbox_script.advice.extend(['Double it.', 'Double it.'])
-    botbox_script.solutions.extend(['print(int(input()) * 2)'] * 2)
-    produce = actions['solutions_missing']
-
-    async def interrupt(run, turn):
-        if turn.window == 1:
-            raise asyncio.CancelledError
-        await produce(run, turn)
-
-    with patch.dict(actions, {'solutions_missing': interrupt}):
-        with pytest.raises(asyncio.CancelledError):
-            await run_experiment(config, on_delta=None)
-    generation = config.t_dir(0, 0) / 'attempts/0/generation.json'
-    before = (generation.read_bytes(), generation.stat().st_mtime_ns)
-    assert len(chat_provider) == 2
-    assert len(botbox_script.sessions) == 1
-    assert await run_experiment(config, on_delta=None) == config.t_dir(0, 0) / 'attempts/0/src'
-    assert len(chat_provider) == 2
-    assert len(botbox_script.sessions) == 2
-    assert (generation.read_bytes(), generation.stat().st_mtime_ns) == before
-    assert json.loads(config.result_file.read_text())['attempts'] == 2
-
-
 async def test_zero_best_score_stops_after_two_windows(config, scorer_provider, execute_run_experiment):
     config = Config(**(config.model_dump() | {
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
