@@ -119,7 +119,7 @@ def world(config):
 
 
 def restart(world, kill):
-    """The killed world, the restarted world, and its final files: an uninterrupted run's, moved by the kill."""
+    """The killed world, its files, the restarted world, and its final files: an uninterrupted run's, moved by the kill."""
     snapshots = []
     for entry in world:
         snapshots.append({**(snapshots[-1] if snapshots else {}), **entry.files})
@@ -164,6 +164,7 @@ def restart(world, kill):
         def resent(sent):
             return (new, sent[1]) if isinstance(sent, tuple) and sent[0] == old else sent
 
+    killed_files = on_disk
     restarted = []
     for entry, snapshot in zip(world[kill:], snapshots[kill:]):
         after = moved(snapshot)
@@ -171,7 +172,12 @@ def restart(world, kill):
         on_disk = after
         restarted.append(State(entry.reply, sent=resent(entry.sent), logs=entry.logs, files=files)
                          if isinstance(entry, State) else Done(outcome=outcome, logs=entry.logs, files=files))
-    return world[:kill + 1], restarted, on_disk
+    return world[:kill + 1], killed_files, restarted, on_disk
+
+
+def found(output, expected):
+    return {path: decoded(expected[path], content) if path in expected else content
+            for path, content in run_files(output).items()}
 
 
 def finished(output):
@@ -186,11 +192,12 @@ async def test_uninterrupted(config, world, execute_run_experiment):
 
 @pytest.mark.parametrize('kill', range(len(KILL_POINTS)), ids=KILL_POINTS)
 async def test_restart_from_every_kill_point(config, world, execute_run_experiment, kill):
-    killed, restarted, final = restart(world, kill)
+    killed, killed_files, restarted, final = restart(world, kill)
 
     async with execute_run_experiment(config, killed) as run:
         await run.reached(killed[-1])
         run.kill()
+    assert found(config.output, killed_files) == killed_files
     before = finished(config.output)
     folders = sorted(config.output.parent.iterdir())
     async with execute_run_experiment(config, restarted):
@@ -199,6 +206,4 @@ async def test_restart_from_every_kill_point(config, world, execute_run_experime
     after = finished(config.output)
     assert {path: after.get(path) for path in before} == before
     assert sorted(config.output.parent.iterdir()) == folders
-    files = run_files(config.output)
-    assert {path: decoded(final[path], content) if path in final else content
-            for path, content in files.items()} == final
+    assert found(config.output, final) == final
