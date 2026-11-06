@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1793993952,
+  "exit_code": 0,
+  "commit": "b27b033525c747197e0f10778378dd35401679cb",
+  "branch": "fix/bounded-case-output-359"
+}

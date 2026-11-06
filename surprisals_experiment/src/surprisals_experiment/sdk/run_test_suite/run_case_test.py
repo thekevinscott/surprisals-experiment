@@ -35,3 +35,11 @@ async def test_solution_does_not_see_the_runner_environment(tmp_path, monkeypatc
     (tmp_path / 'main.py').write_text("import os\nprint(os.environ.get('RUNNER_SECRET'))\n")
     result = await run_case(0, '', 'None', tmp_path, 5)
     assert result.stdout.strip() == 'None'
+
+
+@pytest.mark.parametrize('fd', [1, 2])
+async def test_output_beyond_the_limit_fails_without_keeping_it(tmp_path, fd):
+    (tmp_path / 'main.py').write_text(f"import os\nfor _ in range(64):\n    os.write({fd}, b'x' * (1 << 20))\n")
+    result = await run_case(0, '', '7', tmp_path, 30)
+    assert result.status == 'error'
+    assert len(result.stdout) + len(result.stderr) < 1 << 20
