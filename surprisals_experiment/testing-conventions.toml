@@ -7,8 +7,3 @@ reason = "U's LLM call: opener binds AsyncOpenAI at import, so the fake must rep
 path = "tests/integration/resume_test.py"
 rules = ["no-first-party-patch", "no-inline-patch"]
 reason = "patches run_experiment actions and write_result to kill a run; black-boxing tracked in #287"
-
-[[python.exempt]]
-path = "tests/integration/window_state_machine_test.py"
-rules = ["no-first-party-patch", "no-inline-patch"]
-reason = "patches window actions and ChatSession.prompt to kill a run; black-boxing tracked in #294"
