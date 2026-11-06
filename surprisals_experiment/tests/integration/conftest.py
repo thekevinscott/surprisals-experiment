@@ -13,6 +13,9 @@ import pytest
 from botbox import Botbox, RunResult
 from surprisals_experiment.config import Config
 
+pytest.register_assert_rewrite('utils')
+import utils.execute_run_experiment  # noqa: E402
+
 
 @dataclass
 class Script:
@@ -130,7 +133,7 @@ def no_retry_wait(monkeypatch):
     return waits
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def config(tmp_path):
     problem = tmp_path / "problem"
     problem.mkdir()
@@ -258,7 +261,7 @@ def chat_provider(botbox_script):
         yield requests
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def scorer_provider():
     """Serve prompt logprobs over mocked HTTP, keeping measurement and retries real."""
     import math
@@ -317,3 +320,8 @@ async def scorer_provider():
         yield script
     for client in clients:
         await client.aclose()
+
+
+@pytest.fixture(autouse=True)
+def execute_run_experiment():
+    return utils.execute_run_experiment.execute_run_experiment
