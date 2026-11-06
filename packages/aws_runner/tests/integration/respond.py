@@ -2,12 +2,18 @@ import subprocess
 
 
 def respond(state, args, **kwargs):
+    if args[0] == "ssh" and "cat > /srv/aws-runner/command.sh" in args[-1]:
+        state["shipped"] = True
+    if args[0] == "ssh" and args[-1] == "test -f /srv/aws-runner/command.sh":
+        return subprocess.CompletedProcess(args, 0 if state["shipped"] else 1)
     if args[:3] == ["git", "rev-parse", "--show-toplevel"]:
         output = state["checkout"]
     elif args[:3] == ["git", "rev-parse", "HEAD"]:
         output = "abc123\n"
     elif args[:3] == ["git", "status", "--porcelain"]:
         output = " M experiment.py\n"
+    elif args[0] == "ssh" and "if [ -f" in args[-1] and not state["shipped"]:
+        output = ""
     elif args[0] == "ssh" and "if [ -f" in args[-1]:
         output = state["polls"].pop(0) if len(state["polls"]) > 1 else state["polls"][0]
         if isinstance(output, int):
