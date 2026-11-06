@@ -262,15 +262,17 @@ def test_experiment_relaunch_continues_both_cells(
                 expect(term.get_by_text(cell)).to_be_visible(timeout=1200)
             if invocation == 1:
 
-                def sampling():
+                def advised():
                     return len(folders()) == 2 and all(
-                        any(folder.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-                        and not (folder / "result.json").exists()
+                        any(
+                            "score" in json.loads(p.read_text())
+                            for p in folder.rglob("advice.json")
+                        )
                         and record(folder).get("ended") is None
                         for folder in folders()
                     )
 
-                wait_for(sampling)
+                wait_for(advised, timeout=2400)
                 original = folders()
                 assert {
                     record(folder)["params"]["cap-strategy"] for folder in original
@@ -304,8 +306,7 @@ def test_experiment_relaunch_continues_both_cells(
                 assert folders() == original, "Relaunch created new run folders"
                 wait_for(
                     lambda original=original, before=before: all(
-                        set(folder.glob("windows/*/forks/*/turns/*/ts/*/tests.json"))
-                        - before[folder][0].keys()
+                        snapshot(folder)[0].keys() - before[folder][0].keys()
                         for folder in original
                     ),
                     timeout=2400,
