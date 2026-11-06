@@ -125,7 +125,7 @@ async def test_gives_queued_samples_their_own_full_budget(config, execute_run_ex
     config.t_sample_timeout = .2
     best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
     states, pending = played([[(QUESTION, 'Double.', [PASS] * 3)], [(best, 'Double.', [PASS] * 3)]],
-                             {'Double.': {'score': 7}}, sequential=True)
+                             {'Double.': {'score': 7}}, sequential=True, config=config)
     for state in states:
         if isinstance(state.reply, T):
             state.reply.seconds = .1

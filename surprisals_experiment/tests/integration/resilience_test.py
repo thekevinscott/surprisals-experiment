@@ -72,7 +72,7 @@ class Traceback(str):
 async def test_failed_reply_retries_original_history(
     config, execute_run_experiment, failure, shown, error, recorded, row,
 ):
-    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}})
+    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}}, config=config)
     retried, tested = world[0], world[1]
     asked = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
     partial = [] if recorded is None else [recorded]
@@ -92,7 +92,7 @@ async def test_failed_reply_retries_original_history(
 
 async def test_credential_proxy_startup_retries(config, execute_run_experiment):
     first, second = f'{TURN}/ts/0/attempts/0', f'{TURN}/ts/0/attempts/1'
-    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}})
+    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}}, config=config)
     for state in world:
         state.files = {path.replace(first, second): value for path, value in state.files.items()}
     built = world[1]
@@ -178,7 +178,7 @@ async def test_cancellation_reaps_evaluator_before_cleanup(config, botbox_script
 async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     config, execute_run_experiment, t, failure,
 ):
-    world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}})
+    world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}}, config=config)
     generation = (lambda attempt: {f'{TURN}/ts/0/attempts/{attempt}/generation.json': {'exit_code': -1}}
                   if t.exit_code == -1 else {})
     for attempt in range(9):

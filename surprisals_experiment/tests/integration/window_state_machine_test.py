@@ -142,7 +142,7 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
 
 async def test_later_window_preserves_global_best(config, execute_run_experiment):
     world, pending = played([[(QUESTION, 'A', [PASS])], [(flush(0, 'A', length=1), 'Longer advice', [PASS])]],
-                            {'A': {'score': 1}, 'Longer advice': {'score': 13}})
+                            {'A': {'score': 1}, 'Longer advice': {'score': 13}}, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world):
         pass

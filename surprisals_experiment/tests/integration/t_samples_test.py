@@ -29,7 +29,7 @@ async def test_requires_every_sample_to_pass(config, execute_run_experiment):
     config.t_samples = 3
     best = flush(0, 'double it', length=9, codes=[PASS] * 3)
     states, pending = played([[(QUESTION, 'double it', [PASS] * 3)], [(best, 'double it', [PASS] * 3)]],
-                             {'double it': {'score': 9}})
+                             {'double it': {'score': 9}}, config=config)
     states[0].files['settings.json'] = settings(config)
     async with execute_run_experiment(config, [*states, outcome(config, TURN, 2, pending)]):
         pass
@@ -47,7 +47,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, execute_run_e
     states, pending = played([
         [(QUESTION, 'one', [PASS, FAIL, PASS]), (QUESTION, 'two', [PASS] * 3)],
         [(best, 'two', [PASS] * 3)] * 2,
-    ], {'one': {'score': 3}, 'two': {'score': 3}})
+    ], {'one': {'score': 3}, 'two': {'score': 3}}, config=config)
     async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/1', 4, pending)]):
         pass
     assert result(config)['attempts'] == 4
@@ -58,7 +58,7 @@ async def test_returns_all_outcomes_before_revising_advice(config, execute_run_e
 
 async def test_closes_all_t_sessions_on_cancellation(config, execute_run_experiment):
     config.t_samples = 5
-    [asked], pending = played([[(QUESTION, 'double it', [])]], {'double it': {'score': 9}})
+    [asked], pending = played([[(QUESTION, 'double it', [])]], {'double it': {'score': 9}}, config=config)
     world = [asked, hung(0, pending), hung(1), hung(2)]
     async with execute_run_experiment(config, world) as run:
         await run.reached(world[-1])
@@ -69,7 +69,7 @@ async def test_closes_all_t_sessions_on_cancellation(config, execute_run_experim
 async def test_preserves_partial_batches_without_claiming_success(config, execute_run_experiment):
     config.t_samples = 3
     config.t_pool_size = 1
-    states, pending = played([[(QUESTION, 'double it', [PASS])]], {'double it': {'score': 9}})
+    states, pending = played([[(QUESTION, 'double it', [PASS])]], {'double it': {'score': 9}}, config=config)
     world = [*states, hung(1, pending)]
     async with execute_run_experiment(config, world) as run:
         await run.reached(world[-1])
