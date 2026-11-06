@@ -23,7 +23,6 @@ a UTC timestamp, each change to `lastStatusChange`, `lastStartedAt`, and
 `portMappings`. If readiness takes over ten minutes or up fails, it saves the
 pod's system and container logs (last 5000 lines, each with RunPod's own
 timestamp) to `runpod-logs.jsonl` in the state folder before any deletion.
-Image pull and weight download appear only in those logs.
 
 Each invocation has a JSON file under `~/.runpod/users/<pod_id>/`, keyed by its
 state folder. It records the folder containing `$LABNOTES_STATE` and the nearest
