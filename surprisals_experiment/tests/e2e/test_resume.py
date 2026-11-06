@@ -123,8 +123,8 @@ LADDER = (
 )
 # RunPod scorer start over 10 minutes means something is wrong.
 SETUP = 600
-# Twice the measured AWS launch-to-code-running (~133 s).
-LAUNCH = 270
+# About twice the measured AWS launch-to-code-running (max 161 s).
+LAUNCH = 330
 # Twice one U turn with thinking off plus one T sample.
 SAMPLE = 300
 
@@ -287,7 +287,7 @@ cap-strategy = ["characters", "surprisal"]
                     if aws:
                         assert instances[folder, 2] != instances[folder, 1]
                 if aws:
-                    deadline = time.monotonic() + 180
+                    deadline = time.monotonic() + 80
                     while any(any(resources(folder)) for folder in original):
                         assert time.monotonic() < deadline, "Tagged AWS resources survived cleanup"
                         time.sleep(2)
