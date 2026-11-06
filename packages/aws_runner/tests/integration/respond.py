@@ -16,6 +16,12 @@ def respond(state, args, **kwargs):
         output = state.get("unit", "inactive")
     else:
         output = ""
+    if (
+        "--unit=aws-runner " in args[-1]
+        and "--collect" not in args[-1]
+        and state.get("unit") == "failed"
+    ):
+        raise subprocess.CalledProcessError(1, args)
     if args[0] == "rsync" and args[-2].startswith("ubuntu@") and state["fail_copy"]:
         raise subprocess.CalledProcessError(23, args)
     if args[0] == "rsync" and args[-2].startswith("ubuntu@"):
