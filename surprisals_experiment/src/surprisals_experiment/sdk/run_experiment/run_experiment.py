@@ -6,7 +6,7 @@ from pathlib import Path
 from state_machine import Stop, state_machine
 from surprisals_experiment.config import Config
 
-from ..database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from ..run import Run
 from ..utils.u_chat import open_u_chat
 from ..utils.write import write
