@@ -73,6 +73,11 @@ def check_result(output, forks, samples):
                for entry in replies) == len(turns)
 
 
+def sigint_default():
+    # A shell's background job inherits SIGINT ignored, and so would the CLI.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+
 def describe_real_cli_resume():
     def it_resumes_sigint_in_the_fork_round(tmp_path):
         output = tmp_path / 'run'
@@ -83,13 +88,13 @@ def describe_real_cli_resume():
 
         args = command(output, forks=2, samples=1)
         with (tmp_path / 'cli.log').open('w') as log:
-            process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
+            process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log, preexec_fn=sigint_default)
             try:
                 wait_until(process, lambda: len(finished()) == 1 and len(list(forks.glob('*/fork.json'))) == 2)
                 process.send_signal(signal.SIGINT)
                 assert process.wait(timeout=120) != 0
                 before = snapshot(output)
-                process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log)
+                process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log, preexec_fn=sigint_default)
                 wait_until(process, lambda: len(finished()) == 2)
                 process.send_signal(signal.SIGINT)
                 process.wait(timeout=120)
