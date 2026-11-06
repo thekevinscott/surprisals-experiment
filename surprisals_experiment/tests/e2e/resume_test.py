@@ -207,6 +207,18 @@ cap-strategy = ["characters", "surprisal"]
             )
             time.sleep(0.2)
 
+    scorer_users = Path.home() / ".runpod/users"
+    hold = None
+
+    def hold_scorer():
+        # Keeps the pod alive through invocation 1's teardown so the relaunch finds it warm.
+        nonlocal hold
+        [pod] = {path.parent for path in scorer_users.glob("*/*.json")
+                 if json.loads(path.read_text())["state_dir"].startswith(str(state))}
+        hold = pod / f"test-{os.getpid()}.json"
+        hold.with_suffix(".tmp").write_text(json.dumps({"state_dir": str(tmp_path), "pid": os.getpid()}))
+        hold.with_suffix(".tmp").replace(hold)
+
     term = None
     active = False
     original = set()
@@ -245,6 +257,7 @@ cap-strategy = ["characters", "surprisal"]
                 for folder in folders():
                     [instances[folder, invocation]] = live(folder)
             if invocation == 1:
+                hold_scorer()
                 wait_for(lambda f: any(f.glob(ATTEMPTS)), attempt)
                 original = folders()
                 assert {
@@ -289,3 +302,9 @@ cap-strategy = ["characters", "surprisal"]
                 expect(term.get_by_text("Stop them")).to_be_visible()
                 term.write("s")
             settled()
+        if hold is not None:
+            hold.unlink(missing_ok=True)
+            subprocess.run(
+                ["uv", "run", "--project", "runpod_scorer", "runpod-scorer", "reap"],
+                cwd=root, check=True,
+            )
