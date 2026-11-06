@@ -3,7 +3,7 @@ name = "report"
 version = "0.1.0"
 description = "Summarize advice and T attempts in a run folder"
 requires-python = ">=3.14"
-dependencies = ["surprisals-experiment"]
+dependencies = ["run-database"]
 
 [project.scripts]
 report = "report:main"
@@ -13,4 +13,4 @@ requires = ["uv_build>=0.13.5,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
-surprisals-experiment = { path = "../../surprisals_experiment", editable = true }
+run-database = { path = "../../packages/run_database", editable = true }

@@ -1,6 +1,6 @@
 from dirsql import Table
 
-from surprisals_experiment.sdk.database import Database
+from run_database import Database
 
 
 async def test_query_runs_a_string_or_loads_a_path(tmp_path):

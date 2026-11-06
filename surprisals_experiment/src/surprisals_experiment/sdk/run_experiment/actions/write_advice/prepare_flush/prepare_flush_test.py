@@ -6,7 +6,7 @@ from advice_artifacts import write_advice
 import pytest
 
 from surprisals_experiment.config import Config
-from surprisals_experiment.sdk.database import ExperimentDatabase, QuestionDatabase
+from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 
 PASS = 'print(int(input()) * 2)\n'

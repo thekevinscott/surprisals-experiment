@@ -3,7 +3,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from surprisals_experiment.sdk.database import ExperimentDatabase
+from run_database import ExperimentDatabase
 
 SQL = Path(__file__).with_name('report.sql')
 
