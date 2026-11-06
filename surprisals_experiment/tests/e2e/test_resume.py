@@ -125,8 +125,9 @@ LADDER = (
 SETUP = 600
 # About twice the measured AWS launch-to-code-running (max 161 s).
 LAUNCH = 330
-# Twice one U turn with thinking off plus one T sample.
-SAMPLE = 300
+# Twice the slowest measured U turn (thinking off) plus one T sample (~290 s).
+SAMPLE = 600
+TESTS = "windows/*/forks/*/turns/*/ts/*/attempts/*/tests.json"
 
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
@@ -206,9 +207,6 @@ cap-strategy = ["characters", "surprisal"]
     def record(folder):
         return json.loads((folder / "run.json").read_text())
 
-    def sampled(folder, index):
-        return any(folder.glob(f"windows/*/forks/*/turns/*/ts/{index}/attempts/*/tests.json"))
-
     def settled():
         # Daemons drop discovery records after all runs AND teardown finish and the view leaves.
         deadline = time.monotonic() + 180
@@ -256,7 +254,8 @@ cap-strategy = ["characters", "surprisal"]
                 for folder in folders():
                     [instances[folder, invocation]] = live(folder)
             if invocation == 1:
-                wait_for(lambda f: sampled(f, 0) and not sampled(f, 1), sample)
+                # The last run to finish a T sample is stopped while sampling the next.
+                wait_for(lambda f: any(f.glob(TESTS)), sample)
                 original = folders()
                 assert {
                     record(folder)["params"]["cap-strategy"] for folder in original
@@ -271,8 +270,9 @@ cap-strategy = ["characters", "surprisal"]
                 assert all(record(folder)["exit_code"] != 0 for folder in original)
                 settled()
                 before = {folder: snapshot(folder) for folder in original}
+                tested = {folder: set(folder.glob(TESTS)) for folder in original}
             else:
-                wait_for(lambda f: sampled(f, 1), sample)
+                wait_for(lambda f: set(f.glob(TESTS)) - tested[f], sample)
                 going = not all(record(folder)["ended"] for folder in original)
                 term.key_ctrl_c()
                 if going:
