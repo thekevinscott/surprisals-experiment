@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration -q",
+  "ran_at": 1794003728,
+  "exit_code": 0,
+  "commit": "1eaa0f165b9e7acc84009bebb7646bc96cead825",
+  "branch": "fix/scorer-overflow-retry-u"
+}
