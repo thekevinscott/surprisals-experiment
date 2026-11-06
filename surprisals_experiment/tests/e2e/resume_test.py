@@ -116,8 +116,8 @@ LADDER = (
 SETUP = 600
 # About twice the measured AWS launch-to-code-running (max 161 s).
 LAUNCH = 330
-# Twice the slowest measured start to first T attempt (~53 s); T finishing depends on the model.
-ATTEMPT = 120
+# Covers a U turn, measured 25 s to over 7 min; two of these fit a 30-minute cell.
+ATTEMPT = 600
 ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
 
 
