@@ -12,6 +12,8 @@ def respond(state, args, **kwargs):
         output = state["polls"].pop(0) if len(state["polls"]) > 1 else state["polls"][0]
         if isinstance(output, int):
             raise subprocess.CalledProcessError(output, args)
+    elif args[0] == "ssh" and "is-active" in args[-1]:
+        output = state.get("unit", "inactive")
     else:
         output = ""
     if args[0] == "rsync" and args[-2].startswith("ubuntu@") and state["fail_copy"]:
