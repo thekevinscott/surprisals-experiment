@@ -38,5 +38,6 @@ jobs:
     uses: thekevinscott/testing-conventions/.github/workflows/testing-conventions.yml@v0
     with:
       source: surprisals_experiment/src
-      gates: '["e2e-verify", "one-function-per-file"]'
+      config: surprisals_experiment/testing-conventions.toml
+      gates: '["e2e-verify", "one-function-per-file", "integration-lint"]'
       run_e2e: true
