@@ -21,7 +21,7 @@ def create_pod(model, gpu, key):
         f"{teardown.API}/pods",
         key,
         json={
-            "name": "surprisal-scorer",
+            "name": "surprisal-scorer-24k",
             "imageName": "vllm/vllm-openai:v0.30.0",
             "cloudType": "SECURE",
             "computeType": "GPU",
@@ -64,7 +64,7 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
             pods = teardown.scorer_pods(key)
             if len(pods) > 1:
                 raise RuntimeError(
-                    "Multiple surprisal-scorer pods already exist: "
+                    "Multiple surprisal-scorer-24k pods already exist: "
                     + ", ".join(p["id"] for p in pods)
                 )
             if pods:

@@ -49,7 +49,7 @@ def delete_pod(pod_id, key):
 def scorer_pods(key):
     result = request("GET", f"{API}/pods", key)
     result.raise_for_status()
-    return [pod for pod in result.json() if pod["name"] == "surprisal-scorer"]
+    return [pod for pod in result.json() if pod["name"] == "surprisal-scorer-24k"]
 
 
 def release(pod_id, key, own=None):

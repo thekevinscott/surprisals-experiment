@@ -247,7 +247,7 @@ def test_up_outside_setup_does_not_create_pod(fake_http, monkeypatch):
 def scorer(model=setup.DEFAULT_MODEL, pod_id="pod1", status="RUNNING"):
     return {
         "id": pod_id,
-        "name": "surprisal-scorer",
+        "name": "surprisal-scorer-24k",
         "desiredStatus": status,
         "dockerStartCmd": ["--model", model],
     }

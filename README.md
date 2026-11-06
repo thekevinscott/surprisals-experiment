@@ -122,7 +122,7 @@ Review the advice-minimization behavior, then evaluate it in live runs before ad
 ## Shared RunPod scorer
 
 The [runpod_scorer package](runpod_scorer/README.md) shares one pod named
-`surprisal-scorer` across labnotes invocations on mentees. Under a host-local
+`surprisal-scorer-24k` across labnotes invocations on mentees. Under a host-local
 lock, setup reuses the scorer or creates it if absent, rejects a different
 model, and registers the invocation's state folder and daemon PID. It saves
 the pod ID to labnotes state before waiting for readiness outside the lock.
