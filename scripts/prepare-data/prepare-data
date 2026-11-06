@@ -20,7 +20,7 @@ def download(url, path, attempts=4):
 
 
 def main():
-    data = Path(__file__).resolve().parent.parent / 'data'
+    data = Path(__file__).resolve().parents[2] / 'data'
     data.mkdir(exist_ok=True)
     archive = data / 'APPS.tar.gz'
     download(URL, archive)

@@ -1,6 +1,6 @@
 # Surprisals Experiment
 
-Download the dataset using the [APPS setup instructions](../scripts/README.md).
+Download the dataset using the [APPS setup instructions](../scripts/prepare-data/README.md).
 
 ```bash
 uv run python -m surprisals_experiment.cli.run \

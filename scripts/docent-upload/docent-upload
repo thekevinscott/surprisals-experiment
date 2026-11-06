@@ -5,7 +5,7 @@
 # ///
 """Upload a run's U and T Pi transcripts to the Docent collection named after its experiment.
 
-Usage: uv run scripts/docent-upload experiments/<experiment>/runs/<run>
+Usage: uv run scripts/docent-upload/docent-upload experiments/<experiment>/runs/<run>
 """
 
 import json
