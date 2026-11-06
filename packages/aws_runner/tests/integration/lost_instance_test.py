@@ -1,5 +1,4 @@
 import subprocess
-from functools import partial
 
 import pytest
 from respond import respond

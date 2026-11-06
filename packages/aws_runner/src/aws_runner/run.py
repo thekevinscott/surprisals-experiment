@@ -11,7 +11,7 @@ from aws_runner.cloud.surviving_volume import surviving_volume
 from aws_runner.config import TAG
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
-from aws_runner.remote.monitor import monitor
+from aws_runner.remote.monitor import InstanceLost, monitor
 from aws_runner.remote.prepare import prepare
 from aws_runner.remote.restore import restore
 from aws_runner.remote.result import result
@@ -55,11 +55,13 @@ def run(ec2, config, directory, command):
                 timestamp("shipped")
                 start(config, instance, command, working_directory)
                 timestamp("command started")
-        code = monitor(config, instance, directory)
+        code = monitor(ec2, config, instance, directory)
         collect(config, instance, directory)
         timestamp("collected")
         cleanup(ec2, instance, volume)
         return code
+    except InstanceLost:
+        pass
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, abort)
         signal.signal(signal.SIGTERM, abort)
@@ -68,3 +70,4 @@ def run(ec2, config, directory, command):
     finally:
         signal.signal(signal.SIGINT, previous_int)
         signal.signal(signal.SIGTERM, previous)
+    return run(ec2, config, directory, [])
