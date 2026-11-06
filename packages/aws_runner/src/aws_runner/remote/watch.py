@@ -19,6 +19,9 @@ done
     )
     subprocess.run(
         connection
-        + [f"sudo systemd-run --unit=aws-runner-collect /bin/sh {ROOT}/watch.sh"],
+        + [
+            f"sudo systemd-run --unit=aws-runner-collect /bin/sh {ROOT}/watch.sh"
+            " || systemctl is-active -q aws-runner-collect"
+        ],
         check=True,
     )

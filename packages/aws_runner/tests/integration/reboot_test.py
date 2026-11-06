@@ -26,7 +26,14 @@ def test_relaunch_restarts_command_lost_to_reboot(cloud, transport, tmp_path, un
 def test_monitor_restarts_command_lost_to_reboot(cloud, transport, tmp_path, unit):
     ec2, _, config = cloud
     execute, _, state = transport
-    state["unit"] = unit
-    state["polls"] = ["", 255, 255, "", "0"]
+    state["polls"] = ["", 255, 255, (unit, ""), "0"]
     assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 0
     assert units(execute) == (1 if unit == "active" else 2)
+
+
+def test_monitor_restarts_command_killed_without_exit_code(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    state["polls"] = ["", ("inactive", ""), "", "0"]
+    assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 0
+    assert units(execute) == 2
