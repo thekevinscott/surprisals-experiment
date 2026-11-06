@@ -1,5 +1,7 @@
 """Advice units, scoring, and wording for both experimental arms."""
 
+import math
+
 from measure_surprisal import Client, measure_surprisal
 from openai import BadRequestError
 from tenacity import retry_if_exception_type, retry_if_not_exception_type
@@ -40,7 +42,10 @@ class AdviceMeasure:
                 raise
             raise BadRequestError(f"Advice exceeded the scorer's context limit: {error}",
                                   response=error.response, body=error.body) from error
-        return sum(bits for _, bits in tokens), tokens
+        score = sum(bits for _, bits in tokens)
+        if not math.isfinite(score):
+            raise ValueError(f"Scorer returned non-finite surprisal: {tokens}")
+        return score, tokens
 
     @property
     def unit(self) -> str:
