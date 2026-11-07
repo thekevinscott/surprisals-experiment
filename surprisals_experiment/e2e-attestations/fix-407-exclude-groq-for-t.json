@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/e2e/startup_test.py -q",
+  "ran_at": 1794079167,
+  "exit_code": 0,
+  "commit": "71f923131590639be4eddbacef8b7e13b09cb82b",
+  "branch": "fix/407-exclude-groq-for-t"
+}
