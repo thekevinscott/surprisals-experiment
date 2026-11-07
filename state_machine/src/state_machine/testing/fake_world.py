@@ -1,4 +1,4 @@
-"""Answers a run from a world (see world.py), pausing the run after each reply to check its state.
+"""Answers a run from a world (see state_machine/README.md), pausing the run after each reply to check its state.
 
 A consumer subclasses it to fake whatever the run calls, answering each call through `answer` and
 `delivered`.
@@ -6,9 +6,10 @@ A consumer subclasses it to fake whatever the run calls, answering each call thr
 
 import asyncio
 
-from .expected import decoded, masked
+from .done import Done
+from .expected import REMOVED, decoded, masked
 from .run_files import run_files
-from .world import REMOVED, Done, State
+from .state import State
 
 
 class FakeWorld:
