@@ -1,3 +1,4 @@
+import math
 import subprocess
 import sys
 import time
@@ -15,6 +16,8 @@ class InstanceLost(Exception):
 def monitor(ec2, config, instance, directory):
     result_failing = False
     mirror_failing = False
+    quick_deaths = 0
+    restarted = -math.inf
     offsets = [0, 0]
     stream, reader = follow(config, instance, offsets)
     next_mirror = time.monotonic() + 10
@@ -26,7 +29,20 @@ def monitor(ec2, config, instance, directory):
             try:
                 code, running = result(config, instance)
                 if code is None and not running:
+                    now = time.monotonic()
+                    quick_deaths = quick_deaths + 1 if now - restarted < 600 else 0
+                    if quick_deaths == 3:
+                        print(
+                            "Command died within 10 min of each of 3 restarts; giving up",
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                        stream.terminate()
+                        stream.wait()
+                        reader.join()
+                        return 1
                     execute(config, instance)
+                    restarted = now
             except subprocess.CalledProcessError as error:
                 if error.returncode != 255:
                     raise
