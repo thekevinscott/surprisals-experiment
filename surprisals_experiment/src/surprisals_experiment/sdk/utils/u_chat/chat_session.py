@@ -16,6 +16,7 @@ class ChatSession:
     model: str
     thinking: str
     transcript: Path
+    max_tokens: int | None = None
     messages: list[dict] = field(default_factory=list)
 
     attempt: int | None = None

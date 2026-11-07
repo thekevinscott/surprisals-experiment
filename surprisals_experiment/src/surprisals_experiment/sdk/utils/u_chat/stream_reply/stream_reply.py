@@ -3,7 +3,7 @@
 import json
 from datetime import UTC, datetime
 
-from openai import LengthFinishReasonError
+from openai import LengthFinishReasonError, omit
 
 from ...write import write
 from .errors import IncompleteStreamError, ProviderError
@@ -20,6 +20,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
     try:
         async with self.client.chat.completions.stream(
             model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
+            max_tokens=omit if self.max_tokens is None else self.max_tokens,
         ) as stream:
             async for event in stream:
                 snapshot = stream.current_completion_snapshot

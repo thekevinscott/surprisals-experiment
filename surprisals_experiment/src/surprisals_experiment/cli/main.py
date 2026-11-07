@@ -27,6 +27,11 @@ async def main(argv: list[str] | None = None) -> None:
         default="high",
         help="U thinking level (default: high)",
     )
+    parser.add_argument(
+        "--u-max-tokens",
+        type=int,
+        help="Per-call cap on U output tokens, reasoning included (default: provider limit)",
+    )
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
     parser.add_argument(
         "--cap-strategy",
@@ -124,6 +129,7 @@ async def main(argv: list[str] | None = None) -> None:
                 output=args.output,
                 u_model=args.U,
                 u_thinking=args.u_thinking,
+                u_max_tokens=args.u_max_tokens,
                 t_model=args.T,
                 cap_strategy=args.cap_strategy,
                 scorer_base_url=args.scorer_base_url,
