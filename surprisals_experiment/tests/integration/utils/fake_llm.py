@@ -1,4 +1,4 @@
-"""Fakes U and T from a world (see world.py), pausing the run after each reply to check its state."""
+"""Fakes U and T from a world (see state_machine/README.md), pausing the run after each reply to check its state."""
 
 import asyncio
 import json

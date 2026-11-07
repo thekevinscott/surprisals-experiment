@@ -19,5 +19,7 @@ Actions must change what `state(*args)` reads, or the same action runs again.
 ## Testing
 
 `state_machine.testing` runs a machine against a world and checks the files it leaves on disk.
-A world is a list of `State`s, each a reply to one request and the logs and files expected right after it, ending in `Done` unless the run is killed.
+A world is a list of `State`s in call order, each a reply to one request and the logs and files expected right after it, ending in `Done` unless the run is killed.
+Expected `files` hold only what changed since the previous state.
+Contents are str (text), bytes, dict (JSON) or list (JSON lines); `REMOVED` marks a deleted path; `...` at any depth means "present, not checked".
 Subclass `FakeWorld` to fake what the run calls, answering each call with `answer` and `delivered`; `execute(fake, run)` drives the run and checks every state and the end.

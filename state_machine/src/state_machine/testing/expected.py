@@ -1,6 +1,6 @@
 import json
 
-from .world import REMOVED
+REMOVED = object()
 
 
 def masked(expected, actual):
