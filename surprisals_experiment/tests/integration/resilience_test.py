@@ -9,6 +9,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import U_MODEL
 from surprisals_experiment.retry_policy.constants import DELAYS
+from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
 from utils.world import U, T, t_sent, u_system
 
@@ -140,22 +141,33 @@ async def test_length_and_http_errors_share_one_budget(config, in_problem_dir, c
     assert '8 retries exhausted' in error
 
 
-@pytest.mark.xfail(strict=True, reason='undecided: the run still exits once retries run out')
-async def test_run_continues_after_u_output_limit_exhaustion(config, execute_run_experiment):
+async def test_output_limit_fails_the_turn_and_runs_the_next_one(config, execute_run_experiment):
     config.max_u_turns = 2
-    error = 'U hit its output token limit'
-    world, pending = played([[(QUESTION, 'Use a loop', [PASS])]], {'Use a loop': {'score': 10}})
-    messages = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
-    failed = []
-    files = world[0].files
-    for attempt in range(9):
-        logs = [(f'{TURN}/u', 'retry', f'{attempt}/8 in {DELAYS[attempt - 1]}s: {error}\n')] if attempt else []
-        failed.append(State(U('partial', finish='length'), sent=world[0].sent,
-                            logs=[*logs, (f'{TURN}/u', 'text', 'partial')], files=files))
-        messages = [*messages, PARTIAL]
-        files = {'u/transcripts/messages.jsonl': messages, 'u/transcripts/usage.jsonl': [OK] * (attempt + 1)}
-    world[0].files = files
-    async with execute_run_experiment(config, [*failed, *world, outcome(config, TURN, 1, pending)]):
+    advice = 'Use a loop'
+    best = flush(1, advice, length=10)
+    failed_turn = [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True},
+                   PARTIAL, {'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True}]
+    asked = [chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'][0], *failed_turn]
+    answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
+    world = [
+        State(U('partial', finish='length'), sent=u_state(config, 0, 0, QUESTION, advice, {}).sent,
+              logs=[(f'{TURN}/u', 'text', 'partial')],
+              files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        u_state(config, 0, 1, QUESTION, advice, {
+            f'{TURN}/metadata.json': {'advice': None, 'error': 'U hit its output token limit'},
+            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK]}),
+        t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
+                                     'u/transcripts/usage.jsonl': [OK, OK], **advised(0, 1, advice, 10)}),
+        u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
+                previous=10),
+        t_state(1, 0, 0, 0, advice, {**chat(1, (best, advice)), **advised(1, 0, advice)}),
+        u_state(config, 1, 1, best, advice, {**evaluated(attempt(1, 0, 0)), **chat(1, (best, advice), (best, None))},
+                previous=10),
+        t_state(1, 1, 0, 0, advice, {**chat(1, (best, advice), (best, advice)), **advised(1, 1, advice)}),
+        Done(outcome=config.output / attempt(0, 1, 0) / 'src',
+             files={**evaluated(attempt(1, 1, 0)), **solved(config, attempt(0, 1, 0), 3)}),
+    ]
+    async with execute_run_experiment(config, world):
         pass
 
 
