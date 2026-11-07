@@ -213,14 +213,6 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         pass
 
 
-async def test_records_an_exact_role_for_an_incomplete_reply(config, execute_run_experiment):
-    world = exhausted(config, U('partial', finish='length', usage=USAGE),
-                      'U hit its output token limit (30 completion tokens, 20 reasoning tokens)',
-                      recorded={'role': 'assistant', 'content': 'partial', '_complete': False}, usage=USAGE)
-    async with execute_run_experiment(config, world):
-        pass
-
-
 async def test_does_not_accept_empty_replies(config, execute_run_experiment):
     world = exhausted(config, U(finish=None), 'U chat stream ended before completion',
                       recorded={'role': 'assistant', '_complete': False})

@@ -1,14 +1,13 @@
 """Observed provider failures, bounded retries, and interrupted-run diagnostics."""
 
 import json
-from contextlib import chdir
 
 import httpx2
 import pytest
 
 from state_machine.testing import Done, State
-from surprisals_experiment.config import U_MODEL
 from surprisals_experiment.retry_policy.constants import DELAYS
+from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
 from utils.world import U, T, t_sent, u_system
 
@@ -51,9 +50,6 @@ class Traceback(str):
                  [('thinking', 'partial reasoning'), ('text', 'partial')],
                  f'U chat provider error: {json.dumps(CHUNK)}',
                  PARTIAL | {'reasoning': 'partial reasoning', 'provider_error': CHUNK}, OK, id='provider-error'),
-    pytest.param(U('partial', finish='length', usage=USAGE), [('text', 'partial')],
-                 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)', PARTIAL,
-                 OK | {'usage': USAGE}, id='output-limit'),
 ])
 async def test_failed_reply_retries_original_history(
     config, execute_run_experiment, failure, shown, error, recorded, row,
@@ -94,68 +90,37 @@ async def test_credential_proxy_startup_retries(config, execute_run_experiment):
         pass
 
 
-async def exit_code(run):
-    try:
-        await run
-    except SystemExit as exit:
-        return exit.code
-
-
-@pytest.fixture
-def in_problem_dir(config):
-    with chdir(config.problem_dir):
-        yield
-
-
-async def test_length_and_http_errors_share_one_budget(config, in_problem_dir, capsys, execute_run_experiment):
-    from surprisals_experiment.cli.main import main
-
-    (config.problem_dir / '.env').write_text('OPENROUTER_API_KEY=test-key\n')
-    limit = {'prompt_tokens': 10, 'completion_tokens': 100, 'total_tokens': 110,
-             'completion_tokens_details': {'reasoning_tokens': 99}}
-    replies = [U(status=503), U('partial', finish='length')] * 4 + [U('partial', finish='length', usage=limit)]
-    sent = {'model': U_MODEL, 'stream': True, 'reasoning': {'effort': 'high'},
-            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config.model_copy(update={'max_u_turns': None}), 1)},
-                         {'role': 'user', 'content': QUESTION}]}
-    messages = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
-    usage = []
-    world = []
-    files = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
-             'u/transcripts/messages.jsonl': messages}
-    for reply in replies:
-        world.append(State(reply, sent=sent, files=files))
-        usage = [*usage, OK | ({'completion_id': None} if reply.status != 200 else {'usage': reply.usage})]
-        files = {'u/transcripts/usage.jsonl': usage}
-        if reply.status == 200:
-            messages = [*messages, PARTIAL]
-            files['u/transcripts/messages.jsonl'] = messages
-    world.append(Done(outcome=2, files=files))
-    async with execute_run_experiment(config, world, run=exit_code(main(
-            ['--window-forks', '1', '--output', str(config.output), '--t-samples', '1', str(config.problem_dir)]))):
-        pass
-    error = capsys.readouterr().err.splitlines()[-1]
-    assert 'U hit its output token limit' in error
-    assert '100 completion tokens' in error and '99 reasoning tokens' in error
-    assert '8 retries exhausted' in error
-
-
-@pytest.mark.xfail(strict=True, reason='undecided: the run still exits once retries run out')
-async def test_run_continues_after_u_output_limit_exhaustion(config, execute_run_experiment):
+async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(config, execute_run_experiment):
     config.max_u_turns = 2
-    error = 'U hit its output token limit'
-    world, pending = played([[(QUESTION, 'Use a loop', [PASS])]], {'Use a loop': {'score': 10}})
-    messages = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
-    failed = []
-    files = world[0].files
-    for attempt in range(9):
-        logs = [(f'{TURN}/u', 'retry', f'{attempt}/8 in {DELAYS[attempt - 1]}s: {error}\n')] if attempt else []
-        failed.append(State(U('partial', finish='length'), sent=world[0].sent,
-                            logs=[*logs, (f'{TURN}/u', 'text', 'partial')], files=files))
-        messages = [*messages, PARTIAL]
-        files = {'u/transcripts/messages.jsonl': messages, 'u/transcripts/usage.jsonl': [OK] * (attempt + 1)}
-    world[0].files = files
-    async with execute_run_experiment(config, [*failed, *world, outcome(config, TURN, 1, pending)]):
+    advice = 'Use a loop'
+    best = flush(1, advice, length=10)
+    failed_turn = [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True},
+                   PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ...},
+                   {'role': 'user', 'content': QUESTION, '_reset': True}]
+    asked = [chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'][0], *failed_turn]
+    answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
+    world = [
+        State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
+              sent=u_state(config, 0, 0, QUESTION, advice, {}).sent,
+              logs=[(f'{TURN}/u', 'thinking', 'Cut off'), (f'{TURN}/u', 'text', 'partial')],
+              files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
+        # Turn 1 is sent only its system prompt and the question: no partial reasoning or content.
+        u_state(config, 0, 1, QUESTION, advice, {
+            f'{TURN}/metadata.json': {
+                'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
+            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}),
+        t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
+                                     'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK], **advised(0, 1, advice, 10)}),
+        u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
+                previous=10),
+        t_state(1, 0, 0, 0, advice, {**chat(1, (best, advice)), **advised(1, 0, advice)}),
+        u_state(config, 1, 1, best, advice, {**evaluated(attempt(1, 0, 0)), **chat(1, (best, advice), (best, None))},
+                previous=10),
+        t_state(1, 1, 0, 0, advice, {**chat(1, (best, advice), (best, advice)), **advised(1, 1, advice)}),
+        Done(outcome=config.output / attempt(0, 1, 0) / 'src',
+             files={**evaluated(attempt(1, 1, 0)), **solved(config, attempt(0, 1, 0), 3)}),
+    ]
+    async with execute_run_experiment(config, world):
         pass
 
 

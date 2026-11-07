@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest 'tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round' -p no:cacheprovider",
+  "ran_at": 1794086737,
+  "exit_code": 0,
+  "commit": "6cfbaaf27127bf7a77e6a0cb833b3cd8f93bc05f",
+  "branch": "fix/435-u-output-limit-fails-turn"
+}
