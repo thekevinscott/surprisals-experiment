@@ -29,6 +29,7 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     assert not botbox_script.sessions
     assert chat_provider[0]['reasoning'] == {'effort': 'high'}
     assert 'tools' not in chat_provider[0]
+    assert 'max_tokens' not in chat_provider[0]
     assert [message['role'] for message in chat_provider[1]['messages']] == ['system', 'user']
     assert ''.join(text for kind, text in deltas if kind == 'text') == 'first\nadvice'
     assert ('thinking', 'Thinking.') in deltas
@@ -39,6 +40,15 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
     assert len(usage) == 2
     assert all(entry['usage'] is None for entry in usage)
+
+
+async def test_caps_u_output_tokens_when_set(config, botbox_script, chat_provider):
+    config.u_max_tokens = 4096
+    botbox_script.advice.append('advice')
+    async with open_u_chat(config) as session:
+        await session.prompt('question')
+    assert chat_provider[0]['max_tokens'] == 4096
+    assert chat_provider[0]['reasoning'] == {'effort': 'high'}
 
 
 async def test_saves_partial_output_on_cancellation(config, botbox_script):
