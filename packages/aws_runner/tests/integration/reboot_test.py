@@ -37,3 +37,11 @@ def test_monitor_restarts_command_killed_without_exit_code(cloud, transport, tmp
     state["polls"] = ["", ("inactive", ""), "", "0"]
     assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 0
     assert units(execute) == 2
+
+
+def test_monitor_waits_out_unit_being_torn_down(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    state["polls"] = ["", ("deactivating", ""), "", "0"]
+    assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 0
+    assert units(execute) == 1
