@@ -1,10 +1,13 @@
 """A fresh Pi executor with live thinking and text callbacks."""
 
+import json
 import shlex
 from collections.abc import Callable
 
 from .receive_event import receive_event
 from .retrying_pi_agent import RetryingPiAgent
+
+MODELS = ".pi/agent/models.json"
 
 
 class TAgent(RetryingPiAgent):
@@ -27,6 +30,14 @@ class TAgent(RetryingPiAgent):
             + " --append-system-prompt "
             + shlex.quote(self.instructions)
         )
+
+    def stage_auth(self, home) -> None:
+        super().stage_auth(home)
+        content, _ = home.files[MODELS]
+        models = json.loads(content)
+        # Groq rejects gpt-oss bash calls that omit the optional `timeout` (#407).
+        models["providers"]["openrouter"]["compat"] = {"openRouterRouting": {"ignore": ["groq"]}}
+        home.write(MODELS, json.dumps(models))
 
     def receive(self, event: dict) -> None:
         receive_event(event, on_delta=self.on_delta)
