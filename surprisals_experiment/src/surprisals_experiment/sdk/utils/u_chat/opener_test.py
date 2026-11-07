@@ -111,7 +111,7 @@ async def test_rebuilt_transcript_matches_live_session(
     replies = ['first']
     if mode == 'partial':
         replies.append({'deltas': [{'role': 'assistant', 'content': 'unfinished'}],
-                        'finish': 'length'})
+                        'finish': 'content_filter'})
     replies.append('second')
     botbox_script.advice.extend(replies)
     async with open_u_chat(config) as live:
