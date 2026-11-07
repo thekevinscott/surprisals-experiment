@@ -69,6 +69,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
             states.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                      'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(config, index + 1, best)},
                                    {'role': 'user', 'content': prompt}]},
                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)],

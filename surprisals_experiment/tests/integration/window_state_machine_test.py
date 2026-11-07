@@ -69,6 +69,7 @@ def run_world(config, rounds, advice, code):
             states.append(State(
                 U(text, thinking='Shorten.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                      'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(config, position + 1, start and len(start[1]))},
                                    {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],

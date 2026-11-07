@@ -28,6 +28,7 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
         assert await session.prompt('feedback') == 'next'
     assert not botbox_script.sessions
     assert chat_provider[0]['reasoning'] == {'effort': 'high'}
+    assert all(request['provider'] == {'only': ['xiaomi'], 'allow_fallbacks': False} for request in chat_provider)
     assert 'tools' not in chat_provider[0]
     assert [message['role'] for message in chat_provider[1]['messages']] == ['system', 'user']
     assert ''.join(text for kind, text in deltas if kind == 'text') == 'first\nadvice'

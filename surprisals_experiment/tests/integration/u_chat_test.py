@@ -34,6 +34,7 @@ def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id=
                 **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
             'messages': [{'role': 'system', 'content': u_system(config, 1)}, {'role': 'user', 'content': QUESTION}]}
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
@@ -62,6 +63,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         path = f'{turn(window, number)}/u'
         return State(U(advice, thinking='Think.'),
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                           'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                            'messages': [{'role': 'system', 'content': u_system(config, number + 1, previous)},
                                         {'role': 'user', 'content': user}]},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
@@ -147,6 +149,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return State(
             U(advice, thinking='Think.'),
             sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                  'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                   'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)},
                                {'role': 'user', 'content': user}]},
             logs=[(f'windows/{window}/forks/0/turns/{turn}/u', 'thinking', 'Think.'),

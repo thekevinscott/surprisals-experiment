@@ -1,0 +1,7 @@
+{
+  "command": "uv run --env-file ../../../.env python /tmp/claude/issue429/live.py",
+  "ran_at": 1794082572,
+  "exit_code": 0,
+  "commit": "78ba3aa8eb11f9d3920d1c2eea1ffff3faf5b733",
+  "branch": "pin-u-xiaomi"
+}

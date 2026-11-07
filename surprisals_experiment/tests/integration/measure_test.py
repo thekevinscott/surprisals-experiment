@@ -84,6 +84,7 @@ def u_state(config, path, user, advice, files, previous=None):
     system = u_system(config, int(path.rsplit('/', 1)[1]) + 1, previous)
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                        'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 

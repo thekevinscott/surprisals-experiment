@@ -17,6 +17,7 @@ def u_state(config, window, turn, prompt, advice, files, previous=None):
     path = f'windows/{window}/forks/0/turns/{turn}'
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                        'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
                                     {'role': 'user', 'content': prompt}]},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
