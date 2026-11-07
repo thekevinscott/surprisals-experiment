@@ -1,4 +1,4 @@
-"""Fakes U and T from a world (see state_machine/README.md), pausing the run after each reply to check its state."""
+"""Mocks U and T from a world (see state_machine/README.md), pausing the run after each reply to check its state."""
 
 import asyncio
 import json
@@ -12,13 +12,13 @@ from botbox import RunResult
 from openai import AsyncOpenAI
 
 import surprisals_experiment
-from state_machine.testing import FakeWorld, masked
+from state_machine.testing import MockWorld, masked
 from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 
 from utils.world import U, Case, Score, T
 
 
-class FakeLLM(FakeWorld):
+class MockLLM(MockWorld):
     def __init__(self, world, output):
         super().__init__(world, output)
         self.boxes = []

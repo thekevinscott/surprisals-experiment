@@ -7,24 +7,24 @@ from .expected import described
 
 
 @asynccontextmanager
-async def execute(fake, run):
-    fake.task = asyncio.create_task(run)
-    fake.task.add_done_callback(fake.ended)
+async def execute(mock, run):
+    mock.task = asyncio.create_task(run)
+    mock.task.add_done_callback(mock.ended)
     try:
-        yield fake
+        yield mock
     except BaseException:
-        fake.task.cancel()
-        await asyncio.gather(fake.task, return_exceptions=True)
+        mock.task.cancel()
+        await asyncio.gather(mock.task, return_exceptions=True)
         raise
-    fake.release()
-    [outcome] = await asyncio.gather(fake.task, return_exceptions=True)
-    if fake.failure:
-        raise fake.failure
-    for future in fake.arrived:
+    mock.release()
+    [outcome] = await asyncio.gather(mock.task, return_exceptions=True)
+    if mock.failure:
+        raise mock.failure
+    for future in mock.arrived:
         future.result()
-    if fake.killed:
-        assert fake.done is None, 'A killed world ends at its kill state, without Done'
+    if mock.killed:
+        assert mock.done is None, 'A killed world ends at its kill state, without Done'
     else:
-        assert fake.done is not None, f'The run ended ({outcome!r}); a world that is not killed ends with Done'
-        assert described(outcome) == described(fake.done.outcome), 'Done outcome'
-        fake.check('Done', fake.done)
+        assert mock.done is not None, f'The run ended ({outcome!r}); a world that is not killed ends with Done'
+        assert described(outcome) == described(mock.done.outcome), 'Done outcome'
+        mock.check('Done', mock.done)
