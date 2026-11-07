@@ -1,6 +1,6 @@
 """Answers a run from a world (see state_machine/README.md), pausing the run after each reply to check its state.
 
-A consumer subclasses it to fake whatever the run calls, answering each call through `answer` and
+A consumer subclasses it to mock whatever the run calls, answering each call through `answer` and
 `delivered`.
 """
 
@@ -12,7 +12,7 @@ from .run_files import run_files
 from .state import State
 
 
-class FakeWorld:
+class MockWorld:
     def __init__(self, world, output):
         self.states = [state for state in world if isinstance(state, State)]
         self.done = world[-1] if len(world) > 0 and isinstance(world[-1], Done) else None
