@@ -1,0 +1,7 @@
+{
+  "command": "uv run python -m surprisals_experiment.cli.run --help",
+  "ran_at": 1794079070,
+  "exit_code": 0,
+  "commit": "765db740f9e2c5cc62e90a3e0d06f4c12b01e26c",
+  "branch": "fix-419-fork-turns"
+}
