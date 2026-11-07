@@ -23,6 +23,7 @@ class Config(BaseModel):
     output: Path
     u_model: str
     u_thinking: ThinkingLevel
+    u_provider: str = "xiaomi"
     t_model: str
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None

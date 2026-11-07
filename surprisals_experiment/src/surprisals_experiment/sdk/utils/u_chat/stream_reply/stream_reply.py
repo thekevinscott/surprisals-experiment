@@ -21,7 +21,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
         async with self.client.chat.completions.stream(
             model=self.model, messages=self.messages, extra_body={
                 "reasoning": reasoning,
-                "provider": {"only": ["xiaomi"], "allow_fallbacks": False},
+                "provider": {"only": [self.provider], "allow_fallbacks": False},
             },
         ) as stream:
             async for event in stream:

@@ -29,7 +29,7 @@ async def open_u_chat(config, *, transcripts=None) -> AsyncGenerator[ChatSession
         transcripts = config.u_transcripts if transcripts is None else transcripts
         transcripts.mkdir(parents=True, exist_ok=True)
         u_chat = ChatSession(
-            client, config.u_model, config.u_thinking,
+            client, config.u_model, config.u_thinking, config.u_provider,
             transcripts / "messages.jsonl",
         )
         if u_chat.transcript.exists():
