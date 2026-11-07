@@ -3,15 +3,22 @@
 import asyncio
 import contextlib
 import os
+import resource
 import shutil
 import signal
 import sys
 import tempfile
 from pathlib import Path
 
+from surprisals_experiment.config import TEST_MEMORY_BYTES
+
 from .results import TestResult
 
 OUTPUT_MARGIN_BYTES = 1 << 20
+
+
+def limit_memory() -> None:
+    resource.setrlimit(resource.RLIMIT_AS, (TEST_MEMORY_BYTES, TEST_MEMORY_BYTES))
 
 
 async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, timeout_seconds: float) -> TestResult:
@@ -20,7 +27,7 @@ async def run_case(index: int, stdin: str, expected: str, solution_dir: Path, ti
         process = await asyncio.create_subprocess_exec(
             sys.executable, "main.py", cwd=Path(sandbox) / "src", env={},
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            start_new_session=True,
+            start_new_session=True, preexec_fn=limit_memory,
         )
         limit = len(expected.encode()) + OUTPUT_MARGIN_BYTES
 

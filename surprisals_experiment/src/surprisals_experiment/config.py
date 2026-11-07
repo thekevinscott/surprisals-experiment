@@ -13,6 +13,7 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 T_MODEL = "openai/gpt-oss-120b"
 TEST_TIMEOUT_SECONDS = 5
+TEST_MEMORY_BYTES = 512 << 20
 RESTART_OVERRIDES = {"api_key", "problem_dir", "output", "scorer_base_url", "t_pool_size", "t_sample_timeout"}
 
 
