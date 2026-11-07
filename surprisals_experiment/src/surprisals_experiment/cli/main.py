@@ -22,6 +22,9 @@ async def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument(
+        "--u-provider", default="xiaomi", help="OpenRouter provider U is pinned to (default: xiaomi)"
+    )
+    parser.add_argument(
         "--u-thinking",
         choices=get_args(ThinkingLevel),
         default="high",
@@ -124,6 +127,7 @@ async def main(argv: list[str] | None = None) -> None:
                 output=args.output,
                 u_model=args.U,
                 u_thinking=args.u_thinking,
+                u_provider=args.u_provider,
                 t_model=args.T,
                 cap_strategy=args.cap_strategy,
                 scorer_base_url=args.scorer_base_url,
