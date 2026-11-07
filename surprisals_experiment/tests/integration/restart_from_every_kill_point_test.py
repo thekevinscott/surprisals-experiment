@@ -95,6 +95,7 @@ def build(output, settings, rounds, failing, advices):
             world.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                      'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(system, position + 1, previous if window else None)},
                                    {'role': 'user', 'content': user}]},
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],

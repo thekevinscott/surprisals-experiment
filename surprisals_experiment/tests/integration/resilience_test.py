@@ -115,6 +115,7 @@ async def test_length_and_http_errors_share_one_budget(config, in_problem_dir, c
              'completion_tokens_details': {'reasoning_tokens': 99}}
     replies = [U(status=503), U('partial', finish='length')] * 4 + [U('partial', finish='length', usage=limit)]
     sent = {'model': U_MODEL, 'stream': True, 'reasoning': {'effort': 'high'},
+            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
             'messages': [{'role': 'system', 'content': u_system(config.model_copy(update={'max_u_turns': None}), 1)},
                          {'role': 'user', 'content': QUESTION}]}
     messages = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']

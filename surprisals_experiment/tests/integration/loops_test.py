@@ -15,6 +15,7 @@ FAIL = 'print(0)\n'
 
 def u_body(config, turn, user, best):
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
             'messages': [{'role': 'system', 'content': u_system(config, turn + 1, best)},
                          {'role': 'user', 'content': user}]}
 
