@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest 'tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round' -p no:cacheprovider",
+  "ran_at": 1794083283,
+  "exit_code": 0,
+  "commit": "48b1b4a5d53c954dbf3431bcce1e8ed85df796cb",
+  "branch": "u-provider-setting-433"
+}
