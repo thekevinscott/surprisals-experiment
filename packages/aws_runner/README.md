@@ -10,7 +10,7 @@ uv run --project packages/aws_runner aws_runner run /tmp/hw -- sh -c 'echo hello
 Setup uses the local AWS profile, the default VPC, a caller-IP-only SSH rule,
 and an RSA key stored with mode 0600 under `~/.config/aws_runner/`. The AMI is
 explicitly pinned in that config; select stock Ubuntu with an architecture
-matching `--instance-type` (default `t3.small`). `--cidr YOUR-IP/32` avoids public
+matching `--instance-type` (default `m7i.large`). `--cidr YOUR-IP/32` avoids public
 IP discovery. Re-running setup updates the SSH rule and reuses the key.
 The local host needs SSH and rsync. The subnet needs internet access.
 

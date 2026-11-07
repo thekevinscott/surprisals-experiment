@@ -19,7 +19,7 @@ def main():
     )
     init.add_argument("--region", required=True)
     init.add_argument("--cidr", help="Caller IPv4 /32; otherwise detect public IP")
-    init.add_argument("--instance-type", default="t3.small")
+    init.add_argument("--instance-type", default="m7i.large")
     init.add_argument("--volume-size", type=int, default=20)
     job = commands.add_parser("run")
     job.add_argument("directory", type=Path)
