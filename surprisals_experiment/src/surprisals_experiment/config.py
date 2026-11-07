@@ -22,6 +22,7 @@ class Config(BaseModel):
     output: Path
     u_model: str
     u_thinking: ThinkingLevel
+    u_max_tokens: int | None = Field(default=None, ge=1)
     t_model: str
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
