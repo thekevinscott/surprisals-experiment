@@ -35,8 +35,10 @@ class TAgent(RetryingPiAgent):
         super().stage_auth(home)
         content, _ = home.files[MODELS]
         models = json.loads(content)
-        # Groq rejects gpt-oss bash calls that omit the optional `timeout` (#407).
-        models["providers"]["openrouter"]["compat"] = {"openRouterRouting": {"ignore": ["groq"]}}
+        # One provider keeps T's behavior fixed; fp4 matches the scorer's checkpoint (#431).
+        models["providers"]["openrouter"]["compat"] = {
+            "openRouterRouting": {"only": ["coreweave/fp4"], "allow_fallbacks": False}
+        }
         home.write(MODELS, json.dumps(models))
 
     def receive(self, event: dict) -> None:
