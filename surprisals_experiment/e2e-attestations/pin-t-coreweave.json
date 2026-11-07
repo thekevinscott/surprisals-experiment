@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/e2e/startup_test.py -q",
+  "ran_at": 1794082792,
+  "exit_code": 0,
+  "commit": "aeb24ed17c6161eff8d18aae8a266d43398cf06b",
+  "branch": "pin-t-coreweave"
+}
