@@ -8,6 +8,12 @@ WITH current_turn AS (
   WHERE windows.position = :window
 )
 SELECT CASE
+  WHEN NOT EXISTS (SELECT 1 FROM current_turn) AND EXISTS (
+    SELECT 1 FROM windows
+    JOIN forks ON forks.window_id = windows.id AND forks.position = :fork
+    JOIN turns ON turns.fork_id = forks.id AND turns.position = :turn
+    WHERE windows.position = :window
+  ) THEN 'turn_done'
   WHEN NOT EXISTS (SELECT 1 FROM current_turn) THEN 'advice_missing'
   WHEN (SELECT score FROM current_turn) IS NULL THEN 'unscored'
   WHEN coalesce((SELECT samples FROM evaluated_turns

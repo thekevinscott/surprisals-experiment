@@ -1,11 +1,11 @@
 WITH fork_turns AS (
   SELECT turns.position,
-         advices.score IS NOT NULL AND coalesce(evaluated_turns.samples, 0) + coalesce(exhausted.samples, 0) >= :samples AS done
+         turn_advice.turn_id IS NULL OR advices.score IS NOT NULL AND coalesce(evaluated_turns.samples, 0) + coalesce(exhausted.samples, 0) >= :samples AS done
   FROM windows
   JOIN forks ON forks.window_id = windows.id AND forks.position = :fork
   JOIN turns ON turns.fork_id = forks.id
-  JOIN turn_advice ON turn_advice.turn_id = turns.id
-  JOIN advices ON advices.id = turn_advice.advice_id
+  LEFT JOIN turn_advice ON turn_advice.turn_id = turns.id
+  LEFT JOIN advices ON advices.id = turn_advice.advice_id
   LEFT JOIN evaluated_turns ON evaluated_turns.id = turns.id
   LEFT JOIN (SELECT turn_id, count(*) AS samples FROM (
     SELECT turn_id FROM t_attempts WHERE timed_out GROUP BY turn_id, sample HAVING count(*) >= :timeouts

@@ -40,6 +40,8 @@ class ExperimentDatabase(Database):
 
         def turn_advice(path):
             metadata = json.loads(Path(path).read_text())
+            if metadata["advice"] is None:
+                return []
             return [{"turn_id": str(relative(path).parent), "advice_id": metadata["advice"]}]
 
         def generation(path):
