@@ -16,12 +16,14 @@ from curtaincall import expect
 
 PACKAGE = Path(__file__).resolve().parents[2]
 PROBLEM = '../data/APPS/test/2286'
+# Fast U; the experiment's U once spent 13 min writing a 24k-token reply.
+U = 'google/gemini-2.5-flash-lite'
 
 
 def command(output, forks=1, samples=2):
     return [sys.executable, '-m', 'surprisals_experiment.cli.run',
             '--output', str(output), '--cap-strategy', 'characters',
-            '--u-thinking', 'off', '--t-samples', str(samples),
+            '-U', U, '--u-thinking', 'off', '--t-samples', str(samples),
             '--t-pool-size', '1', '--max-u-turns', '1',
             '--window-forks', str(forks), '--fork-turns', '1',
             '--window-solo-turns', '0', PROBLEM]
@@ -110,7 +112,7 @@ def describe_real_cli_resume():
 
 
 LADDER = (
-    "--u-thinking off --t-samples 2 --t-pool-size 1 --window-forks 1"
+    f"-U {U} --u-thinking off --t-samples 2 --t-pool-size 1 --window-forks 1"
     " --fork-turns 1 --window-solo-turns 0 --max-u-turns 1"
 )
 # RunPod scorer start over 10 minutes means something is wrong.
