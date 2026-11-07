@@ -24,3 +24,11 @@ async def test_case_exceeding_five_seconds_fails(tmp_path):
     results = await run_test_suite_for_t([{'input': '', 'output': 'done'}], tmp_path)
     assert results.passed == 0
     assert results.cases[0].stderr == 'Test exceeded 5 seconds'
+
+
+async def test_case_exceeding_the_memory_budget_fails_and_the_suite_continues(tmp_path):
+    (tmp_path / 'main.py').write_text("if input() == 'big':\n    x = bytearray(1 << 30)\nprint('done')\n")
+    results = await run_test_suite_for_t(
+        [{'input': 'big', 'output': 'done'}, {'input': 'small', 'output': 'done'}], tmp_path)
+    assert [case.passed for case in results.cases] == [False, True]
+    assert 'MemoryError' in results.cases[0].stderr
