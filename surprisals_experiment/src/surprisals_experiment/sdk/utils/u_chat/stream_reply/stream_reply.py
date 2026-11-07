@@ -19,7 +19,10 @@ async def stream_reply(self, *, on_delta=None) -> str:
     reasoning_formats = {}
     try:
         async with self.client.chat.completions.stream(
-            model=self.model, messages=self.messages, extra_body={"reasoning": reasoning},
+            model=self.model, messages=self.messages, extra_body={
+                "reasoning": reasoning,
+                "provider": {"only": ["xiaomi"], "allow_fallbacks": False},
+            },
         ) as stream:
             async for event in stream:
                 snapshot = stream.current_completion_snapshot
