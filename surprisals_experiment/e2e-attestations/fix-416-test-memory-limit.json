@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest src/surprisals_experiment/sdk/run_test_suite -q",
+  "ran_at": 1794079167,
+  "exit_code": 0,
+  "commit": "0314860855ebe6e8a81cf0ab7fb62aed6a24dfe4",
+  "branch": "fix/416-test-memory-limit"
+}
