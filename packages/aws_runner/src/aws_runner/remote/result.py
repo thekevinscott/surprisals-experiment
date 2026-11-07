@@ -17,4 +17,5 @@ def result(config, instance):
         text=True,
     )
     unit, _, code = status.stdout.partition("\n")
-    return (int(code) if code.strip() else None), unit.strip() == "active"
+    running = unit.strip() not in ("inactive", "failed")
+    return (int(code) if code.strip() else None), running
