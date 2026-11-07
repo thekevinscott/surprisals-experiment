@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest -q src/surprisals_experiment/sdk/utils/u_chat tests/integration/u_chat_test.py",
+  "ran_at": 1794079484,
+  "exit_code": 0,
+  "commit": "aa309983458a3ebc4713c62fe09598ce1e222b4c",
+  "branch": "u-reasoning-budget"
+}
