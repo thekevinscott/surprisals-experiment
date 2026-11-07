@@ -6,3 +6,6 @@ path = "experiments/{experiment}/files/"
 
 [runs]
 path = "experiments/{experiment}/runs/{run}"
+
+[experiment.env]
+AWS_PROFILE = "surprisals-runner"
