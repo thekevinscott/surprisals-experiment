@@ -45,3 +45,13 @@ def test_monitor_waits_out_unit_being_torn_down(cloud, transport, tmp_path):
     state["polls"] = ["", ("deactivating", ""), "", "0"]
     assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 0
     assert units(execute) == 1
+
+
+def test_monitor_gives_up_on_command_that_keeps_dying(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, state = transport
+    state["polls"] = ["", *[("inactive", "")] * 5, "0"]
+    assert run(ec2, config, tmp_path / "run", ["sleep", "20"]) == 1
+    assert units(execute) == 4
+    instances = ec2.describe_instances()["Reservations"][0]["Instances"]
+    assert instances[0]["State"]["Name"] == "terminated"
