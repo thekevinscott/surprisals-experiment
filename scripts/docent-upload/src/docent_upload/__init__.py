@@ -13,6 +13,7 @@ from docent.data_models.chat import (
     AssistantMessage,
     ContentReasoning,
     ContentText,
+    SystemMessage,
     ToolCall,
     ToolMessage,
     UserMessage,
@@ -27,6 +28,8 @@ def text(content):
 
 def convert_message(message):
     role, content = message["role"], message["content"]
+    if role == "system":
+        return SystemMessage(content="\n\n".join(message["sections"].values()))
     if role == "user":
         return UserMessage(content=text(content))
     if role == "toolResult":
