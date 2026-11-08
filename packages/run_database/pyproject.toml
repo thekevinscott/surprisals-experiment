@@ -3,7 +3,7 @@ name = "run-database"
 version = "0.1.0"
 description = "SQL over a run folder and an APPS problem folder"
 requires-python = ">=3.14"
-dependencies = ["dirsql>=0.4.136"]
+dependencies = ["dirsql"]
 
 [build-system]
 requires = ["uv_build>=0.13.3,<0.14.0"]
@@ -16,3 +16,6 @@ dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0"]
 testpaths = ["src"]
 python_files = ["*_test.py"]
 asyncio_mode = "auto"
+
+[tool.uv.sources]
+dirsql = { git = "https://github.com/thekevinscott/dirsql.git", subdirectory = "packages/python", rev = "21e404578333534a41670919f1e41011cceb0e2e" }

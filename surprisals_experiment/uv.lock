@@ -17,6 +17,9 @@ lamp-the-djinn = false
 pyskillet = false
 repo-name-checker = false
 
+[manifest]
+overrides = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" }]
+
 [[package]]
 name = "annotated-types"
 version = "0.8.0"
@@ -190,18 +193,10 @@ wheels = [
 
 [[package]]
 name = "dirsql"
-version = "0.4.136"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.7"
+source = { git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e#21e404578333534a41670919f1e41011cceb0e2e" }
 dependencies = [
     { name = "bin-shim" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/81/1c/385c50de91ec46bb94e7a22eec5b2ef6760734c0e29e6006147457d17617/dirsql-0.4.136.tar.gz", hash = "sha256:33c60a16a2d584f181c467cbaa87969020f8bde830e134291059c4dfe96d7f75", size = 743915, upload-time = "2026-11-04T20:12:06.168Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/c0/55d654576fd7f29c12437244d8a88f84564d51b52458a11ce80894a31729/dirsql-0.4.136-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:f82429b316f04288b2a2433609ac76003c216d4cfa82c66d0a0bd612d1eef852", size = 3637971, upload-time = "2026-11-04T20:11:58.038Z" },
-    { url = "https://files.pythonhosted.org/packages/fc/8d/8afdc6b34129ddcbc9f0e9d05b057cdec5e4953389e33e92f1e1a912b99d/dirsql-0.4.136-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:fa30b51c1ef0368dec18e4862ab83530b5d464ce437646fb84db3abb511043f2", size = 3433550, upload-time = "2026-11-04T20:11:59.923Z" },
-    { url = "https://files.pythonhosted.org/packages/a8/2e/c315d195f868434a3c6f7deffae242307a24eed3fc3f477f8118ab679e70/dirsql-0.4.136-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:2ad1a3f4e44a4dc51b96307bd6af31316858f715689a975cdfb1aa4ded1a2e80", size = 3671708, upload-time = "2026-11-04T20:12:01.384Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/09/2015d98d07e14b993a52ec6d6a72c805bc8ff4a91b72a38abdb0fd4bccef/dirsql-0.4.136-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:e5debec5432627e1a82f2e161ea77420020a8e44043e943d4054c09fa438c150", size = 3878241, upload-time = "2026-11-04T20:12:03.035Z" },
-    { url = "https://files.pythonhosted.org/packages/74/c4/f300ecf0d3fe9b33acec4e37a7392b9b714d3ac355c4858d261dfe206824/dirsql-0.4.136-cp310-abi3-win_amd64.whl", hash = "sha256:1ecb64f3f0479cb2c9018cffa17c3562d8f70977b9d4f801f895a4a98c268168", size = 3860689, upload-time = "2026-11-04T20:12:04.53Z" },
 ]
 
 [[package]]
@@ -1031,7 +1026,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "dirsql", specifier = ">=0.4.136" }]
+requires-dist = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1118,7 +1113,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819" },
-    { name = "dirsql", specifier = ">=0.4.136" },
+    { name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "labnotes", specifier = ">=0.2.25" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
