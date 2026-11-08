@@ -1,0 +1,7 @@
+{
+  "command": "uv run python -m surprisals_experiment.cli.baseline --problem-dir /home/duncan/work/code/research/SPAR/optimizing-llms-with-small-interpretable-updates/repos/surprisals-experiment/data/APPS/test/4006 --output /tmp/claude/tbaseline/e2e-run-1284413 -T openai/gpt-oss-120b --t-samples 1 --t-sample-timeout 300 --t-sample-retries 0",
+  "ran_at": 1794110457,
+  "exit_code": 0,
+  "commit": "5a0cbe0a56b31ef75594b8d25695b4e97836fea6",
+  "branch": "t-baseline"
+}
