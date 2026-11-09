@@ -29,4 +29,5 @@ def config(tmp_path):
         u_thinking="high",
         max_u_turns=1,
         window_forks=1,
+        infra_retries=0,
     )
