@@ -31,11 +31,12 @@ async def write_advice(run: Run, turn: Turn) -> None:
         return
     write(turn.u_dir / "advice.txt", text.encode("utf-8"))
     advice = Advice(turn.u_dir / "advice.txt", config.advice_measure, config.output)
-    advice.save()
-    write(
-        turn.attempt_dir / "metadata.json",
-        json.dumps(
-            {"advice": str(advice.directory.relative_to(config.output))}, indent=2
+    with run.database.dirsql.lock:
+        advice.save()
+        write(
+            turn.attempt_dir / "metadata.json",
+            json.dumps(
+                {"advice": str(advice.directory.relative_to(config.output))}, indent=2
+            )
+            + "\n",
         )
-        + "\n",
-    )
