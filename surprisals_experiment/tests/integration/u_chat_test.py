@@ -183,7 +183,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             'settings.json': {
                 'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
                 'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 'cap_strategy': 'characters', 'scorer_base_url': None,
-                't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3,
+                't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0,
                 'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': 30, 'max_u_turns': 3,
                 'git_commit': ...,
             },

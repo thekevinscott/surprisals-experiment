@@ -31,6 +31,7 @@ class Config(BaseModel):
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
     t_sample_retries: int = Field(default=3, ge=0)
+    infra_retries: int = Field(default=3, ge=0)
     window_forks: int = Field(default=4, ge=1)
     fork_turns: int = Field(default=10, ge=1)
     window_solo_turns: int = Field(default=30, ge=0)

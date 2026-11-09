@@ -65,6 +65,12 @@ async def main(argv: list[str] | None = None) -> None:
         help="Retries per timed-out T sample; 0 disables retries (default: 3)",
     )
     parser.add_argument(
+        "--infra-retries",
+        type=int,
+        default=3,
+        help="Restarts of the whole run after a fatal error, 60s apart; 0 disables (default: 3)",
+    )
+    parser.add_argument(
         "--max-u-turns",
         type=int,
         help="Optional per-fork iteration limit",
@@ -135,6 +141,7 @@ async def main(argv: list[str] | None = None) -> None:
                 t_pool_size=args.t_pool_size,
                 t_sample_timeout=args.t_sample_timeout,
                 t_sample_retries=args.t_sample_retries,
+                infra_retries=args.infra_retries,
                 window_forks=args.window_forks,
                 fork_turns=args.fork_turns,
                 window_solo_turns=args.window_solo_turns,

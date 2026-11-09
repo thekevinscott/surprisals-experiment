@@ -57,7 +57,7 @@ def run_world(config, rounds, advice, code):
                 files['settings.json'] = {
                     'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
                     'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 'cap_strategy': 'characters', 'scorer_base_url': None,
-                    't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3,
+                    't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0,
                     'window_forks': config.window_forks, 'fork_turns': config.fork_turns,
                     'window_solo_turns': config.window_solo_turns, 'max_u_turns': config.max_u_turns,
                     'git_commit': ...,

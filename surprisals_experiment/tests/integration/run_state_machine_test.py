@@ -16,7 +16,7 @@ def settings(config):
     return {'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
             'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 'cap_strategy': config.cap_strategy,
             'scorer_base_url': config.scorer_base_url, 't_samples': config.t_samples, 't_pool_size': 3,
-            't_sample_timeout': 900.0, 't_sample_retries': 3, 'window_forks': 1, 'fork_turns': 10,
+            't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0, 'window_forks': 1, 'fork_turns': 10,
             'window_solo_turns': 30, 'max_u_turns': 1, 'git_commit': ...}
 
 
