@@ -6,6 +6,7 @@ import httpx2
 import pytest
 
 from state_machine.testing import Done, State
+from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, chat, flush, outcome, played
@@ -142,5 +143,29 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     exhausted = f'T sample failed: {failure}; 8 retries exhausted'
     world.append(Done(outcome=RuntimeError(exhausted),
                       files={**generation(8), f'{TURN}/error.txt': Traceback(exhausted)}))
+    async with execute_run_experiment(config, world):
+        pass
+
+
+async def test_fatal_error_restarts_the_run_after_60_seconds(config, execute_run_experiment):
+    config = Config(**config.model_dump() | {'infra_retries': 3})
+    world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}}, config=config)
+    for number in range(9):
+        world.append(State(T(error=OSError('disk failure')), sent=t_sent(f'{TURN}/ts/0/attempts/{number}', 'Use a loop'),
+                           logs=[(f'{TURN}/ts/0', 'retry', f'T {number}/8 in {DELAYS[number - 1]}s: disk failure\n')]
+                           if number else [],
+                           files={} if number else pending))
+    exhausted = 'T sample failed: disk failure; 8 retries exhausted'
+    restarted = t_state(0, 0, 0, 9, 'Use a loop', {f'{TURN}/error.txt': Traceback(exhausted)})
+    restarted.logs = [('run', 'retry', f'Run 1/3 in 60s: {exhausted}\n'), *restarted.logs]
+    solved_at, best = attempt(0, 0, 0, 9), flush(0, 'Use a loop', length=10)
+    world += [
+        restarted,
+        u_state(config, 1, 0, best, 'Use a loop', {**evaluated(solved_at), **opened(1), **chat(1, (best, None))},
+                previous=10),
+        t_state(1, 0, 0, 0, 'Use a loop', {**chat(1, (best, 'Use a loop')), **advised(1, 0, 'Use a loop')}),
+        Done(outcome=config.output / solved_at / 'src',
+             files={**evaluated(attempt(1, 0, 0)), **solved(config, solved_at, 2)}),
+    ]
     async with execute_run_experiment(config, world):
         pass

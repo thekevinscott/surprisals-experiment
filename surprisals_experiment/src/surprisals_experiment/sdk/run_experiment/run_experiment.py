@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from state_machine import Stop, state_machine
+from tenacity import retry, wait_fixed
 from surprisals_experiment.config import Config
 
 from run_database import ExperimentDatabase, QuestionDatabase
@@ -42,6 +43,15 @@ actions = {
 }
 
 
+@retry(
+    stop=lambda state: state.attempt_number > state.args[0].infra_retries,
+    wait=wait_fixed(60),
+    before_sleep=lambda state: state.kwargs["on_delta"] and state.kwargs["on_delta"](
+        "run", "retry",
+        f"Run {state.attempt_number}/{state.args[0].infra_retries} in 60s: {state.outcome.exception()}\n",
+    ),
+    reraise=True,
+)
 async def run_experiment(
     config: Config,
     *,
