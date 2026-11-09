@@ -1,6 +1,7 @@
 """U receives current window progress using the persisted stop-rule baseline."""
 
 import json
+from contextlib import contextmanager
 
 import pytest
 
@@ -13,6 +14,8 @@ from surprisals_experiment.sdk.run_experiment.actions.write_advice import write_
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 from surprisals_experiment.sdk.utils.write import write
+from surprisals_experiment.sdk import advice as advice_module
+from surprisals_experiment.sdk.run_experiment.actions import write_advice as write_advice_module
 
 
 @pytest.mark.parametrize('window,measure,best,expected', [
@@ -51,3 +54,27 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
                 if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
         assert [m['role'] for m in chat_provider[-1]['messages']] == ['system', 'user']
+
+
+async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
+    write(config.window_dir / 'window.json', '{}')
+    write(config.fork_dir / 'fork.json', '{}')
+    database = ExperimentDatabase(config.output)
+    await database.dirsql.ready()
+    held = []
+    written = {}
+
+    @contextmanager
+    def lock():
+        held.append(True)
+        yield
+        held.pop()
+
+    monkeypatch.setattr(type(database.dirsql), 'lock', property(lambda self: lock()))
+    monkeypatch.setattr(write_advice_module, 'write', lambda path, data: written.update({path.name: bool(held)}) or write(path, data))
+    monkeypatch.setattr(advice_module, 'write', lambda path, data: written.update({path.name: bool(held)}) or write(path, data))
+    botbox_script.advice.append('Double.')
+    async with open_u_chat(config) as chat:
+        run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
+        await write_advice(run, Turn(config, 0))
+    assert written['advice.json'] and written['metadata.json']

@@ -18,7 +18,7 @@ pyskillet = false
 repo-name-checker = false
 
 [manifest]
-overrides = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" }]
+overrides = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=bcdbbfeac8ce421d317e51977b4fe92280b3e158" }]
 
 [[package]]
 name = "annotated-types"
@@ -194,7 +194,7 @@ wheels = [
 [[package]]
 name = "dirsql"
 version = "0.2.7"
-source = { git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e#21e404578333534a41670919f1e41011cceb0e2e" }
+source = { git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=bcdbbfeac8ce421d317e51977b4fe92280b3e158#bcdbbfeac8ce421d317e51977b4fe92280b3e158" }
 dependencies = [
     { name = "bin-shim" },
 ]
@@ -1026,7 +1026,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" }]
+requires-dist = [{ name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=bcdbbfeac8ce421d317e51977b4fe92280b3e158" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1113,7 +1113,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "botbox", git = "https://github.com/thekevinscott/botbox.git?subdirectory=packages%2Fpython&rev=4fed2b153f15e216d9b07109355b83a6d7bdf819" },
-    { name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=21e404578333534a41670919f1e41011cceb0e2e" },
+    { name = "dirsql", git = "https://github.com/thekevinscott/dirsql.git?subdirectory=packages%2Fpython&rev=bcdbbfeac8ce421d317e51977b4fe92280b3e158" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "labnotes", specifier = ">=0.2.25" },
     { name = "measure-surprisal", git = "https://github.com/thekevinscott/measure-surprisal.git?rev=7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" },
