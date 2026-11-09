@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round -p no:cacheprovider",
+  "ran_at": 1794189581,
+  "exit_code": 0,
+  "commit": "17a32064c5d13597e499598b7e84c536ac4810a6",
+  "branch": "fix/dirsql-lock-advice-write"
+}

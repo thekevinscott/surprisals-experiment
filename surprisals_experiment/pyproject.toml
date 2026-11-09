@@ -49,4 +49,4 @@ state-machine = { path = "../state_machine" }
 run-database = { path = "../packages/run_database" }
 measure-surprisal = { git = "https://github.com/thekevinscott/measure-surprisal.git", rev = "7f2e0ad64d5d12d821faa68c41d81a9cd8bf54a9" }
 botbox = { git = "https://github.com/thekevinscott/botbox.git", subdirectory = "packages/python", rev = "4fed2b153f15e216d9b07109355b83a6d7bdf819" }
-dirsql = { git = "https://github.com/thekevinscott/dirsql.git", subdirectory = "packages/python", rev = "21e404578333534a41670919f1e41011cceb0e2e" }
+dirsql = { git = "https://github.com/thekevinscott/dirsql.git", subdirectory = "packages/python", rev = "bcdbbfeac8ce421d317e51977b4fe92280b3e158" }
