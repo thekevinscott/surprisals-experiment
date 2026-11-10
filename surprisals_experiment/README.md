@@ -7,7 +7,7 @@ uv run python -m surprisals_experiment.cli.run \
   --output ../experiments/sanity-check/runs/example \
   -U xiaomi/mimo-v2.6-pro \
   --u-thinking high \
-  -T openai/gpt-oss-120b \
+  -T xiaomi/mimo-v2.6-pro \
   ../data/APPS/test/0043
 ```
 

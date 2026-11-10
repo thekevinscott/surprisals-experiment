@@ -8,7 +8,7 @@ The current MVP implements the advice, execution, and test-feedback loop with op
 
 ## How it works
 
-Problems come from [APPS](https://github.com/hendrycks/apps). U currently uses `xiaomi/mimo-v2.6-pro` and T uses `openai/gpt-oss-120b`, accessed through OpenRouter. U is an OpenRouter chat conversation that starts fresh every turn. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
+Problems come from [APPS](https://github.com/hendrycks/apps). U and T currently both use `xiaomi/mimo-v2.6-pro`, accessed through OpenRouter. U is an OpenRouter chat conversation that starts fresh every turn. T always runs as a Pi agent in [botbox](https://github.com/thekevinscott/botbox) Docker containers.
 
 1. U receives `question.txt`, without hidden tests or a reference solution.
 2. U produces self-contained advice. T receives only that advice and fixed instructions for writing a Python program.
@@ -41,7 +41,7 @@ Create a `.env` file in this repository with your `OPENROUTER_API_KEY`. It is ig
 cd surprisals_experiment
 uv run python -m surprisals_experiment.cli.run \
   -U xiaomi/mimo-v2.6-pro \
-  -T openai/gpt-oss-120b \
+  -T xiaomi/mimo-v2.6-pro \
   --u-thinking high \
   --t-samples 5 \
   --output ../experiments/sanity-check/runs/example \
