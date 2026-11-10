@@ -33,6 +33,7 @@ override-dependencies = ["dirsql"]
 
 [dependency-groups]
 dev = [
+    "boto3>=1.35",
     "curtaincall>=0.4.0",
     "looptime>=0.9",
     "pytest>=9.1.1",
