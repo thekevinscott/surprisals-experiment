@@ -33,7 +33,7 @@ def prompt(best):
     position, advice = best
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{position}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n<code>\n<T-0>\n'
-            f'<file path="main.py">\n{DOUBLE}</file>\n</T-0>\n</code>\n</attempt>')
+            f'<file path="main.py">\n{DOUBLE}</file>\n2/2 test cases passed\n</T-0>\n</code>\n</attempt>')
 
 
 def run_world(config, rounds, advice, code):

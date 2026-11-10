@@ -67,7 +67,7 @@ def build(output, settings, rounds, failing, advices):
     samples = settings['t_samples']
     system = SimpleNamespace(**{'cap_strategy': 'characters', **settings})
     previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
-    code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{DOUBLE}</file>\n</T-{sample}>' for sample in range(samples))
+    code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{DOUBLE}</file>\n2/2 test cases passed\n</T-{sample}>' for sample in range(samples))
     best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
             + ('' if surprisal else f'<length>{len(ADVICE)} characters</length>\n')
             + f'<advice>\n{ADVICE}\n</advice>\n'

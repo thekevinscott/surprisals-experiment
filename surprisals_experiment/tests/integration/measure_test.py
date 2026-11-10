@@ -38,7 +38,7 @@ def flush(index, advice, *, length=None, bits=None):
             + (f'<length>{length} characters</length>\n' if length else '')
             + f'<advice>\n{advice}\n</advice>\n'
             + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
-            + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n</T-0>\n</code>\n</attempt>')
+            + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n2/2 test cases passed\n</T-0>\n</code>\n</attempt>')
 
 
 def chat(window, *turns):
