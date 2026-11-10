@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from state_machine.testing import Done
 from surprisals_experiment.cli.main import main
-from surprisals_experiment.config import T_MODEL, U_MODEL
+from surprisals_experiment.config import T_MODEL, U_MODEL, WINDOW_SOLO_TURNS
 from utils.world import T, U, t_sent
 
 from u_flush_test import PASS, QUESTION, flush, played
@@ -94,4 +94,4 @@ async def test_surprisal_reads_scorer_url_from_labnotes_state(
         pass
     written = json.loads((config.output / "settings.json").read_text())
     assert written["scorer_base_url"] == "http://state-scorer/v1"
-    assert written["window_solo_turns"] == 10
+    assert written["window_solo_turns"] == WINDOW_SOLO_TURNS
