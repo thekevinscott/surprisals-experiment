@@ -1,0 +1,7 @@
+{
+  "command": "uv run --no-sync pytest 'tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round' -p no:cacheprovider",
+  "ran_at": 1794329218,
+  "exit_code": 0,
+  "commit": "d9ce67d24aa8c2f5409fb54660cbcd93d46b5a7c",
+  "branch": "fix/451-test-case-counts"
+}
