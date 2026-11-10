@@ -16,11 +16,13 @@ class TAgent(RetryingPiAgent):
         provider: str,
         model: str,
         *,
+        route: str,
         api_key: str,
         instructions: str,
         on_delta: Callable[[str, str], None] | None,
     ):
         super().__init__(provider, model=model, api_key=api_key)
+        self.route = route
         self.instructions = instructions
         self.on_delta = on_delta
 
@@ -35,9 +37,9 @@ class TAgent(RetryingPiAgent):
         super().stage_auth(home)
         content, _ = home.files[MODELS]
         models = json.loads(content)
-        # One provider keeps T's behavior fixed; fp4 matches the scorer's checkpoint (#431).
-        models["providers"]["openrouter"]["compat"] = {
-            "openRouterRouting": {"only": ["coreweave/fp4"], "allow_fallbacks": False}
+        # One provider keeps T's behavior fixed.
+        models["providers"][self.provider]["compat"] = {
+            "openRouterRouting": {"only": [self.route], "allow_fallbacks": False}
         }
         home.write(MODELS, json.dumps(models))
 

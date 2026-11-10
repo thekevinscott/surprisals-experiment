@@ -12,6 +12,12 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 T_MODEL = "openai/gpt-oss-120b"
+# fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
+T_PROVIDER = "coreweave/fp4"
+SCORER_MODEL = "openai/gpt-oss-120b"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Pi's name for its built-in OpenRouter provider.
+T_PI_PROVIDER = "openrouter"
 TEST_TIMEOUT_SECONDS = 5
 TEST_MEMORY_BYTES = 512 << 20
 RESTART_OVERRIDES = {"api_key", "problem_dir", "output", "scorer_base_url", "t_pool_size", "t_sample_timeout"}
@@ -25,8 +31,10 @@ class Config(BaseModel):
     u_thinking: ThinkingLevel
     u_provider: str = "xiaomi"
     t_model: str
+    t_provider: str = T_PROVIDER
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
+    scorer_model: str = SCORER_MODEL
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)
@@ -47,7 +55,7 @@ class Config(BaseModel):
     def advice_measure(self):
         from .sdk.advice_measure import AdviceMeasure
 
-        return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.t_model)
+        return AdviceMeasure(self.cap_strategy, base_url=self.scorer_base_url, model=self.scorer_model)
 
     def save_settings(self) -> None:
         from .sdk.utils.git_commit import git_commit

@@ -69,8 +69,9 @@ Prompt wording lives in `prompts/u/system.txt`, `prompts/u/flush/context.txt`, a
 
 Character minimization remains the default, with unchanged prompts and results.
 To minimize surprisal instead, add
-`--cap-strategy surprisal --scorer-base-url https://HOST/v1`. The scorer must serve T's model (the `-T` model ID) and support
-completion prompt logprobs. No separate scorer-model override is used.
+`--cap-strategy surprisal --scorer-base-url https://HOST/v1`. The scorer must serve the `--scorer-model` model
+(default `openai/gpt-oss-120b`, independent of `-T`) and support completion prompt logprobs.
+T's OpenRouter route is pinned with `--t-provider` (default `coreweave/fp4`).
 
 Surprisal is measured by the existing `measure-surprisal` dependency in bits,
 with no problem or conversation prefix. Its convention skips tokens whose

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import T_MODEL, U_MODEL
+from surprisals_experiment.config import T_MODEL, T_PROVIDER, U_MODEL
 from surprisals_experiment.sdk import Config
 from surprisals_experiment.sdk.run_baseline import run_baseline
 
@@ -20,6 +20,9 @@ async def main(argv: list[str] | None = None) -> None:
         description="Run T on an APPS problem's question.txt alone and test each sample.",
     )
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
+    parser.add_argument(
+        "--t-provider", default=T_PROVIDER, help=f"OpenRouter provider T is pinned to (default: {T_PROVIDER})"
+    )
     parser.add_argument("--t-samples", type=int, default=5, help="Independent T solutions (default: 5)")
     parser.add_argument("--t-pool-size", type=int, default=3, help="Maximum concurrent T generations (default: 3)")
     parser.add_argument(
@@ -53,6 +56,7 @@ async def main(argv: list[str] | None = None) -> None:
                 u_model=U_MODEL,
                 u_thinking="high",
                 t_model=args.T,
+                t_provider=args.t_provider,
                 t_samples=args.t_samples,
                 t_pool_size=args.t_pool_size,
                 t_sample_timeout=args.t_sample_timeout,
