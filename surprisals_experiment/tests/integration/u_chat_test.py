@@ -3,7 +3,6 @@
 from hashlib import sha256
 
 from state_machine.testing import Done, State
-from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, T, t_sent, u_system
 
@@ -15,13 +14,16 @@ MUTATING = ("from pathlib import Path\nn = input()\nPath('evaluation-only.txt').
             "Path('helper.py').write_text('MUTATED')\nprint(int(n) * 2)\n")
 
 
+def code(*samples):
+    return '<code>\n' + ''.join(f'<T-{sample}>\n' + ''.join(f'<file path="{path}">\n{text.rstrip()}\n</file>\n'
+                                                            for path, text in files.items())
+                                 + f'2/2 test cases passed\n</T-{sample}>\n' for sample, files in enumerate(samples)) + '</code>'
+
+
 def prompt(index, advice, *samples):
-    code = '\n'.join(f'<T-{sample}>\n' + ''.join(f'<file path="{path}">\n{text.rstrip()}\n</file>\n'
-                                                 for path, text in files.items()) + f'<results>2/2 test cases passed</results>\n</T-{sample}>'
-                     for sample, files in enumerate(samples))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
-            f'<code>\n{code}\n</code>\n</attempt>')
+            f'{code(*samples)}\n</attempt>')
 
 
 def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
@@ -54,8 +56,11 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     helpers = {'helper.py': 'VALUE = 42\n', 'nested/extra.py': 'EXTRA = 7\n', 'binary.dat': b'\xff', 'hidden.json': io}
     mutated = {'helper.py': 'VALUE = 42\n', 'main.py': MUTATING, 'nested/extra.py': 'EXTRA = 7\n'}
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
-    first = prompt(0, 'long advice', mutated, clean)
     best = prompt(1, 'short', clean, clean)
+    first = [{'role': 'user', 'content': QUESTION}, {'role': 'assistant', 'content': 'long advice'},
+             {'role': 'user', 'content': code(mutated, clean)}]
+    second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': 'short'},
+              {'role': 'user', 'content': code(clean, clean)}]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -66,7 +71,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                            'messages': [{'role': 'system', 'content': u_system(config, number + 1, previous)},
-                                        {'role': 'user', 'content': user}]},
+                                        *(user if isinstance(user, list) else [{'role': 'user', 'content': user}])]},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
 
     def t(window, number, sample, advice, code, files=None):
@@ -103,8 +108,8 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         u(1, 0, best, 'short', {**evaluated(0, 1), **opened(1), **chat(1, (best, None))}, previous=5),
         t(1, 0, 0, 'short', PASS, {**chat(1, (best, 'short')), **advised(1, 0, 'short')}),
         t(1, 0, 1, 'short', PASS),
-        u(1, 1, best, 'short', {**evaluated(1, 0), **chat(1, (best, 'short'), (best, None))}, previous=5),
-        t(1, 1, 0, 'short', PASS, {**chat(1, (best, 'short'), (best, 'short')), **advised(1, 1, 'short')}),
+        u(1, 1, second, 'short', {**evaluated(1, 0), **chat(1, (best, 'short'), (second, None))}, previous=5),
+        t(1, 1, 0, 'short', PASS, {**chat(1, (best, 'short'), (second, 'short')), **advised(1, 1, 'short')}),
         t(1, 1, 1, 'short', PASS),
         Done(outcome=solution, files={**evaluated(1, 1),
                                       'result.json': {'success': True, 'attempts': 4, 'solution': str(solution)}}),
@@ -118,7 +123,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     question = 'Read an integer and print its double.'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
             '<attempt>\n<index>0</index>\n<length>4 characters</length>\n<advice>\ntiny\n</advice>\n'
-            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
+            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n2/2 test cases passed\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
                'longer advice': 'advices/6c5930dfdad8282d9030e1cd507d78acfc26231d4fc74758d85584199ee9f561'}
@@ -131,10 +136,14 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     stdout = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write it."}}\n'
               '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
+    def talk(opening, *said):
+        return [{'role': 'user', 'content': opening}, *[message for advice in said for message in (
+            {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': code({'main.py': PASS})})]]
+
     def chat(*turns):
         messages = [system]
         for user, advice in turns:
-            messages += [system, {'role': 'user', 'content': user, '_reset': True}]
+            messages += [system, {**user[0], '_reset': True}, *user[1:]]
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
         return messages
@@ -151,8 +160,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             U(advice, thinking='Think.'),
             sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                   'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                  'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)},
-                               {'role': 'user', 'content': user}]},
+                  'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)}, *user]},
             logs=[(f'windows/{window}/forks/0/turns/{turn}/u', 'thinking', 'Think.'),
                   (f'windows/{window}/forks/0/turns/{turn}/u', 'text', advice)],
             files={f'{transcripts(window)}/messages.jsonl': messages, **files},
@@ -180,31 +188,36 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
     solution = config.output / 'windows/0/forks/0/turns/0/ts/0/attempts/0/src'
     world = [
-        u_state(0, 0, question, 'tiny', chat((question, None)), {
+        u_state(0, 0, talk(question), 'tiny', chat((talk(question), None)), {
             'settings.json': {
                 'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
                 'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 't_provider': 'coreweave/fp4', 'cap_strategy': 'characters', 'scorer_base_url': None, 'scorer_model': 'openai/gpt-oss-120b',
                 't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0,
-                'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': WINDOW_SOLO_TURNS, 'max_u_turns': 3,
+                'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': 30, 'max_u_turns': 3,
                 'git_commit': ...,
             },
             'windows/0/window.json': {},
             'windows/0/forks/0/fork.json': {},
         }),
-        t_state(0, 0, 'tiny', chat((question, 'tiny')), new_advice('tiny', 4)),
-        u_state(0, 1, best, 'long advice', chat((question, 'tiny'), (best, None)), tested(0, 0)),
-        t_state(0, 1, 'long advice', chat((question, 'tiny'), (best, 'long advice')), new_advice('long advice', 11)),
-        u_state(0, 2, best, 'longer advice', chat((question, 'tiny'), (best, 'long advice'), (best, None)),
-                tested(0, 1)),
-        t_state(0, 2, 'longer advice', chat((question, 'tiny'), (best, 'long advice'), (best, 'longer advice')),
+        t_state(0, 0, 'tiny', chat((talk(question), 'tiny')), new_advice('tiny', 4)),
+        u_state(0, 1, talk(question, 'tiny'), 'long advice', chat((talk(question), 'tiny'), (talk(question, 'tiny'), None)),
+                tested(0, 0)),
+        t_state(0, 1, 'long advice', chat((talk(question), 'tiny'), (talk(question, 'tiny'), 'long advice')),
+                new_advice('long advice', 11)),
+        u_state(0, 2, talk(question, 'tiny', 'long advice'), 'longer advice',
+                chat((talk(question), 'tiny'), (talk(question, 'tiny'), 'long advice'),
+                     (talk(question, 'tiny', 'long advice'), None)), tested(0, 1)),
+        t_state(0, 2, 'longer advice', chat((talk(question), 'tiny'), (talk(question, 'tiny'), 'long advice'),
+                                            (talk(question, 'tiny', 'long advice'), 'longer advice')),
                 new_advice('longer advice', 13)),
-        u_state(1, 0, best, 'tiny', chat((best, None)),
+        u_state(1, 0, talk(best), 'tiny', chat((talk(best), None)),
                 {**tested(0, 2), 'windows/1/window.json': {}, 'windows/1/forks/0/fork.json': {}}),
-        t_state(1, 0, 'tiny', chat((best, 'tiny'))),
-        u_state(1, 1, best, 'tiny', chat((best, 'tiny'), (best, None)), tested(1, 0)),
-        t_state(1, 1, 'tiny', chat((best, 'tiny'), (best, 'tiny'))),
-        u_state(1, 2, best, 'tiny', chat((best, 'tiny'), (best, 'tiny'), (best, None)), tested(1, 1)),
-        t_state(1, 2, 'tiny', chat((best, 'tiny'), (best, 'tiny'), (best, 'tiny'))),
+        t_state(1, 0, 'tiny', chat((talk(best), 'tiny'))),
+        u_state(1, 1, talk(best, 'tiny'), 'tiny', chat((talk(best), 'tiny'), (talk(best, 'tiny'), None)), tested(1, 0)),
+        t_state(1, 1, 'tiny', chat((talk(best), 'tiny'), (talk(best, 'tiny'), 'tiny'))),
+        u_state(1, 2, talk(best, 'tiny', 'tiny'), 'tiny',
+                chat((talk(best), 'tiny'), (talk(best, 'tiny'), 'tiny'), (talk(best, 'tiny', 'tiny'), None)), tested(1, 1)),
+        t_state(1, 2, 'tiny', chat((talk(best), 'tiny'), (talk(best, 'tiny'), 'tiny'), (talk(best, 'tiny', 'tiny'), 'tiny'))),
         Done(outcome=solution, files={
             **tested(1, 2),
             'result.json': {'success': True, 'attempts': 6, 'solution': str(solution)},

@@ -5,9 +5,9 @@ from pathlib import Path
 MAX_FILE_BYTES = 64 * 1024
 
 
-def read_sources(solutions: list[Path]) -> dict[str, dict[str, str | int]]:
+def read_sources(solutions: dict[int, Path]) -> dict[str, dict[str, str | int]]:
     implementations = {}
-    for index, sample in enumerate(solutions):
+    for index, sample in solutions.items():
         sources = {}
         for path in sorted(sample.rglob("*")):
             if not path.is_file() or not path.resolve().is_relative_to(sample.resolve()):

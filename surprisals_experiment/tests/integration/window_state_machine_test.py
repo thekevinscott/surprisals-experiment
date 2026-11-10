@@ -39,19 +39,20 @@ def prompt(best):
 def run_world(config, rounds, advice, code):
     """States for `rounds` of (window, position, forks): U for each fork in order, then T for each fork.
 
+    Each fork's conversation opens with the best attempt from earlier windows and grows by turn.
     Returns the states and the files the last T round leaves for Done.
     """
-    states, pending, transcripts, written, best, starts = [], {}, {}, set(), None, {}
+    states, pending, transcripts, written, best, starts, conversations = [], {}, {}, set(), None, {}, {}
     for window, position, forks in rounds:
-        user = prompt(best)
         start = starts.setdefault(window, best)
         for fork in forks:
             text = advice(fork, position)
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
             path = 'u/transcripts' if (window, fork) == (0, 0) else f'windows/{window}/forks/{fork}/u/transcripts'
+            conversation = conversations.setdefault((window, fork), [{'role': 'user', 'content': prompt(start)}])
             messages = transcripts.setdefault(path, [])
             messages += [{'role': 'system', 'content': ...}] * (1 if messages else 2)
-            messages.append({'role': 'user', 'content': user, '_reset': True})
+            messages += [{**conversation[0], '_reset': True}, *conversation[1:]]
             files = {**pending, f'{path}/messages.jsonl': list(messages)}
             if not states:
                 files['settings.json'] = {
@@ -71,7 +72,7 @@ def run_world(config, rounds, advice, code):
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(config, position + 1, start and len(start[1]))},
-                                   {'role': 'user', 'content': user}]},
+                                   *conversation]},
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
                 files=files,
             ))
@@ -81,7 +82,7 @@ def run_world(config, rounds, advice, code):
                 f'{turn}/metadata.json': {'advice': stored},
                 f'{turn}/u/advice.txt': text,
                 f'{path}/messages.jsonl': list(messages),
-                f'{path}/usage.jsonl': [USAGE] * sum(message['role'] == 'assistant' for message in messages),
+                f'{path}/usage.jsonl': [USAGE] * sum('_complete' in message for message in messages),
             }
             if stored not in written:
                 written.add(stored)
@@ -99,6 +100,8 @@ def run_world(config, rounds, advice, code):
             ))
             pending = {}
             passed = code(fork) == DOUBLE
+            conversations[window, fork] += [{'role': 'assistant', 'content': text}, {'role': 'user', 'content': (
+                f'<code>\n<T-0>\n<file path="main.py">\n{code(fork)}</file>\n{2 * passed}/2 test cases passed\n</T-0>\n</code>')}]
             scored |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': suite(passed)}
             if passed and (best is None or len(text) < len(best[1])):
                 best = (position, text)

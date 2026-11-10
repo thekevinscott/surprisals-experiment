@@ -24,8 +24,8 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     botbox_script.advice.extend(['first\nadvice', 'next'])
     deltas = []
     async with open_u_chat(config) as session:
-        assert await session.prompt('question', on_delta=lambda *delta: deltas.append(delta)) == 'first\nadvice'
-        assert await session.prompt('feedback') == 'next'
+        assert await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=lambda *delta: deltas.append(delta)) == 'first\nadvice'
+        assert await session.prompt([{'role': 'user', 'content': 'feedback'}]) == 'next'
     assert not botbox_script.sessions
     assert chat_provider[0]['reasoning'] == {'effort': 'high'}
     assert all(request['provider'] == {'only': ['xiaomi'], 'allow_fallbacks': False} for request in chat_provider)
@@ -52,7 +52,7 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
 
     with pytest.raises(asyncio.CancelledError):
         async with open_u_chat(config) as session:
-            await session.prompt('question', on_delta=cancel)
+            await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=cancel)
     transcript = (config.u_transcripts / 'messages.jsonl').read_text()
     assert 'Thinking.' in transcript
 
@@ -65,7 +65,7 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
     ]})
     deltas = []
     async with open_u_chat(config) as session:
-        await session.prompt('question', on_delta=lambda *delta: deltas.append(delta))
+        await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=lambda *delta: deltas.append(delta))
     assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
     assert session.messages[-1]['role'] == 'assistant'
     assert session.messages[-1]['reasoning'] == 'Thinking. More.'
@@ -97,7 +97,7 @@ async def test_reasoning_format_preserves_latest_provider_value(
     ]
     async with open_u_chat(config) as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
-            await session.prompt('question')
+            await session.prompt([{'role': 'user', 'content': 'question'}])
         assert session.messages[-1]['reasoning_details'] == expected
         transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
         assert transcript[-1]['reasoning_details'] == expected
@@ -116,9 +116,9 @@ async def test_rebuilt_transcript_matches_live_session(
     botbox_script.advice.extend(replies)
     async with open_u_chat(config) as live:
         live.attempt = 0
-        assert await live.prompt('question') == 'first'
+        assert await live.prompt([{'role': 'user', 'content': 'question'}]) == 'first'
         live.attempt = 1
-        assert await live.prompt('feedback') == 'second'
+        assert await live.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
         expected = (live.messages, live.turn_attempt, live.turn_reply)
     transcript = config.u_transcripts / 'messages.jsonl'
     entries = [json.loads(line) for line in transcript.read_text().splitlines()]
@@ -137,7 +137,7 @@ async def test_rebuilt_transcript_matches_live_session(
     async with open_u_chat(config) as rebuilt:
         assert (rebuilt.messages, rebuilt.turn_attempt, rebuilt.turn_reply) == expected
         rebuilt.attempt = 1
-        assert await rebuilt.prompt('feedback') == 'second'
+        assert await rebuilt.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
     assert len(chat_provider) == requests
     assert transcript.read_bytes() == before_replay
     if mode == 'partial':
@@ -145,7 +145,7 @@ async def test_rebuilt_transcript_matches_live_session(
         botbox_script.advice.append('third')
         async with open_u_chat(config) as resumed:
             resumed.attempt = 2
-            assert await resumed.prompt('next feedback') == 'third'
+            assert await resumed.prompt([{'role': 'user', 'content': 'next feedback'}]) == 'third'
         async with open_u_chat(config) as rebuilt:
             assert rebuilt.messages == resumed.messages
             assert rebuilt.turn_attempt == 2
@@ -156,9 +156,9 @@ async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, ch
     botbox_script.advice.extend(['first', 'second'])
     async with open_u_chat(config) as live:
         live.attempt = 0
-        assert await live.prompt('question') == 'first'
+        assert await live.prompt([{'role': 'user', 'content': 'question'}]) == 'first'
         live.attempt = 1
-        assert await live.prompt('feedback') == 'second'
+        assert await live.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
     transcript = config.u_transcripts / 'messages.jsonl'
     entries = [json.loads(line) for line in transcript.read_text().splitlines()]
     end = next(i for i, entry in enumerate(entries) if entry.get('_attempt') == 1) + 1
@@ -167,7 +167,7 @@ async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, ch
     requests = len(chat_provider)
     async with open_u_chat(config) as rebuilt:
         rebuilt.attempt = 1
-        assert await rebuilt.prompt('feedback') == 'second'
+        assert await rebuilt.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
         assert rebuilt.messages == live.messages
         assert rebuilt.turn_attempt == 1
         assert rebuilt.turn_reply == 'second'
@@ -194,7 +194,7 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
     with pytest.raises(RuntimeError, match=r'U chat request failed:.*8 retries exhausted') as raised:
         async with open_u_chat(config) as session:
-            await session.prompt('question')
+            await session.prompt([{'role': 'user', 'content': 'question'}])
     assert 'U chat provider error' in str(raised.value)
     assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == len(DELAYS) + 1

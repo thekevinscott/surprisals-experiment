@@ -41,11 +41,26 @@ def flush(index, advice, *, length=None, bits=None):
             + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
 
 
+def appended(code):
+    return (f'<code>\n<T-0>\n<file path="main.py">\n{code}\n</file>\n'
+            f'{2 * (code == PASS)}/2 test cases passed\n</T-0>\n</code>')
+
+
+def conversation(*turns):
+    """U's messages per turn of (window opening or None, advice[, T code]); advice None while U is still asked."""
+    messages = []
+    for user, advice, *code in turns:
+        if user is not None:
+            messages = [{'role': 'user', 'content': user}]
+        yield messages
+        messages = [*messages, {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*code or [PASS])}]
+
+
 def chat(window, *turns):
-    """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked."""
+    """The window's U transcript after `turns`."""
     lines = [{'role': 'system', 'content': ...}]
-    for user, advice in turns:
-        lines += [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user, '_reset': True}]
+    for (_, advice, *_), messages in zip(turns, conversation(*turns)):
+        lines += [{'role': 'system', 'content': ...}, {**messages[0], '_reset': True}, *messages[1:]]
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
@@ -80,12 +95,15 @@ def results(path, tests=PASSED):
     return {f'{path}/ts/0/attempts/0/generation.json': {'exit_code': 0}, f'{path}/ts/0/attempts/0/tests.json': tests}
 
 
-def u_state(config, path, user, advice, files, previous=None):
+def u_state(config, path, turns, advice, files, previous=None):
+    if isinstance(turns, str):
+        turns = [(turns, None)]
+    *_, messages = conversation(*turns)
     system = u_system(config, int(path.rsplit('/', 1)[1]) + 1, previous)
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]},
+                       'messages': [{'role': 'system', 'content': system}, *messages]},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -148,26 +166,26 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, execut
     tiny, longer, equal = ("".join(token for token, _ in reply) for reply in pairs)
     first = [turn(0, index) for index in range(3)]
     second = [turn(1, index) for index in range(3)]
-    after_tiny = flush(0, tiny, bits='tiny<10.5>')
     best = flush(1, longer, bits='much longer<3.0> but fewer bits<5.2>')
-    window = [(QUESTION, tiny), (after_tiny, longer), (best, equal)]
+    window = [(QUESTION, tiny), (None, longer), (None, equal)]
+    later = [(best, longer), (None, longer), (None, longer)]
     world = [
         u_state(config, first[0], QUESTION, tiny, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         score_state(tiny, {**chat(0, *window[:1]), **unscored(first[0], tiny)}, bits=pairs[0]),
         t_state(first[0], tiny, PASS, priced(tiny, {'score': 10.5, 'tokens': [['tiny', 10.5]]})),
-        u_state(config, first[1], after_tiny, longer, {**results(first[0]), **chat(0, *window[:1], (after_tiny, None))}),
+        u_state(config, first[1], [*window[:1], (None, None)], longer, {**results(first[0]), **chat(0, *window[:1], (None, None))}),
         score_state(longer, {**chat(0, *window[:2]), **unscored(first[1], longer)}, bits=pairs[1]),
         t_state(first[1], longer, PASS, priced(longer, {
             'score': 8.25, 'tokens': [['much longer', 3.0], [' but fewer bits', 5.25]]})),
-        u_state(config, first[2], best, equal, {**results(first[1]), **chat(0, *window[:2], (best, None))}),
+        u_state(config, first[2], [*window[:2], (None, None)], equal, {**results(first[1]), **chat(0, *window[:2], (None, None))}),
         score_state(equal, {**chat(0, *window), **unscored(first[2], equal)}, bits=pairs[2]),
         t_state(first[2], equal, PASS, priced(equal, {'score': 8.25, 'tokens': [['equal bits', 8.25]]})),
         u_state(config, second[0], best, longer, {**results(first[2]), **opened(1), **chat(1, (best, None))}, previous=8.25),
-        t_state(second[0], longer, PASS, {**chat(1, (best, longer)), **advised(second[0], longer)}),
-        u_state(config, second[1], best, longer, {**results(second[0]), **chat(1, (best, longer), (best, None))}, previous=8.25),
-        t_state(second[1], longer, PASS, {**chat(1, *[(best, longer)] * 2), **advised(second[1], longer)}),
-        u_state(config, second[2], best, longer, {**results(second[1]), **chat(1, *[(best, longer)] * 2, (best, None))}, previous=8.25),
-        t_state(second[2], longer, PASS, {**chat(1, *[(best, longer)] * 3), **advised(second[2], longer)}),
+        t_state(second[0], longer, PASS, {**chat(1, *later[:1]), **advised(second[0], longer)}),
+        u_state(config, second[1], [*later[:1], (None, None)], longer, {**results(second[0]), **chat(1, *later[:1], (None, None))}, previous=8.25),
+        t_state(second[1], longer, PASS, {**chat(1, *later[:2]), **advised(second[1], longer)}),
+        u_state(config, second[2], [*later[:2], (None, None)], longer, {**results(second[1]), **chat(1, *later[:2], (None, None))}, previous=8.25),
+        t_state(second[2], longer, PASS, {**chat(1, *later), **advised(second[2], longer)}),
         Done(outcome=config.output / first[1] / 'ts/0/attempts/0/src', files={**results(second[2]), **result(
             config, first[1], 6, best_measurement=8.25, **SCORING)}),
     ]
@@ -185,14 +203,14 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, execute_
         u_state(config, first[0], QUESTION, 'good', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         score_state('good', {**chat(0, (QUESTION, 'good')), **unscored(first[0], 'good')}, bits=[('good', 10.0)]),
         t_state(first[0], 'good', PASS, priced('good', {'score': 10.0, 'tokens': [['good', 10.0]]})),
-        u_state(config, first[1], best, 'bad', {**results(first[0]), **chat(0, (QUESTION, 'good'), (best, None))}),
-        score_state('bad', {**chat(0, (QUESTION, 'good'), (best, 'bad')), **unscored(first[1], 'bad')},
+        u_state(config, first[1], [(QUESTION, 'good'), (None, None)], 'bad', {**results(first[0]), **chat(0, (QUESTION, 'good'), (None, None))}),
+        score_state('bad', {**chat(0, (QUESTION, 'good'), (None, 'bad')), **unscored(first[1], 'bad')},
                     bits=[('bad', 1.0)]),
         t_state(first[1], 'bad', 'print(0)', priced('bad', {'score': 1.0, 'tokens': [['bad', 1.0]]})),
         u_state(config, second[0], best, 'good', {**results(first[1], FAILED), **opened(1), **chat(1, (best, None))}, previous=10.0),
         t_state(second[0], 'good', PASS, {**chat(1, (best, 'good')), **advised(second[0], 'good')}),
-        u_state(config, second[1], best, 'good', {**results(second[0]), **chat(1, (best, 'good'), (best, None))}, previous=10.0),
-        t_state(second[1], 'good', PASS, {**chat(1, *[(best, 'good')] * 2), **advised(second[1], 'good')}),
+        u_state(config, second[1], [(best, 'good'), (None, None)], 'good', {**results(second[0]), **chat(1, (best, 'good'), (None, None))}, previous=10.0),
+        t_state(second[1], 'good', PASS, {**chat(1, (best, 'good'), (None, 'good')), **advised(second[1], 'good')}),
         Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
             config, first[0], 4, best_measurement=10.0, **SCORING)}),
     ]
@@ -249,12 +267,12 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
         score_state(same, {**chat(0, (QUESTION, same)), **unscored(first[0], same)},
                     bits=[("same", 4.0), (" advice", 6.0)]),
         t_state(first[0], same, PASS, priced(same, {'score': 10.0, 'tokens': [['same', 4.0], [' advice', 6.0]]})),
-        u_state(config, first[1], best, same, {**results(first[0]), **chat(0, (QUESTION, same), (best, None))}),
-        t_state(first[1], same, PASS, {**chat(0, (QUESTION, same), (best, same)), **advised(first[1], same)}),
+        u_state(config, first[1], [(QUESTION, same), (None, None)], same, {**results(first[0]), **chat(0, (QUESTION, same), (None, None))}),
+        t_state(first[1], same, PASS, {**chat(0, (QUESTION, same), (None, same)), **advised(first[1], same)}),
         u_state(config, second[0], best, same, {**results(first[1]), **opened(1), **chat(1, (best, None))}, previous=10.0),
         t_state(second[0], same, PASS, {**chat(1, (best, same)), **advised(second[0], same)}),
-        u_state(config, second[1], best, same, {**results(second[0]), **chat(1, (best, same), (best, None))}, previous=10.0),
-        t_state(second[1], same, PASS, {**chat(1, *[(best, same)] * 2), **advised(second[1], same)}),
+        u_state(config, second[1], [(best, same), (None, None)], same, {**results(second[0]), **chat(1, (best, same), (None, None))}, previous=10.0),
+        t_state(second[1], same, PASS, {**chat(1, (best, same), (None, same)), **advised(second[1], same)}),
         Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
             config, first[0], 4, best_measurement=10.0, **SCORING)}),
     ]

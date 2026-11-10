@@ -47,8 +47,8 @@ async def test_returns_all_outcomes_before_revising_advice(config, execute_run_e
     config.max_u_turns = 2
     best = flush(1, 'two', length=3, codes=[PASS] * 3)
     states, pending = played([
-        [(QUESTION, 'one', [PASS, FAIL, PASS]), (QUESTION, 'two', [PASS] * 3)],
-        [(best, 'two', [PASS] * 3)] * 2,
+        [(QUESTION, 'one', [PASS, FAIL, PASS]), (None, 'two', [PASS] * 3)],
+        [(best, 'two', [PASS] * 3), (None, 'two', [PASS] * 3)],
     ], {'one': {'score': 3}, 'two': {'score': 3}}, config=config)
     async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/1', 4, pending)]):
         pass

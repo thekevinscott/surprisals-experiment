@@ -46,14 +46,12 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         await write_advice(run, Turn(config, 22, window))
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
-        assert [m['role'] for m in chat_provider[-1]['messages']] == ['system', 'user']
     async with open_u_chat(config) as chat:
         assert chat.messages[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 23, window))
         assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
                 if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
-        assert [m['role'] for m in chat_provider[-1]['messages']] == ['system', 'user']
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
@@ -95,9 +93,10 @@ def seed_turn(config, window, fork, position, advice, codes, passed=True):
         write(attempt / 'src/main.py', code)
 
 
-def code(*sources):
+def code(*sources, passed=1):
     return '<code>\n' + ''.join(
-        f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n</T-{sample}>\n' for sample, source in enumerate(sources)
+        f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n{passed}/1 test cases passed\n</T-{sample}>\n'
+        for sample, source in enumerate(sources)
     ) + '</code>'
 
 
@@ -118,7 +117,7 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},
         {'role': 'assistant', 'content': 'Later.'},
-        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n')},
+        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
         {'role': 'assistant', 'content': 'Again.'},
-        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n')},
+        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
     ]
