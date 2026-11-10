@@ -1,0 +1,7 @@
+{
+  "command": "uv run --no-sync pytest 'tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round' -p no:cacheprovider",
+  "ran_at": 1794339359,
+  "exit_code": 0,
+  "commit": "b65864a2a0c4c459e8ca61387b9fd79b50aef04f",
+  "branch": "feat/452-mimo-default-t"
+}
