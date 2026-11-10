@@ -27,7 +27,7 @@
 </file>
 {% endif %}
 {% endfor %}
-{{ attempt.results[index].passed }}/{{ attempt.results[index].cases }} test cases passed
+<results>{{ attempt.results[index].passed }}/{{ attempt.results[index].cases }} test cases passed</results>
 </T-{{ index }}>
 {% endfor %}
 </code>
