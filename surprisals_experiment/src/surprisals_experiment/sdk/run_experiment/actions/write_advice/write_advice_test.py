@@ -95,7 +95,7 @@ def seed_turn(config, window, fork, position, advice, codes, passed=True):
 
 def code(*sources, passed=1):
     return '<code>\n' + ''.join(
-        f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n{passed}/1 test cases passed\n</T-{sample}>\n'
+        f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n<results>{passed}/1 test cases passed</results>\n</T-{sample}>\n'
         for sample, source in enumerate(sources)
     ) + '</code>'
 

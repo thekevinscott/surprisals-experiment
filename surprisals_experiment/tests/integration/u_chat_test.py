@@ -3,6 +3,7 @@
 from hashlib import sha256
 
 from state_machine.testing import Done, State
+from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import U, T, t_sent, u_system
 
@@ -17,7 +18,7 @@ MUTATING = ("from pathlib import Path\nn = input()\nPath('evaluation-only.txt').
 def code(*samples):
     return '<code>\n' + ''.join(f'<T-{sample}>\n' + ''.join(f'<file path="{path}">\n{text.rstrip()}\n</file>\n'
                                                             for path, text in files.items())
-                                 + f'2/2 test cases passed\n</T-{sample}>\n' for sample, files in enumerate(samples)) + '</code>'
+                                 + f'<results>2/2 test cases passed</results>\n</T-{sample}>\n' for sample, files in enumerate(samples)) + '</code>'
 
 
 def prompt(index, advice, *samples):
@@ -123,7 +124,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     question = 'Read an integer and print its double.'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
             '<attempt>\n<index>0</index>\n<length>4 characters</length>\n<advice>\ntiny\n</advice>\n'
-            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n2/2 test cases passed\n</T-0>\n</code>\n</attempt>')
+            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
                'longer advice': 'advices/6c5930dfdad8282d9030e1cd507d78acfc26231d4fc74758d85584199ee9f561'}
@@ -193,7 +194,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
                 'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
                 'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 't_provider': 'coreweave/fp4', 'cap_strategy': 'characters', 'scorer_base_url': None, 'scorer_model': 'openai/gpt-oss-120b',
                 't_samples': 1, 't_pool_size': 3, 't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0,
-                'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': 30, 'max_u_turns': 3,
+                'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': WINDOW_SOLO_TURNS, 'max_u_turns': 3,
                 'git_commit': ...,
             },
             'windows/0/window.json': {},

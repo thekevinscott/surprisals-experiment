@@ -101,7 +101,7 @@ def run_world(config, rounds, advice, code):
             pending = {}
             passed = code(fork) == DOUBLE
             conversations[window, fork] += [{'role': 'assistant', 'content': text}, {'role': 'user', 'content': (
-                f'<code>\n<T-0>\n<file path="main.py">\n{code(fork)}</file>\n{2 * passed}/2 test cases passed\n</T-0>\n</code>')}]
+                f'<code>\n<T-0>\n<file path="main.py">\n{code(fork)}</file>\n<results>{2 * passed}/2 test cases passed</results>\n</T-0>\n</code>')}]
             scored |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': suite(passed)}
             if passed and (best is None or len(text) < len(best[1])):
                 best = (position, text)

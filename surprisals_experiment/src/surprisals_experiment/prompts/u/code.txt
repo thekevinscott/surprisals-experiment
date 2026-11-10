@@ -11,7 +11,7 @@
 {% endif %}
 {% endfor %}
 {% if index in results %}
-{{ results[index].passed }}/{{ results[index].cases }} test cases passed
+<results>{{ results[index].passed }}/{{ results[index].cases }} test cases passed</results>
 {% endif %}
 </T-{{ index }}>
 {% endfor %}

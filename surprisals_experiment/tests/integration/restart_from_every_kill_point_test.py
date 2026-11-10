@@ -69,7 +69,7 @@ def build(output, settings, rounds, failing, advices):
     previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
 
     def code(source, passed):
-        return '<code>\n' + '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n{passed}/2 test cases passed\n</T-{sample}>'
+        return '<code>\n' + '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n<results>{passed}/2 test cases passed</results>\n</T-{sample}>'
                                        for sample in range(samples)) + '\n</code>'
 
     best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'

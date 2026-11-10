@@ -31,7 +31,7 @@ def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
 def appended(*codes):
     """One earlier turn's T results, as appended to U's conversation."""
     return '<code>\n' + ''.join(
-        f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n{0 if source == FAIL else 2}/2 test cases passed\n'
+        f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>{0 if source == FAIL else 2}/2 test cases passed</results>\n'
         f'</T-{sample}>\n' for sample, source in enumerate(codes)) + '</code>'
 
 

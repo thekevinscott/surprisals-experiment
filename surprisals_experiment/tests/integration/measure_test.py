@@ -43,7 +43,7 @@ def flush(index, advice, *, length=None, bits=None):
 
 def appended(code):
     return (f'<code>\n<T-0>\n<file path="main.py">\n{code}\n</file>\n'
-            f'{2 * (code == PASS)}/2 test cases passed\n</T-0>\n</code>')
+            f'<results>{2 * (code == PASS)}/2 test cases passed</results>\n</T-0>\n</code>')
 
 
 def conversation(*turns):
