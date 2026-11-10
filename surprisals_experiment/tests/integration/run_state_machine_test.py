@@ -51,7 +51,7 @@ def results(passed):
 def attempt(measure, advice, bits, codes):
     length = f'<length>{len(advice)} characters</length>\n' if measure == 'characters' else ''
     score = '' if measure == 'characters' else f'<bits>\n{advice}<{bits:.1f}>\n</bits>\n'
-    code = ''.join(f'<T-{index}>\n<file path="main.py">\n{source}\n</file>\n2/2 test cases passed\n</T-{index}>\n'
+    code = ''.join(f'<T-{index}>\n<file path="main.py">\n{source}\n</file>\n<results>2/2 test cases passed</results>\n</T-{index}>\n'
                    for index, source in enumerate(codes))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
             f'{length}<advice>\n{advice}\n</advice>\n{score}<code>\n{code}</code>\n</attempt>')

@@ -19,7 +19,7 @@ STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinkin
 
 
 def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
-    code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n2/2 test cases passed\n</T-{sample}>'
+    code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, source in enumerate(codes))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             + (f'<length>{length} characters</length>\n' if length else '')

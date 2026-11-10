@@ -17,7 +17,7 @@ MUTATING = ("from pathlib import Path\nn = input()\nPath('evaluation-only.txt').
 
 def prompt(index, advice, *samples):
     code = '\n'.join(f'<T-{sample}>\n' + ''.join(f'<file path="{path}">\n{text.rstrip()}\n</file>\n'
-                                                 for path, text in files.items()) + f'2/2 test cases passed\n</T-{sample}>'
+                                                 for path, text in files.items()) + f'<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, files in enumerate(samples))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
@@ -118,7 +118,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     question = 'Read an integer and print its double.'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
             '<attempt>\n<index>0</index>\n<length>4 characters</length>\n<advice>\ntiny\n</advice>\n'
-            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n2/2 test cases passed\n</T-0>\n</code>\n</attempt>')
+            '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
                'longer advice': 'advices/6c5930dfdad8282d9030e1cd507d78acfc26231d4fc74758d85584199ee9f561'}
