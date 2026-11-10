@@ -9,7 +9,24 @@ from typing import get_args
 import labnotes
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER, WINDOW_SOLO_TURNS, ThinkingLevel
+from surprisals_experiment.config import (
+    CAP_STRATEGY,
+    FORK_TURNS,
+    INFRA_RETRIES,
+    SCORER_MODEL,
+    T_MODEL,
+    T_POOL_SIZE,
+    T_PROVIDERS,
+    T_SAMPLE_RETRIES,
+    T_SAMPLE_TIMEOUT,
+    T_SAMPLES,
+    U_MODEL,
+    U_PROVIDER,
+    U_THINKING,
+    WINDOW_FORKS,
+    WINDOW_SOLO_TURNS,
+    ThinkingLevel,
+)
 from surprisals_experiment.sdk import Config, run_experiment
 
 from .log_streams import LogStreams
@@ -27,15 +44,15 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--u-thinking",
         choices=get_args(ThinkingLevel),
-        default="high",
-        help="U thinking level (default: high)",
+        default=U_THINKING,
+        help=f"U thinking level (default: {U_THINKING})",
     )
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
     parser.add_argument(
         "--cap-strategy",
         choices=("characters", "surprisal"),
-        default="characters",
-        help="Advice cap strategy (default: characters)",
+        default=CAP_STRATEGY,
+        help=f"Advice cap strategy (default: {CAP_STRATEGY})",
     )
     parser.add_argument(
         "--scorer-base-url", help="OpenAI-compatible prompt-logprob endpoint"
@@ -43,32 +60,32 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--t-samples",
         type=int,
-        default=5,
-        help="Independent T solutions per advice; all must pass (default: 5)",
+        default=T_SAMPLES,
+        help=f"Independent T solutions per advice; all must pass (default: {T_SAMPLES})",
     )
     parser.add_argument(
         "--t-pool-size",
         type=int,
-        default=3,
-        help="Maximum concurrent T generations (default: 3)",
+        default=T_POOL_SIZE,
+        help=f"Maximum concurrent T generations (default: {T_POOL_SIZE})",
     )
     parser.add_argument(
         "--t-sample-timeout",
         type=float,
-        default=900,
-        help="Time limit per active T sample in seconds (default: 900)",
+        default=T_SAMPLE_TIMEOUT,
+        help=f"Time limit per active T sample in seconds (default: {T_SAMPLE_TIMEOUT})",
     )
     parser.add_argument(
         "--t-sample-retries",
         type=int,
-        default=3,
-        help="Retries per timed-out T sample; 0 disables retries (default: 3)",
+        default=T_SAMPLE_RETRIES,
+        help=f"Retries per timed-out T sample; 0 disables retries (default: {T_SAMPLE_RETRIES})",
     )
     parser.add_argument(
         "--infra-retries",
         type=int,
-        default=3,
-        help="Restarts of the whole run after a fatal error, 60s apart; 0 disables (default: 3)",
+        default=INFRA_RETRIES,
+        help=f"Restarts of the whole run after a fatal error, 60s apart; 0 disables (default: {INFRA_RETRIES})",
     )
     parser.add_argument(
         "--max-u-turns",
@@ -78,14 +95,14 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--window-forks",
         type=int,
-        default=4,
-        help="Parallel forks at the start of each window (default: 4)",
+        default=WINDOW_FORKS,
+        help=f"Parallel forks at the start of each window (default: {WINDOW_FORKS})",
     )
     parser.add_argument(
         "--fork-turns",
         type=int,
-        default=10,
-        help="Turn target for the parallel fork round (default: 10)",
+        default=FORK_TURNS,
+        help=f"Turn target for the parallel fork round (default: {FORK_TURNS})",
     )
     parser.add_argument(
         "--window-solo-turns",

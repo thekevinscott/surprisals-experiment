@@ -7,7 +7,18 @@ from pathlib import Path
 
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER
+from surprisals_experiment.config import (
+    SCORER_MODEL,
+    T_MODEL,
+    T_POOL_SIZE,
+    T_PROVIDERS,
+    T_SAMPLE_RETRIES,
+    T_SAMPLE_TIMEOUT,
+    T_SAMPLES,
+    U_MODEL,
+    U_PROVIDER,
+    U_THINKING,
+)
 from surprisals_experiment.sdk import Config
 from surprisals_experiment.sdk.run_baseline import run_baseline
 
@@ -20,14 +31,14 @@ async def main(argv: list[str] | None = None) -> None:
         description="Run T on an APPS problem's question.txt alone and test each sample.",
     )
     parser.add_argument("-T", default=T_MODEL, help="Executor OpenRouter model ID")
-    parser.add_argument("--t-samples", type=int, default=5, help="Independent T solutions (default: 5)")
-    parser.add_argument("--t-pool-size", type=int, default=3, help="Maximum concurrent T generations (default: 3)")
+    parser.add_argument("--t-samples", type=int, default=T_SAMPLES, help=f"Independent T solutions (default: {T_SAMPLES})")
+    parser.add_argument("--t-pool-size", type=int, default=T_POOL_SIZE, help=f"Maximum concurrent T generations (default: {T_POOL_SIZE})")
     parser.add_argument(
-        "--t-sample-timeout", type=float, default=900, help="Time limit per active T sample in seconds (default: 900)"
+        "--t-sample-timeout", type=float, default=T_SAMPLE_TIMEOUT, help=f"Time limit per active T sample in seconds (default: {T_SAMPLE_TIMEOUT})"
     )
     parser.add_argument(
-        "--t-sample-retries", type=int, default=3,
-        help="Retries per timed-out T sample; 0 disables retries (default: 3)",
+        "--t-sample-retries", type=int, default=T_SAMPLE_RETRIES,
+        help=f"Retries per timed-out T sample; 0 disables retries (default: {T_SAMPLE_RETRIES})",
     )
     parser.add_argument("--output", type=Path, required=True, help="Run directory")
     parser.add_argument(
@@ -51,7 +62,7 @@ async def main(argv: list[str] | None = None) -> None:
                 problem_dir=args.problem_dir,
                 output=args.output,
                 u_model=U_MODEL,
-                u_thinking="high",
+                u_thinking=U_THINKING,
                 u_provider=U_PROVIDER,
                 t_model=args.T,
                 t_provider=T_PROVIDERS[args.T],

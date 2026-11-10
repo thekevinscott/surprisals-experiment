@@ -12,9 +12,18 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 U_PROVIDER = "xiaomi"
+U_THINKING = "high"
 T_MODEL = "openai/gpt-oss-120b"
 # fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
 T_PROVIDERS = {"openai/gpt-oss-120b": "coreweave/fp4", "xiaomi/mimo-v2.6-pro": "xiaomi"}
+CAP_STRATEGY = "characters"
+T_SAMPLES = 5
+T_POOL_SIZE = 3
+T_SAMPLE_TIMEOUT = 900
+T_SAMPLE_RETRIES = 3
+INFRA_RETRIES = 3
+WINDOW_FORKS = 4
+FORK_TURNS = 10
 WINDOW_SOLO_TURNS = 10
 SCORER_MODEL = "openai/gpt-oss-120b"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -34,16 +43,16 @@ class Config(BaseModel):
     u_provider: str
     t_model: str
     t_provider: str
-    cap_strategy: Literal["characters", "surprisal"] = "characters"
+    cap_strategy: Literal["characters", "surprisal"] = CAP_STRATEGY
     scorer_base_url: str | None = None
     scorer_model: str
-    t_samples: int = Field(default=5, ge=1)
-    t_pool_size: int = Field(default=3, ge=1)
-    t_sample_timeout: float = Field(default=900, gt=0)
-    t_sample_retries: int = Field(default=3, ge=0)
-    infra_retries: int = Field(default=3, ge=0)
-    window_forks: int = Field(default=4, ge=1)
-    fork_turns: int = Field(default=10, ge=1)
+    t_samples: int = Field(default=T_SAMPLES, ge=1)
+    t_pool_size: int = Field(default=T_POOL_SIZE, ge=1)
+    t_sample_timeout: float = Field(default=T_SAMPLE_TIMEOUT, gt=0)
+    t_sample_retries: int = Field(default=T_SAMPLE_RETRIES, ge=0)
+    infra_retries: int = Field(default=INFRA_RETRIES, ge=0)
+    window_forks: int = Field(default=WINDOW_FORKS, ge=1)
+    fork_turns: int = Field(default=FORK_TURNS, ge=1)
     window_solo_turns: int = Field(default=WINDOW_SOLO_TURNS, ge=0)
     max_u_turns: int | None = Field(default=None, ge=1)
 
