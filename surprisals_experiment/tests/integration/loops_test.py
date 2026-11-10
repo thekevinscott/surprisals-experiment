@@ -22,7 +22,7 @@ def u_body(config, turn, user, best):
 
 
 def best(index, advice, sources):
-    code = ''.join(f'<T-{t}>\n<file path="main.py">\n{source}</file>\n2/2 test cases passed\n</T-{t}>\n' for t, source in enumerate(sources))
+    code = ''.join(f'<T-{t}>\n<file path="main.py">\n{source}</file>\n<results>2/2 test cases passed</results>\n</T-{t}>\n' for t, source in enumerate(sources))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
             f'<code>\n{code}</code>\n</attempt>')

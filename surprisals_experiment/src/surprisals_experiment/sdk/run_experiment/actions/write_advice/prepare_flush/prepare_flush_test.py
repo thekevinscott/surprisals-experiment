@@ -47,7 +47,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     assert prompt.count('<attempt>') == 1
     assert '<index>2</index>' in prompt
     assert '<advice>\nadvice 2\n</advice>' in prompt
-    assert '<results>' not in prompt
+    assert prompt.count('<results>1/1 test cases passed</results>') == 2
     if measure == 'surprisal':
         assert '<bits>\nadvice 2<5.0>\n</bits>' in prompt
         assert '<length>' not in prompt
@@ -115,6 +115,6 @@ async def test_each_sample_ends_with_its_passed_case_count_and_no_case_output(co
             for index in range(count)
         ]}))
     prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
-    assert '</file>\n3/3 test cases passed\n</T-0>' in prompt
-    assert '</file>\n2/2 test cases passed\n</T-1>' in prompt
+    assert '</file>\n<results>3/3 test cases passed</results>\n</T-0>' in prompt
+    assert '</file>\n<results>2/2 test cases passed</results>\n</T-1>' in prompt
     assert 'secret' not in prompt
