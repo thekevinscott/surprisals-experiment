@@ -138,7 +138,7 @@ def build(output, settings, rounds, failing, advices):
                 pending = {f'{done}/tests.json': FAILED if fork in failing else TESTS}
     solution = output / attempt(0, rounds[1][0][1], 0, 0) / 'src'
     scoring = {'best_measurement': 2.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-               'scorer_model': 't'} if surprisal else {}
+               'scorer_model': 'openai/gpt-oss-120b'} if surprisal else {}
     world.append(Done(outcome=solution, files={**pending, 'result.json': {
         'success': True, 'attempts': sum(map(len, rounds)), 'solution': str(solution), **scoring}}))
     return world, kills, own

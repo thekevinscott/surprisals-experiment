@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, SecretStr, field_validator, model_validat
 ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 
 U_MODEL = "xiaomi/mimo-v2.6-pro"
+U_PROVIDER = "xiaomi"
 T_MODEL = "openai/gpt-oss-120b"
 # fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
 T_PROVIDER = "coreweave/fp4"
@@ -29,12 +30,12 @@ class Config(BaseModel):
     output: Path
     u_model: str
     u_thinking: ThinkingLevel
-    u_provider: str = "xiaomi"
+    u_provider: str
     t_model: str
-    t_provider: str = T_PROVIDER
+    t_provider: str
     cap_strategy: Literal["characters", "surprisal"] = "characters"
     scorer_base_url: str | None = None
-    scorer_model: str = SCORER_MODEL
+    scorer_model: str
     t_samples: int = Field(default=5, ge=1)
     t_pool_size: int = Field(default=3, ge=1)
     t_sample_timeout: float = Field(default=900, gt=0)

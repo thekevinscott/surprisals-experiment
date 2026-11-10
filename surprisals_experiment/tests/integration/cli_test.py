@@ -35,7 +35,7 @@ def labnotes_run_state(tmp_path):
         yield
 
 
-def world(config, u_model, t_model, url, u_provider='xiaomi', scorer_model='openai/gpt-oss-120b'):
+def world(config, u_model, t_model, url, u_provider='xiaomi'):
     """Two windows of one turn, two T samples each, run one at a time; the run's own logs go to labnotes."""
     best = flush(0, 'Double.', bits='Double.<7.0>', codes=(PASS, PASS))
     states, pending = played([[(QUESTION, 'Double.', [PASS, PASS])], [(best, 'Double.', [PASS, PASS])]],
@@ -52,22 +52,21 @@ def world(config, u_model, t_model, url, u_provider='xiaomi', scorer_model='open
     solution = config.output / 'windows/0/forks/0/turns/0/ts/0/attempts/0/src'
     return [*states, Done(outcome=None, files={**pending, 'result.json': {
         'success': True, 'attempts': 2, 'solution': str(solution), 'best_measurement': 7.0,
-        'cap_strategy': 'surprisal', 'scorer_base_url': url, 'scorer_model': scorer_model}})]
+        'cap_strategy': 'surprisal', 'scorer_base_url': url, 'scorer_model': 'openai/gpt-oss-120b'}})]
 
 
 async def test_cli_runs_with_selected_measure_and_stopping_budget(
     config, labnotes_log, in_problem_dir, execute_run_experiment
 ):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 'u_provider': 'selected-provider', 't_model': 'selected-t',
-                't_provider': 'selected-t-provider', 'scorer_model': 'selected-scorer'}
+    settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 'u_provider': 'selected-provider', 't_model': 'selected-t'}
     argv = [
         "--window-forks", "1", "--window-solo-turns", "2", "-U", "selected-u", "--u-provider", "selected-provider",
-        "-T", "selected-t", "--t-provider", "selected-t-provider", "--scorer-model", "selected-scorer",
+        "-T", "selected-t",
         "--cap-strategy", "surprisal", "--scorer-base-url", "http://scorer/v1", "--max-u-turns", "1",
         "--t-samples", "2", "--t-pool-size", "1", "--output", str(config.output), str(config.problem_dir),
     ]
-    async with execute_run_experiment(config, world(config, 'selected-u', 'selected-t', 'http://scorer/v1', 'selected-provider', 'selected-scorer'), run=main(argv)):
+    async with execute_run_experiment(config, world(config, 'selected-u', 'selected-t', 'http://scorer/v1', 'selected-provider'), run=main(argv)):
         pass
     written = json.loads((config.output / "settings.json").read_text())
     assert written.items() >= settings.items()
