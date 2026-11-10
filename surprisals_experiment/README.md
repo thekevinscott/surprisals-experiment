@@ -71,7 +71,7 @@ Character minimization remains the default, with unchanged prompts and results.
 To minimize surprisal instead, add
 `--cap-strategy surprisal --scorer-base-url https://HOST/v1`. The scorer must serve `Config.scorer_model`
 (default `openai/gpt-oss-120b`, independent of `-T`) and support completion prompt logprobs.
-T's OpenRouter route is pinned by `Config.t_provider` (default `coreweave/fp4`).
+T's OpenRouter route is pinned by `Config.t_provider`, looked up from `-T` in `T_PROVIDERS` in `config.py`.
 
 Surprisal is measured by the existing `measure-surprisal` dependency in bits,
 with no problem or conversation prefix. Its convention skips tokens whose

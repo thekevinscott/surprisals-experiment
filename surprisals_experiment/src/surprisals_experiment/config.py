@@ -14,7 +14,7 @@ U_MODEL = "xiaomi/mimo-v2.6-pro"
 U_PROVIDER = "xiaomi"
 T_MODEL = "openai/gpt-oss-120b"
 # fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
-T_PROVIDER = "coreweave/fp4"
+T_PROVIDERS = {"openai/gpt-oss-120b": "coreweave/fp4", "xiaomi/mimo-v2.6-pro": "xiaomi"}
 SCORER_MODEL = "openai/gpt-oss-120b"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Pi's name for its built-in OpenRouter provider.

@@ -9,7 +9,7 @@ async def test_t_gets_the_question_and_result_counts_passing_samples(config, bot
     botbox_script.solutions.extend(["print(int(input()) * 2)\n", "print(0)\n", "print(int(input()) * 2)\n"])
     with chdir(config.problem_dir):
         await main([
-            "--problem-dir", str(config.problem_dir), "--output", str(config.output), "-T", "t",
+            "--problem-dir", str(config.problem_dir), "--output", str(config.output), "-T", "xiaomi/mimo-v2.6-pro",
             "--t-samples", "3", "--t-pool-size", "1", "--t-sample-timeout", "300", "--t-sample-retries", "0",
         ])
     assert [session.messages for session in botbox_script.sessions] == [["Read an integer and print its double."]] * 3

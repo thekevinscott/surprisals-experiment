@@ -9,7 +9,7 @@ from typing import get_args
 import labnotes
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDER, U_MODEL, U_PROVIDER, ThinkingLevel
+from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
 from .log_streams import LogStreams
@@ -135,7 +135,7 @@ async def main(argv: list[str] | None = None) -> None:
                 u_thinking=args.u_thinking,
                 u_provider=args.u_provider,
                 t_model=args.T,
-                t_provider=T_PROVIDER,
+                t_provider=T_PROVIDERS[args.T],
                 cap_strategy=args.cap_strategy,
                 scorer_base_url=args.scorer_base_url,
                 scorer_model=SCORER_MODEL,
