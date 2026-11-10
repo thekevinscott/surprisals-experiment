@@ -96,3 +96,25 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
     assert PASS.rstrip() in prompt
+
+
+async def test_each_sample_ends_with_its_passed_case_count_and_no_case_output(config):
+    config = Config(**(config.model_dump() | {'t_samples': 2}))
+    advice = config.attempt_dir(0)
+    advice.mkdir(parents=True)
+    (config.window_dir / 'window.json').write_text('{}')
+    (config.fork_dir / 'fork.json').write_text('{}')
+    write_advice(config, advice, 'double it', 9)
+    for sample, count in enumerate([3, 2]):
+        folder = config.t_dir(0, sample) / 'attempts/0'
+        (folder / 'src').mkdir(parents=True)
+        (folder / 'src/main.py').write_text(PASS)
+        (folder / 'generation.json').write_text('{"exit_code": 0}')
+        (folder / 'tests.json').write_text(json.dumps({'cases': [
+            {'index': index, 'passed': True, 'status': 's', 'stdout': 'secret stdout', 'stderr': 'secret stderr'}
+            for index in range(count)
+        ]}))
+    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    assert '</file>\n3/3 test cases passed\n</T-0>' in prompt
+    assert '</file>\n2/2 test cases passed\n</T-1>' in prompt
+    assert 'secret' not in prompt
