@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from openai import AsyncOpenAI
 
+from surprisals_experiment.config import OPENROUTER_BASE_URL
 from surprisals_experiment.prompt import Prompt
 from .chat_session import ChatSession
 from .record.restore import restore
@@ -23,7 +24,7 @@ async def open_u_chat(config, *, transcripts=None) -> AsyncGenerator[ChatSession
         t_samples=config.t_samples,
     )
     async with AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1", api_key=config.api_key.get_secret_value(),
+        base_url=OPENROUTER_BASE_URL, api_key=config.api_key.get_secret_value(),
         max_retries=0,
     ) as client:
         transcripts = config.u_transcripts if transcripts is None else transcripts

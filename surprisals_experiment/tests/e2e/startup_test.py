@@ -8,6 +8,7 @@ from pathlib import Path
 import surprisals_experiment
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
 from surprisals_experiment.sdk.utils.botbox_run.botbox_run import botbox_run
+from surprisals_experiment.config import T_PI_PROVIDER
 from surprisals_experiment.sdk.utils.t_agent import TAgent
 
 
@@ -16,7 +17,7 @@ def describe_real_container_startup():
         output = tmp_path / 'solution'
         output.mkdir(mode=0o700)
         agent = TAgent(
-            'openrouter', config.t_model, api_key=config.api_key.get_secret_value(),
+            T_PI_PROVIDER, config.t_model, route=config.t_provider, api_key=config.api_key.get_secret_value(),
             instructions=INSTRUCTIONS(), on_delta=None,
         )
         code = "from pathlib import Path; Path('main.py').write_text('print(42)\\n')"

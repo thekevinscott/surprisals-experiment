@@ -9,7 +9,7 @@ from typing import get_args
 import labnotes
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import T_MODEL, U_MODEL, ThinkingLevel
+from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
 from .log_streams import LogStreams
@@ -22,7 +22,7 @@ async def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("-U", default=U_MODEL, help="Advisor OpenRouter model ID")
     parser.add_argument(
-        "--u-provider", default="xiaomi", help="OpenRouter provider U is pinned to (default: xiaomi)"
+        "--u-provider", default=U_PROVIDER, help=f"OpenRouter provider U is pinned to (default: {U_PROVIDER})"
     )
     parser.add_argument(
         "--u-thinking",
@@ -135,8 +135,10 @@ async def main(argv: list[str] | None = None) -> None:
                 u_thinking=args.u_thinking,
                 u_provider=args.u_provider,
                 t_model=args.T,
+                t_provider=T_PROVIDERS[args.T],
                 cap_strategy=args.cap_strategy,
                 scorer_base_url=args.scorer_base_url,
+                scorer_model=SCORER_MODEL,
                 t_samples=args.t_samples,
                 t_pool_size=args.t_pool_size,
                 t_sample_timeout=args.t_sample_timeout,

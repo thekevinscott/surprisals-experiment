@@ -179,7 +179,7 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, execute_
                  'tokens': [[token, pytest.approx(bits)] for token, bits in pairs]} for advice, pairs in scores.items()},
         bits=scores, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending, best_measurement=1.0,
-                         cap_strategy='surprisal', scorer_base_url='http://scorer/v1', scorer_model='t'))
+                         cap_strategy='surprisal', scorer_base_url='http://scorer/v1', scorer_model='openai/gpt-oss-120b'))
     async with execute_run_experiment(config, world):
         pass
 
@@ -201,7 +201,7 @@ async def test_shows_only_the_selected_measure_and_no_results(config, execute_ru
         bits = {'double': [('double', 2.5)], 'next': [('next', 1.0)]}
         scores = {advice: {'score': pairs[0][1], 'tokens': [list(pairs[0])]} for advice, pairs in bits.items()}
         scoring = {'best_measurement': 1.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
-                   'scorer_model': 't'}
+                   'scorer_model': 'openai/gpt-oss-120b'}
     world, pending = played([
         [(QUESTION, 'double', [PASS, OTHER_PASS]), (double, 'next', [PASS, OTHER_PASS])],
         [(best, 'next', [PASS, OTHER_PASS])] * 2,

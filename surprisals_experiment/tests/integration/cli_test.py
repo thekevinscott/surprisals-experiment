@@ -52,21 +52,22 @@ def world(config, u_model, t_model, url, u_provider='xiaomi'):
     solution = config.output / 'windows/0/forks/0/turns/0/ts/0/attempts/0/src'
     return [*states, Done(outcome=None, files={**pending, 'result.json': {
         'success': True, 'attempts': 2, 'solution': str(solution), 'best_measurement': 7.0,
-        'cap_strategy': 'surprisal', 'scorer_base_url': url, 'scorer_model': t_model}})]
+        'cap_strategy': 'surprisal', 'scorer_base_url': url, 'scorer_model': 'openai/gpt-oss-120b'}})]
 
 
 async def test_cli_runs_with_selected_measure_and_stopping_budget(
     config, labnotes_log, in_problem_dir, execute_run_experiment
 ):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
-    settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 'u_provider': 'selected-provider', 't_model': 'selected-t'}
+    settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 'u_provider': 'selected-provider',
+                't_model': 'xiaomi/mimo-v2.6-pro', 't_provider': 'xiaomi'}
     argv = [
         "--window-forks", "1", "--window-solo-turns", "2", "-U", "selected-u", "--u-provider", "selected-provider",
-        "-T", "selected-t",
+        "-T", "xiaomi/mimo-v2.6-pro",
         "--cap-strategy", "surprisal", "--scorer-base-url", "http://scorer/v1", "--max-u-turns", "1",
         "--t-samples", "2", "--t-pool-size", "1", "--output", str(config.output), str(config.problem_dir),
     ]
-    async with execute_run_experiment(config, world(config, 'selected-u', 'selected-t', 'http://scorer/v1', 'selected-provider'), run=main(argv)):
+    async with execute_run_experiment(config, world(config, 'selected-u', 'xiaomi/mimo-v2.6-pro', 'http://scorer/v1', 'selected-provider'), run=main(argv)):
         pass
     written = json.loads((config.output / "settings.json").read_text())
     assert written.items() >= settings.items()

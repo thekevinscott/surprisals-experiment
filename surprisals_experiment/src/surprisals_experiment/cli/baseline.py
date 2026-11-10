@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import T_MODEL, U_MODEL
+from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER
 from surprisals_experiment.sdk import Config
 from surprisals_experiment.sdk.run_baseline import run_baseline
 
@@ -52,7 +52,10 @@ async def main(argv: list[str] | None = None) -> None:
                 output=args.output,
                 u_model=U_MODEL,
                 u_thinking="high",
+                u_provider=U_PROVIDER,
                 t_model=args.T,
+                t_provider=T_PROVIDERS[args.T],
+                scorer_model=SCORER_MODEL,
                 t_samples=args.t_samples,
                 t_pool_size=args.t_pool_size,
                 t_sample_timeout=args.t_sample_timeout,

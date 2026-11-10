@@ -119,7 +119,7 @@ def scoring_config(config):
     )
 
 
-SCORING = {'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1', 'scorer_model': 't'}
+SCORING = {'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1', 'scorer_model': 'openai/gpt-oss-120b'}
 
 
 async def test_character_metadata_has_no_tokens(config, execute_run_experiment):

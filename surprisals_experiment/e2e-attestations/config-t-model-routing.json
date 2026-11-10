@@ -1,0 +1,7 @@
+{
+  "command": "uv run --no-sync pytest 'tests/e2e/resume_test.py::describe_real_cli_resume::it_resumes_sigint_in_the_fork_round' -p no:cacheprovider",
+  "ran_at": 1794282629,
+  "exit_code": 0,
+  "commit": "341cfed0f0090d1f53f1818b1bda4be9a686d3ea",
+  "branch": "config/t-model-routing"
+}

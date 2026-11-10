@@ -67,7 +67,7 @@ def describe_run_result():
                                  bits={advice: [(advice, 3.25)]}, config=config)
         async with execute_run_experiment(config, [*states, outcome(
                 config, TURN, 2, pending, best_measurement=3.25, cap_strategy='surprisal',
-                scorer_base_url='http://scorer/v1', scorer_model='t')]):
+                scorer_base_url='http://scorer/v1', scorer_model='openai/gpt-oss-120b')]):
             pass
         assert len(list((config.output / 'advices').iterdir())) == 1
         assert result(config)['best_measurement'] == 3.25

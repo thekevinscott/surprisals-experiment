@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 from botbox import RunResult
 
-from surprisals_experiment.config import Config
+from surprisals_experiment.config import T_PI_PROVIDER, Config
 from surprisals_experiment.prompt import Prompt
 
 from .utils.botbox_run.botbox_run import botbox_run
@@ -26,8 +26,9 @@ async def prompt_t(
     """Run T, write its streams, proxy log and transcripts live to `logs`, and return its exit."""
     output.mkdir(parents=True, exist_ok=False)
     agent = TAgent(
-        provider="openrouter",
+        provider=T_PI_PROVIDER,
         model=config.t_model,
+        route=config.t_provider,
         api_key=config.api_key.get_secret_value(),
         instructions=INSTRUCTIONS(),
         on_delta=on_delta,
