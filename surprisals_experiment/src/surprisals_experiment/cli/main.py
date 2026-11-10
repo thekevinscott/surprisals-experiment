@@ -9,7 +9,7 @@ from typing import get_args
 import labnotes
 from dotenv import dotenv_values, find_dotenv
 
-from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER, ThinkingLevel
+from surprisals_experiment.config import SCORER_MODEL, T_MODEL, T_PROVIDERS, U_MODEL, U_PROVIDER, WINDOW_SOLO_TURNS, ThinkingLevel
 from surprisals_experiment.sdk import Config, run_experiment
 
 from .log_streams import LogStreams
@@ -90,8 +90,8 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--window-solo-turns",
         type=int,
-        default=30,
-        help="Turns the winning fork continues alone after the fork round; its fork folder ends with fork-turns + window-solo-turns turns (default: 30)",
+        default=WINDOW_SOLO_TURNS,
+        help=f"Turns the winning fork continues alone after the fork round; its fork folder ends with fork-turns + window-solo-turns turns (default: {WINDOW_SOLO_TURNS})",
     )
     parser.add_argument(
         "--output",

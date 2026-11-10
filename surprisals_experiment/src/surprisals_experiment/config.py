@@ -15,6 +15,7 @@ U_PROVIDER = "xiaomi"
 T_MODEL = "openai/gpt-oss-120b"
 # fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
 T_PROVIDERS = {"openai/gpt-oss-120b": "coreweave/fp4", "xiaomi/mimo-v2.6-pro": "xiaomi"}
+WINDOW_SOLO_TURNS = 10
 SCORER_MODEL = "openai/gpt-oss-120b"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Pi's name for its built-in OpenRouter provider.
@@ -43,7 +44,7 @@ class Config(BaseModel):
     infra_retries: int = Field(default=3, ge=0)
     window_forks: int = Field(default=4, ge=1)
     fork_turns: int = Field(default=10, ge=1)
-    window_solo_turns: int = Field(default=30, ge=0)
+    window_solo_turns: int = Field(default=WINDOW_SOLO_TURNS, ge=0)
     max_u_turns: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")

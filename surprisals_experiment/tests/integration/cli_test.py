@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from state_machine.testing import Done
 from surprisals_experiment.cli.main import main
-from surprisals_experiment.config import T_MODEL, U_MODEL
+from surprisals_experiment.config import T_MODEL, U_MODEL, WINDOW_SOLO_TURNS
 from utils.world import T, U, t_sent
 
 from u_flush_test import PASS, QUESTION, flush, played
@@ -87,9 +87,11 @@ async def test_surprisal_reads_scorer_url_from_labnotes_state(
 ):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
     argv = [
-        "--window-forks", "1", "--window-solo-turns", "2", "--cap-strategy", "surprisal", "--max-u-turns", "1",
+        "--window-forks", "1", "--cap-strategy", "surprisal", "--max-u-turns", "1",
         "--t-samples", "2", "--t-pool-size", "1", "--output", str(config.output), str(config.problem_dir),
     ]
     async with execute_run_experiment(config, world(config, U_MODEL, T_MODEL, 'http://state-scorer/v1'), run=main(argv)):
         pass
-    assert json.loads((config.output / "settings.json").read_text())["scorer_base_url"] == "http://state-scorer/v1"
+    written = json.loads((config.output / "settings.json").read_text())
+    assert written["scorer_base_url"] == "http://state-scorer/v1"
+    assert written["window_solo_turns"] == WINDOW_SOLO_TURNS

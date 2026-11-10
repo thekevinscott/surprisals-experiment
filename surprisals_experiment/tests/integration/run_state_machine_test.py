@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 
 from state_machine.testing import Done, State
-from surprisals_experiment.config import Config
+from surprisals_experiment.config import WINDOW_SOLO_TURNS, Config
 from utils.world import U, Score, T, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
@@ -17,7 +17,7 @@ def settings(config):
             'u_thinking': 'high', 'u_provider': 'xiaomi', 't_model': 't', 't_provider': 'coreweave/fp4', 'cap_strategy': config.cap_strategy,
             'scorer_base_url': config.scorer_base_url, 'scorer_model': 'openai/gpt-oss-120b', 't_samples': config.t_samples, 't_pool_size': 3,
             't_sample_timeout': 900.0, 't_sample_retries': 3, 'infra_retries': 0, 'window_forks': 1, 'fork_turns': 10,
-            'window_solo_turns': 30, 'max_u_turns': 1, 'git_commit': ...}
+            'window_solo_turns': WINDOW_SOLO_TURNS, 'max_u_turns': 1, 'git_commit': ...}
 
 
 def u_body(config, user, best):
