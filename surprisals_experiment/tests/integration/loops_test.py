@@ -14,18 +14,22 @@ PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 
 
-def u_body(config, turn, user, best):
+def u_body(config, turn, conversation, best):
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config, turn + 1, best)},
-                         {'role': 'user', 'content': user}]}
+            'messages': [{'role': 'system', 'content': u_system(config, turn + 1, best)}, *conversation]}
+
+
+def code(sources):
+    return '<code>\n' + ''.join(
+        f'<T-{t}>\n<file path="main.py">\n{source}</file>\n<results>{2 * (source == PASS)}/2 test cases passed</results>\n</T-{t}>\n'
+        for t, source in enumerate(sources)) + '</code>'
 
 
 def best(index, advice, sources):
-    code = ''.join(f'<T-{t}>\n<file path="main.py">\n{source}</file>\n<results>2/2 test cases passed</results>\n</T-{t}>\n' for t, source in enumerate(sources))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
-            f'<code>\n{code}</code>\n</attempt>')
+            f'{code(sources)}\n</attempt>')
 
 
 def evaluation(source):
@@ -47,8 +51,8 @@ def advice_path(advice):
 
 
 def run_world(config, turns, *, outcome, attempts):
-    """States for `turns`, each (window, U's user message, advice, T sources), then Done."""
-    world, evaluated, transcripts, usage, advices, counts, passed = [], {}, {}, {}, set(), {}, []
+    """States for `turns`, each (window, U's window opening or None, advice, T sources), then Done."""
+    world, evaluated, transcripts, usage, advices, counts, passed, conversation = [], {}, {}, {}, set(), {}, [], []
     for window, user, advice, sources in turns:
         turn = counts[window] = counts.get(window, -1) + 1
         fork = f'windows/{window}/forks/0'
@@ -66,10 +70,13 @@ def run_world(config, turns, *, outcome, attempts):
                 'window_forks': 1, 'fork_turns': 10, 'window_solo_turns': WINDOW_SOLO_TURNS, 'max_u_turns': config.max_u_turns,
                 'git_commit': ...,
             }
-        transcripts[root] += [{'role': 'system', 'content': ...}, {'role': 'user', 'content': user, '_reset': True}]
+        assert (user is None) == bool(turn)
+        if not turn:
+            conversation = [{'role': 'user', 'content': user}]
+        transcripts[root] += [{'role': 'system', 'content': ...}, {**conversation[0], '_reset': True}, *conversation[1:]]
         world.append(State(
             U(advice, thinking='Thinking.'),
-            sent=u_body(config, turn, user, min((score for w, score in passed if w < window), default=None)),
+            sent=u_body(config, turn, conversation, min((score for w, score in passed if w < window), default=None)),
             logs=[(f'{directory}/u', 'thinking', 'Thinking.'), (f'{directory}/u', 'text', advice)],
             files={**files, f'{root}/messages.jsonl': list(transcripts[root])},
         ))
@@ -98,6 +105,7 @@ def run_world(config, turns, *, outcome, attempts):
             ))
             files = {}
             evaluated |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': evaluation(source)}
+        conversation += [{'role': 'assistant', 'content': advice}, {'role': 'user', 'content': code(sources)}]
         if sources and FAIL not in sources:
             passed.append((window, len(advice)))
     if outcome is None:
@@ -115,8 +123,9 @@ def describe_u_to_t_loop():
         count = failures + 1
         config.max_u_turns = count
         advices = [f'advice {i}' for i in range(2 * count)]
-        first = [(0, QUESTION, advices[i], [FAIL if i < failures else PASS]) for i in range(count)]
-        second = [(1, best(failures, advices[failures], [PASS]), advices[count + i], [PASS]) for i in range(count)]
+        first = [(0, None if i else QUESTION, advices[i], [FAIL if i < failures else PASS]) for i in range(count)]
+        opening = best(failures, advices[failures], [PASS])
+        second = [(1, None if i else opening, advices[count + i], [PASS]) for i in range(count)]
         solution = config.output / f'windows/0/forks/0/turns/{failures}/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution,
                                                             attempts=2 * count)):
@@ -126,23 +135,23 @@ def describe_u_to_t_loop():
 def describe_advice_improvement():
     async def it_stops_without_a_first_success(config, execute_run_experiment):
         config.max_u_turns = 2
-        turns = [(window, QUESTION, 'advice', [FAIL]) for window in [0, 0, 1, 1]]
+        turns = [(window, None if turn else QUESTION, 'advice', [FAIL]) for window in [0, 1] for turn in [0, 1]]
         async with execute_run_experiment(config, run_world(config, turns, outcome=None, attempts=4)):
             pass
 
-    @pytest.mark.parametrize('advices,outcomes,best_attempt,shown', [
-        (['long advice', 'tiny', 'long advice', 'tiny'], [[PASS, PASS]] * 4, 1, [None, 0, 1, 1]),
-        (['long advice', 'tiny', 'x'], [[PASS, PASS], [PASS, FAIL], [FAIL, PASS]], 0, [None, 0, 0]),
+    @pytest.mark.parametrize('advices,outcomes,best_attempt', [
+        (['long advice', 'tiny', 'long advice', 'tiny'], [[PASS, PASS]] * 4, 1),
+        (['long advice', 'tiny', 'x'], [[PASS, PASS], [PASS, FAIL], [FAIL, PASS]], 0),
     ])
     async def it_selects_only_strictly_shorter_all_pass_advice(
-        config, execute_run_experiment, advices, outcomes, best_attempt, shown,
+        config, execute_run_experiment, advices, outcomes, best_attempt,
     ):
         config.max_u_turns = len(advices)
         config.t_samples = 2
-        feedback = [QUESTION if i is None else best(i, advices[i], outcomes[i]) for i in shown]
-        first = [(0, feedback[i], advice, sources) for i, (advice, sources) in enumerate(zip(advices, outcomes))]
+        first = [(0, None if i else QUESTION, advice, sources) for i, (advice, sources) in enumerate(zip(advices, outcomes))]
         winner = advices[best_attempt]
-        second = [(1, best(best_attempt, winner, [PASS, PASS]), winner, [PASS, PASS])] * len(advices)
+        opening = best(best_attempt, winner, [PASS, PASS])
+        second = [(1, None if i else opening, winner, [PASS, PASS]) for i in range(len(advices))]
         solution = config.output / f'windows/0/forks/0/turns/{best_attempt}/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution,
                                                             attempts=2 * len(advices))):
@@ -152,8 +161,8 @@ def describe_advice_improvement():
 def describe_run_layout():
     async def it_nests_each_turn_under_window_and_fork(config, execute_run_experiment):
         config.max_u_turns = 2
-        first = [(0, QUESTION, 'long advice', [PASS]), (0, best(0, 'long advice', [PASS]), 'short', [PASS])]
-        second = [(1, best(1, 'short', [PASS]), 'short', [PASS])] * 2
+        first = [(0, QUESTION, 'long advice', [PASS]), (0, None, 'short', [PASS])]
+        second = [(1, best(1, 'short', [PASS]), 'short', [PASS]), (1, None, 'short', [PASS])]
         solution = config.output / 'windows/0/forks/0/turns/1/ts/0/attempts/0/src'
         async with execute_run_experiment(config, run_world(config, first + second, outcome=solution, attempts=4)):
             pass

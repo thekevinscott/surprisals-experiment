@@ -15,20 +15,5 @@
 {{ attempt.score_text }}
 </bits>
 {% endif %}
-<code>
-{% for index in range(t_samples) %}
-<T-{{ index }}>
-{% for path, source in attempt.sources.get(index | string, {}).items() %}
-{% if source is integer %}
-<file path="{{ path }}" omitted="{{ source }} bytes"/>
-{% else %}
-<file path="{{ path }}">
-{{ source.rstrip("\n") }}
-</file>
-{% endif %}
-{% endfor %}
-<results>{{ attempt.results[index].passed }}/{{ attempt.results[index].cases }} test cases passed</results>
-</T-{{ index }}>
-{% endfor %}
-</code>
+{{ attempt.code }}
 </attempt>

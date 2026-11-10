@@ -46,14 +46,12 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         await write_advice(run, Turn(config, 22, window))
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
-        assert [m['role'] for m in chat_provider[-1]['messages']] == ['system', 'user']
     async with open_u_chat(config) as chat:
         assert chat.messages[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 23, window))
         assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
                 if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
-        assert [m['role'] for m in chat_provider[-1]['messages']] == ['system', 'user']
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
@@ -78,3 +76,48 @@ async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, 
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 0))
     assert written['advice.json'] and written['metadata.json']
+
+
+def seed_turn(config, window, fork, position, advice, codes, passed=True):
+    turn = Turn(config, position, window, fork)
+    write(config.output / f'windows/{window}/window.json', '{}')
+    write(config.output / f'windows/{window}/forks/{fork}/fork.json', '{}')
+    turn.attempt_dir.mkdir(parents=True)
+    seed_advice(config, turn.attempt_dir, advice, len(advice))
+    for sample, code in enumerate(codes):
+        attempt = turn.t_dir(sample) / 'attempts/0'
+        write(attempt / 'generation.json', '{"exit_code": 0}')
+        write(attempt / 'tests.json', json.dumps({'cases': [
+            {'index': 0, 'passed': passed, 'status': 's', 'stdout': '', 'stderr': ''},
+        ]}))
+        write(attempt / 'src/main.py', code)
+
+
+def code(*sources, passed=1):
+    return '<code>\n' + ''.join(
+        f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n<results>{passed}/1 test cases passed</results>\n</T-{sample}>\n'
+        for sample, source in enumerate(sources)
+    ) + '</code>'
+
+
+async def test_appends_this_forks_earlier_turns_after_the_window_opening(config, botbox_script, chat_provider):
+    config = Config(**(config.model_dump() | {'t_samples': 2}))
+    seed_turn(config, 0, 0, 0, 'Best.', ['print(1)\n', 'print(2)\n'])
+    seed_turn(config, 1, 0, 0, 'Later.', ['print(3)\n', 'print(4)\n'], passed=False)
+    seed_turn(config, 1, 0, 1, 'Again.', ['print(5)\n', 'print(6)\n'], passed=False)
+    # Shorter and all-pass, but in this window and another fork: in neither the opening nor this fork's turns.
+    seed_turn(config, 1, 1, 0, 'Ok.', ['print(7)\n', 'print(8)\n'])
+    opening = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
+               '<attempt>\n<index>0</index>\n<length>5 characters</length>\n<advice>\nBest.\n</advice>\n'
+               + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
+    botbox_script.advice.append('Next.')
+    async with open_u_chat(config) as chat:
+        run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
+        await write_advice(run, Turn(config, 2, 1, 0))
+    assert chat_provider[-1]['messages'][1:] == [
+        {'role': 'user', 'content': opening},
+        {'role': 'assistant', 'content': 'Later.'},
+        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'assistant', 'content': 'Again.'},
+        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
+    ]

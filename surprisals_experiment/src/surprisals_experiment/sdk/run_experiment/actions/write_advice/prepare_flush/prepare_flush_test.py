@@ -7,6 +7,7 @@ import pytest
 
 from surprisals_experiment.config import Config
 from run_database import ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.run_experiment.actions.write_advice.prepare_flush import prepare_flush
 
 PASS = 'print(int(input()) * 2)\n'
@@ -22,7 +23,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     (config.fork_dir / 'fork.json').write_text('{}')
     problem = QuestionDatabase(config.problem_dir)
     database = ExperimentDatabase(config.output)
-    assert await prepare_flush(config, problem, database) == await problem.question
+    assert await prepare_flush(Turn(config, 0, 1), problem, database) == await problem.question
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
     for number, measurement, results in [
@@ -43,7 +44,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
         (src / 'nested').mkdir(parents=True)
         (src / 'main.py').write_text(f'print({sample})\n')
         (src / 'nested/helper.py').write_text(f'VALUE = {sample}\n')
-    prompt = await prepare_flush(config, problem, database)
+    prompt = await prepare_flush(Turn(config, 0, 1), problem, database)
     assert prompt.count('<attempt>') == 1
     assert '<index>2</index>' in prompt
     assert '<advice>\nadvice 2\n</advice>' in prompt
@@ -62,7 +63,7 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     write_advice(config, config.attempt_dir(2), 'updated advice', 5,
                  [['updated advice', 5]] if measure == 'surprisal' else None)
     (config.t_dir(2, 1) / 'attempts/0/src/main.py').write_text('print("updated")')
-    updated = await prepare_flush(config, problem, database)
+    updated = await prepare_flush(Turn(config, 0, 1), problem, database)
     assert '<advice>\nupdated advice\n</advice>' in updated
     assert 'print("updated")' in updated
 
@@ -78,7 +79,7 @@ async def test_ties_across_windows_and_forks_go_to_the_earliest_turn(config):
         (directory / 'ts/0/attempts/0/generation.json').write_text('{"exit_code": 0}')
         (directory / 'ts/0/attempts/0/tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
     config = Config(**(config.model_dump() | {'t_samples': 1}))
-    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    prompt = await prepare_flush(Turn(config, 0, 11), QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '<advice>\nwindows/9/forks/1/turns/35\n</advice>' in prompt
 
 async def test_keeps_best_attempt_even_above_old_size_budget(config):
@@ -92,7 +93,7 @@ async def test_keeps_best_attempt_even_above_old_size_budget(config):
     (sample / 'src/main.py').write_text(PASS)
     (sample / 'generation.json').write_text('{"exit_code": 0}')
     (sample / 'tests.json').write_text(json.dumps({'cases': [{'index': 0, 'passed': True, 'status': 's', 'stdout': '', 'stderr': ''}]}))
-    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    prompt = await prepare_flush(Turn(config, 0, 1), QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert prompt.count('<attempt>') == 1
     assert '<advice>\ndouble it\n</advice>' in prompt
     assert PASS.rstrip() in prompt
@@ -114,7 +115,7 @@ async def test_each_sample_ends_with_its_passed_case_count_and_no_case_output(co
             {'index': index, 'passed': True, 'status': 's', 'stdout': 'secret stdout', 'stderr': 'secret stderr'}
             for index in range(count)
         ]}))
-    prompt = await prepare_flush(config, QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
+    prompt = await prepare_flush(Turn(config, 0, 1), QuestionDatabase(config.problem_dir), ExperimentDatabase(config.output))
     assert '</file>\n<results>3/3 test cases passed</results>\n</T-0>' in prompt
     assert '</file>\n<results>2/2 test cases passed</results>\n</T-1>' in prompt
     assert 'secret' not in prompt

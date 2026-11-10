@@ -9,17 +9,18 @@ from state_machine.testing import Done, State
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
 from run_state_machine_test import settings
-from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
+from u_flush_test import PASS, QUESTION, STDOUT, appended, chat, flush, outcome, played, results
 from utils.world import U, T, t_sent, u_system
 
 
 def u_state(config, window, turn, prompt, advice, files, previous=None):
+    """`prompt` is the window's opening user message, or the whole conversation as a list of messages."""
     path = f'windows/{window}/forks/0/turns/{turn}'
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                        'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
-                                    {'role': 'user', 'content': prompt}]},
+                                    *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}])]},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -91,14 +92,16 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     config.t_sample_retries = 1
     long = 'Double the input.'
     best = flush(0, long, length=17, codes=[PASS] * 3)
+    later = [{'role': 'assistant', 'content': long}, {'role': 'user', 'content': appended(*[PASS] * 3)}]
+    first, second = [{'role': 'user', 'content': QUESTION}, *later], [{'role': 'user', 'content': best}, *later]
     world = [
         u_state(config, 0, 0, QUESTION, long, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         t_state(0, 0, 0, 0, long, {**chat(0, (QUESTION, long)), **advised(0, 0, long, 17)}),
         t_state(0, 0, 1, 0, long, {}),
         t_state(0, 0, 2, 0, long, {}),
-        u_state(config, 0, 1, best, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
-                                        **chat(0, (QUESTION, long), (best, None))}),
-        t_state(0, 1, 0, 0, 'Double.', {**chat(0, (QUESTION, long), (best, 'Double.')), **advised(0, 1, 'Double.', 7)}),
+        u_state(config, 0, 1, first, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
+                                         **chat(0, (QUESTION, long), (first, None))}),
+        t_state(0, 1, 0, 0, 'Double.', {**chat(0, (QUESTION, long), (first, 'Double.')), **advised(0, 1, 'Double.', 7)}),
         t_state(0, 1, 1, 0, 'Double.', {}),
         t_state(0, 1, 2, 0, 'Double.', {}, hang=True),
         t_state(0, 1, 2, 1, 'Double.', {**evaluated(attempt(0, 1, 0), attempt(0, 1, 1)), **timed_out(attempt(0, 1, 2))},
@@ -107,9 +110,9 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
         t_state(1, 0, 0, 0, long, {**chat(1, (best, long)), **advised(1, 0, long)}),
         t_state(1, 0, 1, 0, long, {}),
         t_state(1, 0, 2, 0, long, {}),
-        u_state(config, 1, 1, best, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
-                                   **chat(1, (best, long), (best, None))}, previous=len(long)),
-        t_state(1, 1, 0, 0, long, {**chat(1, (best, long), (best, long)), **advised(1, 1, long)}),
+        u_state(config, 1, 1, second, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
+                                     **chat(1, (best, long), (second, None))}, previous=len(long)),
+        t_state(1, 1, 0, 0, long, {**chat(1, (best, long), (second, long)), **advised(1, 1, long)}),
         t_state(1, 1, 1, 0, long, {}),
         t_state(1, 1, 2, 0, long, {}),
         Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={

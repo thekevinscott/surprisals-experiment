@@ -6,6 +6,7 @@ from ....run import Run
 from ....turn import Turn
 from ....utils.u_chat.stream_reply.errors import OutputTokenLimitError
 from ....utils.write import write
+from .earlier_turns import earlier_turns
 from .prepare_flush import prepare_flush
 from .system_prompt import system_prompt
 
@@ -15,10 +16,13 @@ async def write_advice(run: Run, turn: Turn) -> None:
     system = await system_prompt(run, turn)
     if run.u_chat.messages[0]["content"] != system:
         run.u_chat.record({"role": "system", "content": system})
-    prompt = await prepare_flush(config, run.problem, run.database)
+    messages = [
+        {"role": "user", "content": await prepare_flush(turn, run.problem, run.database)},
+        *await earlier_turns(turn, run.database),
+    ]
     try:
         text = await run.u_chat.prompt(
-            prompt,
+            messages,
             on_delta=partial(run.on_delta, str(turn.u_dir.relative_to(config.output)))
             if run.on_delta
             else None,

@@ -1,0 +1,18 @@
+<code>
+{% for index in range(t_samples) %}
+<T-{{ index }}>
+{% for path, source in sources.get(index | string, {}).items() %}
+{% if source is integer %}
+<file path="{{ path }}" omitted="{{ source }} bytes"/>
+{% else %}
+<file path="{{ path }}">
+{{ source.rstrip("\n") }}
+</file>
+{% endif %}
+{% endfor %}
+{% if index in results %}
+<results>{{ results[index].passed }}/{{ results[index].cases }} test cases passed</results>
+{% endif %}
+</T-{{ index }}>
+{% endfor %}
+</code>

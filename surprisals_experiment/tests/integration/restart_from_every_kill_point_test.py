@@ -67,22 +67,26 @@ def build(output, settings, rounds, failing, advices):
     samples = settings['t_samples']
     system = SimpleNamespace(**{'cap_strategy': 'characters', **settings})
     previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
-    code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{DOUBLE}</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>' for sample in range(samples))
+
+    def code(source, passed):
+        return '<code>\n' + '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n<results>{passed}/2 test cases passed</results>\n</T-{sample}>'
+                                       for sample in range(samples)) + '\n</code>'
+
     best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
             + ('' if surprisal else f'<length>{len(ADVICE)} characters</length>\n')
             + f'<advice>\n{ADVICE}\n</advice>\n'
             + (f'<bits>\n{"".join(f"{token}<{bits}>" for token, bits in BITS)}\n</bits>\n' if surprisal else '')
-            + f'<code>\n{code}\n</code>\n</attempt>')
-    world, kills, own, transcripts, saved = [], [], [], {}, set()
+            + f'{code(DOUBLE, 2)}\n</attempt>')
+    world, kills, own, transcripts, saved, earlier = [], [], [], {}, set(), {}
     pending = {'settings.json': ...}
     for turns in rounds:
-        user = best if world else QUESTION
         for window, fork, position in turns:
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
             path = transcript(window, fork)
             messages = transcripts.setdefault(path, [])
             messages += [{'role': 'system', 'content': ...}] * (1 if messages else 2)
-            messages.append({'role': 'user', 'content': user, '_reset': True})
+            conversation = [{'role': 'user', 'content': best if window else QUESTION}, *earlier.get((window, fork), [])]
+            messages += [{**conversation[0], '_reset': True}, *conversation[1:]]
             asked = {f'{path}/messages.jsonl': list(messages)}
             if position == 0:
                 asked[f'windows/{window}/forks/{fork}/fork.json'] = {}
@@ -97,12 +101,12 @@ def build(output, settings, rounds, failing, advices):
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(system, position + 1, previous if window else None)},
-                                   {'role': 'user', 'content': user}]},
+                                   *conversation]},
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))
             messages.append(answer(advice, True))
-            pending = {f'{path}/messages.jsonl': list(messages), f'{path}/usage.jsonl': [USAGE] * (len(messages) // 3),
+            pending = {f'{path}/messages.jsonl': list(messages), f'{path}/usage.jsonl': [USAGE] * sum('_complete' in entry for entry in messages),
                        f'{turn}/metadata.json': {'advice': folder(advice)}, f'{turn}/u/advice.txt': advice}
             if advice not in saved:
                 saved.add(advice)
@@ -136,6 +140,12 @@ def build(output, settings, rounds, failing, advices):
                 own.append({f'{done}/generation.json': {'exit_code': 0}})
                 world.append(State(Case(), sent=(done, 0), files={**pending, **own[-1]}))
                 pending = {f'{done}/tests.json': FAILED if fork in failing else TESTS}
+        for window, fork, position in turns:
+            advice, _ = advices.get((fork, position), (ADVICE, BITS))
+            earlier.setdefault((window, fork), []).extend([
+                {'role': 'assistant', 'content': advice},
+                {'role': 'user', 'content': code(ZERO, 0) if fork in failing else code(DOUBLE, 2)},
+            ])
     solution = output / attempt(0, rounds[1][0][1], 0, 0) / 'src'
     scoring = {'best_measurement': 2.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
                'scorer_model': 'openai/gpt-oss-120b'} if surprisal else {}
@@ -164,8 +174,9 @@ def restart(world, own, first, last, answered):
             messages, usage = (f'{transcript(int(window), int(fork))}/{name}' for name in ('messages.jsonl', 'usage.jsonl'))
             partial = [answer(state.reply.text, False)] if replied else []
             line = USAGE if replied else UNANSWERED
-            retries.append((messages, usage, len(on_disk[messages]), len(on_disk.get(usage, [])), partial, line,
-                            on_disk[messages][-1]))
+            log = on_disk[messages]
+            reset = max(index for index, entry in enumerate(log) if entry.get('_reset'))
+            retries.append((messages, usage, len(log), len(on_disk.get(usage, [])), partial, line, log[reset:]))
             on_disk[messages] = [*on_disk[messages], *partial]
             on_disk[usage] = [*on_disk.get(usage, []), line]
         elif isinstance(state.reply, T):
@@ -182,9 +193,9 @@ def restart(world, own, first, last, answered):
 
     def moved(files):
         files = {renamed(path): content for path, content in files.items()} | partials
-        for messages, usage, mid, lines, partial, line, user in retries:
+        for messages, usage, mid, lines, partial, line, conversation in retries:
             if messages in files:
-                files[messages] = [*files[messages][:mid], *partial, user, *files[messages][mid:]]
+                files[messages] = [*files[messages][:mid], *partial, *conversation, *files[messages][mid:]]
                 files[usage] = [*files.get(usage, [])[:lines], line, *files.get(usage, [])[lines:]]
         if 'result.json' in files:
             files['result.json'] = {**files['result.json'], 'solution': renamed(files['result.json']['solution'])}

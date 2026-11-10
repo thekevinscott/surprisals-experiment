@@ -30,8 +30,9 @@ def describe_run_result():
     async def it_counts_one_advice_per_evaluation(config, execute_run_experiment):
         config.max_u_turns = 3
         best = flush(2, 'ok', length=2)
-        states, pending = played([[(QUESTION, 'ok', [FAIL])] * 2 + [(QUESTION, 'ok', [PASS])],
-                                  [(best, 'ok', [PASS])] * 3], {'ok': {'score': 2}}, config=config)
+        states, pending = played([[(QUESTION, 'ok', [FAIL]), (None, 'ok', [FAIL]), (None, 'ok', [PASS])],
+                                  [(best, 'ok', [PASS]), (None, 'ok', [PASS]), (None, 'ok', [PASS])]],
+                                 {'ok': {'score': 2}}, config=config)
         async with execute_run_experiment(config, [*states, outcome(config, 'windows/0/forks/0/turns/2', 6, pending)]):
             pass
         assert result(config)['attempts'] == 6
