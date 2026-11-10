@@ -43,7 +43,7 @@ class Config(BaseModel):
     infra_retries: int = Field(default=3, ge=0)
     window_forks: int = Field(default=4, ge=1)
     fork_turns: int = Field(default=10, ge=1)
-    window_solo_turns: int = Field(default=30, ge=0)
+    window_solo_turns: int = Field(default=10, ge=0)
     max_u_turns: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")

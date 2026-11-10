@@ -90,8 +90,8 @@ async def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--window-solo-turns",
         type=int,
-        default=30,
-        help="Turns the winning fork continues alone after the fork round; its fork folder ends with fork-turns + window-solo-turns turns (default: 30)",
+        default=10,
+        help="Turns the winning fork continues alone after the fork round; its fork folder ends with fork-turns + window-solo-turns turns (default: 10)",
     )
     parser.add_argument(
         "--output",
