@@ -13,7 +13,7 @@ ThinkingLevel = Literal["off", "minimal", "low", "medium", "high", "xhigh"]
 U_MODEL = "xiaomi/mimo-v2.6-pro"
 U_PROVIDER = "xiaomi"
 U_THINKING = "high"
-T_MODEL = "openai/gpt-oss-120b"
+T_MODEL = "xiaomi/mimo-v2.6-pro"
 # fp4 matches the scorer's checkpoint while T is gpt-oss (#431).
 T_PROVIDERS = {"openai/gpt-oss-120b": "coreweave/fp4", "xiaomi/mimo-v2.6-pro": "xiaomi"}
 CAP_STRATEGY = "characters"
