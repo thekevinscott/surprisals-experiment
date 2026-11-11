@@ -1,8 +1,10 @@
+import asyncio
 import json
 import os
-from contextlib import nullcontext
+from contextlib import asynccontextmanager, nullcontext
 from datetime import datetime, timedelta
 from pathlib import Path
+from threading import Event
 from unittest.mock import Mock
 
 import httpx
@@ -565,3 +567,84 @@ def test_repeated_up_for_same_invocation_registers_once(fake_http, state):
     setup.up()
     setup.up()
     assert users.remaining("pod1") == [users.user_file("pod1", state.parent)]
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_live_logs_do_not_block_readiness_or_survive_setup(
+    fake_http, monkeypatch, capsys, failure
+):
+    waiting = Event()
+    closed = Event()
+
+    class Stream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield LOG_STREAM
+            waiting.set()
+            await asyncio.Event().wait()
+
+        async def aclose(self):
+            closed.set()
+
+    @asynccontextmanager
+    async def stream(client, method, url, **kwargs):
+        assert url == "https://api.runpod.io/v2/pods/pod1/logs"
+        assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+        result = httpx.Response(200, stream=Stream(), request=httpx.Request(method, url))
+        try:
+            yield result
+        finally:
+            await result.aclose()
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
+
+    def ready(*args, **kwargs):
+        assert waiting.wait(2), "container logs were not streamed during readiness"
+        output = capsys.readouterr().err
+        assert "Pod pod1 log: Loading weights" in output
+        assert "Pod pod1 log: pulling image" not in output
+        if failure:
+            raise RuntimeError("startup")
+        return response()
+
+    fake_http.side_effect = [response(body=[]), response(body={"id": "pod1"})]
+    initial = fake_http.side_effect
+
+    def request(*args, **kwargs):
+        if fake_http.call_count <= 2:
+            return next(initial)
+        if fake_http.call_count == 3:
+            return ready(*args, **kwargs)
+        return response(204 if args[0] == "DELETE" else 404)
+
+    fake_http.side_effect = request
+    if failure:
+        with pytest.raises(RuntimeError, match="startup"):
+            main(["up"])
+    else:
+        main(["up"])
+    assert closed.is_set(), "log stream survived readiness/failure"
+
+
+def test_live_log_error_is_reported_once_and_readiness_continues(
+    fake_http, monkeypatch, capsys, state
+):
+    attempted = Event()
+
+    @asynccontextmanager
+    async def stream(*args, **kwargs):
+        attempted.set()
+        raise httpx.ConnectError("logs unavailable")
+        yield
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
+
+    def request(method, url, **kwargs):
+        if url == teardown.API + "/pods":
+            return response(body=[] if method == "GET" else {"id": "pod1"})
+        assert attempted.wait(2), "live logs were not requested"
+        return response()
+
+    fake_http.side_effect = request
+    main(["up"])
+    assert read(state)["base_url"] == "https://pod1-8000.proxy.runpod.net/v1"
+    assert capsys.readouterr().err.count("Pod pod1 log stream failed:") == 1
