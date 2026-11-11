@@ -64,7 +64,12 @@ def fake_stream(monkeypatch):
             httpx.Response(200, content=LOG_STREAM, request=httpx.Request(*args))
         )
     )
-    monkeypatch.setattr(logs.httpx, "stream", stream)
+    @asynccontextmanager
+    async def async_stream(client, *args, **kwargs):
+        with stream(*args, **kwargs) as result:
+            yield result
+
+    monkeypatch.setattr(logs.httpx.AsyncClient, "stream", async_stream)
     return stream
 
 
@@ -185,7 +190,10 @@ def test_up_timestamps_each_step(fake_http, capsys):
         response(),
     ]
     main(["up"])
-    lines = capsys.readouterr().err.splitlines()
+    lines = [
+        line for line in capsys.readouterr().err.splitlines()
+        if "Pod pod1 log:" not in line
+    ]
     stamps = [datetime.fromisoformat(line.split(" ", 1)[0]) for line in lines]
     assert all(stamp.utcoffset() == timedelta(0) for stamp in stamps)
     assert [line.split(" ", 1)[1] for line in lines] == [
@@ -223,7 +231,6 @@ def test_fast_up_saves_no_logs(fake_http, fake_stream, state):
         response(),
     ]
     main(["up"])
-    fake_stream.assert_not_called()
     assert not (state.parent / "runpod-logs.jsonl").exists()
 
 
@@ -281,6 +288,7 @@ def test_log_failure_does_not_fail_up(
     main(["up"])
     assert "base_url" in read(state)
     assert "Pod pod1 logs not saved" in capsys.readouterr().err
+    assert not (state.parent / "runpod-logs.jsonl").exists()
 
 
 def test_create_failure_does_not_delete(fake_http):
@@ -318,7 +326,7 @@ def test_pod_id_saved_before_readiness(fake_http, state, capsys):
             return response(body=[])
         if method == "POST":
             return response(body={"id": "pod1"})
-        assert capsys.readouterr().err.endswith(" Created pod pod1\n")
+        assert " Created pod pod1\n" in capsys.readouterr().err
         assert read(state) == {"pod_id": "pod1"}
         return response()
 
@@ -589,7 +597,12 @@ def test_live_logs_do_not_block_readiness_or_survive_setup(
     async def stream(client, method, url, **kwargs):
         assert url == "https://api.runpod.io/v2/pods/pod1/logs"
         assert kwargs["headers"]["Authorization"] == "Bearer test-key"
-        result = httpx.Response(200, stream=Stream(), request=httpx.Request(method, url))
+        assert kwargs["timeout"].read == (10 if closed.is_set() else None)
+        result = (
+            httpx.Response(200, content=LOG_STREAM, request=httpx.Request(method, url))
+            if closed.is_set()
+            else httpx.Response(200, stream=Stream(), request=httpx.Request(method, url))
+        )
         try:
             yield result
         finally:
@@ -606,8 +619,7 @@ def test_live_logs_do_not_block_readiness_or_survive_setup(
             raise RuntimeError("startup")
         return response()
 
-    fake_http.side_effect = [response(body=[]), response(body={"id": "pod1"})]
-    initial = fake_http.side_effect
+    initial = iter([response(body=[]), response(body={"id": "pod1"})])
 
     def request(*args, **kwargs):
         if fake_http.call_count <= 2:
@@ -625,15 +637,19 @@ def test_live_logs_do_not_block_readiness_or_survive_setup(
     assert closed.is_set(), "log stream survived readiness/failure"
 
 
+@pytest.mark.parametrize("error", [
+    httpx.ConnectError("logs unavailable"),
+    httpx.HTTPStatusError("forbidden", request=response(403).request, response=response(403)),
+])
 def test_live_log_error_is_reported_once_and_readiness_continues(
-    fake_http, monkeypatch, capsys, state
+    fake_http, monkeypatch, capsys, state, error
 ):
     attempted = Event()
 
     @asynccontextmanager
     async def stream(*args, **kwargs):
         attempted.set()
-        raise httpx.ConnectError("logs unavailable")
+        raise error
         yield
 
     monkeypatch.setattr(httpx.AsyncClient, "stream", stream)
