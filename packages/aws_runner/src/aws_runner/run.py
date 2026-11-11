@@ -11,7 +11,7 @@ from aws_runner.cloud.launch import launch
 from aws_runner.cloud.resume import resume
 from aws_runner.cloud.stop import stop
 from aws_runner.cloud.surviving_volume import surviving_volume
-from aws_runner.config import TAG
+from aws_runner.config import ROOT, TAG
 from aws_runner.remote.collect import collect
 from aws_runner.remote.execute import execute
 from aws_runner.remote.mirror import mirror
@@ -69,7 +69,10 @@ def run(ec2, config, directory, command):
                 code, alive = result(config, instance)
                 if code is None:
                     if not alive:
-                        execute(config, instance)
+                        if command:
+                            start(config, instance, command, f"{ROOT}/repo")
+                        else:
+                            execute(config, instance)
                 elif stopped:
                     watch(config, instance)
         if existing and not started:
@@ -84,7 +87,10 @@ def run(ec2, config, directory, command):
             if surviving and shipped(config, instance):
                 restore(config, instance)
                 if result(config, instance)[0] is None:
-                    execute(config, instance)
+                    if command:
+                        start(config, instance, command, f"{ROOT}/repo")
+                    else:
+                        execute(config, instance)
                 else:
                     watch(config, instance)
             else:
