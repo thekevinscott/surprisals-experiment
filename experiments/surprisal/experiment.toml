@@ -1,0 +1,75 @@
+name = "Surprisal"
+setup = "uv run --project runpod_scorer runpod-scorer up"
+command = """runpod_scorer/run-cell.sh uv run --project packages/aws_runner aws_runner run {run_dir} -- uv run --directory surprisals_experiment python -m surprisals_experiment.cli.run \
+  --output {run_dir} \
+  -U xiaomi/mimo-v2.6-pro \
+  -T openai/gpt-oss-120b \
+  --u-thinking high \
+  --t-samples 5 \
+  --t-pool-size 3 \
+  --t-sample-timeout 300 \
+  --t-sample-retries 0 \
+  --max-u-turns 40 \
+  --window-forks 4 \
+  --fork-turns 10 \
+  --window-solo-turns 30"""
+teardown = "uv run --project runpod_scorer runpod-scorer down"
+repeats = 1
+continues = true
+concurrency = 8
+
+# The 50 problems Mimo passed 5/5 in t-baseline-mimo run 20261110-040325.
+[params]
+cap-strategy = ["characters", "surprisal"]
+problem-dir = [
+  "../data/APPS/test/1958",
+  "../data/APPS/test/0546",
+  "../data/APPS/test/1763",
+  "../data/APPS/test/4187",
+  "../data/APPS/test/2233",
+  "../data/APPS/test/1366",
+  "../data/APPS/test/4129",
+  "../data/APPS/test/2058",
+  "../data/APPS/test/0931",
+  "../data/APPS/test/4273",
+  "../data/APPS/test/1709",
+  "../data/APPS/test/2717",
+  "../data/APPS/test/0672",
+  "../data/APPS/test/2113",
+  "../data/APPS/test/1682",
+  "../data/APPS/test/4288",
+  "../data/APPS/test/1266",
+  "../data/APPS/test/0366",
+  "../data/APPS/test/1153",
+  "../data/APPS/test/1332",
+  "../data/APPS/test/1877",
+  "../data/APPS/test/2059",
+  "../data/APPS/test/3877",
+  "../data/APPS/test/0774",
+  "../data/APPS/test/0292",
+  "../data/APPS/test/0102",
+  "../data/APPS/test/0203",
+  "../data/APPS/test/1773",
+  "../data/APPS/test/3717",
+  "../data/APPS/test/0010",
+  "../data/APPS/test/0405",
+  "../data/APPS/test/0682",
+  "../data/APPS/test/0002",
+  "../data/APPS/test/4261",
+  "../data/APPS/test/1331",
+  "../data/APPS/test/0547",
+  "../data/APPS/test/0361",
+  "../data/APPS/test/3736",
+  "../data/APPS/test/0823",
+  "../data/APPS/test/4339",
+  "../data/APPS/test/0064",
+  "../data/APPS/test/1786",
+  "../data/APPS/test/1681",
+  "../data/APPS/test/1220",
+  "../data/APPS/test/0701",
+  "../data/APPS/test/1140",
+  "../data/APPS/test/3698",
+  "../data/APPS/test/1562",
+  "../data/APPS/test/1567",
+  "../data/APPS/test/0950",
+]
