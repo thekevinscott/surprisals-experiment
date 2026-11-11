@@ -1,88 +1,41 @@
-# aws_runner
+# AWS runner
 
-Blocking AWS execution for one run directory. Run from the repository root:
+Run one command on a fresh EC2 instance; labnotes owns experiment lifecycle and resume.
 
 ```sh
-uv run --project packages/aws_runner aws_runner setup --region us-east-1 --ami ami-YOUR-PINNED-UBUNTU-AMI
-uv run --project packages/aws_runner aws_runner run /tmp/hw -- sh -c 'echo hello; echo hi > /tmp/hw/out.txt'
+uv run --project packages/aws_runner aws_runner setup --region us-east-1 --ami AMI_ID
+uv run --project packages/aws_runner aws_runner run /absolute/run/dir -- COMMAND ARGUMENTS
 ```
 
-Setup uses the local AWS profile, the default VPC, a caller-IP-only SSH rule,
-and an RSA key stored with mode 0600 under `~/.config/aws_runner/`. The AMI is
-explicitly pinned in that config; select stock Ubuntu with an architecture
-matching `--instance-type` (default `m7i.large`). `--cidr YOUR-IP/32` avoids public
-IP discovery. Re-running setup updates the SSH rule and reuses the key.
-The local host needs SSH and rsync. The subnet needs internet access.
+Setup creates the SSH key and security group and stores account configuration in
+`~/.config/aws_runner/config.json`. Use `--cidr YOUR-IP/32`, `--instance-type`
+(default `m7i.large`), and `--volume-size` (root disk GiB, default 20) as needed.
+Choose a disk at least as large as the pinned AMI's root snapshot.
 
-Each run launches On-Demand compute and a tagged gp3 data volume. The volume
-is mounted at `/srv/aws-runner`; commands run from its `repo` checkout directory.
-The root disk follows the stock AMI's delete-on-termination setting; the data
-disk explicitly survives termination. Systemd runs the command as Ubuntu and
-streams its saved stdout and stderr. Final rsync must succeed before termination and deletion;
-Stopping a run with Ctrl-C or SIGTERM makes one final rsync once the command has
-started, then terminates its instance and deletes its data disk, reporting cleanup
-actions and results to stderr, then exits non-zero. If that rsync fails, the disk
-is kept so a relaunch recovers from it.
-A second Ctrl-C or SIGTERM during stop cleanup, more than a second after the first
-(earlier repeats are duplicate deliveries and are ignored), prints an abort warning and exits
-immediately; AWS resources may remain. Other failures, including SSH or collection
-failures, preserve the instance and disk for inspection and resume.
-The command's stdout and stderr are saved as `command.stdout.log` and `command.stderr.log` in the run folder and fully replayed to their corresponding local streams before returning, including on reattachment.
-Dropped output connections reconnect from the last bytes delivered locally, without aborting the run or duplicating output.
-The command's exit code is returned after collection and cleanup.
+Every invocation requires a command and launches a new box with a gp3 root disk
+that is deleted on termination. vCPU quota errors wait and retry; capacity errors
+fail. Directory tags are labels only. A unique invocation tag permits cleanup if
+launch is interrupted before the instance ID is returned.
 
-Run `uv run pytest` and `uv run ruff check .` locally. Tests use moto and mocked
-SSH/rsync and never require AWS credentials. Real AWS validation remains:
-setup twice, run the hello-world command, verify streamed output and out.txt,
-verify nonzero exit propagation, and confirm instance termination plus deletion
-of both the data volume and the stock AMI root volume.
+The runner waits for SSH and cloud-init, installs prerequisites, and ships the
+checkout, `.env`, and run folder. It writes local `aws_runner.json` provenance.
+Layout runs once over SSH; the command runs inline under systemd and survives
+SSH disconnects. Nothing is reattached, restored, or restarted on later runs.
 
-While the command runs, rsync mirrors its run folder approximately every ten
-seconds (plus transfer time). A final copy still completes before cleanup.
-A real-AWS live-mirror check should run a command that writes files more than
-ten seconds apart and confirm the first file appears locally before exit.
+Command stdout and stderr stream to the client and append to
+`command.stdout.log` and `command.stderr.log` in the run folder. `LABNOTES_LOG`
+is mapped to remote `run/log.jsonl`. `LABNOTES_RUN_STATE` is not copied; pass
+needed values in the command (the local `runpod_scorer/run-cell.sh` wrapper
+supplies `--scorer-base-url` for surprisal cells).
 
-Run from inside the local Git checkout. The working tree (including
-uncommitted files) is uploaded over SSH, excluding `.git`, virtual environments,
-worktrees, caches, `experiments/*/runs/`, and legacy root `runs/`.
-Symlinks pointing outside the checkout are copied as contents so their files are available on the box. The local run folder is uploaded separately.
-`aws_runner.json` records the Git commit and dirty flag before upload. Commands
-run from the repository root, even when invoked from a subdirectory; absolute local run
-paths and checkout-relative run paths point to the data volume's run folder.
-Ubuntu installs uv for commands such as `uv run ...`; project dependencies are
-resolved by the command. If `.env` exists at the local repository root, it is
-copied over SSH to the remote checkout as a regular `.env` file, following
-symlinks; otherwise no env file is shipped. The runner does not read or parse its contents. The copied file remains
-on the data disk until deletion, including on disks kept after failures.
-If `LABNOTES_RUN_STATE` names an existing local file, a new run copies it to
-`/srv/aws-runner/run-state.json` and exports that path in the saved command script.
-Recovery reuses that copy and export so the command can read the scorer state.
+Output reconnects use byte offsets. Transient SSH outages are tolerated and the
+run folder is mirrored every 10 seconds, excluding labnotes-owned files.
+A dead command unit without an exit code or a lost instance fails the invocation.
 
-Switch an experiment to AWS by changing one line in `experiment.toml`: prefix
-its existing command with `uv run --project packages/aws_runner aws_runner run
-"{run_dir}" -- ` (on one line). Keep the experiment command and its arguments
-unchanged. `{run_dir}` is the same local absolute path on both hosts; on AWS it
-is linked to the data volume folder read by the live and final mirrors.
-
-Re-running `aws_runner run <same-dir>` finds the instance by its canonical local
-run-path tag. A running instance reattaches without uploading or restarting the
-command; a stopped instance is started to collect its completed run. The data
-mount is recorded in fstab so it survives a stop/start. A detached systemd
-watcher waits for command completion, then gives the local client 120 seconds
-to finish its final rsync and write a collection marker. With no marker it
-shuts the instance down (EC2 shutdown behavior is `stop`). Reattachment needs
-no command; a brand-new run does. Use one client per run directory.
-
-If an instance was terminated, its tagged data volume is reused by a replacement
-in the same availability zone. A volume still attached to a nonterminated
-writer is never stolen. Capacity shortages retry every 30 seconds in that same
-zone. Recovery restores the saved path layout and executes the original command
-script against the existing checkout and run files; it does not re-upload local
-code, secrets, or stale run data. A completed result is collected without restart.
-A stopped incomplete run restarts its saved command on the same instance.
-
-The experiment must support resuming from its run folder, and labnotes must have
-`continues` enabled so it reuses that folder. aws_runner preserves files; it cannot
-make an arbitrary command idempotent. Real-AWS recovery validation remains:
-terminate a box mid-cell, re-run the same directory, verify the volume ID and AZ,
-and check the experiment's recorded work is not repeated before final teardown.
+Success, exceptions, SIGINT, and SIGTERM use the same cleanup path: a final mirror
+(with a 30-second limit), then termination and a wait for termination. The command's
+exit code is returned; infrastructure and signal failures exit nonzero. Per-instance
+known-host files live in a temporary directory removed on exit. A detached orphan
+guard terminates the box 120 seconds after command completion if the client has
+not already terminated it. A second signal after one second aborts cleanup; SIGKILL
+cannot run client cleanup. Relaunch uploads the local run folder to a new box.

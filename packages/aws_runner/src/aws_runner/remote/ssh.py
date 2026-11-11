@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def ssh(config, instance):
-    known_hosts = Path(config["key"]).with_name(f"known_hosts-{instance['InstanceId']}")
+    known_hosts = Path(config["known_hosts"]) / f"known_hosts-{instance['InstanceId']}"
     return [
         "ssh",
         "-i",

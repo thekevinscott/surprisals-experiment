@@ -3,21 +3,8 @@ import time
 from botocore.exceptions import ClientError
 
 
-def boot(ec2, config, tags, zone=None):
-    interface = {
-        "DeviceIndex": 0,
-        "AssociatePublicIpAddress": True,
-        "Groups": [config["group"]],
-    }
-    placement = {}
-    if zone:
-        placement = {"AvailabilityZone": zone}
-        interface["SubnetId"] = ec2.describe_subnets(
-            Filters=[
-                {"Name": "availability-zone", "Values": [zone]},
-                {"Name": "default-for-az", "Values": ["true"]},
-            ]
-        )["Subnets"][0]["SubnetId"]
+def boot(ec2, config, tags):
+    root = ec2.describe_images(ImageIds=[config["ami"]])["Images"][0]["RootDeviceName"]
     while True:
         try:
             return ec2.run_instances(
@@ -26,18 +13,27 @@ def boot(ec2, config, tags, zone=None):
                 MinCount=1,
                 MaxCount=1,
                 KeyName="aws-runner",
-                NetworkInterfaces=[interface],
-                Placement=placement,
-                InstanceInitiatedShutdownBehavior="stop",
+                NetworkInterfaces=[
+                    {
+                        "DeviceIndex": 0,
+                        "AssociatePublicIpAddress": True,
+                        "Groups": [config["group"]],
+                    }
+                ],
+                BlockDeviceMappings=[
+                    {
+                        "DeviceName": root,
+                        "Ebs": {
+                            "VolumeSize": config["volume_size"],
+                            "VolumeType": "gp3",
+                            "DeleteOnTermination": True,
+                        },
+                    }
+                ],
+                InstanceInitiatedShutdownBehavior="terminate",
                 TagSpecifications=[{"ResourceType": "instance", "Tags": tags}],
             )["Instances"][0]
         except ClientError as error:
-            code = error.response["Error"]["Code"]
-            capacity = zone and code in {
-                "InsufficientInstanceCapacity",
-                "InsufficientHostCapacity",
-                "InsufficientVolumeCapacity",
-            }
-            if code != "VcpuLimitExceeded" and not capacity:
+            if error.response["Error"]["Code"] != "VcpuLimitExceeded":
                 raise
             time.sleep(30)
