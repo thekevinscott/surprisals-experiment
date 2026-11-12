@@ -13,7 +13,7 @@ async def test_only_one_transcript_with_usage_on_replies(config, execute_run_exp
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world):
         pass
-    for directory in [config.output / 'u', config.output / 'windows/1/forks/0/u']:
+    for directory in [config.output / 'windows/0/forks/0/u', config.output / 'windows/1/forks/0/u']:
         assert sorted(path.name for path in directory.iterdir()) == ['transcript.jsonl']
         entries = [json.loads(line) for line in (directory / 'transcript.jsonl').read_text().splitlines()]
         replies = [entry for entry in entries if entry['role'] == 'assistant']
