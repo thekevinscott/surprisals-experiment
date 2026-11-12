@@ -15,6 +15,6 @@ const parsed=computed(()=>{
   </div>
 </template>
 <style scoped>
-.json-content { min-width:0; overflow:auto; }
-pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+.json-content { min-width:0; overflow:auto; font-family:ui-monospace,monospace; }
+pre { white-space:pre; overflow-x:auto; font-family:inherit; }
 </style>

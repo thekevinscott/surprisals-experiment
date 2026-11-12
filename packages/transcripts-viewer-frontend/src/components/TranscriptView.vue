@@ -16,6 +16,7 @@ watch(()=>props.messages, async (_messages,_,cleanup)=>{
   if(!disposed)for(const element of blocks.values())observer.observe(element)
 },{immediate:true,flush:'post'})
 const roles = { system: 'System prompt', user: 'User', assistant: 'Assistant', toolResult: 'Tool result', tool: 'Tool result' }
+const legend = computed(() => [...new Set(props.messages.map(message=>message.role))])
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${roles[message.role] ?? message.role}`,
   description: message.raw == null ? 'Load original record' : message.raw.slice(0, 120),
@@ -42,15 +43,15 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 </script>
 <template>
   <div class="transcript-view">
-    <div class="transcript-controls"><span>{{ messages.length }} messages</span></div>
+    <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript role colors"><span v-for="role in legend" :key="role"><i :class="`role-${role}`" aria-hidden="true"></i>{{ roles[role] ?? role }}</span></div></div>
     <p v-if="!messages.length">Transcript not recorded</p>
     <div class="transcript-layout">
     <nav v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
-      <button v-for="(option,index) in options" :key="index" class="block-jump" :class="[{active:selectedBlock===option.value}, `role-${messages[index].role}`]" :aria-current="selectedBlock===option.value?'true':undefined" :aria-label="`Jump to ${option.value}`" :title="option.description" @click="jump(option.value)"><b>{{ index+1 }}</b><span>{{ roles[messages[index].role] ?? messages[index].role }}</span></button>
+      <button v-for="(option,index) in options" :key="index" class="block-jump" :class="[{active:selectedBlock===option.value}, `role-${messages[index].role}`]" :aria-current="selectedBlock===option.value?'true':undefined" :aria-label="`Jump to ${option.value}`" :title="option.description" @click="jump(option.value)"><b>{{ index+1 }}</b></button>
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">
-      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }} · {{ roles[message.role] ?? message.role }}</strong><p>Loading block…</p></div><TranscriptRecord v-else :label="`${index + 1} · ${roles[message.role] ?? message.role}`" :message="message" :content-only="contentOnly" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
+      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }}</strong><p>Loading block…</p></div><TranscriptRecord v-else class="transcript-record" :label="String(index + 1)" :message="message" :content-only="contentOnly" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
 
     </template>
     </div>
@@ -70,6 +71,10 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 .role-toolResult,.role-tool { background:#fef3c7;color:#854d0e; }
 .block-jump span { display:inline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .message-blocks { min-width:0; }
+.block-placeholder,.transcript-record { border-left:3px solid transparent; }
+.role-legend { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:4px 8px; }
+.role-legend span { display:inline-flex; align-items:center; gap:4px; }
+.role-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; border:1px solid #bac9df; }
 .block-placeholder { min-height:120px;box-sizing:border-box;margin-top:4px;padding:10px;background:#f6f8fc;font-size:11px; }
 
 [data-block] { scroll-margin-top: 56px; }
