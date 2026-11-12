@@ -1,19 +1,30 @@
 import {ref,watch} from 'vue'
-export async function fetchJson(url, signal) {
+import {watchData,hasLiveSnapshot,liveSnapshot} from './liveUpdates.js'
+export {watchData}
+export async function fetchJson(url,signal) {
+  if(hasLiveSnapshot(url))return liveSnapshot(url)
   const response=await fetch(url,{signal})
   if(!response.ok)throw Error(`HTTP ${response.status}: ${await response.text()}`)
   return response.json()
 }
-export function useLazyResource(expanded, load) {
+export async function fetchText(url,signal) {
+  if(hasLiveSnapshot(url))return liveSnapshot(url)
+  const response=await fetch(url,{signal})
+  if(!response.ok)throw Error(`HTTP ${response.status}: ${await response.text()}`)
+  return response.text()
+}
+export function useLiveResource(sources,load) {
   const data=ref(null),loading=ref(false),error=ref('')
-  watch(expanded,async (open,_,onCleanup)=>{
-    if(!open)return
-    const controller=new AbortController()
-    onCleanup(()=>controller.abort())
-    loading.value=true;error.value='';data.value=null
-    try {data.value=await load(controller.signal)}
-    catch(e){if(!controller.signal.aborted)error.value=e.message}
-    finally{if(!controller.signal.aborted)loading.value=false}
-  })
+  watch(()=>JSON.stringify(sources()),(key,_,cleanup)=>{
+    const urls=JSON.parse(key),controller=new AbortController()
+    cleanup(()=>controller.abort())
+    data.value=null;error.value='';loading.value=urls.length>0
+    if(!urls.length)return
+    watchData(urls,signal=>load(signal,urls),{
+      signal:controller.signal,
+      onData:value=>{data.value=value;error.value='';loading.value=false},
+      onError:e=>{error.value=e.message;loading.value=false},
+    })
+  },{immediate:true})
   return {data,loading,error}
 }

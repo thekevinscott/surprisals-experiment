@@ -1,18 +1,16 @@
 <script setup>
 import { ref, inject } from 'vue'
-import { useLazyResource } from '../composables/api.js'
+import { useLiveResource,fetchText } from '../composables/api.js'
 import { fileSize } from '../composables/fileSize.js'
 import FileContent from './FileContent.vue'
 import ContentPanel from './ContentPanel.vue'
 const props = defineProps({ file: Object })
 const rawSourceUrl = inject('rawSourceUrl', () => undefined)
 const expanded = ref(false)
-const {data:text,error}=useLazyResource(expanded,async signal=>{
-  if(props.file.text != null)return props.file.text
-  const response=await fetch(props.file.url ?? rawSourceUrl(props.file.source),{signal})
-  if(!response.ok)throw Error(`HTTP ${response.status}`)
-  return response.text()
-})
+const {data:text,error}=useLiveResource(
+  ()=>expanded.value?[props.file.url ?? rawSourceUrl(props.file.source)]:[],
+  (signal,[url])=>fetchText(url,signal),
+)
 </script>
 <template>
   <ContentPanel :source="file.source" v-model:expanded="expanded" :title="`File · ${file.name}`" :summary="fileSize(file.bytes)" preview class="file-content">

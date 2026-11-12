@@ -1,6 +1,6 @@
 <script setup>
 import {computed,inject,ref} from 'vue'
-import {fetchJson,useLazyResource} from '../composables/api.js'
+import {fetchJson,fetchText,useLiveResource} from '../composables/api.js'
 import {tTranscript} from '../composables/tTranscript.js'
 import ContentPanel from './ContentPanel.vue'
 import TranscriptView from './TranscriptView.vue'
@@ -8,16 +8,14 @@ const props=defineProps({source:String,url:String,files:Array})
 const rawUrl=inject('rawSourceUrl')
 const displaySource=computed(()=>props.source ?? (props.files?.length===1 ? props.files[0].source : undefined))
 const expanded=ref(false)
-const {data,loading,error}=useLazyResource(expanded,async signal=>{
-  if(props.url)return (await fetchJson(props.url,signal)).messages
-  const messages=[]
-  for(const file of props.files){
-    const response=await fetch(rawUrl(file.source),{signal})
-    if(!response.ok)throw Error(`HTTP ${response.status}`)
-    messages.push(...tTranscript(await response.text(),file.source))
-  }
-  return messages
-})
+const {data,loading,error}=useLiveResource(
+  ()=>expanded.value ? (props.url?[props.url]:(props.files??[]).map(file=>rawUrl(file.source))) : [],
+  async(signal,urls)=>{
+    if(props.url)return (await fetchJson(urls[0],signal)).messages
+    const contents=await Promise.all(urls.map(url=>fetchText(url,signal)))
+    return contents.flatMap((text,index)=>tTranscript(text,props.files[index].source))
+  },
+)
 </script>
 <template>
   <ContentPanel local v-model:expanded="expanded" title="Transcript" :source="displaySource">

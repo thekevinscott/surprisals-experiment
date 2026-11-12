@@ -1,5 +1,6 @@
 <script setup>
 import {inject,ref,onBeforeUnmount} from 'vue'
+import {openFile} from '../composables/filePreview.js'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import VueJsonPretty from 'vue-json-pretty'
@@ -16,7 +17,7 @@ onBeforeUnmount(()=>clearTimeout(timer))
 <template>
   <span class="source-actions">
     <Button v-if="metadata != null" text rounded size="small" label="ⓘ" :aria-label="`Metadata for ${title}`" @mouseenter="show($event,'metadata')" @mouseleave="leave" @focus="show($event,'metadata')" @click.stop="pin" />
-    <Button v-if="source && sourceUrl(source,sourceLine)" as="a" text rounded size="small" label="📄" aria-label="Source file" :href="sourceUrl(source,sourceLine)" target="_blank" rel="noopener" @mouseenter="show($event,'source')" @mouseleave="leave" @focus="show($event,'source')" @click.stop="popup?.hide()" />
+    <Button v-if="source && sourceUrl(source,sourceLine)" as="a" text rounded size="small" label="📄" aria-label="Source file" :href="sourceUrl(source,sourceLine)" @mouseenter="show($event,'source')" @mouseleave="leave" @focus="show($event,'source')" @click.prevent.stop="popup?.hide();openFile(sourceUrl(source,sourceLine))" />
     <Popover ref="popup" @hide="pinned=false" @mouseenter="clearTimeout(timer)" @mouseleave="leave" :style="{maxWidth:'min(500px, 95vw)',maxHeight:'60vh',overflow:'auto'}">
       <strong>{{ mode === 'metadata' ? `Metadata for ${title}` : 'Source file' }}</strong>
       <VueJsonPretty v-if="mode === 'metadata'" :data="metadata" :deep="2" show-icon />

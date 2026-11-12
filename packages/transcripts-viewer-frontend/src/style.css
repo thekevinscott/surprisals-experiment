@@ -66,3 +66,8 @@ a { color: #214da3; }
 .back-link { display: inline-block; margin: 2px 0 8px; font-size: 12px; }
 
 .freshness { margin: 4px 0 8px; color: #657186; font-size: 11px; }
+
+.file-modal .p-dialog-header { padding: 10px 16px; }
+.file-modal .p-dialog-title { font-size: 14px; overflow-wrap: anywhere; }
+.file-modal .p-dialog-content { padding: 0 12px 12px; flex: 1; }
+.file-modal .file-viewer { border: 0; padding: 0; }

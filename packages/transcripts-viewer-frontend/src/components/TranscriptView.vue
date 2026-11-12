@@ -26,7 +26,7 @@ async function jump(value) {
   block?.focus({ preventScroll: true })
   block?.scrollIntoView({ block: 'start', behavior: 'instant' })
 }
-watch([()=>props.initialLine,options],async()=>{
+watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
   if(!props.initialLine)return
   const index=props.messages.findIndex(message=>message.line===Number(props.initialLine))
   if(index<0)return

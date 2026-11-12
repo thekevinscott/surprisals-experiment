@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, provide, nextTick } from 'vue'
-import { fetchJson } from '../composables/api.js'
+import { fetchJson,watchData } from '../composables/api.js'
 import { runLink } from '../composables/runLinks.js'
 import { createDisclosureState } from '../composables/disclosureState.js'
 import ProblemFiles from './ProblemFiles.vue'
@@ -30,14 +30,14 @@ watch(() => props.run.id, async (_, __, onCleanup) => {
   windows.value = []
   loading.value = true
   error.value = ''
-  try {
-    const data = await fetchJson(`/api/runs/${encodeURIComponent(props.run.id)}`,controller.signal)
-    windows.value = data.diagram
-  } catch (e) {
-    if (!controller.signal.aborted) error.value = e.message
-  } finally { if (!controller.signal.aborted) loading.value = false }
+  const url=`/api/runs/${encodeURIComponent(props.run.id)}`
+  watchData([url],signal=>fetchJson(url,signal),{
+    signal:controller.signal,
+    onData:data=>{windows.value=data.diagram;loading.value=false;error.value=''},
+    onError:e=>{error.value=e.message;loading.value=false},
+  })
 }, { immediate: true })
-watch([windows, () => props.target], async () => {
+watch([() => windows.value.length > 0, () => props.target], async () => {
   if (props.target?.window == null) return
   await nextTick()
   await Promise.all(windowViews.value.map(view => view.reveal(props.target)))

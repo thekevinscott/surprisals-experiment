@@ -7,7 +7,7 @@ import Row from 'primevue/row'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
-import {fetchJson} from './composables/api.js'
+import {fetchJson,watchData} from './composables/api.js'
 import {createChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
@@ -17,6 +17,8 @@ import WaitChart from './components/WaitChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
 import { runRoute, runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
+import Dialog from 'primevue/dialog'
+import {filePreview,closeFile} from './composables/filePreview.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
 
@@ -30,23 +32,17 @@ const selected = computed(() => data.rows.find(row => target.value?.id === row.i
 const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
-async function refresh() {
+function refresh() {
   refreshController?.abort()
   refreshController=new AbortController()
-  const signal=refreshController.signal
+  const signal=refreshController.signal,id=target.value?.id
   loading.value=true;error.value=''
-  try {
-    if(target.value?.id){
-      const id=target.value.id
-      const [index,summary]=await Promise.all([
-        fetchJson('/api/runs/index',signal),
-        fetchJson(`/api/runs/${encodeURIComponent(id)}/summary`,signal),
-      ])
-      Object.assign(data,{rows:index.rows.map(row=>row.id===id?summary.row:row),warnings:summary.warnings})
-    }else Object.assign(data,await fetchJson('/api/runs',signal))
-  }
-  catch(e){if(!signal?.aborted)error.value=e.message}
-  finally{if(!signal?.aborted)loading.value=false}
+  const urls=id ? ['/api/runs/index',`/api/runs/${encodeURIComponent(id)}/summary`] : ['/api/runs']
+  watchData(urls,async signal=>{
+    if(!id)return fetchJson(urls[0],signal)
+    const [index,summary]=await Promise.all(urls.map(url=>fetchJson(url,signal)))
+    return {rows:index.rows.map(row=>row.id===id?summary.row:row),warnings:summary.warnings}
+  },{signal,onData:value=>{Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
 }
 watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
   if(value==='file')refreshController?.abort()
@@ -83,11 +79,13 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
+  <Dialog :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'100vw',height:'100dvh',maxHeight:'100dvh',margin:0,borderRadius:0}" :draggable="false" :dismissable-mask="false">
+    <FileViewer v-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
+  </Dialog>
   <main>
     <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
     <template v-else>
-    <p v-if="loading" role="status">{{ target ? 'Loading run…' : 'Loading runs…' }}</p><p v-if="error" role="alert">{{ error }}</p>
-    <button v-if="!selected" :disabled="loading" @click="refresh()">Refresh runs</button>
+    <p v-if="error" role="alert">{{ error }}</p>
     <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" href="#dashboard">Dashboard</Tab><Tab value="graphs" as="a" href="#graphs">Graphs</Tab></TabList></Tabs>
     <section v-if="selected" class="drilldown" aria-label="Run drilldown">
       <a class="back-link" href="#dashboard">← Dashboard</a>
@@ -119,7 +117,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         <article><h2>Does improvement get harder as advice shrinks?</h2><WaitChart :chart-data="chartData" /></article>
         <p>Passing scores require all configured T samples to pass. Parallel forks share a depth. Hollow markers show turns since the last best at the latest read or exit.</p>
       </template>
-      <p v-else>No runs loaded.</p>
+      <p v-else-if="!loading">No runs loaded.</p>
     </section>
     <template v-else>
     <p v-for="warning in data.warnings" :key="warning" class="warning">{{ warning }}</p>
@@ -144,7 +142,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <p>Best advice is the lowest score with all configured T samples passing. Turns show sequential depth reached; parallel forks count once, using each run’s window settings.</p>
       <p>Time covers the latest invocation through its recorded end, or the last observed run/test artifact. “Open” does not confirm that a remote process is still running.</p>
       <p>Costs sum recorded U usage and T transcript usage across the run, including retries. — means unavailable. AWS and scorer costs are not included: the run files do not record their prices.</p>
-      <p>Data is read from disk on each request. Refresh runs or reopen a panel to read changes.</p>
+      <p>Live updates are delivered while this page is open.</p>
     </footer>
     </template>
     </template>

@@ -1,13 +1,13 @@
 <script setup>
 import { ref,inject } from 'vue'
-import {fetchJson,useLazyResource} from '../composables/api.js'
+import {fetchJson,useLiveResource} from '../composables/api.js'
 import { attemptState } from '../composables/outcomes.js'
 import ContentPanel from './ContentPanel.vue'
 import TAttempt from './TAttempt.vue'
 const props=defineProps({ sample: Object })
 const expanded = ref(false)
 const apiUrl=inject('apiUrl')
-const {data,loading,error}=useLazyResource(expanded,signal=>fetchJson(apiUrl(props.sample.source),signal))
+const {data,loading,error}=useLiveResource(()=>expanded.value?[apiUrl(props.sample.source)]:[],(signal,[url])=>fetchJson(url,signal))
 </script>
 <template>
   <ContentPanel local v-model:expanded="expanded" class="t-sample" :data-sample="sample.id" :title="`T${sample.id}`" :summary="attemptState(sample.latest)">

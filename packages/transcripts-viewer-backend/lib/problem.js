@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
+import {withDatabase} from './experiment-database.js'
 import { dirname, join, resolve, relative } from 'node:path'
 
 // Runs copied from a remote host retain that host's problem_dir. Resolve the
@@ -16,10 +17,14 @@ export async function readProblem(directory, problemDir) {
     }
   }
   for (const candidate of new Set(candidates)) {
-    const files = await Promise.all(['question.txt', 'input_output.json', 'solutions.json'].map(async name => {
-      try { return { name, source: relative(directory, join(candidate, name)), text: await readFile(join(candidate, name), 'utf8') } }
-      catch (error) { if (error.code === 'ENOENT') return { name, text: null }; throw error }
-    }))
+    try {await stat(candidate)}catch(error){if(error.code==='ENOENT')continue;throw error}
+    const files=await withDatabase(candidate,null,async db=>{
+      const rows=await db.files('{question.txt,input_output.json,solutions.json}',{content:true})
+      return ['question.txt','input_output.json','solutions.json'].map(name=>{
+        const row=rows.find(row=>row.path===name)
+        return row ? {name,source:relative(directory,join(candidate,name)),text:row.content} : {name,text:null}
+      })
+    },{relations:false})
     if (files.some(file => file.text !== null)) return files
   }
   return ['question.txt', 'input_output.json', 'solutions.json'].map(name => ({ name, text: null }))
