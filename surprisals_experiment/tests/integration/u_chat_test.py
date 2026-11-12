@@ -1,11 +1,12 @@
 """Real chat streaming, feedback, and incident regressions at the HTTP boundary."""
 
 from hashlib import sha256
+from functools import partial
 
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
-from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, T, t_sent, u_system
+from u_flush_test import PASS, QUESTION, STDOUT, chat as transcript_chat, flush, outcome, played, results
+from utils.world import U, T, t_sent, u_system, u_messages
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -30,16 +31,16 @@ def prompt(index, advice, *samples):
 def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
     """U's first try and all 8 retries fail with `error`."""
     def messages(tries):
-        return [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'], *[recorded] * tries]
+        return u_messages(config, QUESTION)
 
     def files(tries):
         row = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}
         return {'u/transcripts/usage.jsonl': [row] * tries,
-                **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
+                **({'u/transcripts/replies.jsonl': [{'completion_id': completion_id, 'message': recorded}] * tries} if recorded else {})}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config, 1)}, {'role': 'user', 'content': QUESTION}]}
+            'messages': u_messages(config, QUESTION)}
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
@@ -53,6 +54,7 @@ def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id=
 async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run_experiment):
     config.t_samples = 2
     config.max_u_turns = 2
+    chat = partial(transcript_chat, max_turns=2)
     io = config.problem_dir / 'input_output.json'
     helpers = {'helper.py': 'VALUE = 42\n', 'nested/extra.py': 'EXTRA = 7\n', 'binary.dat': b'\xff', 'hidden.json': io}
     mutated = {'helper.py': 'VALUE = 42\n', 'main.py': MUTATING, 'nested/extra.py': 'EXTRA = 7\n'}
@@ -71,8 +73,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         return State(U(advice, thinking='Think.'),
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                           'messages': [{'role': 'system', 'content': u_system(config, number + 1, previous)},
-                                        *(user if isinstance(user, list) else [{'role': 'user', 'content': user}])]},
+                           'messages': u_messages(config, user, previous)},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
 
     def t(window, number, sample, advice, code, files=None):
@@ -142,12 +143,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': code({'main.py': PASS})})]]
 
     def chat(*turns):
-        messages = [system]
-        for user, advice in turns:
-            messages += [system, {**user[0], '_reset': True}, *user[1:]]
-            if advice:
-                messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
-        return messages
+        return transcript_chat(0, *turns, max_turns=3)['u/transcripts/messages.jsonl']
 
     def transcripts(window):
         return 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
@@ -161,7 +157,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             U(advice, thinking='Think.'),
             sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                   'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                  'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)}, *user]},
+                  'messages': u_messages(config, user, 4 if window else None)},
             logs=[(f'windows/{window}/forks/0/turns/{turn}/u', 'thinking', 'Think.'),
                   (f'windows/{window}/forks/0/turns/{turn}/u', 'text', advice)],
             files={f'{transcripts(window)}/messages.jsonl': messages, **files},
@@ -176,6 +172,9 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             files={
                 f'{transcripts(window)}/messages.jsonl': messages,
                 f'{transcripts(window)}/usage.jsonl': [usage] * (turn + 1),
+                f'{transcripts(window)}/replies.jsonl': [
+                    {'completion_id': 'u', 'message': {**message, 'reasoning': 'Think.'}}
+                    for message in messages if message['role'] == 'assistant'],
                 f'{t}/metadata.json': {'advice': advices[advice]},
                 f'{t}/u/advice.txt': advice,
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,
@@ -230,7 +229,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
 async def test_does_not_accept_empty_replies(config, execute_run_experiment):
     world = exhausted(config, U(finish=None), 'U chat stream ended before completion',
-                      recorded={'role': 'assistant', '_complete': False})
+                      recorded={'role': 'assistant'})
     async with execute_run_experiment(config, world):
         pass
 
