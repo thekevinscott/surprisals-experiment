@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from openai import BadRequestError
 from state_machine.testing import REMOVED, Done, State
-from utils.world import Score, T, U, t_sent
+from utils.world import Score, T, U, t_sent, t_stdout
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
@@ -76,11 +76,9 @@ def score_state(advice, files, *, bits=None, logs=(), **error):
 
 
 def t_state(path, advice, code, files):
-    stdout = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
-              '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
-    return State(T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=t_sent(f'{path}/ts/0/attempts/0', advice),
-                 logs=[(f'{path}/ts/0', 'thinking', 'Write main.py.'), (f'{path}/ts/0', 'text', 'Done.')],
-                 files={f'{path}/ts/0/attempts/0/stdout.txt': stdout, f'{path}/ts/0/attempts/0/src/main.py': code, **files})
+    return State(T({'main.py': code}, thinking='Write main.py.', text=code), sent=t_sent(f'{path}/ts/0/attempts/0', advice),
+                 logs=[(f'{path}/ts/0', 'thinking', 'Write main.py.'), (f'{path}/ts/0', 'text', code)],
+                 files={f'{path}/ts/0/attempts/0/stdout.txt': t_stdout(code), f'{path}/ts/0/attempts/0/src/main.py': code, **files})
 
 
 def result(config, solution, attempts, **scoring):

@@ -6,14 +6,12 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
-from utils.world import Score, T, U, t_sent, u_system
+from utils.world import Score, T, U, t_sent, t_stdout, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
 FAIL = 'print(0)\n'
 QUESTION = 'Read an integer and print its double.'
-STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
-          '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
 
 def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
@@ -103,9 +101,9 @@ def played(windows, scores, *, config, sequential=False, bits=None):
                 t = f'{path}/ts/{sample}'
                 attempt = f'{t}/attempts/0'
                 states.append(State(
-                    T({'main.py': code}, thinking='Write main.py.', text='Done.'), sent=t_sent(attempt, advice),
-                    logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                    files={**pending, f'{attempt}/stdout.txt': STDOUT, f'{attempt}/src/main.py': code},
+                    T({'main.py': code}, thinking='Write main.py.', text=code), sent=t_sent(attempt, advice),
+                    logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', code)],
+                    files={**pending, f'{attempt}/stdout.txt': t_stdout(code), f'{attempt}/src/main.py': code},
                 ))
                 pending, ran = {}, ran | results(attempt, code)
                 if sequential:

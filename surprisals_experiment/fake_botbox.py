@@ -36,7 +36,6 @@ class FakeSession:
         reply = self.script.solutions.popleft()
         if isinstance(reply, Exception):
             raise reply
-        (self.mounts["/solution"] / "main.py").write_text(reply)
         events = [
             {
                 "type": "agent_end",
@@ -45,7 +44,7 @@ class FakeSession:
                     {
                         "role": "assistant",
                         "stopReason": "stop",
-                        "content": [{"type": "text", "text": "Solution written."}],
+                        "content": [{"type": "text", "text": reply}],
                     }
                 ],
             },

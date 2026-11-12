@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from state_machine.testing import Done, State, decoded, run_files
 from surprisals_experiment.config import Config
-from utils.world import Case, Score, T, U, t_sent
+from utils.world import Case, Score, T, U, t_sent, t_stdout
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
@@ -24,8 +24,7 @@ FAILED = {'duration_seconds': 0.0, 'passed': 0, 'failed': 2, 'total': 2, 'all_pa
     {'index': 0, 'passed': False, 'status': 'wrong_answer', 'stdout': '0\n', 'stderr': '', 'exit_code': 0},
     {'index': 1, 'passed': False, 'status': 'wrong_answer', 'stdout': '0\n', 'stderr': '', 'exit_code': 0},
 ]}
-STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write."}}\n'
-          '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
+
 # Every turn saves its advice again, so advices/*/advice.txt is rewritten too.
 REWRITTEN = {'window.json', 'fork.json'}
 SHAPES = {
@@ -93,10 +92,10 @@ def build(output, settings, rounds, failing, advices):
                 kills += [(len(world), False, f'{name}-t-asked'), (len(world), True, f'{name}-t-mid-sample')]
                 source = ZERO if fork in failing else DOUBLE
                 advice, _ = advices.get((fork, position), (ADVICE, BITS))
-                own.append({f'{done}/stdout.txt': STDOUT, f'{done}/src/main.py': source})
+                own.append({f'{done}/stdout.txt': t_stdout(source, 'Write.'), f'{done}/src/main.py': source})
                 world.append(State(
-                    T({'main.py': source}, thinking='Write.', text='Done.'), sent=t_sent(done, advice),
-                    logs=[(t, 'thinking', 'Write.'), (t, 'text', 'Done.')],
+                    T({'main.py': source}, thinking='Write.', text=source), sent=t_sent(done, advice),
+                    logs=[(t, 'thinking', 'Write.'), (t, 'text', source)],
                     files={**pending, **own[-1]},
                 ))
                 pending = {}

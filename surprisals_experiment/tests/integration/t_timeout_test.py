@@ -10,13 +10,12 @@ from state_machine.testing import Done, State
 from u_flush_test import (
     PASS,
     QUESTION,
-    STDOUT,
     flush,
     outcome,
     played,
     results,
 )
-from utils.world import T, U, t_sent, u_system
+from utils.world import T, U, t_sent, t_stdout, u_system
 
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
@@ -38,9 +37,10 @@ def t_state(window, turn, sample, attempt, advice, files, *, code=None, **reply)
     code = code or {'main.py': PASS}
     t = f'windows/{window}/forks/0/turns/{turn}/ts/{sample}'
     path = f'{t}/attempts/{attempt}'
-    return State(T(code, thinking='Write main.py.', text='Done.', **reply),
-                 sent=t_sent(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                 files={**files, f'{path}/stdout.txt': STDOUT, **{f'{path}/src/{name}': text for name, text in code.items()}})
+    text = code.get('main.py', 'partial')
+    return State(T(code, thinking='Write main.py.', text=text, **reply),
+                 sent=t_sent(path, advice), logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', text)],
+                 files={**files, f'{path}/stdout.txt': t_stdout(text), **{f'{path}/src/{name}': text for name, text in code.items()}})
 
 
 def attempt(window, turn, sample, number=0):

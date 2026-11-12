@@ -1,5 +1,6 @@
 """Run T on U's advice in a fresh botbox workspace."""
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -23,7 +24,7 @@ async def prompt_t(
     logs: Path,
     on_delta: Callable[[str, str], None] | None = None,
 ) -> RunResult:
-    """Run T, write its streams, proxy log and transcripts live to `logs`, and return its exit."""
+    """Run T, save its reply as main.py, keep its logs, and return its exit."""
     output.mkdir(parents=True, exist_ok=False)
     agent = TAgent(
         provider=T_PI_PROVIDER,
@@ -36,7 +37,7 @@ async def prompt_t(
     with TemporaryDirectory() as directory:
         advice_dir = Path(directory)
         (advice_dir / "advice.md").write_bytes(advice.encode("utf-8"))
-        return await botbox_run(
+        result = await botbox_run(
             agent,
             agent.command(),
             dockerfile=Path(__file__).parents[1] / "docker/Dockerfile.t",
@@ -45,3 +46,17 @@ async def prompt_t(
             output=logs,
             on_event=agent.receive,
         )
+    if result.exit_code == -1:
+        return result
+    # Read the completed event from disk: the live follower may stop before its last poll.
+    with (logs / "stdout.txt").open(encoding="utf-8") as stdout:
+        for line in stdout:
+            event = json.loads(line)
+            if event["type"] == "agent_end":
+                for message in event["messages"]:
+                    if message["role"] == "assistant" and message["stopReason"] in ("stop", "length"):
+                        program = "".join(
+                            block["text"] for block in message["content"] if block["type"] == "text"
+                        )
+                        (output / "main.py").write_text(program, encoding="utf-8")
+    return result

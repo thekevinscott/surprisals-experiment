@@ -4,7 +4,7 @@ from hashlib import sha256
 
 import pytest
 from state_machine.testing import Done, State
-from utils.world import T, U, t_sent
+from utils.world import T, U, t_sent, t_stdout
 
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 
@@ -36,11 +36,6 @@ def evaluation(source):
              for i, out in enumerate(['6\n', '14\n'])]
     return {'duration_seconds': 0.0, 'passed': 2 * passed, 'failed': 2 - 2 * passed, 'total': 2,
             'all_passed': passed, 'cases': cases}
-
-
-def stdout(thinking):
-    return [{'type': 'message_update', 'assistantMessageEvent': {'type': kind, 'delta': delta}}
-            for kind, delta in [('thinking_delta', thinking), ('text_delta', 'Done.')]]
 
 
 def advice_path(advice):
@@ -82,10 +77,10 @@ def run_world(config, turns, *, outcome, attempts):
             t = f'{directory}/ts/{sample}'
             attempt = f'{t}/attempts/0'
             world.append(State(
-                T({'main.py': source}, thinking='Write main.py.', text='Done.'),
+                T({'main.py': source}, thinking='Write main.py.', text=source),
                 sent=t_sent(attempt, advice),
-                logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                files={**files, f'{attempt}/stdout.txt': stdout('Write main.py.'), f'{attempt}/src/main.py': source},
+                logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', source)],
+                files={**files, f'{attempt}/stdout.txt': t_stdout(source), f'{attempt}/src/main.py': source},
             ))
             files = {}
             evaluated |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': evaluation(source)}

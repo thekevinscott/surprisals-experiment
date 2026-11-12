@@ -4,6 +4,7 @@ A State's `sent` is the U request body, (attempt path, advice) for T, (attempt p
 or the scored text for Score.
 """
 
+import json
 import shlex
 
 from surprisals_experiment.prompt import Prompt
@@ -28,11 +29,21 @@ def t_sent(attempt, advice, *, model='t'):
         'agent': {'provider': 'openrouter', 'model': model, 'api_key': 'test-key'},
         'dockerfile': 'docker/Dockerfile.t',
         'command': f'pi -p @/advice/advice.md --mode json --provider openrouter --model {model} '
-                   f'--append-system-prompt {shlex.quote(INSTRUCTIONS())}',
+                   f'--no-tools --system-prompt {shlex.quote(INSTRUCTIONS())}',
         'mounts': {'/solution': (f'{attempt}/src', 'rw'), '/advice': ({'advice.md': advice}, 'ro')},
         'workdir': '/solution',
         'output': attempt,
     }
+
+
+def t_stdout(text, thinking='Write main.py.'):
+    """Pi's streamed deltas and final assistant reply."""
+    events = [{'type': 'message_update', 'assistantMessageEvent': {'type': kind, 'delta': delta}}
+              for kind, delta in [('thinking_delta', thinking), ('text_delta', text)] if delta is not None]
+    if text is not None:
+        events.append({'type': 'agent_end', 'messages': [{'role': 'assistant', 'stopReason': 'stop',
+                       'content': [{'type': 'text', 'text': text}]}]})
+    return ''.join(json.dumps(event) + '\n' for event in events)
 
 
 class U:
@@ -52,7 +63,8 @@ class U:
 
 
 class T:
-    """After `seconds`, T thinks, writes its files, then says its text. Then it raises `error`, or hangs,
+    """After `seconds`, seed fixture files (including historical multi-file artifacts) and emit T's reply.
+    Then it raises `error`, or hangs,
     or exits with `exit_code`. With `build_error`, T's box fails to build before T runs."""
 
     def __init__(self, files=None, *, thinking=None, text=None, hang=False, error=None, seconds=0, exit_code=0,

@@ -5,7 +5,7 @@ from hashlib import sha256
 import pytest
 from state_machine.testing import Done, State
 from u_flush_test import PASS, flush, outcome, played
-from utils.world import T, U, t_sent
+from utils.world import T, U, t_sent, t_stdout
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
@@ -17,11 +17,6 @@ def suite(passed):
                 {'index': index, 'passed': passed, 'status': 'passed' if passed else 'wrong_answer',
                  'stdout': stdout if passed else '0\n', 'stderr': '', 'exit_code': 0}
                 for index, stdout in enumerate(['6\n', '14\n'])]}
-
-
-def stdout():
-    return ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
-            '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
 
 def run_world(config, rounds, advice, code):
@@ -65,10 +60,10 @@ def run_world(config, rounds, advice, code):
             t = f'windows/{window}/forks/{fork}/turns/{position}/ts/0'
             attempt = f'{t}/attempts/0'
             states.append(State(
-                T({'main.py': code(fork)}, thinking='Write main.py.', text='Done.'),
+                T({'main.py': code(fork)}, thinking='Write main.py.', text=code(fork)),
                 sent=t_sent(attempt, text),
-                logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', 'Done.')],
-                files={**pending, f'{attempt}/stdout.txt': stdout(), f'{attempt}/src/main.py': code(fork)},
+                logs=[(t, 'thinking', 'Write main.py.'), (t, 'text', code(fork))],
+                files={**pending, f'{attempt}/stdout.txt': t_stdout(code(fork)), f'{attempt}/src/main.py': code(fork)},
             ))
             pending = {}
             passed = code(fork) == DOUBLE

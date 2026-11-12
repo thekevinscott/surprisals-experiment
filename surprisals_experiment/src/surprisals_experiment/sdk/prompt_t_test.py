@@ -30,8 +30,16 @@ async def test_advice_file_preserves_bytes_and_never_enters_command(
     assert advice not in command
     assert len(command.encode()) < 128 * 1024
     assert args[args.index("-p") + 1] == "@/advice/advice.md"
-    assert args[args.index("--append-system-prompt") + 1] == INSTRUCTIONS()
+    assert args[args.index("--system-prompt") + 1] == INSTRUCTIONS()
     assert args[args.index("--mode") + 1] == "json"
     (session,) = botbox_script.sessions
     assert session.messages == [advice]
     assert not session.mounts["/advice"].exists()
+
+
+@pytest.mark.parametrize('reply', ['# café\n\nprint(42)\n', '```python\nprint(42)\n```', 'No solution.'])
+async def test_reply_is_saved_verbatim_without_guessing_code_blocks(config, botbox_script, reply):
+    botbox_script.solutions.append(reply)
+    output = config.output / 'src'
+    await prompt_t(config, 'Print 42.', output=output, logs=config.output)
+    assert (output / 'main.py').read_bytes() == reply.encode('utf-8')

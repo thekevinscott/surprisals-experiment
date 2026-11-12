@@ -2,8 +2,8 @@
 from run_result_test import evaluations, result
 from state_machine.testing import State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
-from u_flush_test import QUESTION, STDOUT, flush, outcome, played
-from utils.world import T, t_sent
+from u_flush_test import QUESTION, flush, outcome, played
+from utils.world import T, t_sent, t_stdout
 
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
@@ -22,9 +22,9 @@ def settings(config):
 
 def hung(sample, files=None):
     attempt = f'{TURN}/ts/{sample}/attempts/0'
-    return State(T({}, thinking='Write main.py.', text='Done.', hang=True), sent=t_sent(attempt, 'double it'),
-                 logs=[(f'{TURN}/ts/{sample}', 'thinking', 'Write main.py.'), (f'{TURN}/ts/{sample}', 'text', 'Done.')],
-                 files={**(files or {}), f'{attempt}/stdout.txt': STDOUT})
+    return State(T({}, thinking='Write main.py.', text='partial', hang=True), sent=t_sent(attempt, 'double it'),
+                 logs=[(f'{TURN}/ts/{sample}', 'thinking', 'Write main.py.'), (f'{TURN}/ts/{sample}', 'text', 'partial')],
+                 files={**(files or {}), f'{attempt}/stdout.txt': t_stdout('partial')})
 
 
 async def test_requires_every_sample_to_pass(config, execute_run_experiment):

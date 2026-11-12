@@ -4,7 +4,7 @@ from hashlib import sha256
 
 import pytest
 from state_machine.testing import Done, State
-from utils.world import Score, T, U, t_sent
+from utils.world import Score, T, U, t_sent, t_stdout
 
 from surprisals_experiment.config import WINDOW_SOLO_TURNS, Config
 
@@ -22,11 +22,6 @@ def settings(config):
 
 def u_body():
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'}, 'provider': {'only': ['xiaomi'], 'allow_fallbacks': False}}
-
-
-def stdout():
-    return [{'type': 'message_update', 'assistantMessageEvent': {'type': 'thinking_delta', 'delta': 'Code.'}},
-            {'type': 'message_update', 'assistantMessageEvent': {'type': 'text_delta', 'delta': 'Done.'}}]
 
 
 def results(passed):
@@ -63,13 +58,13 @@ def window_world(config, windows):
             pending[f'advices/{record}/advice.json'] = ({'score': bits} if measure == 'characters' else
                                                         {'score': pytest.approx(bits), 'tokens': [[advice, pytest.approx(bits)]]})
         for sample, source in enumerate(codes):
-            files = {f'{turn}/ts/{sample}/attempts/0/stdout.txt': stdout(), f'{turn}/ts/{sample}/attempts/0/src/main.py': source}
+            files = {f'{turn}/ts/{sample}/attempts/0/stdout.txt': t_stdout(source, 'Code.'), f'{turn}/ts/{sample}/attempts/0/src/main.py': source}
             if sample == 0:
                 files |= pending
-            world.append(State(T({'main.py': source}, thinking='Code.', text='Done.'),
+            world.append(State(T({'main.py': source}, thinking='Code.', text=source),
                                sent=t_sent(f'{turn}/ts/{sample}/attempts/0', advice),
                                logs=[(f'{turn}/ts/{sample}', 'thinking', 'Code.'),
-                                     (f'{turn}/ts/{sample}', 'text', 'Done.')], files=files))
+                                     (f'{turn}/ts/{sample}', 'text', source)], files=files))
         previous = {}
         for sample, source in enumerate(codes):
             previous |= {f'{turn}/ts/{sample}/attempts/0/generation.json': {'exit_code': 0},

@@ -4,8 +4,8 @@ from hashlib import sha256
 
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
-from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import T, U, t_sent, u_system
+from u_flush_test import PASS, QUESTION, chat, flush, outcome, played, results
+from utils.world import T, U, t_sent, t_stdout, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -76,10 +76,10 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     def t(window, number, sample, advice, code, files=None):
         ts = f'{turn(window, number)}/ts/{sample}'
         src = {**helpers, 'main.py': code, 'hidden.json': io.read_text()}
-        return State(T({'main.py': code, **helpers}, thinking='Write main.py.', text='Done.'),
+        return State(T({'main.py': code, **helpers}, thinking='Write main.py.', text=code),
                      sent=t_sent(f'{ts}/attempts/0', advice),
-                     logs=[(ts, 'thinking', 'Write main.py.'), (ts, 'text', 'Done.')],
-                     files={**(files or {}), f'{ts}/attempts/0/stdout.txt': STDOUT,
+                     logs=[(ts, 'thinking', 'Write main.py.'), (ts, 'text', code)],
+                     files={**(files or {}), f'{ts}/attempts/0/stdout.txt': t_stdout(code),
                             **{f'{ts}/attempts/0/src/{name}': text for name, text in src.items()}})
 
     def advised(window, number, advice, score=None):
@@ -132,8 +132,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         {'index': 0, 'passed': True, 'status': 'passed', 'stdout': '6\n', 'stderr': '', 'exit_code': 0},
         {'index': 1, 'passed': True, 'status': 'passed', 'stdout': '14\n', 'stderr': '', 'exit_code': 0},
     ]}
-    stdout = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write it."}}\n'
-              '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
+
 
     def talk(opening, *said):
         return [{'role': 'user', 'content': opening}, *[message for advice in said for message in (
@@ -168,13 +167,13 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     def t_state(window, turn, advice, messages, files=None):
         t = f'windows/{window}/forks/0/turns/{turn}'
         return State(
-            T({'main.py': PASS}, thinking='Write it.', text='Done.'),
+            T({'main.py': PASS}, thinking='Write it.', text=PASS),
             sent=t_sent(f'{t}/ts/0/attempts/0', advice),
-            logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
+            logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', PASS)],
             files={
                 f'{transcripts(window)}/transcript.jsonl': messages,
                 f'{t}/metadata.json': {'advice': advices[advice]},
-                f'{t}/ts/0/attempts/0/stdout.txt': stdout,
+                f'{t}/ts/0/attempts/0/stdout.txt': t_stdout(PASS, 'Write it.'),
                 f'{t}/ts/0/attempts/0/src/main.py': PASS,
                 **(files or {}),
             },

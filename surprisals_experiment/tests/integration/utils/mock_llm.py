@@ -189,6 +189,11 @@ class MockLLM(MockWorld):
                         path.write_text(content)
                 if t.text is not None:
                     llm.say(stdout, 'text_delta', t.text)
+                    with stdout.open('a') as file:
+                        file.write(json.dumps({'type': 'agent_end', 'messages': [{
+                            'role': 'assistant', 'stopReason': 'stop',
+                            'content': [{'type': 'text', 'text': t.text}],
+                        }]}) + '\n')
                 await llm.delivered(index)
                 if t.error:
                     raise t.error
