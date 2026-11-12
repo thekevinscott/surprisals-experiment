@@ -33,15 +33,16 @@ export function createApi(directory) {
     if(wantsEvents(request))return events.stream(request,reply,()=>load(request))
     return load(request)
   })
-  app.get('/api/events',async(request,reply)=>{
-    const urls=JSON.parse(request.query.resources ?? '[]')
-    if(!Array.isArray(urls)||urls.length>256||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Error('Expected an array of API resource paths')
+  const streamResources=(reply,urls)=>{
+    if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Error('Expected an array of API resource paths')
     return events.multiplex(reply,[...new Set(urls)],async url=>{
       const response=await app.inject({method:'GET',url})
       if(response.statusCode>=400)throw Object.assign(Error(response.json().error),{statusCode:response.statusCode})
       return response.headers['content-type']?.startsWith('application/json') ? response.json() : response.body
     })
-  })
+  }
+  app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
+  app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
   endpoint('/api/runs',()=>readExperiment(directory,root=>database(root)))
   endpoint('/api/runs/index',()=>readRunIndex(directory,database(join(directory,'runs'),false)))
   endpoint('/api/runs/:run/details',async request=>{

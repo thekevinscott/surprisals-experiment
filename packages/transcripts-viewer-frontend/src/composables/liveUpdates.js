@@ -1,6 +1,7 @@
 // Multiplex every open resource over one SSE connection. Closed panels leave
 // the subscription, and the server sends complete snapshots only when changed.
 import {ref} from 'vue'
+import {ResourceStream} from './resourceStream.js'
 const subscribers=new Set(),snapshots=new Map(),serialized=new Map()
 export const connected=ref(true)
 let stream,scheduled=false,current=''
@@ -14,7 +15,7 @@ function reconcile(){
   if(key===current)return
   current=key;stream?.close();stream=null
   if(!urls.length)return
-  const next=new EventSource('/api/events?resources='+encodeURIComponent(key));stream=next
+  const next=new ResourceStream(urls);stream=next
   next.addEventListener('resource',event=>{
     if(stream!==next)return
     const {url,data}=JSON.parse(event.data)

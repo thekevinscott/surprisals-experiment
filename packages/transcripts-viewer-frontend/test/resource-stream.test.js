@@ -13,8 +13,9 @@ test('POST subscription keeps large resource sets out of URLs and decodes split 
     await tick();assert.equal(requests[0].url,'/api/events');assert.equal(requests[0].options.method,'POST')
     assert.deepEqual(JSON.parse(requests[0].options.body),{resources})
     const bytes=new TextEncoder().encode('retry: 1000\n\nevent: resource\ndata: {"url":"/api/runs/a/files/0","data":"é"}\n\n')
-    output.enqueue(bytes.slice(0,bytes.length-4));await tick();assert.deepEqual(events,[])
-    output.enqueue(bytes.slice(bytes.length-4));await tick();assert.equal(events[0].data,'é')
+    const split=bytes.indexOf(0xc3)+1
+    output.enqueue(bytes.slice(0,split));await tick();assert.deepEqual(events,[])
+    output.enqueue(bytes.slice(split));await tick();assert.equal(events[0].data,'é')
     stream.close();assert.equal(requests[0].options.signal.aborted,true)
   }finally{stream.close();globalThis.fetch=original}
 })
