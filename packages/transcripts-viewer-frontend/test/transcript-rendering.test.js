@@ -22,7 +22,7 @@ test('real U transcript renders every source field and exposes reasoning as its 
       const html=await renderToString(createSSRApp({render:()=>h(Record,{label:source.role,message:{raw:line,line:index+1},contentOnly:true})}))
       const metadataText=decode(html.match(/<aside class="record-metadata">([\s\S]*?)<\/aside>/)[1])
       const metadata=metadataText?JSON.parse(metadataText):{}
-      const body=decode(html.match(/<p[^>]*>([\s\S]*?)<\/p>/)?.[1]??'')
+      const body=decode(html.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/)?.[1]??'')
       const represented={...metadata}
       if('role' in source){assert.ok(html.includes(`<header>${source.role}</header>`));represented.role=source.role}
       if('content' in source)represented.content=typeof source.content==='string'?body:JSON.parse(body)

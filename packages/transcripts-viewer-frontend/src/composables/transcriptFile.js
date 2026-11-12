@@ -25,3 +25,11 @@ export function transcriptMetadata(raw) {
     return Object.keys(metadata).length ? metadata : undefined
   } catch { return undefined }
 }
+
+export function transcriptReasoning(raw) {
+  try {
+    const record=JSON.parse(raw)
+    const reasoning=(record.message ?? record).reasoning
+    return typeof reasoning==='string' ? reasoning : undefined
+  } catch { return undefined }
+}

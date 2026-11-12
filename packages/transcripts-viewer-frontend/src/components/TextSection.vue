@@ -7,7 +7,7 @@ const length = computed(() => Array.from(props.text ?? '').length)
 </script>
 <template>
   <ContentPanel class="text-section" :title="label" :metadata="metadata" :source="source" :source-line="sourceLine" :state-key="stateKey" :summary="measurement" :expanded="verbatim" :preview="!verbatim" :collapsible="verbatim || length > 200" v-slot="{ expanded, toggle }">
-    <template v-if="reasoning"><strong class="field-label">Reasoning</strong><p>{{ reasoning }}</p><strong class="field-label">Response</strong></template>
+    <details v-if="reasoning" class="record-reasoning"><summary>Reasoning</summary><pre>{{ reasoning }}</pre></details>
     <p v-if="text == null" class="unavailable">File not recorded</p>
     <p v-else-if="verbatim || expanded || length <= 200"><TokenText :text="text" :tokens="tokens" /></p>
     <p v-else><TokenText :text="text" :tokens="tokens" :end="100" /><button class="ellipsis-toggle" :aria-label="`Expand ${label}`" @click="toggle">...</button><TokenText :text="text" :tokens="tokens" :start="length - 100" /></p>
@@ -15,7 +15,9 @@ const length = computed(() => Array.from(props.text ?? '').length)
   </ContentPanel>
 </template>
 <style scoped>
-.field-label { display: block; margin: 6px 0 3px; font-size: 10px; color: #657186; }
+.record-reasoning { margin: 4px 0; font-size: 12px; }
+.record-reasoning summary { cursor: pointer; color: #657186; }
+.record-reasoning pre { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .text-section { margin-top: 4px; }
 p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.5; }
 .unavailable { color: #657186; }
