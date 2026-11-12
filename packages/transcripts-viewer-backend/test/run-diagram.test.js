@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { readRunDiagram, readTurnTranscript, readSample } from '../lib/experiment.js'
 
-test('actual fork IDs, solo continuation, root transcript ownership and reply matching', async t => {
+test('actual fork IDs, solo continuation, per-fork transcripts and shared advice', async t => {
   const root = await mkdtemp(join(tmpdir(), 'run-diagram-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const put = async (path, value) => {
@@ -13,19 +13,21 @@ test('actual fork IDs, solo continuation, root transcript ownership and reply ma
     await writeFile(join(root, path), value)
   }
   const reply = (content, reasoning) => JSON.stringify({ role: 'assistant', content, reasoning, _complete: true })
-  await put('u/transcript.jsonl', [JSON.stringify({ role: 'system', content: 'System rules' }), JSON.stringify({ role: 'user', content: 'Question', _reset: true }), reply('root', 'root thinking')].join('\n'))
-  await put('windows/0/forks/0/turns/0/u/advice.txt', 'root')
+  await put('windows/0/forks/0/u/transcript.jsonl', [JSON.stringify({ role: 'system', content: 'System rules' }), JSON.stringify({ role: 'user', content: 'Question', _reset: true }), reply('root', 'root thinking')].join('\n'))
+  await put('advices/ab/advice.txt', 'root')
   await put('windows/0/forks/0/turns/0/metadata.json', JSON.stringify({ advice: 'advices/ab' }))
   await put('advices/ab/advice.json', JSON.stringify({ score: 17.5, tokens: [['root', 17.5]] }))
-  await put('windows/0/forks/2/turns/0/u/advice.txt', 'first')
-  await put('windows/0/forks/2/turns/2/u/advice.txt', 'solo')
+  await put('windows/0/forks/2/turns/0/metadata.json', JSON.stringify({advice:'advices/ac'}))
+  await put('advices/ac/advice.txt', 'first')
+  await put('windows/0/forks/2/turns/2/metadata.json', JSON.stringify({advice:'advices/ad'}))
+  await put('advices/ad/advice.txt', 'solo')
   await put('windows/0/forks/2/u/transcript.jsonl', [
     reply('first', 'thinking'),
     JSON.stringify({ role: 'assistant', content: 'first', reasoning: 'replayed context' }),
     JSON.stringify({ role: 'assistant', content: 'partial', _complete: false }),
     reply('solo', 'last thinking'),
   ].join('\n'))
-  await put('windows/1/forks/5/turns/0/u/advice.txt', 'no transcript')
+  await put('windows/1/forks/5/turns/0/metadata.json', JSON.stringify({advice:null}))
   await put('windows/0/forks/0/turns/0/ts/2/attempts/0/transcripts/session/old.jsonl', JSON.stringify({ type: 'message', message: { role: 'assistant', content: 'old attempt' } }))
   const message = { type: 'message', id: 'message-one', message: { role: 'assistant', content: [{ type: 'thinking', thinking: 'Reasoning' }, { type: 'text', text: 'Solution' }] } }
   await put('windows/0/forks/0/turns/0/ts/2/attempts/1/transcripts/session/new.jsonl', [JSON.stringify(message), JSON.stringify(message)].join('\n'))
