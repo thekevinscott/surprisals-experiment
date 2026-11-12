@@ -22,6 +22,7 @@ from surprisals_experiment.config import (
 from surprisals_experiment.sdk import Config
 from surprisals_experiment.sdk.run_baseline import run_baseline
 
+from .print_delta import PrintDelta
 
 
 async def main(argv: list[str] | None = None) -> None:
@@ -70,7 +71,7 @@ async def main(argv: list[str] | None = None) -> None:
                 t_sample_timeout=args.t_sample_timeout,
                 t_sample_retries=args.t_sample_retries,
             ),
-            on_t_delta=None,
+            on_t_delta=PrintDelta(),
         )
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
