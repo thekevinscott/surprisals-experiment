@@ -12,12 +12,12 @@ PROVIDER_ERROR = {
 }
 
 
-def transcript(config):
+def transcript(config, name="messages.jsonl"):
     return [json.loads(line) for line in
-            (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+            (config.u_transcripts / name).read_text().splitlines()]
 
 
-async def test_streams_advice_and_starts_each_prompt_fresh(
+async def test_streams_advice_and_extends_each_prompt(
     config, botbox_script, chat_provider,
 ):
     config.u_thinking = 'high'
@@ -25,17 +25,19 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     deltas = []
     async with open_u_chat(config) as session:
         assert await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=lambda *delta: deltas.append(delta)) == 'first\nadvice'
-        assert await session.prompt([{'role': 'user', 'content': 'feedback'}]) == 'next'
+        assert await session.prompt([*session.messages, {'role': 'user', 'content': 'feedback'}]) == 'next'
     assert not botbox_script.sessions
     assert chat_provider[0]['reasoning'] == {'effort': 'high'}
     assert all(request['provider'] == {'only': ['xiaomi'], 'allow_fallbacks': False} for request in chat_provider)
     assert 'tools' not in chat_provider[0]
-    assert [message['role'] for message in chat_provider[1]['messages']] == ['system', 'user']
+    assert [message['role'] for message in chat_provider[1]['messages']] == ['user', 'assistant', 'user']
     assert ''.join(text for kind, text in deltas if kind == 'text') == 'first\nadvice'
     assert ('thinking', 'Thinking.') in deltas
     transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
-    assert len(transcript) == 5
-    assert transcript[2]['reasoning'] == 'Thinking.'
+    assert len(transcript) == 4
+    assert transcript[1] == {'role': 'assistant', 'content': 'first\nadvice'}
+    replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+    assert [entry['message']['reasoning'] for entry in replies] == ['Thinking.', 'Thinking.']
     assert transcript[-1]['content'] == 'next'
     usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
     assert len(usage) == 2
@@ -54,7 +56,9 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
         async with open_u_chat(config) as session:
             await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=cancel)
     transcript = (config.u_transcripts / 'messages.jsonl').read_text()
-    assert 'Thinking.' in transcript
+    assert json.loads(transcript) == {'role': 'user', 'content': 'question'}
+    replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+    assert replies[-1]['message']['reasoning'] == 'Thinking.'
 
 
 async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
@@ -68,7 +72,8 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
         await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=lambda *delta: deltas.append(delta))
     assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
     assert session.messages[-1]['role'] == 'assistant'
-    assert session.messages[-1]['reasoning'] == 'Thinking. More.'
+    assert session.messages[-1] == {'role': 'assistant', 'content': 'advice'}
+    assert transcript(config, 'replies.jsonl')[-1]['message']['reasoning'] == 'Thinking. More.'
 
 
 @pytest.mark.parametrize('finish', ['stop', None])
@@ -98,10 +103,12 @@ async def test_reasoning_format_preserves_latest_provider_value(
     async with open_u_chat(config) as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
             await session.prompt([{'role': 'user', 'content': 'question'}])
-        assert session.messages[-1]['reasoning_details'] == expected
-        transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
-        assert transcript[-1]['reasoning_details'] == expected
-        assert transcript[-1]['content'] == 'advice'
+        replies = transcript(config, 'replies.jsonl')
+        assert len(replies) == (1 if finish == 'stop' else 9)
+        assert all(entry['message']['reasoning_details'] == expected for entry in replies)
+        assert all(entry['message']['content'] == 'advice' for entry in replies)
+        assert session.messages == [{'role': 'user', 'content': 'question'}] + (
+            [{'role': 'assistant', 'content': 'advice'}] if finish == 'stop' else [])
 
 
 @pytest.mark.parametrize('mode', ['plain', 'partial'])
@@ -115,72 +122,66 @@ async def test_rebuilt_transcript_matches_live_session(
     replies.append('second')
     botbox_script.advice.extend(replies)
     async with open_u_chat(config) as live:
-        live.attempt = 0
         assert await live.prompt([{'role': 'user', 'content': 'question'}]) == 'first'
-        live.attempt = 1
-        assert await live.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
-        expected = (live.messages, live.turn_attempt, live.turn_reply)
+        request = [*live.messages, {'role': 'user', 'content': 'feedback'}]
+        assert await live.prompt(request) == 'second'
+        expected = list(live.messages)
     transcript = config.u_transcripts / 'messages.jsonl'
     entries = [json.loads(line) for line in transcript.read_text().splitlines()]
-    if mode == 'plain':
-        assert entries[-2]['_reset'] is True
-    assert len(live.messages) == 3
+    assert entries == expected
+    assert len(live.messages) == 4
     before_replay = transcript.read_bytes()
     before_inode = transcript.stat().st_ino
     if mode == 'partial':
-        assert any(entry.get('_complete') is False for entry in entries)
+        replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+        assert [entry['message']['content'] for entry in replies] == ['first', 'unfinished', 'second']
         assert all(message.get('content') != 'unfinished' for message in live.messages)
         # A process can stop midway through the next appended transcript entry.
         with transcript.open('a') as output:
             output.write('{"role": "assistant", "content":')
     requests = len(chat_provider)
     async with open_u_chat(config) as rebuilt:
-        assert (rebuilt.messages, rebuilt.turn_attempt, rebuilt.turn_reply) == expected
-        rebuilt.attempt = 1
-        assert await rebuilt.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
+        assert rebuilt.messages == expected
+        assert await rebuilt.prompt(request) == 'second'
     assert len(chat_provider) == requests
     assert transcript.read_bytes() == before_replay
     if mode == 'partial':
         assert transcript.stat().st_ino != before_inode
         botbox_script.advice.append('third')
         async with open_u_chat(config) as resumed:
-            resumed.attempt = 2
-            assert await resumed.prompt([{'role': 'user', 'content': 'next feedback'}]) == 'third'
+            assert await resumed.prompt([*resumed.messages, {'role': 'user', 'content': 'next feedback'}]) == 'third'
         async with open_u_chat(config) as rebuilt:
             assert rebuilt.messages == resumed.messages
-            assert rebuilt.turn_attempt == 2
-            assert rebuilt.turn_reply == 'third'
+            assert rebuilt.messages[-1] == {'role': 'assistant', 'content': 'third'}
 
 
 async def test_rebuilt_transcript_resumes_pending_turn(config, botbox_script, chat_provider):
     botbox_script.advice.extend(['first', 'second'])
     async with open_u_chat(config) as live:
-        live.attempt = 0
         assert await live.prompt([{'role': 'user', 'content': 'question'}]) == 'first'
-        live.attempt = 1
-        assert await live.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
+        request = [*live.messages, {'role': 'user', 'content': 'feedback'}]
+        assert await live.prompt(request) == 'second'
     transcript = config.u_transcripts / 'messages.jsonl'
     entries = [json.loads(line) for line in transcript.read_text().splitlines()]
-    end = next(i for i, entry in enumerate(entries) if entry.get('_attempt') == 1) + 1
+    end = len(request)
     transcript.write_text(''.join(json.dumps(entry) + '\n' for entry in entries[:end]))
     botbox_script.advice.append('second')
     requests = len(chat_provider)
     async with open_u_chat(config) as rebuilt:
-        rebuilt.attempt = 1
-        assert await rebuilt.prompt([{'role': 'user', 'content': 'feedback'}]) == 'second'
+        assert await rebuilt.prompt(request) == 'second'
         assert rebuilt.messages == live.messages
-        assert rebuilt.turn_attempt == 1
-        assert rebuilt.turn_reply == 'second'
+        assert rebuilt.messages[-1] == {'role': 'assistant', 'content': 'second'}
     assert len(chat_provider) - requests == 1
     restored = [json.loads(line) for line in transcript.read_text().splitlines()]
-    assert sum(entry.get('_attempt') == 1 for entry in restored) == 1
+    assert restored == [*request, {'role': 'assistant', 'content': 'second'}]
 
 
 async def test_rebuilt_transcript_rejects_invalid_interior_line(config, chat_provider):
     async with open_u_chat(config) as session:
         transcript = session.transcript
+    transcript.parent.mkdir(parents=True, exist_ok=True)
     with transcript.open('a') as output:
-        output.write('not json\n' + json.dumps({'role': 'user', 'content': 'question', '_attempt': 0}) + '\n')
+        output.write('not json\n' + json.dumps({'role': 'user', 'content': 'question'}) + '\n')
     requests = len(chat_provider)
     with pytest.raises(json.JSONDecodeError):
         async with open_u_chat(config):
@@ -199,6 +200,8 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == len(DELAYS) + 1
     assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
-    assert [m['content'] for m in transcript(config) if m['role'] == 'assistant'] == ['partial'] * 9
-    assert session.messages[-1]['content'] == 'partial'
+    assert transcript(config) == session.messages == [{'role': 'user', 'content': 'question'}]
+    replies = transcript(config, 'replies.jsonl')
+    assert [entry['message']['content'] for entry in replies] == ['partial'] * 9
+    assert all('provider_error' in entry['message'] for entry in replies)
     assert no_retry_wait.await_count == len(DELAYS)
