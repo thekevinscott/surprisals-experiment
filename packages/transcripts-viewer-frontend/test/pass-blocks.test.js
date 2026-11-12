@@ -21,3 +21,7 @@ test('sample labels distinguish recorded outcomes, generation failures, and unkn
   assert.equal(turnSummary(turn), '12 bits')
   assert.equal(turnSummary({...turn, measurement: null}), 'No score')
 })
+
+test('turn scores retain their exact numeric string without locale rounding',()=>{
+ assert.equal(turnSummary({measurement:1234.567890123,unit:'bits'}),'1234.567890123 bits')
+})

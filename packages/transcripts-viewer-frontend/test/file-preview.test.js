@@ -30,3 +30,13 @@ test('in-progress samples reserve configured columns without hiding extra record
  assert.equal(sampleColumnCount(2,3),3)
  assert.equal(sampleColumnCount(null,3),3)
 })
+
+test('transcript preview shows one selected source file, preserving physical line scope',async()=>{
+ const {openTranscript}=await import('../src/composables/filePreview.js')
+ const files=[{source:'attempt0/a.jsonl',url:'/a'},{source:'attempt1/b.jsonl',url:'/b'}]
+ openTranscript({name:'T0 transcript',files},files[1])
+ assert.deepEqual(filePreview.value.files,[files[1]])
+ assert.equal(filePreview.value.source,'attempt1/b.jsonl')
+ assert.deepEqual(filePreview.value.rawFiles,[files[1]])
+ closeFile()
+})
