@@ -1,5 +1,6 @@
 <script setup>
-import { turnSummary } from '../composables/outcomes.js'
+import PassBlocks from './PassBlocks.vue'
+import { turnSummary, turnPassed } from '../composables/outcomes.js'
 import { ref, inject } from 'vue'
 import TranscriptButton from './TranscriptButton.vue'
 import ContentPanel from './ContentPanel.vue'
@@ -15,7 +16,8 @@ const expanded = ref(true)
 const link = inject('runLink')
 </script>
 <template>
-  <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :summary="turnSummary(turn)">
+  <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)">
+    <template #summary><PassBlocks :passed="turnPassed(turn)" :total="turn.samples.length" unit="samples" /><span>{{ turnSummary(turn) }}</span></template>
     <template #actions><TranscriptButton :source="turn.transcriptPath" label="💬" /><Button v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /></template>
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
     <p v-if="turn.rejections" role="status">Scorer rejections: {{ turn.rejections }}</p>

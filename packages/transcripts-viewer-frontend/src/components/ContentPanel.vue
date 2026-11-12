@@ -34,7 +34,7 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
 </script>
 <template>
   <Panel :header="title" class="content-panel" :toggleable="collapsible && !preview" :collapsed="!visible" @update:collapsed="expanded = !$event">
-    <template #header><div class="panel-label"><strong>{{ title }}</strong><a v-if="href" class="permalink" :href="href" :aria-label="`Link to ${title}`" :title="`Link to ${title}`">#</a><span v-if="summary">{{ summary }}</span></div></template>
+    <template #header><div class="panel-label"><strong><slot name="title">{{ title }}</slot></strong><a v-if="href" class="permalink" :href="href" :aria-label="`Link to ${title}`" :title="`Link to ${title}`">#</a><span v-if="summary || $slots.summary" class="panel-summary"><slot name="summary">{{ summary }}</slot></span></div></template>
     <template #icons>
       <slot name="actions" />
       <SourceActions :title="title" :metadata="metadata" :source="source" :source-line="sourceLine" />
@@ -50,7 +50,7 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
 .panel-label { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; min-width:0; }
 .permalink { color:#697b94;text-decoration:none;font-size:12px; }
 .panel-label strong { font-size:12px; }
-.panel-label span { font-size:10px; color:#657186; }
+.panel-summary { display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:10px; color:#657186; }
 .content-panel :deep(.p-panel-header-actions) { display:flex; align-items:center; }
 .content-panel :deep(.p-panel-toggle-button) { width:24px; height:24px; }
 .content-panel :deep(.p-button) { font-size:10px; padding:3px 5px; }

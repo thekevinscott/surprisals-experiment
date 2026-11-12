@@ -1,10 +1,15 @@
 <script setup>
 import ContentPanel from './ContentPanel.vue'
+import PassBlocks from './PassBlocks.vue'
 import JsonContent from './JsonContent.vue'
 defineProps({ missingReason: { type: String, default: 'Tests not recorded' }, results: Object, source: String })
 </script>
 <template>
-  <ContentPanel title="Test results" :source="results ? source : undefined" :summary="results ? `${results.passed ?? '?'} / ${results.total ?? '?'} passed` : missingReason" class="test-results">
+  <ContentPanel title="Test results" :source="results ? source : undefined" class="test-results">
+    <template #summary>
+      <PassBlocks v-if="results?.passed != null && results?.total != null" :passed="results.passed" :total="results.total" />
+      <span v-else>{{ results ? `${results.passed ?? '?'} / ${results.total ?? '?'} passed` : missingReason }}</span>
+    </template>
     <p v-if="!results">{{ missingReason }}</p>
     <template v-else>
       <p v-if="results.duration_seconds != null">Duration: {{ results.duration_seconds }}s</p>
