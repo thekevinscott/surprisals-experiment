@@ -25,7 +25,7 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
   </section>
 </template>
 <style scoped>
-.file-viewer { background:white;padding:12px;border:1px solid #d0dae7;border-radius:6px; }
+.file-viewer { min-width:0; }
 header { display:flex;justify-content:space-between;gap:16px;font-size:12px;overflow-wrap:anywhere;margin-bottom:12px; }
 .raw-file { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px; }
 </style>

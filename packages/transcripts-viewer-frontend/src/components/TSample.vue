@@ -13,35 +13,28 @@ const apiUrl=inject('apiUrl')
 const rawUrl=inject('rawSourceUrl')
 const {data,loading,error}=useLiveResource(()=>[apiUrl(props.sample.source)],(signal,[url])=>fetchJson(url,signal))
 const latest=computed(()=>data.value?.attempts.find(attempt=>attempt.id===props.sample.latest?.id) ?? props.sample.latest)
+const status=computed(()=>error.value || (loading.value?'Loading…':attemptState(latest.value)))
 const files=computed(()=>sampleFiles(data.value?.attempts ?? [],rawUrl))
 </script>
 <template>
   <ContentPanel local :collapsible="false" class="t-sample" :data-sample="sample.id" :title="`T${sample.id}`">
     <template #title><span class="sample-label" :class="attemptOutcome(sample.latest)">T{{ sample.id }}</span></template>
-    <template #actions><Button text size="small" label="📄" aria-label="Open files" title="Open files" :disabled="!files.length" @click="openFiles({name:`T${sample.id} files`,files})" /><TranscriptButton v-if="data?.attempts.length" :files="data.attempts.flatMap(attempt => attempt.transcriptFiles ?? [])" label="💬" /></template>
+    <template #actions><Button class="icon-button" text size="small" label="📄" aria-label="Open files" title="Open files" :disabled="!files.length" @click="openFiles({name:`T${sample.id} files`,files})" /><TranscriptButton v-if="data?.attempts.length" :files="data.attempts.flatMap(attempt => attempt.transcriptFiles ?? [])" :modal-title="`T${sample.id} transcript`" label="💬" /></template>
     <div class="sample-tests">
       <PassBlocks v-if="latest?.tests && !latest.generation?.timed_out && !latest.generation?.error" :passed="latest.tests.passed" :total="latest.tests.total" :cases="latest.tests.cases" :source="latest.testsSource" />
-      <span v-else>{{ attemptState(sample.latest) }}</span>
+      <span v-else :title="status">{{ status }}</span>
     </div>
-    <p v-if="loading">Loading…</p><p v-else-if="error" role="alert">{{ error }}</p>
   </ContentPanel>
 </template>
 <style scoped>
-.t-sample { container-type: inline-size; min-width: 0; margin: 0; background: #f8fafc; border: 1px solid #d0dae7; border-radius: 6px; }
-.sample-label.passed { color: #15803d; }
-.sample-label.failed { color: #b91c1c; }
-.sample-label.unknown { color: #657186; }
-.sample-tests { display: flex; justify-content: center; align-items: center; min-width: 0; margin: 2px 0 4px; font-size: 10px; overflow-wrap: anywhere; }
-.t-sample :deep(.p-panel-header) { flex-wrap: nowrap; align-items: flex-start; gap: 0; padding: 2px; }
-.t-sample :deep(.p-panel-header-actions) { flex-wrap: nowrap; flex-shrink: 0; }
-.t-sample :deep(.panel-label) { flex: 1; flex-wrap: nowrap; gap: 2px; align-self: center; }
-.t-sample :deep(.p-panel-header .p-button) { padding: 2px; }
-.t-sample :deep(.p-panel-toggle-button) { width: 18px; height: 18px; }
-.t-sample :deep(.p-panel-content) { padding: 0 2px 2px; }
-@container (max-width: 56px) {
-  .t-sample :deep(.p-panel-header) { flex-direction: column; align-items: center; padding: 1px; }
-  .t-sample :deep(.p-panel-header-actions) { order: -1; justify-content: center; width: 100%; }
-  .t-sample :deep(.p-panel-header .p-button) { width: 12px; min-width: 0; height: 18px; padding: 0; font-size: 10px; }
-}
-p { font-size: 11px; color: #657186; }
+.t-sample { min-width:56px;margin:0;background:var(--viewer-gray);border:1px solid var(--viewer-border);border-radius:6px; }
+.sample-label.passed { color:var(--viewer-pass); }
+.sample-label.failed { color:var(--viewer-fail); }
+.sample-label.unknown { color:var(--viewer-muted); }
+.sample-tests { display:flex;justify-content:center;align-items:center;min-width:0;height:16px;margin:0;padding:2px;font-size:10px;line-height:12px; }
+.sample-tests > span:not(.pass-blocks) { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.t-sample :deep(.p-panel-header) { flex-wrap:nowrap;align-items:center;gap:0;padding:2px; }
+.t-sample :deep(.p-panel-header-actions) { flex-wrap:nowrap;flex-shrink:0;gap:0; }
+.t-sample :deep(.panel-label) { flex:1;flex-wrap:nowrap;gap:2px;align-self:center; }
+.t-sample :deep(.p-panel-content) { padding:0; }
 </style>

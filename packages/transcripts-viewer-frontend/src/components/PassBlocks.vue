@@ -22,6 +22,6 @@ function openCase(position) { openFile(target.value,{testCase:position}) }
 .pass-block { flex: 0 1 8px; width: 8px; min-width: 0; height: 8px; border-radius: 0; border: 0; padding: 0; }
 button.pass-block { cursor: pointer; }
 button.pass-block:focus-visible { outline: 2px solid #254c7f; outline-offset: 2px; }
-.passed { background: #15803d; }
-.failed { background: #b91c1c; }
+.passed { background: var(--viewer-pass); }
+.failed { background: var(--viewer-fail); }
 </style>

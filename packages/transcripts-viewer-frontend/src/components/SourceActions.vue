@@ -16,8 +16,8 @@ onBeforeUnmount(()=>clearTimeout(timer))
 </script>
 <template>
   <span class="source-actions">
-    <Button v-if="metadata != null" text rounded size="small" label="ⓘ" :aria-label="`Metadata for ${title}`" @mouseenter="show($event,'metadata')" @mouseleave="leave" @focus="show($event,'metadata')" @click.stop="pin" />
-    <Button v-if="source && sourceUrl(source,sourceLine)" as="a" text rounded size="small" label="📄" aria-label="Source file" :href="sourceUrl(source,sourceLine)" @mouseenter="show($event,'source')" @mouseleave="leave" @focus="show($event,'source')" @click.prevent.stop="popup?.hide();openFile(sourceUrl(source,sourceLine))" />
+    <Button class="icon-button" v-if="metadata != null" text rounded size="small" label="ⓘ" :aria-label="`Metadata for ${title}`" @mouseenter="show($event,'metadata')" @mouseleave="leave" @focus="show($event,'metadata')" @click.stop="pin" />
+    <Button class="icon-button" v-if="source && sourceUrl(source,sourceLine)" as="a" text rounded size="small" label="📄" aria-label="Source file" :href="sourceUrl(source,sourceLine)" @mouseenter="show($event,'source')" @mouseleave="leave" @focus="show($event,'source')" @click.prevent.stop="popup?.hide();openFile(sourceUrl(source,sourceLine))" />
     <Popover ref="popup" @hide="pinned=false" @mouseenter="clearTimeout(timer)" @mouseleave="leave" :style="{maxWidth:'min(500px, 95vw)',maxHeight:'60vh',overflow:'auto'}">
       <strong>{{ mode === 'metadata' ? `Metadata for ${title}` : 'Source file' }}</strong>
       <VueJsonPretty v-if="mode === 'metadata'" :data="metadata" :deep="2" show-icon />
@@ -27,6 +27,5 @@ onBeforeUnmount(()=>clearTimeout(timer))
 </template>
 <style scoped>
 .source-actions { display:inline-flex; align-items:center; gap:2px; }
-.source-actions :deep(.p-button) { padding:2px; width:22px; height:22px; font-size:13px; }
 pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
 </style>

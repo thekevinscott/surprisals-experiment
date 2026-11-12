@@ -1,5 +1,6 @@
 <script setup>
 import {computed,ref,watch} from 'vue'
+import {selectPreviewFile} from '../composables/filePreview.js'
 import {fileTree} from '../composables/sampleFiles.js'
 import FileViewer from './FileViewer.vue'
 import FileTree from './FileTree.vue'
@@ -8,6 +9,7 @@ const selected=ref(props.files[0]?.source)
 const active=computed(()=>props.files.find(file=>file.source===selected.value) ?? props.files[0])
 const tree=computed(()=>fileTree(props.files))
 watch(()=>props.files,()=>{selected.value=active.value?.source})
+watch(active,file=>selectPreviewFile(file),{immediate:true})
 </script>
 <template>
   <div class="files-viewer" :class="{'with-tree':files.length>1}">
@@ -19,7 +21,6 @@ watch(()=>props.files,()=>{selected.value=active.value?.source})
 <style scoped>
 .files-viewer { display:grid;grid-template-columns:minmax(0,1fr);min-width:0;min-height:100%; }
 .with-tree { grid-template-columns:minmax(120px,20%) minmax(0,1fr); }
-nav { border-right:1px solid #d0dae7;padding-right:10px;margin-right:12px; }
-.files-viewer :deep(.file-viewer) { border:0;padding:0;min-width:0; }
+nav { position:sticky;top:0;align-self:start;max-height:calc(100dvh - 100px);overflow:auto;border-right:1px solid #d0dae7;padding-right:10px;margin-right:12px; }
 p { color:#657186;font-size:12px; }
 </style>
