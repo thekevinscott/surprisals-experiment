@@ -1,6 +1,5 @@
 import {DirSQL} from 'dirsql'
 import {readFileSync,createReadStream} from 'node:fs'
-import {stat} from 'node:fs/promises'
 import {createInterface} from 'node:readline'
 import {dirname, basename, relative, resolve, join} from 'node:path'
 
@@ -31,12 +30,11 @@ export class ExperimentDatabase {
     }) : []
     this.db = new DirSQL({root:this.root,noIgnore:true,tables})
     this.pending = Promise.resolve()
-    this.usageRecords = new Map()
   }
   // The native connection is shared; serialize statements as in Database.py.
   query(sql, params) {
     const result = this.pending.then(()=>this.db.query(sql,params))
-    this.pending = result.catch(()=>{})
+    this.pending = result.then(()=>undefined,()=>undefined)
     return result
   }
   async files(pattern, {content=false}={}) {
@@ -61,11 +59,8 @@ export class ExperimentDatabase {
     try{return JSON.parse(text)}catch(error){throw Error(`Cannot read ${path}: ${error.message}`)}
   }
   async usage(path, select) {
-    const full=join(this.root,path),info=await stat(full,{bigint:true})
-    const stamp=`${info.ino}:${info.size}:${info.mtimeNs}`
-    const cached=this.usageRecords.get(path)
-    if(cached?.stamp===stamp)return cached
-    const value={stamp,records:[],incomplete:false}
+    const full=join(this.root,path)
+    const value={records:[],incomplete:false}
     const lines=createInterface({input:createReadStream(full),crlfDelay:Infinity})
     for await(const line of lines){
       if(!line.trim())continue
@@ -74,7 +69,6 @@ export class ExperimentDatabase {
       const usage=select(record)
       if(usage)value.records.push({id:record.completion_id,cost:typeof usage.cost==='object'?usage.cost?.total:usage.cost})
     }
-    this.usageRecords.set(path,value)
     return value
   }
   async close() {await this.pending;await this.db.ready;this.db.close()}

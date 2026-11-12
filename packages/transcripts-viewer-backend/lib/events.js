@@ -7,14 +7,13 @@ export function createEvents({interval=2000}={}) {
   function subscribe(key,load,onData,onError,seed) {
     let resource=resources.get(key)
     if(!resource){
-      resource={listeners:new Set(),last:seed===undefined?undefined:JSON.stringify(seed),error:null,running:false,timer:null,cleanup:null}
+      resource={listeners:new Set(),last:seed===undefined?undefined:JSON.stringify(seed),error:null,running:false,timer:null}
       resources.set(key,resource)
     }
     if(seed!==undefined&&resource.last!==JSON.stringify(seed)){
       resource.last=JSON.stringify(seed);resource.error=null
       for(const listener of resource.listeners)listener.onData(seed)
     }
-    clearTimeout(resource.cleanup)
     const listener={onData,onError}
     resource.listeners.add(listener)
     if(resource.last!==undefined)onData(JSON.parse(resource.last))
@@ -23,12 +22,15 @@ export function createEvents({interval=2000}={}) {
       if(resource.running||closed||!resource.listeners.size)return
       resource.running=true
       try{
-        const value=await load(),next=JSON.stringify(value)
+        const value=await load()
+        if(closed||!resource.listeners.size)return
+        const next=JSON.stringify(value)
         if(next!==resource.last||resource.error){
           resource.last=next;resource.error=null
           for(const listener of resource.listeners)listener.onData(value)
         }
       }catch(error){
+        if(closed||!resource.listeners.size)return
         const value={error:error.message,status:error.statusCode??(error.code==='ENOENT'?404:400)},next=JSON.stringify(value)
         if(next!==resource.error){resource.error=next;for(const listener of resource.listeners)listener.onError(value)}
       }finally{
@@ -41,9 +43,8 @@ export function createEvents({interval=2000}={}) {
       resource.listeners.delete(listener)
       if(!resource.listeners.size){
         clearTimeout(resource.timer);resource.timer=null
-        // A page changes its multiplexed subscription as panels open/close.
-        // Keep the last snapshot briefly so reconnecting panels share that read.
-        resource.cleanup=setTimeout(()=>{if(!resource.listeners.size)resources.delete(key)},1000)
+        resource.last=undefined;resource.error=null
+        resources.delete(key)
       }
     }
   }
@@ -75,7 +76,7 @@ export function createEvents({interval=2000}={}) {
   return {stream,multiplex,close(){
     closed=true
     for(const client of clients)client.end()
-    for(const resource of resources.values()){clearTimeout(resource.timer);clearTimeout(resource.cleanup);resource.listeners.clear()}
+    for(const resource of resources.values()){clearTimeout(resource.timer);resource.listeners.clear();resource.last=undefined;resource.error=null}
     resources.clear()
   }}
 }
