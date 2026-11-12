@@ -55,7 +55,7 @@ def run_world(config, rounds, advice, code):
                 files=files,
             ))
             stored = 'advices/' + sha256(text.encode()).hexdigest()
-            pending = {f'{turn}/metadata.json': {'advice': stored}, f'{turn}/u/advice.txt': text}
+            pending = {f'{turn}/metadata.json': {'advice': stored}}
             if stored not in written:
                 written.add(stored)
                 pending |= {f'{stored}/advice.txt': text, f'{stored}/advice.json': {'score': len(text)}}

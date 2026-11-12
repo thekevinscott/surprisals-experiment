@@ -72,7 +72,7 @@ def run_world(config, turns, *, outcome, attempts):
             logs=[(f'{directory}/u', 'thinking', 'Thinking.'), (f'{directory}/u', 'text', advice)],
             files=files,
         ))
-        files = {f'{directory}/metadata.json': {'advice': advice_path(advice)}, f'{directory}/u/advice.txt': advice}
+        files = {f'{directory}/metadata.json': {'advice': advice_path(advice)}}
         if advice not in advices:
             advices.add(advice)
             files |= {f'{advice_path(advice)}/advice.txt': advice,

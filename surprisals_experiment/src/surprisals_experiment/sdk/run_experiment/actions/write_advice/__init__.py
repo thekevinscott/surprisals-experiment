@@ -12,6 +12,7 @@ from .system_prompt import system_prompt
 
 
 async def write_advice(run: Run, turn: Turn) -> None:
+    assert run.u_chat is not None
     config = turn.config
     system = await system_prompt(run, turn)
     messages = [{"role": "system", "content": system}]
@@ -37,8 +38,7 @@ async def write_advice(run: Run, turn: Turn) -> None:
             json.dumps({"advice": None, "error": str(error)}, indent=2) + "\n",
         )
         return
-    write(turn.u_dir / "advice.txt", text.encode("utf-8"))
-    advice = Advice(turn.u_dir / "advice.txt", config.advice_measure, config.output)
+    advice = Advice(text, config.advice_measure, config.output)
     with run.database.dirsql.lock:
         advice.save()
         write(

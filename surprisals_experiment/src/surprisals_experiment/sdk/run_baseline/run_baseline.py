@@ -30,7 +30,7 @@ async def run_baseline(config: Config, *, on_t_delta: Callable[[str, str, str], 
     database = ExperimentDatabase(config.output)
     run = Run(config, database, problem, actions, on_t_delta)
     await start(run)
-    advice = Advice(config.problem_dir / "question.txt", config.advice_measure, config.output)
+    advice = Advice((config.problem_dir / "question.txt").read_bytes().decode("utf-8"), config.advice_measure, config.output)
     advice.save()
     turn = Turn(config, 0)
     write(turn.attempt_dir / "metadata.json", json.dumps({"advice": str(advice.directory.relative_to(config.output))}) + "\n")

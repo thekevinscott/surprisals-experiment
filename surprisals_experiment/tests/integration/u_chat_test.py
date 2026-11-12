@@ -85,7 +85,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     def advised(window, number, advice, score=None):
         digest = f'advices/{sha256(advice.encode()).hexdigest()}'
         path = turn(window, number)
-        files = {f'{path}/metadata.json': {'advice': digest}, f'{path}/u/advice.txt': advice}
+        files = {f'{path}/metadata.json': {'advice': digest}}
         return files | ({f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}} if score else {})
 
     def evaluated(window, number):
@@ -174,7 +174,6 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             files={
                 f'{transcripts(window)}/transcript.jsonl': messages,
                 f'{t}/metadata.json': {'advice': advices[advice]},
-                f'{t}/u/advice.txt': advice,
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,
                 f'{t}/ts/0/attempts/0/src/main.py': PASS,
                 **(files or {}),

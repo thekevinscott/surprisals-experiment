@@ -495,7 +495,7 @@ cap-strategy = ["characters"]
                 # The U turn is in flight on the box; nothing has to finish before the crash.
                 return (folder / "settings.json").exists() and any(
                     p.stat().st_size for p in folder.rglob("transcript.jsonl"))
-            return list(folder.glob("windows/*/forks/*/turns/*/u/advice.txt"))
+            return list(folder.glob("windows/*/forks/*/turns/*/metadata.json"))
 
         wait(stop_point)
         step("stop point mirrored")

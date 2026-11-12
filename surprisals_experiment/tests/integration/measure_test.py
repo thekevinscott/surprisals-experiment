@@ -53,7 +53,7 @@ def priced(advice, score):
 
 
 def advised(path, advice):
-    return {f'{path}/metadata.json': {'advice': advice_path(advice)}, f'{path}/u/advice.txt': advice}
+    return {f'{path}/metadata.json': {'advice': advice_path(advice)}}
 
 
 def unscored(path, advice):
@@ -264,8 +264,7 @@ OVERFLOW = "maximum context length is 8192 tokens"
 
 
 def rejected(path, index):
-    advice = f'too long {index}'
-    return {f'{path}/metadata.json': REMOVED, f'{path}/u/advice.txt': REMOVED, f'{path}/u/rejected/{index}.txt': advice}
+    return {f'{path}/metadata.json': REMOVED}
 
 
 async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_experiment):
