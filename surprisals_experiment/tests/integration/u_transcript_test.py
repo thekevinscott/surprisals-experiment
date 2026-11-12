@@ -141,8 +141,7 @@ async def test_parallel_forks(config, execute_run_experiment, requests, window_s
     assert_transcripts_are_requests(config.output, requests)
 
 
-@pytest.mark.parametrize('kill', ['w0-f0-turn1-u-mid-stream', 'w1-f0-turn1-u-asked', 'w1-f1-turn0-u-mid-stream',
-                                  'w0-f0-turn0-sample0-t-mid-sample'])
+@pytest.mark.parametrize('kill', list(KILLS))
 async def test_restart(config, execute_run_experiment, requests, kill):
     await restart_from_every_kill_point_test.test_restart_from_every_kill_point(config, execute_run_experiment, *KILLS[kill])
     assert_transcripts_are_requests(config.output, requests)
