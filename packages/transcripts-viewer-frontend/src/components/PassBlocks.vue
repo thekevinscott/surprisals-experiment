@@ -10,7 +10,7 @@ const clickable=computed(()=>!!props.cases && !!target.value)
 function openCase(position) { openFile(target.value,{testCase:position}) }
 </script>
 <template>
-  <span class="pass-blocks" :role="clickable ? 'group' : 'img'" :aria-label="`${passed}/${total} ${unit} passed`" :title="`${passed}/${total} ${unit} passed`">
+  <span class="pass-blocks" :style="{'--test-count':blocks.length,'--gap-count':Math.max(1,blocks.length-1)}" :role="clickable ? 'group' : 'img'" :aria-label="`${passed}/${total} ${unit} passed`" :title="`${passed}/${total} ${unit} passed`">
     <template v-for="(block, index) in blocks" :key="index">
       <button v-if="clickable" type="button" class="pass-block" :class="block.outcome" :aria-label="`Case ${block.index}: ${block.outcome}. Open test results`" :title="`Case ${block.index}: ${block.outcome}`" @click.stop="openCase(block.position)"></button>
       <span v-else class="pass-block" :class="block.outcome" aria-hidden="true"></span>
@@ -18,7 +18,7 @@ function openCase(position) { openFile(target.value,{testCase:position}) }
   </span>
 </template>
 <style scoped>
-.pass-blocks { display: inline-flex; flex-wrap: nowrap; gap: 0; max-width: 100%; min-width: 0; vertical-align: middle; }
+.pass-blocks { display: inline-flex; flex-wrap: nowrap; justify-content: center; width: 100%; gap: clamp(0px, calc((100% - var(--test-count) * 8px) / var(--gap-count)), 3px); max-width: 100%; min-width: 0; vertical-align: middle; }
 .pass-block { flex: 0 1 8px; width: 8px; min-width: 0; height: 8px; border-radius: 0; border: 0; padding: 0; }
 button.pass-block { cursor: pointer; }
 button.pass-block:focus-visible { outline: 2px solid #254c7f; outline-offset: 2px; }
