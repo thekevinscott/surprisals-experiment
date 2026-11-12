@@ -1,11 +1,17 @@
+import json
 from functools import partial
 
 from openai import BadRequestError
 
+from surprisals_experiment.prompt import PROMPTS
 from surprisals_experiment.retry_policy.constants import DELAYS
+
 from ....advice import Advice
 from ....run import Run
 from ....turn import Turn
+from ....utils.append import append
+
+REJECTED = (PROMPTS / "u/rejected.txt").read_text()
 
 
 async def score_advice(run: Run, turn: Turn) -> None:
@@ -25,3 +31,6 @@ async def score_advice(run: Run, turn: Turn) -> None:
         (turn.attempt_dir / "metadata.json").unlink()
         rejected.mkdir(exist_ok=True)
         (turn.u_dir / "advice.txt").rename(rejected / f"{rejections}.txt")
+        append(run.u_chat.transcript, json.dumps({
+            "role": "user", "content": REJECTED.format(error=error),
+        }, ensure_ascii=False) + "\n")
