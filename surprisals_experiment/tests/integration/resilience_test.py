@@ -89,9 +89,9 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     advice = 'Use a loop'
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': u_user(config, 1, best, 10)}, {'role': 'assistant', 'content': advice},
-              {'role': 'user', 'content': u_user(config, 2, appended(PASS), 10)}]
+              {'role': 'user', 'content': u_user(config, 2, '<length>10 characters</length>\n' + appended(PASS), 10)}]
     asked = [*chat(0, (QUESTION, None), config=config)['windows/0/forks/0/u/transcript.jsonl'],
-             {'role': 'user', 'content': 'turn 2 of 2', '_attempt': 1}]
+             {'role': 'user', 'content': 'turn 2 of 20', '_attempt': 1}]
     answer = chat(0, (QUESTION, advice), config=config)['windows/0/forks/0/u/transcript.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
@@ -100,7 +100,7 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
               files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None), config=config)}),
         # The next turn retains the opening question and adds only its turn line.
         u_state(config, 0, 1, [{'role': 'user', 'content': u_user(config, 1, QUESTION)},
-                               {'role': 'user', 'content': 'turn 2 of 2'}], advice, {
+                               {'role': 'user', 'content': 'turn 2 of 20'}], advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
             'windows/0/forks/0/u/transcript.jsonl': asked}, u_layout=True),

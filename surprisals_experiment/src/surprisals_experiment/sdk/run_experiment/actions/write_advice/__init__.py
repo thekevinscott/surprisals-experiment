@@ -21,7 +21,8 @@ async def write_advice(run: Run, turn: Turn) -> None:
         previous = Turn(config, turn.position - 1, turn.window, turn.fork)
         metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
         if metadata["advice"] is not None:
-            content += "\n" + await render_code(
+            advice = Advice.load(config.output, metadata["advice"], config.advice_measure)
+            content += "\n" + advice.measurement + "\n" + await render_code(
                 config, run.database, str(previous.attempt_dir.relative_to(config.output)),
             )
     messages = [{"role": "user", "content": content}]

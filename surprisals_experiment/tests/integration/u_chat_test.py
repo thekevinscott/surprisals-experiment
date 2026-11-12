@@ -24,7 +24,7 @@ def code(*samples):
 
 def prompt(index, advice, *samples):
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
-            f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
+            f'<advice>\n{advice}\n</advice>\n<length>{len(advice)} characters</length>\n'
             f'{code(*samples)}\n</attempt>')
 
 
@@ -52,9 +52,9 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     best = prompt(1, 'short', clean, clean)
     first = [{'role': 'user', 'content': u_user(config, 1, QUESTION)}, {'role': 'assistant', 'content': 'long advice'},
-             {'role': 'user', 'content': u_user(config, 2, code(mutated, clean))}]
+             {'role': 'user', 'content': u_user(config, 2, '<length>11 characters</length>\n' + code(mutated, clean))}]
     second = [{'role': 'user', 'content': u_user(config, 1, best, 5)}, {'role': 'assistant', 'content': 'short'},
-              {'role': 'user', 'content': u_user(config, 2, code(clean, clean), 5)}]
+              {'role': 'user', 'content': u_user(config, 2, '<length>5 characters</length>\n' + code(clean, clean), 5)}]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -116,7 +116,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     config.max_u_turns = 3
     question = 'Read an integer and print its double.'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-            '<attempt>\n<index>0</index>\n<length>4 characters</length>\n<advice>\ntiny\n</advice>\n'
+            '<attempt>\n<index>0</index>\n<advice>\ntiny\n</advice>\n<length>4 characters</length>\n'
             '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
@@ -135,7 +135,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return [{'role': 'user', 'content': u_user(config, 1, opening, previous)},
                 *[message for turn, advice in enumerate(said, 2) for message in (
                     {'role': 'assistant', 'content': advice},
-                    {'role': 'user', 'content': u_user(config, turn, code({'main.py': PASS}), previous)})]]
+                    {'role': 'user', 'content': u_user(config, turn, f'<length>{len(advice)} characters</length>\n' + code({'main.py': PASS}), previous)})]]
 
     def chat(*turns):
         messages = [system]

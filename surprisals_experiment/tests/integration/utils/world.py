@@ -19,9 +19,7 @@ def u_system(config):
 
 def u_user(config, turn, content='', best=None):
     """Expected user text, specified independently of the production turn template."""
-    line = f'turn {turn}'
-    if config.max_u_turns is not None:
-        line += f' of {config.max_u_turns}'
+    line = f'turn {turn} of {config.fork_turns + config.window_solo_turns}'
     if best is not None:
         target = best * 0.95
         best, target = ((f'{best:.1f}', f'{target:.1f}') if config.cap_strategy == 'surprisal'

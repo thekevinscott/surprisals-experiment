@@ -1,3 +1,5 @@
+import pytest
+
 from run_database import ExperimentDatabase, QuestionDatabase
 from surprisals_experiment.sdk.run import Run
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
@@ -43,3 +45,20 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     for attempt in range(2):
         assert json.loads((config.attempt_dir(attempt) / 'metadata.json').read_text()) == {'advice': f'advices/{digest}'}
         assert not (config.attempt_dir(attempt) / 'advice.txt').exists()
+
+
+@pytest.mark.parametrize('measure,metadata,expected', [
+    ('characters', {'score': 17}, '<length>17 characters</length>'),
+    ('surprisal', {'score': 3.75, 'tokens': [['Use café.', 2.5], ['\nThen double.', 1.25]]},
+     '<bits>\nUse café.<2.5>\nThen double.<1.2>\n</bits>'),
+])
+def test_loaded_advice_renders_its_cached_measurement(config, measure, metadata, expected):
+    from surprisals_experiment.config import Config
+    from surprisals_experiment.sdk.advice import Advice
+
+    config = Config(**(config.model_dump() | {'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1'}))
+    advice = Advice(config.output, 'Use café.\nThen double.', config.advice_measure)
+    advice.metadata = metadata
+    advice.save()
+    loaded = Advice.load(config.output, advice.id, config.advice_measure)
+    assert loaded.measurement == expected
