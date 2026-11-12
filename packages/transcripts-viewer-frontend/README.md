@@ -62,16 +62,19 @@ navigation rail, other JSONL as records, JSON as a collapsible JSON tree, and
 solutions.json as one preformatted block per solution. Text files remain plain
 text. The Raw view control shows the exact file text in the same viewer. Original files remain unchanged.
 
-U context follows the runner's restore semantics: systems replace the active
-system prompt, reset user records clear earlier conversation, and incomplete
-replies are excluded from sent context. Advice is the saved `u/advice.txt`;
-reasoning remains in its U record. Scores use recorded scorer tokens and tests.
+Each fork opens its original `windows/W/forks/F/u/transcript.jsonl`, including
+fork 0. All records, repeated prompts, incomplete output, and blank lines remain
+in file order. Turn advice links through `metadata.json` to shared
+`advices/<sha256>/advice.txt`; scores and tokens come from its `advice.json`.
+Scorer rejections are counted from the fork transcript after each tagged turn
+and remain visible even while that turn has no metadata. AWS runner artifacts
+live under `aws/` and can be opened through file links.
 
 PrimeVue supplies DataTable, Tabs, Panel, Popover, Dialog, and Select. Transcript
 expansion is local to its fork; shared row heights and column resize are kept.
 Separate # icons beside window/fork/turn titles and Best advice provide deep links.
 
 Run `pnpm test` in each package. Backend tests cover readers, live API behavior,
-lazy response shapes, context restoration, attempts, file containment, SSE updates
+lazy response shapes, exact transcript preservation, attempts, file containment, SSE updates
 for every endpoint, missing-file recovery, and the copied database schema.
 Frontend tests cover shared connection lifecycle, reconnects and cancellation.

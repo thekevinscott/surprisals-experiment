@@ -39,14 +39,14 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   await put(join(run,'settings.json'),{problem_dir:problem,t_samples:1,fork_turns:10})
   await put(join(run,turn,'metadata.json'),{advice:'advices/ab'})
   await put(join(run,'advices/ab/advice.json'),{score:3})
-  await put(join(run,turn,'u/advice.txt'),'old')
-  await put(join(run,'u/transcript.jsonl'),'{"role":"assistant","content":"old","_complete":true}')
+  await put(join(run,'advices/ab/advice.txt'),'old')
+  await put(join(run,'windows/0/forks/0/u/transcript.jsonl'),'{"role":"assistant","content":"old","_complete":true}')
   await put(join(run,attempt,'tests.json'),{passed:1,total:1,all_passed:true})
   await put(join(problem,'question.txt'),'old question')
   const app=createApi(root)
   t.after(async()=>{await app.close();await rm(root,{recursive:true});await rm(problem,{recursive:true})})
   const base=await app.listen({host:'127.0.0.1',port:0})
-  const urls=['/api/runs','/api/runs/index','/api/runs/one/summary','/api/runs/one',`/api/runs/one/${turn}/transcript`,`/api/runs/one/${turn}/ts/0`,`/api/runs/one/files/${turn}/u/advice.txt`,'/api/runs/one/problem/question.txt']
+  const urls=['/api/runs','/api/runs/index','/api/runs/one/summary','/api/runs/one',`/api/runs/one/${turn}/transcript`,`/api/runs/one/${turn}/ts/0`,`/api/runs/one/files/advices/ab/advice.txt`,'/api/runs/one/problem/question.txt']
   const streams=[]
   for(const url of urls){
     const s=await stream(base,url,t);streams.push(s)
@@ -56,8 +56,8 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   const changes=await stream(base,'/api/events?resources='+encodeURIComponent(JSON.stringify(['/api/runs/index'])),t)
   assert.equal((await changes.next('resource')).data.rows.length,1)
   // Same-size replacement and new nested files both need to be observed.
-  await put(join(run,turn,'u/advice.txt'),'new')
-  await put(join(run,'u/transcript.jsonl'),'{"role":"assistant","content":"new","_complete":true}')
+  await put(join(run,'advices/ab/advice.txt'),'new')
+  await put(join(run,'windows/0/forks/0/u/transcript.jsonl'),'{"role":"assistant","content":"new","_complete":true}')
   await put(join(run,'advices/ab/advice.json'),{score:1})
   await put(join(run,attempt,'tests.json'),{passed:0,total:1,all_passed:false})
   await put(join(run,'run.json'),{created:'2026-01-01',params:{'cap-strategy':'changed'}})
@@ -72,9 +72,9 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   assert.equal(updates[6],'new')
   assert.equal(updates[7],'new question')
   assert.equal((await changes.next('resource')).data.rows[0].strategy,'changed')
-  await rm(join(run,turn,'u/advice.txt'))
+  await rm(join(run,'advices/ab/advice.txt'))
   assert.equal((await streams[6].next('stream-error')).status,404)
-  await put(join(run,turn,'u/advice.txt'),'restored')
+  await put(join(run,'advices/ab/advice.txt'),'restored')
   assert.equal(await streams[6].next(),'restored')
   await put(join(root,'runs/two/run.json'),{created:'2026-01-01'})
   let index=await streams[1].next()

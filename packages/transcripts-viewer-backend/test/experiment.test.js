@@ -31,7 +31,7 @@ test('best score requires all samples, retries use latest test, forks share dept
     await put(`${turn}/ts/1/attempts/0/tests.json`, { all_passed: fork === 0 })
   }
   await put('windows/1/forks/0/turns/2/ts/0/attempts/1/tests.json', { all_passed: true })
-  await put('u/transcript.jsonl', '{"role":"system","content":"instructions"}\n{"role":"user","content":"question"}\n{"role":"assistant","content":"reply","completion_id":"one","usage":{"cost":1}}\n')
+  await put('windows/0/forks/0/u/transcript.jsonl', '{"role":"system","content":"instructions"}\n{"role":"user","content":"question"}\n{"role":"assistant","content":"reply","completion_id":"one","usage":{"cost":1}}\n')
   await put('windows/1/forks/0/u/transcript.jsonl', '{"role":"assistant","content":"reply","completion_id":"one","usage":{"cost":1}}\n{"role":"assistant","content":"partial","_complete":false,"completion_id":"two","usage":{"cost":2}}\n')
   await put('windows/1/forks/0/turns/2/ts/0/attempts/0/transcripts/session/one.jsonl', '{"type":"message","message":{"usage":{"cost":{"total":4}}}}\n')
   const { rows } = await readExperiment(root)
@@ -51,7 +51,7 @@ test('best score requires all samples, retries use latest test, forks share dept
 test('missing prices stay unknown, incomplete usage is flagged, unfinished folders are reported', async t => {
   const { root, put } = await fixture(t)
   await put('run.json', { created: '2026-11-01T00:00:00Z', invocations: [{ started: '2026-11-01T00:00:00Z' }] })
-  await put('u/transcript.jsonl', '{"usage":{"cost":0}}\n{"usage":{}}\n{"truncated":')
+  await put('windows/0/forks/0/u/transcript.jsonl', '{"usage":{"cost":0}}\n{"usage":{}}\n{"truncated":')
   await mkdir(join(root, 'runs/arriving'))
   const data = await readExperiment(root)
   assert.equal(data.rows[0].uCost, null)
@@ -66,4 +66,16 @@ test('rejects a directory without runs and malformed metadata with its file path
   await assert.rejects(readExperiment(join(root, 'absent')), /ENOENT/)
   await put('run.json', '{broken')
   await assert.rejects(readExperiment(root), /Cannot read .*run.json/)
+})
+
+test('single U transcript keeps cost unknown when an assistant reply has null usage', async t => {
+  const {root,put}=await fixture(t)
+  const records=[
+    {role:'system',content:'Instructions'},
+    {role:'user',content:'Question'},
+    {role:'assistant',content:'Advice',reasoning:'Reasoning remains in the source',timestamp:'2026-11-12T12:00:00Z',completion_id:'priced',usage:{cost:1},_complete:true},
+    {role:'assistant',content:'Partial',reasoning:'Partial reasoning',timestamp:'2026-11-12T12:01:00Z',completion_id:'unpriced',usage:null,_complete:false},
+  ]
+  await put('windows/0/forks/0/u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
+  assert.equal((await readExperiment(root)).rows[0].uCost,null)
 })
