@@ -144,12 +144,6 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         </Column>
       </DataTable>
     </section>
-    <footer v-if="data.rows.length">
-      <p>Best advice is the lowest score with all configured T samples passing. Turns show sequential depth reached; parallel forks count once, using each run’s window settings.</p>
-      <p>Time covers the latest invocation through its recorded end, or the last observed run/test artifact. “Open” does not confirm that a remote process is still running.</p>
-      <p>Costs sum recorded U usage and T transcript usage across the run, including retries. — means unavailable. AWS and scorer costs are not included: the run files do not record their prices.</p>
-      <p>Live updates are delivered while this page is open.</p>
-    </footer>
     </template>
     </template>
   </main>
