@@ -7,11 +7,10 @@ import httpx2
 import pytest
 from openai import BadRequestError
 from state_machine.testing import REMOVED, Done, State
+from utils.world import Score, T, U, t_sent
+
 from surprisals_experiment.config import Config
-
 from surprisals_experiment.retry_policy.constants import DELAYS
-
-from utils.world import U, Score, T, t_sent, u_system
 
 PASS = "print(int(input()) * 2)"
 QUESTION = 'Read an integer and print its double.'
@@ -41,35 +40,6 @@ def flush(index, advice, *, length=None, bits=None):
             + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
 
 
-def appended(code):
-    return (f'<code>\n<T-0>\n<file path="main.py">\n{code}\n</file>\n'
-            f'<results>{2 * (code == PASS)}/2 test cases passed</results>\n</T-0>\n</code>')
-
-
-def conversation(*turns):
-    """U's messages per turn of (window opening or None, advice[, T code]); advice None while U is still asked."""
-    messages = []
-    for user, advice, *code in turns:
-        if user is not None:
-            messages = [{'role': 'user', 'content': user}]
-        yield messages
-        messages = [*messages, {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*code or [PASS])}]
-
-
-def chat(window, *turns):
-    """The window's U transcript after `turns`."""
-    lines = [{'role': 'system', 'content': ...}]
-    for (_, advice, *_), messages in zip(turns, conversation(*turns)):
-        lines += [{'role': 'system', 'content': ...}, {**messages[0], '_reset': True}, *messages[1:]]
-        if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
-    transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
-    if turns[-1][1] is None:
-        return {f'{transcripts}/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
-
-
 def opened(window):
     return {f'windows/{window}/window.json': {}, f'windows/{window}/forks/0/fork.json': {}}
 
@@ -96,14 +66,8 @@ def results(path, tests=PASSED):
 
 
 def u_state(config, path, turns, advice, files, previous=None):
-    if isinstance(turns, str):
-        turns = [(turns, None)]
-    *_, messages = conversation(*turns)
-    system = u_system(config, int(path.rsplit('/', 1)[1]) + 1, previous)
     return State(U(advice, thinking='Think.'),
-                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
-                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       'messages': [{'role': 'system', 'content': system}, *messages]},
+                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'}, 'provider': {'only': ['xiaomi'], 'allow_fallbacks': False}},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -144,11 +108,10 @@ async def test_character_metadata_has_no_tokens(config, execute_run_experiment):
     first, second = turn(0, 0), turn(1, 0)
     best = flush(0, 'Use a loop', length=10)
     world = [
-        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        t_state(first, 'Use a loop', PASS, {**chat(0, (QUESTION, 'Use a loop')), **advised(first, 'Use a loop'),
-                                            **scored('Use a loop', {'score': 10})}),
-        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10),
-        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0)}),
+        t_state(first, 'Use a loop', PASS, {**advised(first, 'Use a loop'), **scored('Use a loop', {'score': 10})}),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1)}, previous=10),
+        t_state(second, 'Use a loop', PASS, {**advised(second, 'Use a loop')}),
         Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(config, first, 2)}),
     ]
     async with execute_run_experiment(config, world):
@@ -170,22 +133,22 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, execut
     window = [(QUESTION, tiny), (None, longer), (None, equal)]
     later = [(best, longer), (None, longer), (None, longer)]
     world = [
-        u_state(config, first[0], QUESTION, tiny, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state(tiny, {**chat(0, *window[:1]), **unscored(first[0], tiny)}, bits=pairs[0]),
+        u_state(config, first[0], QUESTION, tiny, {'settings.json': ..., **opened(0)}),
+        score_state(tiny, {**unscored(first[0], tiny)}, bits=pairs[0]),
         t_state(first[0], tiny, PASS, priced(tiny, {'score': 10.5, 'tokens': [['tiny', 10.5]]})),
-        u_state(config, first[1], [*window[:1], (None, None)], longer, {**results(first[0]), **chat(0, *window[:1], (None, None))}),
-        score_state(longer, {**chat(0, *window[:2]), **unscored(first[1], longer)}, bits=pairs[1]),
+        u_state(config, first[1], [*window[:1], (None, None)], longer, {**results(first[0])}),
+        score_state(longer, {**unscored(first[1], longer)}, bits=pairs[1]),
         t_state(first[1], longer, PASS, priced(longer, {
             'score': 8.25, 'tokens': [['much longer', 3.0], [' but fewer bits', 5.25]]})),
-        u_state(config, first[2], [*window[:2], (None, None)], equal, {**results(first[1]), **chat(0, *window[:2], (None, None))}),
-        score_state(equal, {**chat(0, *window), **unscored(first[2], equal)}, bits=pairs[2]),
+        u_state(config, first[2], [*window[:2], (None, None)], equal, {**results(first[1])}),
+        score_state(equal, {**unscored(first[2], equal)}, bits=pairs[2]),
         t_state(first[2], equal, PASS, priced(equal, {'score': 8.25, 'tokens': [['equal bits', 8.25]]})),
-        u_state(config, second[0], best, longer, {**results(first[2]), **opened(1), **chat(1, (best, None))}, previous=8.25),
-        t_state(second[0], longer, PASS, {**chat(1, *later[:1]), **advised(second[0], longer)}),
-        u_state(config, second[1], [*later[:1], (None, None)], longer, {**results(second[0]), **chat(1, *later[:1], (None, None))}, previous=8.25),
-        t_state(second[1], longer, PASS, {**chat(1, *later[:2]), **advised(second[1], longer)}),
-        u_state(config, second[2], [*later[:2], (None, None)], longer, {**results(second[1]), **chat(1, *later[:2], (None, None))}, previous=8.25),
-        t_state(second[2], longer, PASS, {**chat(1, *later), **advised(second[2], longer)}),
+        u_state(config, second[0], best, longer, {**results(first[2]), **opened(1)}, previous=8.25),
+        t_state(second[0], longer, PASS, {**advised(second[0], longer)}),
+        u_state(config, second[1], [*later[:1], (None, None)], longer, {**results(second[0])}, previous=8.25),
+        t_state(second[1], longer, PASS, {**advised(second[1], longer)}),
+        u_state(config, second[2], [*later[:2], (None, None)], longer, {**results(second[1])}, previous=8.25),
+        t_state(second[2], longer, PASS, {**advised(second[2], longer)}),
         Done(outcome=config.output / first[1] / 'ts/0/attempts/0/src', files={**results(second[2]), **result(
             config, first[1], 6, best_measurement=8.25, **SCORING)}),
     ]
@@ -200,17 +163,17 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, execute_
     second = [turn(1, index) for index in range(2)]
     best = flush(0, 'good', bits='good<10.0>')
     world = [
-        u_state(config, first[0], QUESTION, 'good', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('good', {**chat(0, (QUESTION, 'good')), **unscored(first[0], 'good')}, bits=[('good', 10.0)]),
+        u_state(config, first[0], QUESTION, 'good', {'settings.json': ..., **opened(0)}),
+        score_state('good', {**unscored(first[0], 'good')}, bits=[('good', 10.0)]),
         t_state(first[0], 'good', PASS, priced('good', {'score': 10.0, 'tokens': [['good', 10.0]]})),
-        u_state(config, first[1], [(QUESTION, 'good'), (None, None)], 'bad', {**results(first[0]), **chat(0, (QUESTION, 'good'), (None, None))}),
-        score_state('bad', {**chat(0, (QUESTION, 'good'), (None, 'bad')), **unscored(first[1], 'bad')},
+        u_state(config, first[1], [(QUESTION, 'good'), (None, None)], 'bad', {**results(first[0])}),
+        score_state('bad', {**unscored(first[1], 'bad')},
                     bits=[('bad', 1.0)]),
         t_state(first[1], 'bad', 'print(0)', priced('bad', {'score': 1.0, 'tokens': [['bad', 1.0]]})),
-        u_state(config, second[0], best, 'good', {**results(first[1], FAILED), **opened(1), **chat(1, (best, None))}, previous=10.0),
-        t_state(second[0], 'good', PASS, {**chat(1, (best, 'good')), **advised(second[0], 'good')}),
-        u_state(config, second[1], [(best, 'good'), (None, None)], 'good', {**results(second[0]), **chat(1, (best, 'good'), (None, None))}, previous=10.0),
-        t_state(second[1], 'good', PASS, {**chat(1, (best, 'good'), (None, 'good')), **advised(second[1], 'good')}),
+        u_state(config, second[0], best, 'good', {**results(first[1], FAILED), **opened(1)}, previous=10.0),
+        t_state(second[0], 'good', PASS, {**advised(second[0], 'good')}),
+        u_state(config, second[1], [(best, 'good'), (None, None)], 'good', {**results(second[0])}, previous=10.0),
+        t_state(second[1], 'good', PASS, {**advised(second[1], 'good')}),
         Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
             config, first[0], 4, best_measurement=10.0, **SCORING)}),
     ]
@@ -224,13 +187,13 @@ async def test_scorer_failure_retries_with_advice_saved(scoring_config, execute_
     best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
     retry = "Scorer 1/8 in 10s: Error code: 503 - {'error': {'message': 'scorer failed'}}\n"
     world = [
-        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('Use a loop', {**chat(0, (QUESTION, 'Use a loop')), **unscored(first, 'Use a loop')},
+        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0)}),
+        score_state('Use a loop', {**unscored(first, 'Use a loop')},
                     status=503, message='scorer failed'),
         score_state('Use a loop', {}, bits=[('Use a loop', 10.0)], logs=[(f'{first}/u', 'retry', retry)]),
         t_state(first, 'Use a loop', PASS, priced('Use a loop', {'score': 10.0, 'tokens': [['Use a loop', 10.0]]})),
-        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10.0),
-        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1)}, previous=10.0),
+        t_state(second, 'Use a loop', PASS, {**advised(second, 'Use a loop')}),
         Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
             config, first, 2, best_measurement=10.0, **SCORING)}),
     ]
@@ -243,8 +206,8 @@ async def test_scorer_exhaustion_preserves_advice_and_uses_one_budget(scoring_co
     failure = "Error code: 503 - {'error': {'message': 'scorer failed'}}"
     waits = [10, 20, 30, 60, 180, 300, 1200, 1800]
     world = [
-        u_state(scoring_config, first, QUESTION, 'preserve me', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('preserve me', {**chat(0, (QUESTION, 'preserve me')), **unscored(first, 'preserve me')},
+        u_state(scoring_config, first, QUESTION, 'preserve me', {'settings.json': ..., **opened(0)}),
+        score_state('preserve me', {**unscored(first, 'preserve me')},
                     status=503, message='scorer failed'),
         *[score_state('preserve me', {}, status=503, message='scorer failed',
                       logs=[(f'{first}/u', 'retry', f'Scorer {attempt}/8 in {wait}s: {failure}\n')])
@@ -263,16 +226,16 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
     second = [turn(1, index) for index in range(2)]
     best = flush(0, same, bits='same<4.0> advice<6.0>')
     world = [
-        u_state(config, first[0], QUESTION, same, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state(same, {**chat(0, (QUESTION, same)), **unscored(first[0], same)},
+        u_state(config, first[0], QUESTION, same, {'settings.json': ..., **opened(0)}),
+        score_state(same, {**unscored(first[0], same)},
                     bits=[("same", 4.0), (" advice", 6.0)]),
         t_state(first[0], same, PASS, priced(same, {'score': 10.0, 'tokens': [['same', 4.0], [' advice', 6.0]]})),
-        u_state(config, first[1], [(QUESTION, same), (None, None)], same, {**results(first[0]), **chat(0, (QUESTION, same), (None, None))}),
-        t_state(first[1], same, PASS, {**chat(0, (QUESTION, same), (None, same)), **advised(first[1], same)}),
-        u_state(config, second[0], best, same, {**results(first[1]), **opened(1), **chat(1, (best, None))}, previous=10.0),
-        t_state(second[0], same, PASS, {**chat(1, (best, same)), **advised(second[0], same)}),
-        u_state(config, second[1], [(best, same), (None, None)], same, {**results(second[0]), **chat(1, (best, same), (None, None))}, previous=10.0),
-        t_state(second[1], same, PASS, {**chat(1, (best, same), (None, same)), **advised(second[1], same)}),
+        u_state(config, first[1], [(QUESTION, same), (None, None)], same, {**results(first[0])}),
+        t_state(first[1], same, PASS, {**advised(first[1], same)}),
+        u_state(config, second[0], best, same, {**results(first[1]), **opened(1)}, previous=10.0),
+        t_state(second[0], same, PASS, {**advised(second[0], same)}),
+        u_state(config, second[1], [(best, same), (None, None)], same, {**results(second[0])}, previous=10.0),
+        t_state(second[1], same, PASS, {**advised(second[1], same)}),
         Done(outcome=config.output / first[0] / 'ts/0/attempts/0/src', files={**results(second[1]), **result(
             config, first[0], 4, best_measurement=10.0, **SCORING)}),
     ]
@@ -286,8 +249,8 @@ async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execut
     response = httpx2.Response(400, request=httpx2.Request("POST", "http://scorer/v1/completions"))
     rejected = 'preserve rejected advice'
     world = [
-        u_state(scoring_config, first, QUESTION, rejected, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state(rejected, {**chat(0, (QUESTION, rejected)), **unscored(first, rejected)},
+        u_state(scoring_config, first, QUESTION, rejected, {'settings.json': ..., **opened(0)}),
+        score_state(rejected, {**unscored(first, rejected)},
                     status=400, message='invalid model'),
         Done(outcome=BadRequestError(error, response=response, body=None)),
     ]
@@ -296,19 +259,6 @@ async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execut
 
 
 OVERFLOW = "maximum context length is 8192 tokens"
-
-
-def retried_chat(rejections, *last):
-    """Turn 0's transcript after U's advice was rejected `rejections` times, then `last` (advice, or None)."""
-    lines = chat(0, (QUESTION, 'too long 0'))['u/transcripts/messages.jsonl']
-    for advice in [f'too long {index}' for index in range(1, rejections)] + list(last):
-        lines = lines + [{'role': 'user', 'content': QUESTION, '_reset': True}]
-        if advice is not None:
-            lines = lines + [{'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True}]
-    if last[-1] is None:
-        return {'u/transcripts/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * (rejections + 1)}
 
 
 def rejected(path, index):
@@ -321,15 +271,15 @@ async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_e
     first, second = turn(0, 0), turn(1, 0)
     best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
     world = [
-        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('too long 0', {**chat(0, (QUESTION, 'too long 0')), **unscored(first, 'too long 0')},
+        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0)}),
+        score_state('too long 0', {**unscored(first, 'too long 0')},
                     status=400, message=OVERFLOW),
-        u_state(config, first, QUESTION, 'Use a loop', {**retried_chat(1, None), **rejected(first, 0)}),
-        score_state('Use a loop', {**retried_chat(1, 'Use a loop'), **unscored(first, 'Use a loop')},
+        u_state(config, first, QUESTION, 'Use a loop', {**rejected(first, 0)}),
+        score_state('Use a loop', {**unscored(first, 'Use a loop')},
                     bits=[('Use a loop', 10.0)]),
         t_state(first, 'Use a loop', PASS, priced('Use a loop', {'score': 10.0, 'tokens': [['Use a loop', 10.0]]})),
-        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10.0),
-        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1)}, previous=10.0),
+        t_state(second, 'Use a loop', PASS, {**advised(second, 'Use a loop')}),
         Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
             config, first, 2, best_measurement=10.0, **SCORING)}),
     ]
@@ -343,15 +293,15 @@ def overflowing(config):
     error = f"Advice exceeded the scorer's context limit: Error code: 400 - {{'error': {{'message': '{OVERFLOW}'}}}}"
     response = httpx2.Response(400, request=httpx2.Request("POST", "http://scorer/v1/completions"))
     world = [
-        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('too long 0', {**chat(0, (QUESTION, 'too long 0')), **unscored(first, 'too long 0')},
+        u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0)}),
+        score_state('too long 0', {**unscored(first, 'too long 0')},
                     status=400, message=OVERFLOW),
     ]
     for index in range(1, len(DELAYS) + 1):
         advice = f'too long {index}'
         world += [
-            u_state(config, first, QUESTION, advice, {**retried_chat(index, None), **rejected(first, index - 1)}),
-            score_state(advice, {**retried_chat(index, advice), **unscored(first, advice)}, status=400, message=OVERFLOW),
+            u_state(config, first, QUESTION, advice, {**rejected(first, index - 1)}),
+            score_state(advice, {**unscored(first, advice)}, status=400, message=OVERFLOW),
         ]
     return world + [Done(outcome=BadRequestError(error, response=response, body=None))]
 
@@ -381,13 +331,13 @@ async def test_non_finite_score_retries_like_a_scorer_failure(scoring_config, ex
     best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
     retry = f"Scorer 1/8 in 10s: Scorer returned non-finite surprisal: [('Use a loop', {bits})]\n"
     world = [
-        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        score_state('Use a loop', {**chat(0, (QUESTION, 'Use a loop')), **unscored(first, 'Use a loop')},
+        u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0)}),
+        score_state('Use a loop', {**unscored(first, 'Use a loop')},
                     bits=[('Use a loop', bits)]),
         score_state('Use a loop', {}, bits=[('Use a loop', 10.0)], logs=[(f'{first}/u', 'retry', retry)]),
         t_state(first, 'Use a loop', PASS, priced('Use a loop', {'score': 10.0, 'tokens': [['Use a loop', 10.0]]})),
-        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1), **chat(1, (best, None))}, previous=10.0),
-        t_state(second, 'Use a loop', PASS, {**chat(1, (best, 'Use a loop')), **advised(second, 'Use a loop')}),
+        u_state(config, second, best, 'Use a loop', {**results(first), **opened(1)}, previous=10.0),
+        t_state(second, 'Use a loop', PASS, {**advised(second, 'Use a loop')}),
         Done(outcome=config.output / first / 'ts/0/attempts/0/src', files={**results(second), **result(
             config, first, 2, best_measurement=10.0, **SCORING)}),
     ]
