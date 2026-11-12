@@ -2,7 +2,7 @@
 import {inject} from 'vue'
 import Button from 'primevue/button'
 import {openTranscript} from '../composables/filePreview.js'
-const props=defineProps({source:String,files:Array})
+const props=defineProps({source:String,files:Array,label:{type:String,default:'Open transcript'}})
 const rawUrl=inject('rawSourceUrl')
 const sourceUrl=inject('sourceUrl')
 function open() {
@@ -12,5 +12,5 @@ function open() {
 }
 </script>
 <template>
-  <Button text size="small" label="Open transcript" :disabled="!source && !files?.length" @click="open" />
+  <Button text size="small" :label="label" aria-label="Open transcript" title="Open transcript" :disabled="!source && !files?.length" @click="open" />
 </template>

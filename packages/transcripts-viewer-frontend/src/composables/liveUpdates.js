@@ -1,6 +1,8 @@
 // Multiplex every open resource over one SSE connection. Closed panels leave
 // the subscription, and the server sends complete snapshots only when changed.
+import {ref} from 'vue'
 const subscribers=new Set(),snapshots=new Map(),serialized=new Map()
+export const connected=ref(true)
 let stream,scheduled=false,current=''
 export const liveSnapshot=url=>snapshots.get(url)
 export const hasLiveSnapshot=url=>snapshots.has(url)
@@ -24,7 +26,8 @@ function reconcile(){
       if(subscriber.urls.includes(url)&&subscriber.urls.every(url=>snapshots.has(url)))subscriber.refresh()
     }
   })
-  next.onerror=()=>{if(stream===next){serialized.clear();for(const subscriber of subscribers)subscriber.onError(Error('Live connection lost; reconnecting…'))}}
+  next.onopen=()=>{if(stream===next)connected.value=true}
+  next.onerror=()=>{if(stream===next){serialized.clear();connected.value=false}}
   next.addEventListener('stream-error',event=>{
     if(stream!==next)return
     const {url,error}=JSON.parse(event.data)

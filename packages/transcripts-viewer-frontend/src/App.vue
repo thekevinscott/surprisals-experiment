@@ -25,6 +25,7 @@ import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
 import TranscriptViewer from './components/TranscriptViewer.vue'
 import {filePreview,closeFile} from './composables/filePreview.js'
+import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
 
@@ -92,6 +93,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
   </Dialog>
+  <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
   <main>
     <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
     <template v-else>
@@ -154,6 +156,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </template>
 
 <style>
+.live-dot { position:fixed; top:10px; right:10px; z-index:1000; width:10px; height:10px; border-radius:50%; background:#e6b800; animation:live-pulse 1.2s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity:.3; transform:scale(.8); } }
 .modal-action { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:24px;cursor:pointer; }
 .modal-action:hover { background:#eef2f7; }
 </style>

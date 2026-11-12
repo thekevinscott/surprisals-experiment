@@ -11,8 +11,8 @@ const link = inject('runLink')
 const columns = useColumnLayout(computed(() => props.window.forks))
 const windowExpanded = ref(true)
 const windowPanel = ref(null)
-const forksExpanded = ref(false)
-const soloExpanded = ref(false)
+const forksExpanded = ref(true)
+const soloExpanded = ref(true)
 const forkPhase = ref(null)
 const soloPhase = ref(null)
 const canExpandForks = computed(() => props.window.forks.some(f => f.parallel.length > 2))
@@ -40,7 +40,7 @@ defineExpose({ reveal })
 <template>
   <ContentPanel ref="windowPanel" v-model:expanded="windowExpanded" class="run-window" :data-window="window.id" :title="`Window ${window.id}`" :href="link(`windows/${window.id}`)">
     <div class="window-grid" :style="{ '--fork-count': Math.max(1, window.forks.length), '--parallel-rows': parallelRows }">
-      <ContentPanel ref="forkPhase" v-model:expanded="forksExpanded" title="Forks" expand-label="All turns" collapse-label="First & last" preview :collapsible="canExpandForks">
+      <ContentPanel ref="forkPhase" v-model:expanded="forksExpanded" title="Forks" :collapsible="false">
       <div v-if="columns.hidden.value.length" class="collapsed-forks"><span>Collapsed to make room:</span><button v-for="fork in columns.hidden.value" :key="fork.id" @click="columns.reset()">Fork {{ fork.id }} · restore</button></div>
       <div class="phase fork-phase" role="group" aria-label="Parallel forks">
       <template v-for="(fork, index) in window.forks" :key="fork.id">
@@ -49,7 +49,7 @@ defineExpose({ reveal })
       </div>
       </ContentPanel>
       <div v-if="window.continuedForks.length" class="connector" aria-hidden="true">↓</div>
-      <ContentPanel v-if="window.continuedForks.length" ref="soloPhase" v-model:expanded="soloExpanded" title="Solo" expand-label="All turns" collapse-label="First & last" preview :collapsible="window.forks.some(f => f.solo.length > 2)" class="solo-section">
+      <ContentPanel v-if="window.continuedForks.length" ref="soloPhase" v-model:expanded="soloExpanded" title="Solo" :collapsible="false" class="solo-section">
       <div class="phase solo-phase" role="group" aria-label="Solo continuation">
       <template v-for="(fork, index) in window.forks" :key="`solo-${fork.id}`">
         <div v-if="fork.solo.length" class="solo" :style="columns.isVisible(index) ? columns.columnStyle(index) : { gridColumn: '1 / -1' }" :data-continuation="fork.id" :data-fork="fork.id">

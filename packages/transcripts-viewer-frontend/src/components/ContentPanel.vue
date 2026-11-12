@@ -36,6 +36,7 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
   <Panel :header="title" class="content-panel" :toggleable="collapsible && !preview" :collapsed="!visible" @update:collapsed="expanded = !$event">
     <template #header><div class="panel-label"><strong>{{ title }}</strong><a v-if="href" class="permalink" :href="href" :aria-label="`Link to ${title}`" :title="`Link to ${title}`">#</a><span v-if="summary">{{ summary }}</span></div></template>
     <template #icons>
+      <slot name="actions" />
       <SourceActions :title="title" :metadata="metadata" :source="source" :source-line="sourceLine" />
       <Button v-if="preview && collapsible" text size="small" :label="expanded ? (collapseLabel || 'Show less') : (expandLabel || 'Show all')" :aria-expanded="expanded" :aria-label="`${expanded ? 'Collapse' : 'Expand'} ${title}`" @click="toggle" />
     </template>

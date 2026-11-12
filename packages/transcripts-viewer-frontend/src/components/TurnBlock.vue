@@ -16,10 +16,11 @@ const link = inject('runLink')
 </script>
 <template>
   <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :summary="turnSummary(turn)">
+    <template #actions><TranscriptButton :source="turn.transcriptPath" label="💬" /><Button v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /></template>
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
     <p v-if="turn.rejections" role="status">Scorer rejections: {{ turn.rejections }}</p>
-    <TranscriptButton :source="turn.transcriptPath" />
-    <Button v-if="turn.advice != null" text size="small" label="Open advice" @click="openAdvice" />
+
+
 
     <TTranscripts :samples="turn.samples ?? []" />
   </ContentPanel>

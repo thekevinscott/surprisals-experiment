@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {watchData,liveSnapshot} from '../src/composables/liveUpdates.js'
+import {watchData,liveSnapshot,connected} from '../src/composables/liveUpdates.js'
 class Events {
   static instances=[]
   listeners={}
@@ -22,7 +22,7 @@ test('one multiplexed SSE connection, snapshots, reconnect and cleanup',async()=
   assert.deepEqual(values,['a','b'])
   stream.data('/api/runs/a','changed');await tick();assert.deepEqual(values,['a','b','changed'])
   stream.data('/api/runs/a','changed');await tick();assert.equal(values.length,3,'unchanged reconnect snapshots do not rerender')
-  stream.onerror();assert.equal(errors.length,2)
+  stream.onerror();assert.equal(errors.length,0);assert.equal(connected.value,false)
   stream.data('/api/runs/a','changed');await tick();assert.equal(values.length,4,'same data after an error clears reconnect state')
   stream.data('/api/runs/a','reconnected');await tick();assert.equal(values.at(-1),'reconnected')
   a.abort();b.abort();await tick();assert.equal(stream.closed,true)
