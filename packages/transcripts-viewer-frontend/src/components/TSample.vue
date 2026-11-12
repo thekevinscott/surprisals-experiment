@@ -19,6 +19,6 @@ const {data,loading,error}=useLiveResource(()=>expanded.value?[apiUrl(props.samp
 </template>
 <style scoped>
 .t-sample { min-width: 0; margin: 0; background: #f8fafc; border: 1px solid #d0dae7; border-radius: 6px; }
-.sample-scroll { height: 260px; overflow-y: auto; padding: 0 8px 8px; scrollbar-gutter: stable; }
+.sample-scroll { padding: 0 2px 2px; }
 p { font-size: 11px; color: #657186; }
 </style>

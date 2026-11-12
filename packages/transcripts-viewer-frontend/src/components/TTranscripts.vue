@@ -12,6 +12,6 @@ defineProps({ samples: Array })
 </template>
 <style scoped>
 .t-transcripts { margin-top: 8px; }
-.sample-columns { display: grid; grid-template-columns: repeat(var(--sample-count), minmax(120px, 1fr)); gap: 8px; overflow-x: auto; }
+.sample-columns { display: grid; grid-template-columns: repeat(var(--sample-count), minmax(160px, 1fr)); gap: 8px; overflow-x: auto; }
 .comparison-hint { margin: 6px 0 0; color: #657186; font-size: 10px; }
 </style>
