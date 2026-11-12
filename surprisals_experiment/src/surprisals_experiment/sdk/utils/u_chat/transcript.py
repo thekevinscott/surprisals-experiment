@@ -13,6 +13,7 @@ def request_messages(self) -> list[dict]:
     for entry in self.entries():
         if entry.get("_complete") is False:
             continue
+        # Reply reasoning and timestamp/completion_id/usage remain on disk only.
         message = {key: entry[key] for key in ("role", "content")}
         if message["role"] == "system":
             if messages:
