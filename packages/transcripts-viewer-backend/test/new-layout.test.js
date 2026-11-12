@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {mkdtemp, mkdir, readFile, writeFile, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
-import {readRunDiagram, readTurnTranscript} from '../lib/experiment.js'
+import {readRunDiagram} from '../lib/experiment.js'
 import {transcriptFile} from '../../transcripts-viewer-frontend/src/composables/transcriptFile.js'
 
 test('fork zero links shared advice and retains rejected turns and exact transcript text', async t => {
@@ -34,14 +34,9 @@ test('fork zero links shared advice and retains rejected turns and exact transcr
   assert.equal(first.adviceSource,'advices/abc/advice.txt')
   assert.equal(first.measurement,9)
   assert.deepEqual(first.tokens,[['accepted',9]])
-  assert.equal(first.rejections,1)
-  assert.equal(second.rejections,2)
+  assert.equal('rejections' in first,false)
+  assert.equal('rejections' in second,false)
   assert.equal(second.advice,null)
   assert.equal(third.error,'output limit')
-  for(const turn of [0,1,2]) {
-    const messages=await readTurnTranscript(root,0,0,turn)
-    assert.equal(messages.map(m=>m.raw).join('\n'),text)
-    assert.deepEqual(messages.map(m=>m.line),text.split('\n').map((_,i)=>i+1))
-  }
   assert.equal(transcriptFile(await readFile(join(root,source),'utf8'),source).map(m=>m.raw).join('\n'),text)
 })

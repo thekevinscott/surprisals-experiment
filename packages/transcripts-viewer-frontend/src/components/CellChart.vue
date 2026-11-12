@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref, useId } from 'vue'
 
-const props = defineProps({ chartData:Object, kind: { type: String, required: true } })
+const props = defineProps({ chartData:Object, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const armSel = ref(props.chartData.arms[0])
-const unit = computed(() => armSel.value === 'surprisal' ? 'bits' : 'characters')
+const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
+const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
 const mode = ref('all')
 const data = computed(()=>props.chartData.series)
 const domains = computed(()=>props.chartData.domains)
@@ -17,7 +18,7 @@ const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => props.kind === 'advice' ? s.advice.at(-1) : s.streak[0]
 
 const width = 840
-const selected = computed(() => data.value.filter(s => s.strategy === armSel.value))
+const selected = computed(() => data.value.filter(s => s.strategy === selectedArm.value))
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
@@ -66,14 +67,18 @@ function path(s) {
 <template>
   <div class="cell-chart" :data-kind="kind" @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop @click.stop @dblclick.stop>
     <div class="filters" @click.stop @keydown.stop>
+      <template v-if="controls && chartData.arms.length > 1">
       <span>Strategy</span>
       <button v-for="value in chartData.arms" :key="value" :aria-pressed="armSel === value" @click="armSel = value; mode = 'all'; range = null">{{ value }}</button>
+      </template>
+      <template v-if="controls && modes.length > 2">
       <span style="margin-left:12px">Problem</span>
       <button v-for="value in modes" :key="value" :aria-pressed="mode === value" :data-mode="value" @click="mode = value">{{ value }}</button>
+      </template>
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
-      <button v-if="kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
+      <button v-if="controls && kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
-    <svg viewBox="0 0 960 285" role="img" :aria-label="`${kind} by cell`">
+    <svg viewBox="0 0 960 285" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
       <defs>
         <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" height="222" /></clipPath>
       </defs>
@@ -84,7 +89,7 @@ function path(s) {
           :data-knob="which" @pointerdown.stop.prevent="grab(which, $event)" @pointermove.stop="slide"
           @pointerup.stop="knob = null" @pointercancel.stop="knob = null" />
       </g>
-      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ kind === 'advice' ? (unit === 'bits' ? 'Advice surprisal (bits)' : 'Advice characters (linear)') : 'Turns since previous improvement' }}</text>
+      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ kind === 'advice' ? (unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)') : 'Turns between improvements' }}</text>
       <g transform="translate(95,0)" data-plot="shared">
         <g v-for="tick in yticks" :key="tick">
           <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="#e4e3de" />
@@ -112,7 +117,7 @@ function path(s) {
       </g>
     </svg>
     <ul class="chart-legend">
-      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.problem }} {{ s.cell.split('-').slice(2).join('-') }}{{ kind === 'advice' ? (s.advice.length ? ` · ${s.advice.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : ' · no all-samples pass') : '' }} {{ statusMark(s) }}</li>
+      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.label ?? `${s.problem} ${s.cell.split('-').slice(2).join('-')}` }}{{ kind === 'advice' ? (s.advice.length ? ` · ${s.advice.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : ' · no all-samples pass') : '' }} {{ statusMark(s) }}</li>
     </ul>
   </div>
 </template>

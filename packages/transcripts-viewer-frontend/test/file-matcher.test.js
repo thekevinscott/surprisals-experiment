@@ -8,6 +8,8 @@ test('specific solutions renderer takes precedence over general JSON',()=>{
   assert.equal(matchFile('u/transcript.jsonl'),'transcript')
   assert.equal(matchFile('usage.jsonl'),'jsonl')
   assert.equal(matchFile('problem/question.txt'),'text')
+  assert.equal(matchFile('main.py'),'python')
+  assert.equal(matchFile('src/MAIN.PY'),'python')
 })
 test('file routes retain encoded paths and JSONL physical line links',()=>{
   const name='windows/a b/#test.jsonl',src='/api/runs/r/files/'+name

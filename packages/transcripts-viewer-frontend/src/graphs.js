@@ -1,6 +1,6 @@
-export function createChartData(rows) {
-
 const colors = ['#2563a6', '#d57920', '#29834b', '#9a4fa0', '#c54646', '#238d98']
+
+export function createChartData(rows) {
 const problems = [...new Set(rows.map(r => r.problem))]
 const series = rows.map(row => {
   const advice = [], improvements = []
@@ -33,4 +33,16 @@ return {
   })),
 }
 
+}
+
+// Each window starts new forks, so their identities include both window and fork.
+export function createForkChartData(row) {
+  const forks = row.forks ?? []
+  const chart = createChartData(forks.map(fork => ({...row, ...fork, id:`${row.id}/windows/${fork.window}/forks/${fork.id}`})))
+  chart.series.forEach((series, index) => {
+    const fork = forks[index]
+    series.label = `Window ${fork.window} · Fork ${fork.id}`
+    series.color = index < colors.length ? colors[index] : `hsl(${Math.round(index * 137.508) % 360} 65% 40%)`
+  })
+  return chart
 }

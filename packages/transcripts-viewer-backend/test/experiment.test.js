@@ -39,6 +39,10 @@ test('best score requires all samples, retries use latest test, forks share dept
   assert.equal(rows[0].problem, '0054')
   assert.equal(rows[0].best, 12)
   assert.deepEqual(rows[0].passing, [[42, 12]])
+  assert.deepEqual(rows[0].forks, [
+    {window:1,id:0,turns:43,passing:[[42,12]]},
+    {window:1,id:1,turns:43,passing:[]},
+  ])
   assert.equal(rows[0].turns, 43)
   assert.equal(rows[0].windows, 1)
   assert.equal(rows[0].elapsed, 9000)
@@ -61,7 +65,7 @@ test('missing prices stay unknown, incomplete usage is flagged, unfinished folde
   assert.equal(data.warnings.length, 2)
 })
 
-test('rejects a directory without runs and malformed metadata with its file path', async t => {
+test('rejects a missing experiment and malformed metadata with its file path', async t => {
   const { root, put } = await fixture(t)
   await assert.rejects(readExperiment(join(root, 'absent')), /ENOENT/)
   await put('run.json', '{broken')

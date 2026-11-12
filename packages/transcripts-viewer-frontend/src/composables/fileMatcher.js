@@ -4,6 +4,7 @@ export function matchFile(name = '') {
   if(basename==='solutions.json')return 'solutions'
   if(basename.endsWith('.jsonl'))return 'jsonl'
   if(basename.endsWith('.json'))return 'json'
+  if(basename.endsWith('.py'))return 'python'
   return 'text'
 }
 export function fileRoute(hash) {

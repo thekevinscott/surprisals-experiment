@@ -1,10 +1,11 @@
 <script setup>
 import {computed,ref,watch} from 'vue'
 import JsonContent from './JsonContent.vue'
+import {transcriptLines} from '../composables/transcriptFile.js'
 import SearchSelect from './SearchSelect.vue'
 const props=defineProps({text:String,line:String})
-const lines=computed(()=>props.text.split('\n').map((raw,index)=>({raw,number:index+1})).filter(line=>line.raw.trim()))
-const options=computed(()=>lines.value.map(line=>({value:`Line ${line.number}`,description:line.raw.slice(0,120)})))
+const lines=computed(()=>transcriptLines(props.text).map((raw,index)=>({raw,number:index+1})))
+const options=computed(()=>lines.value.map(line=>({value:`Line ${line.number}`,description:line.raw})))
 const selected=ref('')
 const active=computed(()=>lines.value[options.value.findIndex(option=>option.value===selected.value)])
 watch([lines,()=>props.line],()=>{selected.value=options.value.find(option=>option.value===`Line ${props.line}`)?.value??options.value[0]?.value??''},{immediate:true})
@@ -18,7 +19,8 @@ function step(offset){const index=options.value.findIndex(option=>option.value==
       <button :disabled="active===lines.at(-1)" @click="step(1)" aria-label="Next record">→</button>
       <span>{{ lines.length }} records</span>
     </div>
-    <JsonContent :key="selected" :text="active.raw" />
+    <pre v-if="!active.raw.trim()">{{ active.raw }}</pre>
+    <JsonContent v-else :key="selected" :text="active.raw" />
   </template>
   <p v-else>Empty JSONL file.</p>
 </template>

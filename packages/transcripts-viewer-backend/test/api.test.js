@@ -27,7 +27,7 @@ test('REST reads stay live, separate lazy payloads, and reject file escapes',asy
   assert.equal('cases' in fork.parallel[0].samples[0].latest.tests,false,'overview omits detailed test output')
   assert.equal((await get('/api/runs/one/'+turn+'/ts/0')).attempts[0].tests.cases[0].stdout,'large output')
   assert.equal('attempts' in fork.parallel[0].samples[0],false)
-  assert.equal((await get('/api/runs/one/'+turn+'/transcript')).messages.length,3)
+  assert.equal((await get('/api/runs/one/transcripts/windows/0/forks/0/u/transcript.jsonl')).total,3)
   assert.equal((await get('/api/runs/one/'+turn+'/ts/0')).attempts[0].tests.all_passed,true)
   await put(base+turn+'/ts/0/attempts/1/generation.json',{timed_out:true})
   assert.equal((await get('/api/runs')).rows[0].best,null,'latest timeout supersedes earlier passing tests')
