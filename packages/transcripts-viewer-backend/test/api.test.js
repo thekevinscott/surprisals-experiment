@@ -15,14 +15,17 @@ test('REST reads stay live, separate lazy payloads, and reject file escapes',asy
   await put(base+'advices/ab/advice.json',{score:6})
   await put(base+turn+'/u/advice.txt','Advice')
   await put(base+'u/transcripts/messages.jsonl',[{role:'system',content:'system'},{role:'user',content:'question',_reset:true},{role:'assistant',content:'Advice',_complete:true}].map(JSON.stringify).join('\n'))
-  await put(base+turn+'/ts/0/attempts/0/tests.json',{passed:1,total:1,all_passed:true})
+  await put(base+turn+'/ts/0/attempts/0/tests.json',{passed:1,total:1,all_passed:true,cases:[{index:0,stdout:'large output',passed:true}]})
   const app=createApi(root);t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
   const get=async url=>{const r=await app.inject(url);assert.equal(r.statusCode,200,r.body);return r.json()}
   assert.equal((await get('/api/runs')).rows[0].best,6)
   assert.equal((await get('/api/runs/index')).rows[0].id,'one')
   assert.equal((await get('/api/runs/one/summary')).row.best,6)
+  assert.equal((await get('/api/runs/one/details')).row.best,6)
   const fork=(await get('/api/runs/one')).diagram[0].forks[0]
   assert.equal('messages' in fork,false)
+  assert.equal('cases' in fork.parallel[0].samples[0].latest.tests,false,'overview omits detailed test output')
+  assert.equal((await get('/api/runs/one/'+turn+'/ts/0')).attempts[0].tests.cases[0].stdout,'large output')
   assert.equal('attempts' in fork.parallel[0].samples[0],false)
   assert.equal((await get('/api/runs/one/'+turn+'/transcript')).messages.length,3)
   assert.equal((await get('/api/runs/one/'+turn+'/ts/0')).attempts[0].tests.all_passed,true)

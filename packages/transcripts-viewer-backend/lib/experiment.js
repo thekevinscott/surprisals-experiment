@@ -46,8 +46,8 @@ async function costs(directory, pattern, select, warnings, db) {
   return count && !missing ? total : null
 }
 
-export async function runSummary(directory, warnings = new Set(), database) {
-  if(!database)return withDatabase(directory,null,db=>runSummary(directory,warnings,db))
+export async function runSummary(directory, warnings = new Set(), database, {includeCosts=true}={}) {
+  if(!database)return withDatabase(directory,null,db=>runSummary(directory,warnings,db,{includeCosts}))
   const store=await artifacts(directory,database), json=store.json
   const turnsInDatabase=await database.query('SELECT id FROM turns ORDER BY id')
   const meta = await json(join(directory, 'run.json'))
@@ -80,8 +80,8 @@ export async function runSummary(directory, warnings = new Set(), database) {
       }
     }
   }
-  const uCost = await costs(directory, '{u/transcripts/usage.jsonl,windows/*/forks/*/u/transcripts/usage.jsonl}', r => r.usage, warnings, database)
-  const tCost = await costs(directory, 'windows/*/forks/*/turns/*/ts/*/attempts/*/transcripts/*/*.jsonl', r => r.type === 'message' ? r.message?.usage : null, warnings, database)
+  const uCost = includeCosts ? await costs(directory, '{u/transcripts/usage.jsonl,windows/*/forks/*/u/transcripts/usage.jsonl}', r => r.usage, warnings, database) : null
+  const tCost = includeCosts ? await costs(directory, 'windows/*/forks/*/turns/*/ts/*/attempts/*/transcripts/*/*.jsonl', r => r.type === 'message' ? r.message?.usage : null, warnings, database) : null
   const started = current.started ?? meta.created
   const ended = current.ended
   const end = ended ? Date.parse(ended) : latest
@@ -218,7 +218,11 @@ async function readSamples(directory, sourceRoot, store) {
     const sampleDir = join(directory,'ts',String(id))
     const attempts = await numericDirectories(join(sampleDir,'attempts'))
     const latest = attempts.length ? await readOutcome(join(sampleDir,'attempts',String(attempts.at(-1))),attempts.at(-1),store) : null
-    samples.push({id,source:relative(sourceRoot,sampleDir),latest})
+    // The overview needs status only. Full cases/stdout belong to the sample endpoint.
+    const summary=latest && {id:latest.id,
+      tests:latest.tests && {all_passed:latest.tests.all_passed,passed:latest.tests.passed,total:latest.tests.total},
+      generation:latest.generation && {timed_out:latest.generation.timed_out,error:latest.generation.error,exit_code:latest.generation.exit_code}}
+    samples.push({id,source:relative(sourceRoot,sampleDir),latest:summary})
   }
   return samples
 }

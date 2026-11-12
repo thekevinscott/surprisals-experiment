@@ -38,7 +38,7 @@ function refresh() {
   refreshController=new AbortController()
   const signal=refreshController.signal,id=target.value?.id
   loading.value=true;error.value=''
-  const urls=id ? ['/api/runs/index',`/api/runs/${encodeURIComponent(id)}/summary`] : ['/api/runs']
+  const urls=id ? ['/api/runs/index',`/api/runs/${encodeURIComponent(id)}/details`] : ['/api/runs']
   watchData(urls,async signal=>{
     if(!id)return fetchJson(urls[0],signal)
     const [index,summary]=await Promise.all(urls.map(url=>fetchJson(url,signal)))
