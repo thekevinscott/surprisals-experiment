@@ -46,3 +46,25 @@ test('scrolling all blocks preserves repeated prompts, blank lines, incomplete r
   observer.dispose()
   assert.equal(active.size,0)
 })
+
+test('appended metadata retains loaded raw blocks without fetching new offscreen contents',()=>{
+  const source='u/transcript.jsonl', url='/api/runs/run/files/cell/u/transcript.jsonl'
+  const metadata={total:2,blocks:[{index:0,type:'system'},{index:1,type:'assistant'}]}
+  const before=transcriptBlocks(metadata,source,url)
+  before[0].raw='{"role":"system","content":"  prompt\\n\\n  "}'
+  before[1].raw='{"role":"assistant","_complete":false}'
+  const after=transcriptBlocks({total:3,blocks:[...metadata.blocks,{index:2,type:'user'}]},source,url,before)
+  assert.deepEqual(after.slice(0,2).map(message=>message.raw),before.map(message=>message.raw))
+  assert.equal(after[2].raw,undefined)
+  const requests=[]
+  const observer=observeTranscriptBlocks(after,(url,receive)=>{requests.push({url,receive});return ()=>{}})
+  assert.equal(requests.length,0)
+  observer.visible(1,true)
+  assert.equal(requests.length,1)
+  requests[0].receive({blocks:[{index:1,raw:'{"role":"assistant","content":"finished"}'}]})
+  assert.equal(after[1].raw,'{"role":"assistant","content":"finished"}')
+  assert.equal(after[2].raw,undefined)
+  const other=transcriptBlocks(metadata,source,'/api/runs/other/files/cell/u/transcript.jsonl',before)
+  assert.ok(other.every(message=>message.raw===undefined))
+  observer.dispose()
+})

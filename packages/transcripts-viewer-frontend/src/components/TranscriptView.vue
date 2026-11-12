@@ -1,9 +1,20 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import TranscriptRecord from './TranscriptRecord.vue'
-const props = defineProps({ messages: Array, source: String, initialLine: String, contentOnly: Boolean })
+const props = defineProps({ messages: Array, source: String, initialLine: String, contentOnly: Boolean, lazy: Boolean })
+const emit = defineEmits(['visible'])
 const selectedBlock = ref(null)
 const blocks = new Map()
+watch(()=>props.messages, async (_messages,_,cleanup)=>{
+  if(!props.lazy)return
+  const observer=new IntersectionObserver(entries=>{
+    for(const entry of entries)emit('visible',Number(entry.target.dataset.block)-1,entry.isIntersecting)
+  })
+  let disposed=false
+  cleanup(()=>{disposed=true;observer.disconnect()})
+  await nextTick()
+  if(!disposed)for(const element of blocks.values())observer.observe(element)
+},{immediate:true,flush:'post'})
 const roles = { system: 'System prompt', user: 'User', assistant: 'Assistant', toolResult: 'Tool result', tool: 'Tool result' }
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${roles[message.role] ?? message.role}`,
@@ -39,7 +50,7 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">
-      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><TranscriptRecord :label="`${index + 1} · ${roles[message.role] ?? message.role}`" :message="message" :content-only="contentOnly" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
+      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }} · {{ roles[message.role] ?? message.role }}</strong><p>Loading block…</p></div><TranscriptRecord v-else :label="`${index + 1} · ${roles[message.role] ?? message.role}`" :message="message" :content-only="contentOnly" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
 
     </template>
     </div>
@@ -59,6 +70,7 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 .role-toolResult,.role-tool { background:#fef3c7;color:#854d0e; }
 .block-jump span { display:inline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .message-blocks { min-width:0; }
+.block-placeholder { min-height:120px;box-sizing:border-box;margin-top:4px;padding:10px;background:#f6f8fc;font-size:11px; }
 
 [data-block] { scroll-margin-top: 56px; }
 [data-block]:focus, .jump-target { outline: 2px solid #4169bb; outline-offset: 1px; }

@@ -7,10 +7,11 @@ import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
 import {runFile,sourceBytes} from './lib/run-files.js'
+import {createTranscriptReader} from './lib/transcript-blocks.js'
 
 export function createApi(directory) {
   directory=resolve(directory)
-  const app=Fastify(), databases=new Map(), events=createEvents()
+  const app=Fastify(), databases=new Map(), events=createEvents(), readTranscript=createTranscriptReader()
   const database=(root,relations=true)=>{
     const key=`${root}:${relations}`
     if(!databases.has(key))databases.set(key,new ExperimentDatabase(root,{relations}))
@@ -63,6 +64,14 @@ export function createApi(directory) {
   endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/ts/:sample',async request=>{
     const p=request.params,root=await rootFor(p.run)
     return readSample(await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`),root,database(root,false))
+  })
+  const transcriptFor=async request=>readTranscript(await runFile(await rootFor(request.params.run),request.params['*']))
+  endpoint('/api/runs/:run/transcripts/*',async request=>(await transcriptFor(request)).metadata)
+  endpoint('/api/runs/:run/transcript-blocks/:start/:end/*',async request=>{
+    const start=Number(request.params.start),end=Number(request.params.end)
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start)throw Error('Invalid block range')
+    const {lines}=await transcriptFor(request)
+    return {blocks:lines.slice(start,end).map((raw,offset)=>({index:start+offset,raw}))}
   })
   app.get('/api/runs/:run/files/*',async(request,reply)=>{
     const pathFor=async()=>runFile(await rootFor(request.params.run),request.params['*'])
