@@ -1,23 +1,15 @@
-import math
 import subprocess
 import sys
 import time
 
-from aws_runner.remote.execute import execute
 from aws_runner.remote.follow import follow
 from aws_runner.remote.mirror import mirror
 from aws_runner.remote.result import result
 
 
-class InstanceLost(Exception):
-    pass
-
-
 def monitor(ec2, config, instance, directory):
     result_failing = False
     mirror_failing = False
-    quick_deaths = 0
-    restarted = -math.inf
     offsets = [0, 0]
     stream, reader = follow(config, instance, offsets)
     next_mirror = time.monotonic() + 10
@@ -29,20 +21,15 @@ def monitor(ec2, config, instance, directory):
             try:
                 code, running = result(config, instance)
                 if code is None and not running:
-                    now = time.monotonic()
-                    quick_deaths = quick_deaths + 1 if now - restarted < 600 else 0
-                    if quick_deaths == 3:
-                        print(
-                            "Command died within 10 min of each of 3 restarts; giving up",
-                            file=sys.stderr,
-                            flush=True,
-                        )
-                        stream.terminate()
-                        stream.wait()
-                        reader.join()
-                        return 1
-                    execute(config, instance)
-                    restarted = now
+                    print(
+                        "Command unit died without an exit code",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    stream.terminate()
+                    stream.wait()
+                    reader.join()
+                    return 1
             except subprocess.CalledProcessError as error:
                 if error.returncode != 255:
                     raise
@@ -50,10 +37,8 @@ def monitor(ec2, config, instance, directory):
                     "Reservations"
                 ][0]["Instances"][0]["State"]["Name"]
                 if state not in ("pending", "running"):
-                    print(
-                        f"Instance is {state}; recovering", file=sys.stderr, flush=True
-                    )
-                    raise InstanceLost(state)
+                    print(f"Instance is {state}; failing", file=sys.stderr, flush=True)
+                    raise RuntimeError(f"Instance lost: {state}")
                 if not result_failing:
                     print(
                         "Exit-code check SSH failed; retrying",

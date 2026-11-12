@@ -13,7 +13,6 @@ popen_process = subprocess.Popen
 
 
 @pytest.mark.parametrize("log_enabled", [False, True])
-@pytest.mark.parametrize("run_state", ["unset", "missing", "present"])
 @pytest.mark.parametrize("environment", [False, True])
 @pytest.mark.parametrize("inside_checkout", [False, True])
 def test_ships_env_when_present_and_runs_unchanged_command_from_root(
@@ -21,7 +20,6 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     transport,
     tmp_path,
     environment,
-    run_state,
     inside_checkout,
     monkeypatch,
     log_enabled,
@@ -30,11 +28,8 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     if log_enabled:
         monkeypatch.setenv("LABNOTES_LOG", str(tmp_path / "local log.jsonl"))
     state_file = tmp_path / "labnotes state.json"
-    monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
-    if run_state != "unset":
-        monkeypatch.setenv("LABNOTES_RUN_STATE", str(state_file))
-    if run_state == "present":
-        state_file.write_text('{"base_url": "https://scorer.example/v1"}')
+    monkeypatch.setenv("LABNOTES_RUN_STATE", str(state_file))
+    state_file.write_text('{"base_url": "https://scorer.example/v1"}')
     ec2, _, config = cloud
     execute, _, state = transport
     checkout = Path(state["checkout"])
@@ -66,9 +61,9 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     else:
         assert env_copies == []
     script = next(
-        call.kwargs["input"]
+        shlex.split(call.args[0][-1])[-1]
         for call in calls
-        if call.args[0][-1] == "cat > /srv/aws-runner/command.sh; sync"
+        if "--unit=aws-runner " in call.args[0][-1]
     )
     assert "LABNOTES_LOG" not in script
     assert "cd /srv/aws-runner/repo || exit 125" in script
@@ -79,15 +74,11 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
         for call in calls
         if call.args[0][0] == "rsync" and call.args[0][-1].endswith("/run-state.json")
     ]
-    if run_state == "present":
-        assert len(state_copies) == 1
-        assert state_copies[0][-2] == str(state_file)
-        assert state_copies[0][-1].endswith(":/srv/aws-runner/run-state.json")
-        assert "export LABNOTES_RUN_STATE=/srv/aws-runner/run-state.json\n" in script
-        assert str(state_file) not in script
-    else:
-        assert state_copies == []
-        assert "LABNOTES_RUN_STATE" not in script
+    assert state_copies == []
+    assert "LABNOTES_RUN_STATE" not in script
+    assert not any(
+        "layout.sh" in c.args[0][-1] or "command.sh" in c.args[0][-1] for c in calls
+    )
     assert any(
         f"sudo ln -s /srv/aws-runner/run {shlex.quote(str(directory))}"
         in call.kwargs.get("input", "")
@@ -170,3 +161,19 @@ def test_ships_symlinked_env_as_regular_file(cloud, transport, tmp_path):
     assert destination.is_file()
     assert not destination.is_symlink()
     assert destination.read_text() == contents
+
+
+def test_inline_command_and_orphan_guard(cloud, transport, tmp_path):
+    ec2, _, config = cloud
+    execute, _, _ = transport
+    command = ["sh", "-c", 'printf "%s" "$HOME"; exit 17']
+    assert run(ec2, config, tmp_path / "run", command) == 0
+    calls = [c.args[0][-1] for c in execute.call_args_list]
+    invocation = next(c for c in calls if "--unit=aws-runner " in c)
+    assert "--expand-environment=no" in invocation
+    assert shlex.join(command) in shlex.split(invocation)[-1]
+    guard = next(c for c in calls if "--unit=aws-runner-orphan " in c)
+    script = shlex.split(guard)[-1]
+    assert "while [ ! -f /srv/aws-runner/exit-code ]" in script
+    assert "sleep 120; /sbin/shutdown -h now" in script
+    assert all("collected" not in c and "watch.sh" not in c for c in calls)

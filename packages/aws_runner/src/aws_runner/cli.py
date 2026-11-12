@@ -31,6 +31,8 @@ def main():
     command = args.command
     if command[:1] == ["--"]:
         command = command[1:]
+    if not command:
+        parser.error("run requires -- <cmd>")
     config = json.loads(args.config.read_text())
     return run(
         boto3.client("ec2", region_name=config["region"]),

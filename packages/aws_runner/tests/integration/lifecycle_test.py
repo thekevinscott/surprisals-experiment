@@ -3,7 +3,6 @@ import subprocess
 from datetime import datetime, timedelta
 
 import pytest
-from botocore.exceptions import ClientError
 
 from aws_runner.cloud.setup import setup
 from aws_runner.config import TAG
@@ -44,38 +43,28 @@ def test_run_collects_then_removes_instance_and_volume(
     commands = [call.args[0] for call in execute.call_args_list]
     assert sum(command[0] == "rsync" for command in commands) == 3
     assert any("systemd-run" in command[-1] for command in commands)
-    scripts = [call.kwargs.get("input", "") for call in execute.call_args_list]
+    scripts = [
+        call.kwargs.get("input", call.args[0][-1]) for call in execute.call_args_list
+    ]
     assert any("echo hello; echo hi > out.txt" in script for script in scripts)
-    assert any("mkfs.ext4" in script for script in scripts)
+    assert not any(
+        "mkfs.ext4" in script or "/etc/fstab" in script for script in scripts
+    )
     assert "command.stdout.log" in stream.call_args.args[0][-1]
     assert "command.stderr.log" in stream.call_args.args[0][-1]
-    assert any(
-        'while [ ! -b "$DEVICE" ] && [ ! -b /dev/xvdf ]' in script for script in scripts
-    )
     stream.return_value.terminate.assert_not_called()
     stream.return_value.wait.assert_called_once()
 
 
-def test_failed_collection_preserves_remote_copy(cloud, transport, tmp_path):
+def test_failed_collection_terminates(cloud, transport, tmp_path):
     ec2, _, config = cloud
-    execute, _, state = transport
+    _, _, state = transport
     state["fail_copy"] = True
     with pytest.raises(subprocess.CalledProcessError):
         run(ec2, config, tmp_path / "run", ["true"])
-    volume = ec2.describe_volumes(Filters=[{"Name": "tag-key", "Values": [TAG]}])[
-        "Volumes"
-    ][0]
-    assert volume["VolumeType"] == "gp3"
+    assert not ec2.describe_volumes()["Volumes"]
     instance = ec2.describe_instances()["Reservations"][0]["Instances"][0]
-    assert instance["State"]["Name"] == "running"
-    mapping = next(
-        item
-        for item in instance["BlockDeviceMappings"]
-        if item["DeviceName"] == "/dev/sdf"
-    )
-    assert mapping["Ebs"]["DeleteOnTermination"] is False
-    with pytest.raises(ClientError):
-        ec2.delete_volume(VolumeId=volume["VolumeId"])
+    assert instance["State"]["Name"] == "terminated"
 
 
 def test_run_timestamps_each_step(cloud, transport, tmp_path, capsys):
@@ -87,12 +76,10 @@ def test_run_timestamps_each_step(cloud, transport, tmp_path, capsys):
     assert [line.split(" ", 1)[1] for line in lines] == [
         "instance launched",
         "instance running",
-        "volume attached",
         "ssh ready",
         "prepared",
         "shipped",
         "command started",
         "collected",
         "instance terminated",
-        "volume deleted",
     ]

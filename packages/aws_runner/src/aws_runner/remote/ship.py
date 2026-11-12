@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 
 from aws_runner.config import ROOT
-from aws_runner.remote.restore import restore
 from aws_runner.remote.ssh import ssh
 
 
@@ -67,8 +66,5 @@ def ship(config, instance, directory):
         links.append(f"sudo ln -s {ROOT}/run {shlex.quote(str(target))}")
     script = "set -eu\n" + "\n".join(links) + "\n"
     script += "curl -LsSf https://astral.sh/uv/install.sh | sh\n"
-    subprocess.run(
-        connection + [f"cat > {ROOT}/layout.sh"], input=script, text=True, check=True
-    )
-    restore(config, instance)
+    subprocess.run(connection + ["sh -s"], input=script, text=True, check=True)
     return f"{ROOT}/repo"

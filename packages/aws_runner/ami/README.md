@@ -8,7 +8,7 @@ From this directory, with Packer installed and AWS access configured **on the bu
 mkdir -p artifacts && packer init . && packer build -var 'region=us-east-1' -var "ubuntu_ami=$UBUNTU_AMI_ID" .
 ```
 
-The template verifies the source AMI's Canonical owner, Ubuntu release, architecture, and EBS type. It does not select a moving `most_recent` image. The temporary build instance uses an On-Demand `m6i.large`, a 40-GiB gp3 disk, and SSH restricted to the builder's public IP; this assumes a default VPC with outbound internet. Its temporary disk is deleted on termination. The runner's retained run volume is configured separately by `aws_runner` (#150).
+The template verifies the source AMI's Canonical owner, Ubuntu release, architecture, and EBS type. It does not select a moving `most_recent` image. The temporary build instance uses an On-Demand `m6i.large`, a 40-GiB gp3 disk, and SSH restricted to the builder's public IP; this assumes a default VPC with outbound internet. Its temporary disk is deleted on termination. The runner's root disk size is configured by `aws_runner` and the disk is deleted on termination.
 
 After a successful build, retain these three files together as the image release record:
 

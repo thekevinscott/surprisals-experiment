@@ -1,6 +1,6 @@
 from argparse import Namespace
 from functools import partial
-from unittest.mock import DEFAULT, patch
+from unittest.mock import patch
 
 import boto3
 import pytest
@@ -22,7 +22,13 @@ def cloud(tmp_path):
         args = Namespace(
             config=tmp_path / "config.json",
             region="us-east-1",
-            ami="ami-12345678",
+            ami=ec2.register_image(
+                Name="test-root",
+                RootDeviceName="/dev/sda1",
+                BlockDeviceMappings=[
+                    {"DeviceName": "/dev/sda1", "Ebs": {"VolumeSize": 8}}
+                ],
+            )["ImageId"],
             cidr="192.0.2.1/32",
             instance_type="t3.small",
             volume_size=20,
@@ -46,7 +52,6 @@ def transport(tmp_path):
             "checkout": str(tmp_path / "checkout"),
             "polls": ["0"],
             "fail_copy": False,
-            "shipped": True,
         }
         execute.side_effect = partial(respond, state)
         yield execute, stream, state
@@ -56,32 +61,3 @@ def transport(tmp_path):
 def ticking_clock():
     with patch("time.monotonic", side_effect=[0, 5, 10, 10]) as clock:
         yield clock
-
-
-@pytest.fixture
-def capacity_shortage(cloud):
-    from botocore.exceptions import ClientError
-
-    ec2, _, _ = cloud
-    original = ec2.run_instances
-    with (
-        patch.object(
-            ec2,
-            "run_instances",
-            wraps=original,
-            side_effect=[
-                ClientError(
-                    {
-                        "Error": {
-                            "Code": "InsufficientInstanceCapacity",
-                            "Message": "full",
-                        }
-                    },
-                    "RunInstances",
-                ),
-                DEFAULT,
-            ],
-        ) as allocate,
-        patch("time.sleep") as sleep,
-    ):
-        yield allocate, sleep

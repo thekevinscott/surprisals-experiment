@@ -60,3 +60,12 @@ def test_box_on_a_reused_ip_is_reached(cloud, transport, tmp_path, monkeypatch):
             {"Name": "instance-state-name", "Values": ["pending", "running"]},
         ]
     )["Reservations"]
+    paths = [
+        Path(arg.split("=", 1)[1])
+        for call in execute.call_args_list
+        for arg in call.args[0]
+        if arg.startswith("UserKnownHostsFile=")
+    ]
+    assert paths
+    assert len(set(paths)) == 1
+    assert all(not path.parent.exists() for path in paths)

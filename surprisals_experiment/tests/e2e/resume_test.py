@@ -124,10 +124,12 @@ LAUNCH = 330
 ATTEMPT = 600
 ATTEMPTS = "windows/*/forks/*/turns/*/ts/*/attempts/*"
 STOP = (
-    "import json, sys, boto3; from aws_runner.cloud.stop import stop;"
+    "import json, sys, boto3; from aws_runner.cloud.cleanup import cleanup;"
     " from aws_runner.config import CONFIG;"
     " ec2 = boto3.client('ec2', region_name=json.loads(CONFIG.read_text())['region']);"
-    " [stop(ec2, d) for d in sys.argv[1:]]"
+    " [cleanup(ec2, i) for d in sys.argv[1:]"
+    " for r in ec2.describe_instances(Filters=[{'Name': 'tag:aws-runner:dir', 'Values': [d]}])['Reservations']"
+    " for i in r['Instances'] if i['State']['Name'] != 'terminated']"
 )
 
 
@@ -172,7 +174,7 @@ def test_experiment_relaunch_continues_both_cells(
         f" --output {{run_dir}} {LADDER} {PROBLEM}"
     )
     if aws:
-        run = f"uv run --project packages/aws_runner aws_runner run {{run_dir}} -- {run}"
+        run = f"bash runpod_scorer/run-cell.sh uv run --project packages/aws_runner aws_runner run {{run_dir}} -- {run}"
     (root / "experiments" / experiment).mkdir(parents=True, exist_ok=True)
     (root / "experiments" / experiment / "experiment.toml").write_text(f'''\
 name = "{experiment}"
@@ -380,7 +382,7 @@ def test_terminated_relaunch_leaves_no_aws_runs(tmp_path):
 
 @pytest.mark.parametrize("lost", ["local", "instance"])
 def test_aws_relaunch_after_losing_one_side(tmp_path, lost, terminal):
-    """Kill labnotes hard, or terminate the instance first; relaunch must recover."""
+    """A new box resumes the experiment from the locally mirrored run folder."""
     import boto3
     import psutil
 
@@ -487,8 +489,6 @@ cap-strategy = ["characters"]
                         lambda: term._get_screen_text())
         [first] = wait(lambda: live(folder), LAUNCH, lambda: term._get_screen_text())
         step("instance live")
-        volume = wait(lambda: [v["VolumeId"] for v in ec2.describe_volumes(Filters=tagged(folder))["Volumes"]
-                               if v["Attachments"]], LAUNCH)[0]
         def stop_point():
             assert not record(folder)["ended"], term._get_screen_text()
             if lost == "local":
@@ -501,30 +501,30 @@ cap-strategy = ["characters"]
         step("stop point mirrored")
         before = snapshot(folder) if lost == "instance" else ({}, {})
         before[0].update({p: (p.read_bytes(), p.stat().st_mtime_ns)
-                          for p in (folder / "aws_runner.json", folder / "settings.json")})
+                          for p in (folder / "settings.json",)})
         before[1].update({p: p.read_bytes() for p in folder.rglob("messages.jsonl")})
+        # Kill the client first so instance loss cannot race labnotes recording
+        # this invocation as lost. Recovery uses only already-mirrored artifacts.
+        assert any("aws_runner run" in command for command in kill_labnotes())
+        step("labnotes killed")
         if lost == "instance":
             ec2.terminate_instances(InstanceIds=[first["InstanceId"]])
             ec2.get_waiter("instance_terminated").wait(InstanceIds=[first["InstanceId"]])
             step("instance terminated")
-        assert any("aws_runner run" in command for command in kill_labnotes())
-        step("labnotes killed")
-        if lost == "local":
+        else:
             [still] = live(folder)
             assert still["InstanceId"] == first["InstanceId"]
 
         term = terminal(shlex.join(args), rows=40, cols=200, env=env)
-        [second] = wait(lambda: live(folder), SETUP + LAUNCH, lambda: term._get_screen_text())
+        [second] = wait(lambda: [i for i in live(folder) if i["InstanceId"] != first["InstanceId"]],
+                        SETUP + LAUNCH, lambda: term._get_screen_text())
         step("relaunched instance live")
+        assert second["InstanceId"] != first["InstanceId"]
         if lost == "local":
-            assert second["InstanceId"] == first["InstanceId"]
-        else:
-            assert second["InstanceId"] != first["InstanceId"]
-            assert second["Placement"]["AvailabilityZone"] == first["Placement"]["AvailabilityZone"]
-            wait(lambda: any(a["InstanceId"] == second["InstanceId"] for v in
-                             ec2.describe_volumes(VolumeIds=[volume])["Volumes"] for a in v["Attachments"]),
-                 LAUNCH)
-            step("same volume attached to new instance")
+            # SIGKILL bypassed cleanup; the new invocation must not own this box.
+            # Stop it explicitly now that fresh allocation has been verified.
+            ec2.terminate_instances(InstanceIds=[first["InstanceId"]])
+            ec2.get_waiter("instance_terminated").wait(InstanceIds=[first["InstanceId"]])
         while not (record(folder)["ended"] and len(record(folder)["invocations"]) == 2):
             time.sleep(1)
         step("run ended")
@@ -537,8 +537,8 @@ cap-strategy = ["characters"]
         check_preserved(*before)
         assert list(folder.glob(ATTEMPTS + "/tests.json"))
         ids = {i["InstanceId"] for i in instances(folder)}
-        assert ids == ({first["InstanceId"]} if lost == "local"
-                       else {first["InstanceId"], second["InstanceId"]})
+        assert ids == {first["InstanceId"], second["InstanceId"]}
+        assert json.loads((folder / "aws_runner.json").read_text())["commit"]
         wait(lambda: not leftovers(folder), 80, lambda: f"Tagged AWS resources survived: {leftovers(folder)}")
         step("no tagged resources left")
     finally:

@@ -1,5 +1,6 @@
 import io
 import json
+import shlex
 import subprocess
 import sys
 import time
@@ -16,10 +17,7 @@ from aws_runner.remote.result import result
 from aws_runner.remote.start import start
 
 
-@pytest.mark.parametrize("completed", [False, True])
-def test_complete_output_on_correct_streams_and_reattach(
-    tmp_path, capfd, monkeypatch, completed
-):
+def test_complete_output_on_correct_streams(tmp_path, capfd, monkeypatch):
     root = tmp_path / "remote"
     (root / "run").mkdir(parents=True)
     monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
@@ -39,31 +37,31 @@ def test_complete_output_on_correct_streams_and_reattach(
     with (
         patch("aws_runner.remote.start.ROOT", str(root)),
         patch("aws_runner.remote.start.ssh", return_value=["sh", "-c"]),
-        patch("aws_runner.remote.start.execute"),
+        patch("aws_runner.remote.start.watch"),
         patch("subprocess.run") as send,
     ):
         start({}, {}, command, str(tmp_path))
-    script = root / "command.sh"
-    script.write_text(send.call_args.kwargs["input"])
-    process = subprocess.Popen(["sh", str(script)])
+    script = shlex.split(send.call_args.args[0][-1])[-1]
+    process = subprocess.Popen(["sh", "-c", script])
     try:
-        if completed:
-            assert process.wait(timeout=10) == 17
         with (
             patch("aws_runner.remote.follow.ROOT", str(root)),
             patch("aws_runner.remote.follow.ssh", return_value=["sh", "-c"]),
             patch("aws_runner.remote.result.ROOT", str(root)),
             patch("aws_runner.remote.result.ssh", return_value=["sh", "-c"]),
-            patch("aws_runner.remote.monitor.execute"),
+            patch(
+                "aws_runner.remote.monitor.result",
+                side_effect=lambda *args: (
+                    (int((root / "exit-code").read_text()), False)
+                    if (root / "exit-code").exists()
+                    else (None, True)
+                ),
+            ),
         ):
             assert monitor(None, {}, {}, tmp_path / "local") == 17
             captured = capfd.readouterr()
             assert captured.out == stdout
             assert captured.err == stderr
-            assert monitor(None, {}, {}, tmp_path / "local") == 17
-            replay = capfd.readouterr()
-            assert replay.out == stdout
-            assert replay.err == stderr
         assert process.wait(timeout=10) == 17
     finally:
         if process.poll() is None:
@@ -134,7 +132,9 @@ def test_killed_follower_resumes_without_missing_or_duplicate_bytes(
             with stderr.open("ab") as output:
                 output.write(b" stderr after")
             (root / "exit-code").write_text("17")
-        return result(config, instance)
+        return (
+            result(config, instance) if (root / "exit-code").exists() else (None, True)
+        )
 
     with (
         patch("aws_runner.remote.follow.ROOT", str(root)),
