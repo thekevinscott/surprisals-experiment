@@ -60,9 +60,9 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 </template>
 <style scoped>
 .transcript-view { container-type:inline-size; }
-.transcript-layout { display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-items:start; }
-.block-navigation { position:sticky;top:0;z-index:1;display:flex;gap:4px;overflow-x:auto;min-width:0;padding:6px 2px;background:white; }
-.block-jump { display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid #bac9df;border-radius:4px;background:#f6f8fc;color:#254c7f;padding:5px 3px;cursor:pointer;font-size:10px; }
+.transcript-layout { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;align-items:start; }
+.block-navigation { position:sticky;top:0;z-index:1;display:flex;gap:4px;overflow-x:auto;min-width:0;padding:4px 2px;background:white; }
+.block-jump { display:flex;align-items:center;gap:4px;flex-shrink:0;border:1px solid #bac9df;border-radius:6px;background:#f6f8fc;color:#254c7f;padding:4px 2px;cursor:pointer;font-size:10px; }
 .block-jump b { min-width:20px;text-align:center; }
 .block-jump:hover,.block-jump.active { outline:2px solid #4169bb;outline-offset:-2px; }
 .role-system { background:#e4e7ec;color:#374151; }
@@ -75,15 +75,15 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 .role-legend { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:4px 8px; }
 .role-legend span { display:inline-flex; align-items:center; gap:4px; }
 .role-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; border:1px solid #bac9df; }
-.block-placeholder { min-height:120px;box-sizing:border-box;margin-top:4px;padding:10px;background:#f6f8fc;font-size:11px; }
+.block-placeholder { min-height:120px;box-sizing:border-box;margin-top:4px;padding:8px;background:#f6f8fc;font-size:12px; }
 
 [data-block] { scroll-margin-top: 56px; }
 [data-block]:focus, .jump-target { outline: 2px solid #4169bb; outline-offset: 1px; }
 .transcript-view { margin-top:4px; }
-.transcript-controls { display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#657186; }
+.transcript-controls { display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:#657186; }
 .message-system { border-left: 3px solid #a3aec0; }
 .message-user { border-left: 3px solid #7096cd; }
 .message-assistant { border-left: 3px solid #79a58b; }
 .message-toolResult, .message-tool { border-left: 3px solid #c0a46a; }
-p { margin: 0; font-size: 11px; color: #657186; }
+p { margin: 0; font-size: 12px; color: #657186; }
 </style>

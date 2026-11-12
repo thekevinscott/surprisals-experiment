@@ -19,9 +19,9 @@ const length = computed(() => Array.from(props.text ?? '').length)
 .record-reasoning summary { cursor: pointer; color: #657186; }
 .record-reasoning pre { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .text-section { margin-top: 4px; }
-p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.5; }
+p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
 .unavailable { color: #657186; }
-.ellipsis-toggle { color: #214da3; font: inherit; font-weight: 700; border: 0; padding: 0 3px; background: #e5edf9; cursor: pointer; }
-.token-legend { font-size: 9px; color: #657186; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.ellipsis-toggle { color: #214da3; font: inherit; font-weight: 700; border: 0; padding: 0 4px; background: #e5edf9; cursor: pointer; }
+.token-legend { font-size: 10px; color: #657186; display: flex; align-items: center; gap: 4px; margin-top: 4px; }
 .token-legend span { width: 40px; height: 8px; background: linear-gradient(to right, #fffce6, #e0a000); border-radius: 2px; }
 </style>
