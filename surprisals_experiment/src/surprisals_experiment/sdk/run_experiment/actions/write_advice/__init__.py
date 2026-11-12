@@ -1,6 +1,5 @@
 import json
 from functools import partial
-from pathlib import Path
 
 from ....advice import Advice
 from ....run import Run
@@ -8,12 +7,8 @@ from ....turn import Turn
 from ....utils.u_chat.stream_reply.errors import OutputTokenLimitError
 from ....utils.write import write
 from .prepare_flush import prepare_flush
-from .measurement import measurement
 from .render_code import render_code
 from .system_prompt import system_prompt
-
-
-PREVIOUS_MEASUREMENT = Path(__file__).parent / "previous_measurement.sql"
 
 
 async def write_advice(run: Run, turn: Turn) -> None:
@@ -28,9 +23,9 @@ async def write_advice(run: Run, turn: Turn) -> None:
         metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
         if metadata["advice"] is not None:
             turn_id = str(previous.attempt_dir.relative_to(config.output))
-            previous_measurement = await run.database.query(PREVIOUS_MEASUREMENT, turn_id=turn_id)
+            advice = Advice.load(config.output, metadata["advice"], config.advice_measure)
             messages.append({"role": "user", "content":
-                measurement(config.advice_measure.unit, previous_measurement[0]) + "\n"
+                advice.measurement + "\n"
                 + await render_code(config, run.database, turn_id)})
     try:
         text = await run.u_chat.prompt(

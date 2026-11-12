@@ -4,8 +4,13 @@ import json
 from hashlib import sha256
 from pathlib import Path
 
+from surprisals_experiment.prompt import Prompt
+
 from .advice_measure import AdviceMeasure
 from .utils.write import write
+
+
+MEASUREMENT = Prompt("u/measurement.txt")
 
 
 class Advice:
@@ -33,3 +38,11 @@ class Advice:
         self.metadata = {"score": score, **({"tokens": tokens} if tokens is not None else {})}
         self.save()
         return score
+
+    @property
+    def measurement(self) -> str:
+        tokens = self.metadata.get("tokens")
+        return MEASUREMENT(
+            unit=self.measure.unit, score=self.metadata["score"],
+            score_text="".join(f"{token}<{bits:.1f}>" for token, bits in tokens) if tokens is not None else None,
+        ).rstrip("\n")

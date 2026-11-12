@@ -4,14 +4,9 @@
 
 <attempt>
 <index>{{ attempt.number }}</index>
-{% if unit == "characters" %}
-{{ measurement }}
-{% endif %}
 <advice>
 {{ attempt.advice }}
 </advice>
-{% if unit != "characters" %}
 {{ measurement }}
-{% endif %}
 {{ attempt.code }}
 </attempt>

@@ -48,6 +48,9 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         await write_advice(run, Turn(config, 22, window))
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
+    # The normal workflow scores the completed advice before starting the next turn.
+    seed_advice(config, Turn(config, 22, window).attempt_dir, 'Double.', 7,
+                [['Double.', 7.0]] if measure == 'surprisal' else None)
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
@@ -110,7 +113,7 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     # Shorter and all-pass, but in this window and another fork: in neither the opening nor this fork's turns.
     seed_turn(config, 1, 1, 0, 'Ok.', ['print(7)\n', 'print(8)\n'])
     opening = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-               '<attempt>\n<index>0</index>\n<length>5 characters</length>\n<advice>\nBest.\n</advice>\n'
+               '<attempt>\n<index>0</index>\n<advice>\nBest.\n</advice>\n<length>5 characters</length>\n'
                + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
     botbox_script.advice.extend(['Later.', 'Again.', 'Next.'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:

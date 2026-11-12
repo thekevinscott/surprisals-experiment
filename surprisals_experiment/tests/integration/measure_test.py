@@ -34,8 +34,8 @@ def advice_path(text):
 
 def flush(index, advice, *, length=None, bits=None):
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
-            + (f'<length>{length} characters</length>\n' if length else '')
             + f'<advice>\n{advice}\n</advice>\n'
+            + (f'<length>{length} characters</length>\n' if length else '')
             + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
             + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
 
