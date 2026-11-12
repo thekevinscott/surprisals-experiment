@@ -66,10 +66,14 @@ function path(s) {
 <template>
   <div class="cell-chart" :data-kind="kind" @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop @click.stop @dblclick.stop>
     <div class="filters" @click.stop @keydown.stop>
+      <template v-if="chartData.arms.length > 1">
       <span>Strategy</span>
       <button v-for="value in chartData.arms" :key="value" :aria-pressed="armSel === value" @click="armSel = value; mode = 'all'; range = null">{{ value }}</button>
+      </template>
+      <template v-if="modes.length > 2">
       <span style="margin-left:12px">Problem</span>
       <button v-for="value in modes" :key="value" :aria-pressed="mode === value" :data-mode="value" @click="mode = value">{{ value }}</button>
+      </template>
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
       <button v-if="kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
@@ -84,7 +88,7 @@ function path(s) {
           :data-knob="which" @pointerdown.stop.prevent="grab(which, $event)" @pointermove.stop="slide"
           @pointerup.stop="knob = null" @pointercancel.stop="knob = null" />
       </g>
-      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ kind === 'advice' ? (unit === 'bits' ? 'Advice surprisal (bits)' : 'Advice characters (linear)') : 'Turns since previous improvement' }}</text>
+      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ kind === 'advice' ? (unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)') : 'Turns between improvements' }}</text>
       <g transform="translate(95,0)" data-plot="shared">
         <g v-for="tick in yticks" :key="tick">
           <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="#e4e3de" />

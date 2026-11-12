@@ -28,14 +28,18 @@ const describePending = s => `${s.problem} ${s.cell} · ${s.pending[1]} turns si
 <template>
   <div class="wait-chart" @mouseleave="hover = null; focus = null" @pointerdown.stop @click.stop @dblclick.stop>
     <div class="filters" @click.stop @keydown.stop>
+      <template v-if="chartData.arms.length > 1">
       <span>Strategy</span>
       <button v-for="value in chartData.arms" :key="value" :aria-pressed="armSel === value" @click="armSel = value; mode = 'all'">{{ value }}</button>
+      </template>
+      <template v-if="modes.length > 2">
       <span style="margin-left:12px">Problem</span>
       <button v-for="value in modes" :key="value" :aria-pressed="mode === value" @click="mode = value">{{ value }}</button>
+      </template>
       <span class="tooltip" role="status">{{ hover || 'Hover a point or legend entry' }}</span>
     </div>
     <svg viewBox="0 0 960 285" role="img" aria-label="Unsuccessful turns before each new best, by its length">
-      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">Turns without improvement before it (depth, sqrt)</text>
+      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">Unsuccessful turns (√ depth)</text>
       <g transform="translate(70,0)">
         <g v-for="t in yticks" :key="t">
           <line x1="0" :x2="width" :y1="y(t)" :y2="y(t)" stroke="#e4e3de" />

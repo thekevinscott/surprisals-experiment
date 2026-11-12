@@ -37,9 +37,10 @@ footer { max-width: 960px; color: #657186; font-size: 12px; line-height: 1.7; }
 a { color: #214da3; }
 .clickable-row { cursor: pointer; }
 .problem a { text-decoration: none; }
-.drilldown-header { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
-.run-summary { flex: 1 1 480px; min-width: 0; }
-.selectors { display: flex; flex-wrap: wrap; gap: 16px; margin-left: auto; }
+.drilldown-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: stretch; gap: 16px; }
+.drilldown-header > :not(:first-child) { border-left: 1px solid #dae1ea; padding-left: 16px; }
+.run-summary { min-width: 0; align-self: center; }
+.selectors { display: flex; flex-wrap: wrap; align-content: center; gap: 12px; }
 .search-select { position: relative; width: 280px; max-width: 100%; }
 .metadata { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0; padding: 12px 14px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
 .metadata dt { color: #657186; font-size: 10px; margin-bottom: 4px; }
@@ -71,3 +72,15 @@ a { color: #214da3; }
 .file-modal .p-dialog-title { font-size: 14px; overflow-wrap: anywhere; }
 .file-modal .p-dialog-content { padding: 0 12px 12px; flex: 1; }
 .file-modal .file-viewer { border: 0; padding: 0; }
+
+.run-graphs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: none; margin: 8px 0; }
+.run-graphs article { min-width: 0; margin: 0; padding: 8px; }
+.run-graphs h2 { font-size: 12px; margin: 0 0 6px; }
+.run-graphs .cell-chart svg text, .run-graphs .wait-chart svg text { font-size: 18px; }
+.run-graphs .cell-chart svg .axis-title, .run-graphs .wait-chart svg .axis-title { font-size: 18px; }
+@media (max-width: 800px) {
+  .drilldown-header { gap: 8px; grid-template-columns: minmax(0, 1fr) auto minmax(120px, 1fr); padding: 8px; }
+  .drilldown-header > :not(:first-child) { padding-left: 8px; }
+  .selectors { flex-direction: column; }
+  .run-graphs { grid-template-columns: 1fr; }
+}

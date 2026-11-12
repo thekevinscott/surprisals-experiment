@@ -28,6 +28,8 @@ import {filePreview,closeFile} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
+import ProblemFiles from './components/ProblemFiles.vue'
+import FilesViewer from './components/FilesViewer.vue'
 
 const route = ref(location.hash)
 const syncRoute = () => { route.value = location.hash }
@@ -36,6 +38,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 const fileRoute = computed(() => parseFileRoute(route.value))
 const target = computed(() => runRoute(route.value))
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
+const runCharts = computed(() => createChartData(selected.value ? [selected.value] : []))
 const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
@@ -85,12 +88,13 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
-  <Dialog :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
+  <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template #closebutton="{ closeCallback }">
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
     </template>
     <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
+    <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
@@ -101,7 +105,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" href="#dashboard">Dashboard</Tab><Tab value="graphs" as="a" href="#graphs">Graphs</Tab></TabList></Tabs>
     <section v-if="selected" class="drilldown" aria-label="Run drilldown">
       <a class="back-link" href="#dashboard">← Dashboard</a>
-      <div class="drilldown-header">
+      <header class="drilldown-header">
       <div class="run-summary">
       <dl class="metadata">
         <div><dt>Run</dt><dd>{{ selected.id }}</dd></div>
@@ -111,12 +115,18 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         <div><dt>Best advice</dt><dd><a v-if="selected.bestTarget" :href="runLink(selected.id, selected.bestTarget)">{{ number(selected.best) }}</a><template v-else>{{ number(selected.best) }}</template> {{ selected.strategy === 'surprisal' ? 'bits' : 'chars' }}</dd></div>
       </dl>
       </div>
+      <ProblemFiles :key="selected.id" :run-id="selected.id" />
       <div class="selectors">
         <SearchSelect label="cap-strategy" :model-value="selected.strategy" :options="strategyOptions" @update:model-value="changeStrategy" />
         <SearchSelect label="Problem" :model-value="selected.problem" :options="problemOptions" @update:model-value="changeProblem" />
       </div>
-      </div>
+      </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
+      <section :key="selected.id" class="run-graphs graphs" aria-label="Run graphs">
+        <article><h2>Best advice over turns</h2><CellChart :chart-data="runCharts" kind="advice" /></article>
+        <article><h2>Turns between improvements</h2><CellChart :chart-data="runCharts" kind="improvements" /></article>
+        <article><h2>Improvement as advice shrinks</h2><WaitChart :chart-data="runCharts" /></article>
+      </section>
       <figure class="minimization-loop">
         <ForkDiagram :run="selected" :target="target" />
       </figure>

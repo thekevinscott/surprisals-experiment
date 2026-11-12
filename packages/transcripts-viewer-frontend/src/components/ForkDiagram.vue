@@ -4,7 +4,6 @@ import { ref, watch, provide, nextTick } from 'vue'
 import { fetchJson,watchData } from '../composables/api.js'
 import { runLink } from '../composables/runLinks.js'
 import { createDisclosureState } from '../composables/disclosureState.js'
-import ProblemFiles from './ProblemFiles.vue'
 import ForkWindow from './ForkWindow.vue'
 const props = defineProps({ run: Object, target: Object })
 const windows = ref([])
@@ -50,7 +49,6 @@ watch([() => windows.value.length > 0, () => props.target], async () => {
 </script>
 <template>
   <div class="fork-diagram" aria-label="Recorded run windows and U turns">
-    <ProblemFiles :key="run.id" />
     <ForkWindow ref="windowViews" v-for="(window, index) in windows" :key="window.id" :window="window" :target="target" :has-next="index < windows.length - 1" />
     <p v-if="loading">Loading run details…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
