@@ -68,3 +68,19 @@ test('appended metadata retains loaded raw blocks without fetching new offscreen
   assert.ok(other.every(message=>message.raw===undefined))
   observer.dispose()
 })
+
+test('disposing a transcript releases loaded raw contents and cannot hydrate after closure',()=>{
+  const messages=transcriptBlocks({total:2,blocks:[{index:0,type:'user'},{index:1,type:'assistant'}]},'transcript.jsonl','/api/runs/run/files/transcript.jsonl')
+  const callbacks=[],stopped=[]
+  const observer=observeTranscriptBlocks(messages,(url,receive)=>{callbacks.push(receive);return ()=>stopped.push(url)})
+  observer.visible(0,true);observer.visible(1,true)
+  callbacks[0]({blocks:[{index:0,raw:'large user text'.repeat(10000)}]})
+  callbacks[1]({blocks:[{index:1,raw:'large assistant text'.repeat(10000)}]})
+  observer.dispose()
+  assert.equal(stopped.length,2)
+  assert.ok(messages.every(message=>message.raw===undefined),'closed modal must release every hydrated block')
+  callbacks[0]({blocks:[{index:0,raw:'late response'}]})
+  observer.visible(1,true)
+  assert.ok(messages.every(message=>message.raw===undefined),'late callbacks must not resurrect contents')
+  assert.equal(callbacks.length,2,'closed transcript must not reopen subscriptions')
+})

@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {effectScope} from 'vue'
+import {useLiveResource} from '../src/composables/api.js'
 import {watchData,liveSnapshot,connected} from '../src/composables/liveUpdates.js'
 class Events {
   static instances=[]
@@ -60,4 +62,25 @@ test('opening a second view of the same file uses its current snapshot immediate
   watchData([url],async()=>liveSnapshot(url),{signal:b.signal,onData:value=>values.push(value),onError:assert.fail})
   await tick();assert.equal(Events.instances.at(-1),stream);assert.deepEqual(values,['question'])
   a.abort();b.abort();await tick()
+})
+
+
+test('closing a modal releases its fetched content and last snapshot synchronously, preserving other views',async t=>{
+  mock(t)
+  const url='/api/runs/run/files/large.jsonl',other=new AbortController()
+  const scope=effectScope()
+  t.after(()=>{scope.stop();other.abort()})
+  let resource
+  scope.run(()=>{resource=useLiveResource(()=>[url],()=>liveSnapshot(url))})
+  watchData([url],()=>liveSnapshot(url),{signal:other.signal,onData:()=>{},onError:assert.fail})
+  await tick()
+  Events.instances.at(-1).data(url,'large file contents'.repeat(10000))
+  await tick()
+  assert.ok(resource.data.value.length>100000)
+  scope.stop()
+  assert.ok(resource.data.value===null,'unmounted resource must release fetched contents')
+  assert.ok(liveSnapshot(url),'another open view still owns the snapshot')
+  other.abort()
+  assert.equal(liveSnapshot(url),undefined,'last subscriber must drop snapshot immediately')
+  await tick()
 })
