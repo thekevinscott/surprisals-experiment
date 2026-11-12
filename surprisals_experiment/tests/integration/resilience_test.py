@@ -5,11 +5,12 @@ import json
 import httpx2
 import pytest
 from state_machine.testing import Done, State
-from surprisals_experiment.config import Config
-from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
 from utils.world import T, U, t_sent
+
+from surprisals_experiment.config import Config
+from surprisals_experiment.retry_policy.constants import DELAYS
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
 TURN = 'windows/0/forks/0/turns/0'
