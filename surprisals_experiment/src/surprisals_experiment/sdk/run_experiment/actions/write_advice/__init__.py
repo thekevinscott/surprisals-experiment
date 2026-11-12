@@ -6,23 +6,27 @@ from ....run import Run
 from ....turn import Turn
 from ....utils.u_chat.stream_reply.errors import OutputTokenLimitError
 from ....utils.write import write
-from .earlier_turns import earlier_turns
 from .prepare_flush import prepare_flush
+from .render_code import render_code
 from .system_prompt import system_prompt
 
 
 async def write_advice(run: Run, turn: Turn) -> None:
     config = turn.config
     system = await system_prompt(run, turn)
-    if run.u_chat.messages[0]["content"] != system:
-        run.u_chat.record({"role": "system", "content": system})
-    messages = [
-        {"role": "user", "content": await prepare_flush(turn, run.problem, run.database)},
-        *await earlier_turns(turn, run.database),
-    ]
+    messages = [{"role": "system", "content": system}]
+    if not any(entry["role"] == "user" for entry in run.u_chat.entries()):
+        messages.append({"role": "user", "content": await prepare_flush(turn, run.problem, run.database)})
+    elif turn.position:
+        previous = Turn(config, turn.position - 1, turn.window, turn.fork)
+        metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
+        if metadata["advice"] is not None:
+            messages.append({"role": "user", "content": await render_code(
+                config, run.database, str(previous.attempt_dir.relative_to(config.output)),
+            )})
     try:
         text = await run.u_chat.prompt(
-            messages,
+            messages, attempt=turn.position,
             on_delta=partial(run.on_delta, str(turn.u_dir.relative_to(config.output)))
             if run.on_delta
             else None,

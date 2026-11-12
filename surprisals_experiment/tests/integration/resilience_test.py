@@ -96,10 +96,8 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': appended(PASS)}]
-    failed_turn = [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True},
-                   PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ...},
-                   {'role': 'user', 'content': QUESTION, '_reset': True}]
-    asked = [chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'][0], *failed_turn]
+    asked = [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'],
+             PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ..., '_attempt': 1}]
     answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),

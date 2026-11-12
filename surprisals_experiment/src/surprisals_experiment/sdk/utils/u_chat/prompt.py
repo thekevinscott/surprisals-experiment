@@ -1,11 +1,15 @@
-"""Resume a pending turn, or start a fresh conversation for a new request."""
+"""Append new input before making a request from the transcript."""
+
+import json
+
+from ..append import append
 
 
-async def prompt(self, messages: list[dict], *, on_delta=None) -> str:
-    if self.attempt is not None and self.turn_attempt == self.attempt:
-        if self.turn_reply is not None:
-            return self.turn_reply
-        return await self.reply(on_delta=on_delta)
-    for index, message in enumerate(messages):
-        self.record(message, reset=index == 0, attempt=self.attempt if index == len(messages) - 1 else None)
+async def prompt(self, messages: list[dict], *, attempt=None, on_delta=None) -> str:
+    entries = self.entries()
+    last_attempt = next((entry["_attempt"] for entry in reversed(entries) if "_attempt" in entry), None)
+    if attempt is None or attempt != last_attempt:
+        for index, message in enumerate(messages):
+            entry = message | ({"_attempt": attempt} if attempt is not None and index == len(messages) - 1 else {})
+            append(self.transcript, json.dumps(entry, ensure_ascii=False) + "\n")
     return await self.reply(on_delta=on_delta)

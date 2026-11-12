@@ -39,9 +39,9 @@ def chat(window, *turns):
 
     A prompt is the opening user message, or the whole conversation as a list of messages."""
     lines = [{'role': 'system', 'content': ...}]
-    for user, advice in turns:
+    for attempt, (user, advice) in enumerate(turns):
         conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
-        lines += [{'role': 'system', 'content': ...}, {**conversation[0], '_reset': True}, *conversation[1:]]
+        lines += [{'role': 'system', 'content': ...}, conversation[-1] | {'_attempt': attempt}]
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'

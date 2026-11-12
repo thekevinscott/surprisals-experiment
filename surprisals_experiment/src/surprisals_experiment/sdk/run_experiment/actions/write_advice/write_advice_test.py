@@ -4,18 +4,20 @@ import json
 from contextlib import contextmanager
 
 import pytest
+from run_database import ExperimentDatabase, QuestionDatabase
 
 from advice_artifacts import write_advice as seed_advice
 from surprisals_experiment.config import Config
-from run_database import ExperimentDatabase, QuestionDatabase
+from surprisals_experiment.sdk import advice as advice_module
 from surprisals_experiment.sdk.run import Run
-from surprisals_experiment.sdk.turn import Turn
+from surprisals_experiment.sdk.run_experiment.actions import (
+    write_advice as write_advice_module,
+)
 from surprisals_experiment.sdk.run_experiment.actions.write_advice import write_advice
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
+from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
 from surprisals_experiment.sdk.utils.write import write
-from surprisals_experiment.sdk import advice as advice_module
-from surprisals_experiment.sdk.run_experiment.actions import write_advice as write_advice_module
 
 
 @pytest.mark.parametrize('window,measure,best,expected', [
@@ -47,7 +49,7 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
     async with open_u_chat(config) as chat:
-        assert chat.messages[0]['content'] == system
+        assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 23, window))
         assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
@@ -110,9 +112,11 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     opening = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
                '<attempt>\n<index>0</index>\n<length>5 characters</length>\n<advice>\nBest.\n</advice>\n'
                + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
-    botbox_script.advice.append('Next.')
+    botbox_script.advice.extend(['Later.', 'Again.', 'Next.'])
     async with open_u_chat(config) as chat:
         run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
+        await write_advice(run, Turn(config, 0, 1, 0))
+        await write_advice(run, Turn(config, 1, 1, 0))
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},

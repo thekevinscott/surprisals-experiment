@@ -144,8 +144,8 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
     def chat(*turns):
         messages = [system]
-        for user, advice in turns:
-            messages += [system, {**user[0], '_reset': True}, *user[1:]]
+        for attempt, (user, advice) in enumerate(turns):
+            messages += [system, user[-1] | {'_attempt': attempt}]
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
         return messages
