@@ -116,6 +116,8 @@ async def test_character_metadata_has_no_tokens(config, execute_run_experiment):
     ]
     async with execute_run_experiment(config, world):
         pass
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/u/rejected'))
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/u/**/*'))
 
 
 async def test_bits_drive_improvement_feedback_and_result(scoring_config, execute_run_experiment):
@@ -285,6 +287,8 @@ async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_e
     ]
     async with execute_run_experiment(config, world):
         pass
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/u/rejected'))
+    assert not list(config.output.glob('windows/*/forks/*/turns/*/u/**/*'))
 
 
 def overflowing(config):
@@ -310,6 +314,8 @@ async def test_advice_over_scorer_context_every_attempt_stops_run(scoring_config
     world = overflowing(scoring_config)
     async with execute_run_experiment(scoring_config, world):
         pass
+    assert not list(scoring_config.output.glob('windows/*/forks/*/turns/*/u/rejected'))
+    assert not list(scoring_config.output.glob('windows/*/forks/*/turns/*/u/**/*'))
 
 
 async def test_relaunch_after_overflow_keeps_counting_attempts(scoring_config, execute_run_experiment):
