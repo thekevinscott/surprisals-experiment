@@ -22,9 +22,9 @@ defineExpose({ reveal })
 </script>
 <template>
   <ContentPanel ref="windowPanel" v-model:expanded="windowExpanded" class="run-window" :data-window="window.id" :title="`Window ${window.id}`" :href="link(`windows/${window.id}`)">
-    <div class="window-grid" :style="{ '--fork-count': Math.max(1, window.forks.length), '--parallel-rows': turnIds.length + 1, '--fork-width': `${columnWidth}px` }">
+    <div class="window-grid" :style="{ '--fork-count': Math.max(1, window.forks.length), '--parallel-rows': turnIds.length + 2, '--fork-width': `${columnWidth}px` }">
       <div class="phase fork-phase" role="group" aria-label="Parallel forks">
-        <ForkBranch v-for="(fork,index) in window.forks" :key="fork.id" :fork="fork" :turn-ids="turnIds" :style="{ gridColumn: index + 1 }" :continues="window.continuedForks.includes(fork.id)" />
+        <ForkBranch v-for="(fork,index) in window.forks" :key="fork.id" :fork="fork" :window-id="window.id" :turn-ids="turnIds" :style="{ gridColumn: index + 1 }" :continues="window.continuedForks.includes(fork.id)" />
       </div>
       <div v-if="window.continuedForks.length" class="phase solo-phase" role="group" aria-label="Solo continuation">
         <template v-for="(fork,index) in window.forks" :key="fork.id">
