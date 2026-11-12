@@ -4,14 +4,13 @@ from hashlib import sha256
 
 import pytest
 
-from state_machine.testing import Done, State
+from utils.non_u_layout import Done, State
 from u_flush_test import PASS, flush, outcome, played
-from utils.world import U, T, t_sent, u_system
+from utils.world import U, T, t_sent
 
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
-USAGE = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 
 
 def suite(passed):
@@ -27,33 +26,17 @@ def stdout():
             '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
 
-def prompt(best):
-    if best is None:
-        return QUESTION
-    position, advice = best
-    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{position}</index>\n'
-            f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n<code>\n<T-0>\n'
-            f'<file path="main.py">\n{DOUBLE}</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
-
-
 def run_world(config, rounds, advice, code):
     """States for `rounds` of (window, position, forks): U for each fork in order, then T for each fork.
 
-    Each fork's conversation opens with the best attempt from earlier windows and grows by turn.
     Returns the states and the files the last T round leaves for Done.
     """
-    states, pending, transcripts, written, best, starts, conversations = [], {}, {}, set(), None, {}, {}
+    states, pending, written = [], {}, set()
     for window, position, forks in rounds:
-        start = starts.setdefault(window, best)
         for fork in forks:
             text = advice(fork, position)
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
-            path = 'u/transcripts' if (window, fork) == (0, 0) else f'windows/{window}/forks/{fork}/u/transcripts'
-            conversation = conversations.setdefault((window, fork), [{'role': 'user', 'content': prompt(start)}])
-            messages = transcripts.setdefault(path, [])
-            messages += [{'role': 'system', 'content': ...}] * (1 if messages else 2)
-            messages += [{**conversation[0], '_reset': True}, *conversation[1:]]
-            files = {**pending, f'{path}/messages.jsonl': list(messages)}
+            files = dict(pending)
             if not states:
                 files['settings.json'] = {
                     'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
@@ -71,18 +54,14 @@ def run_world(config, rounds, advice, code):
                 U(text, thinking='Shorten.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                      'messages': [{'role': 'system', 'content': u_system(config, position + 1, start and len(start[1]))},
-                                   *conversation]},
+                      'messages': ...},
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
                 files=files,
             ))
-            messages.append({'content': text, 'role': 'assistant', 'reasoning': 'Shorten.', '_complete': True})
             stored = 'advices/' + sha256(text.encode()).hexdigest()
             pending = {
                 f'{turn}/metadata.json': {'advice': stored},
                 f'{turn}/u/advice.txt': text,
-                f'{path}/messages.jsonl': list(messages),
-                f'{path}/usage.jsonl': [USAGE] * sum('_complete' in message for message in messages),
             }
             if stored not in written:
                 written.add(stored)
@@ -100,11 +79,7 @@ def run_world(config, rounds, advice, code):
             ))
             pending = {}
             passed = code(fork) == DOUBLE
-            conversations[window, fork] += [{'role': 'assistant', 'content': text}, {'role': 'user', 'content': (
-                f'<code>\n<T-0>\n<file path="main.py">\n{code(fork)}</file>\n<results>{2 * passed}/2 test cases passed</results>\n</T-0>\n</code>')}]
             scored |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': suite(passed)}
-            if passed and (best is None or len(text) < len(best[1])):
-                best = (position, text)
         pending = scored
     return states, pending
 
