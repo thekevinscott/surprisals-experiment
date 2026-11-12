@@ -71,3 +71,11 @@
   dataset's `.gitattributes` routes `*.json` to LFS.
 - Done means the file count under `EXP/RUN` on the Hub equals
   `find experiments/EXP/runs/RUN -type f | wc -l` on the host. Delete only after that.
+
+## Transcript display
+
+- Render transcript files in original order without filtering records, deduplicating
+  prompts, reconstructing context, splitting fields, or rewriting their text.
+- Before declaring a transcript viewer fix complete, compare its displayed text
+  with the original file. Verify repeated system prompts, incomplete records,
+  and blank lines remain present; keep a regression test for this comparison.
