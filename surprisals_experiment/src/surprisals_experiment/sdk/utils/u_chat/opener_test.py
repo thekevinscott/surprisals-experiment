@@ -142,11 +142,13 @@ async def test_reopened_pending_turn_does_not_duplicate_input(config, botbox_scr
     if not answered:
         path.write_text('\n'.join(path.read_text().splitlines()[:-1]) + '\n')
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as reopened:
-        await reopened.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-    assert chat_provider[-1]['messages'] == [
-        *chat_provider[0]['messages'],
-        *([{'role': 'assistant', 'content': 'first'}] if answered else []),
-    ]
+        saved = path.read_bytes()
+        assert await reopened.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == (
+            'first' if answered else 'second')
+        if answered:
+            assert path.read_bytes() == saved
+    assert len(chat_provider) == (1 if answered else 2)
+    assert chat_provider[-1]['messages'] == chat_provider[0]['messages']
     assert sum(entry['role'] == 'user' for entry in transcript(config)) == 1
 
 
@@ -178,19 +180,11 @@ async def test_provider_error_exhaustion_leaves_the_transcript_unchanged(
     assert no_retry_wait.await_count == len(DELAYS)
 
 
-async def test_repeated_attempt_keeps_every_completed_reply_in_context(config, botbox_script, chat_provider):
-    botbox_script.advice.extend(['rejected', 'accepted', 'next'])
+async def test_repeated_completed_attempt_returns_saved_reply_without_request(config, botbox_script, chat_provider):
+    botbox_script.advice.extend(['rejected', 'unexpected'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as session:
-        await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-        await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-        await session.prompt([{'role': 'user', 'content': 'feedback'}], attempt=1)
-    assert chat_provider[1]['messages'] == [
-        *chat_provider[0]['messages'], {'role': 'assistant', 'content': 'rejected'},
-    ]
-    assert chat_provider[2]['messages'][1:] == [
-        {'role': 'user', 'content': 'question'},
-        {'role': 'assistant', 'content': 'rejected'},
-        {'role': 'assistant', 'content': 'accepted'},
-        {'role': 'user', 'content': 'feedback'},
-    ]
-    assert [entry['content'] for entry in transcript(config) if entry['role'] == 'assistant'] == ['rejected', 'accepted', 'next']
+        assert await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == 'rejected'
+        saved = session.transcript.read_bytes()
+        assert await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == 'rejected'
+        assert session.transcript.read_bytes() == saved
+    assert len(chat_provider) == 1

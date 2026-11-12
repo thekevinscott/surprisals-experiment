@@ -1,5 +1,6 @@
 """Real chat streaming, feedback, and incident regressions at the HTTP boundary."""
 
+import json
 from hashlib import sha256
 
 from state_machine.testing import Done, State
@@ -243,3 +244,24 @@ async def test_records_and_uses_a_reply_with_a_lone_surrogate(config, execute_ru
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world, u_layout=True):
         pass
+
+
+async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execute_run_experiment):
+    config.max_u_turns = 1
+    advice = 'double'
+    world, pending = played([
+        [(QUESTION, advice, [PASS])],
+        [(flush(0, advice, length=6), advice, [PASS])],
+    ], {advice: {'score': 6}}, config=config)
+    transcript = 'windows/0/forks/0/u/transcript.jsonl'
+    saved = ''.join(json.dumps(entry) + '\n' for entry in world[1].files.pop(transcript))
+    path = config.output / transcript
+    path.parent.mkdir(parents=True)
+    path.write_text(saved)
+    assert not (path.parent.parent / 'turns/0/metadata.json').exists()
+    world[1].files.update({name: value for name, value in world[0].files.items() if name != transcript})
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
+    # Resume goes straight to T; the only U request is in the next window.
+    async with execute_run_experiment(config, world[1:], u_layout=True):
+        pass
+    assert path.read_text() == saved
