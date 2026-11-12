@@ -17,12 +17,12 @@ from utils.world import Case, Score, T, U
 
 import surprisals_experiment
 
-TRANSCRIPT = '/u/transcript.jsonl'
+TRANSCRIPT = 'windows/*/forks/*/u/transcript.jsonl'
 
 
 def without_u_layout(state):
     state = copy(state)
-    state.files = {path: value for path, value in state.files.items() if not f'/{path}'.endswith(TRANSCRIPT)}
+    state.files = {path: value for path, value in state.files.items() if not Path(path).match(TRANSCRIPT)}
     if isinstance(state, State) and isinstance(state.reply, U):
         state.sent = {**state.sent, 'messages': ...}
     return state
@@ -59,7 +59,7 @@ class MockLLM(MockWorld):
 
     def run_files(self):
         files = super().run_files()
-        return files if self.u_layout else {path: content for path, content in files.items() if not f'/{path}'.endswith(TRANSCRIPT)}
+        return files if self.u_layout else {path: content for path, content in files.items() if not Path(path).match(TRANSCRIPT)}
 
     def relative(self, path):
         return Path(path).relative_to(self.output).as_posix()

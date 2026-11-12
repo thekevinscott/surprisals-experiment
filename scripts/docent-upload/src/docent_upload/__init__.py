@@ -88,8 +88,7 @@ def convert(run):
             "exit_code": record["exit_code"],
             "settings": json.loads((problem_run / "settings.json").read_text()),
         }
-        u_files = [path for path in [problem_run / "u/transcript.jsonl",
-                                     *sorted(problem_run.glob("windows/*/forks/*/u/transcript.jsonl"))] if path.exists()]
+        u_files = sorted(problem_run.glob("windows/*/forks/*/u/transcript.jsonl"))
         # Retain the existing Pi export path for historical runs.
         u_sources = [[path] for path in u_files] or [[problem_run / "u/transcripts", problem_run / "u_transcripts"]]
         for sources in u_sources:

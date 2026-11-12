@@ -17,7 +17,7 @@ def recorded_windows(config):
     async def recording(self, kind, sent):
         if kind is U:
             window = len(seen) // 2
-            path = config.u_transcript if window == 0 else config.output / f'windows/{window}/forks/0/u/transcript.jsonl'
+            path = config.output / f'windows/{window}/forks/0/u/transcript.jsonl'
             entries = [json.loads(line) for line in path.read_text().splitlines()]
             # Main sends the latest system prompt and plain role/content from
             # completed turns; reasoning remains in the raw transcript.
@@ -50,3 +50,16 @@ async def test_transcript_matches_every_request(config, execute_run_experiment, 
     async with execute_run_experiment(config, world, u_layout=True):
         pass
     assert recorded_windows == [0, 0, 1, 1, 2, 2, 3, 3]
+
+
+async def test_first_fork_owns_its_transcript(config, execute_run_experiment):
+    config.max_u_turns = 1
+    world, pending = played([
+        [(QUESTION, 'ok', [PASS])],
+        [(flush(0, 'ok', length=2), 'ok', [PASS])],
+    ], {'ok': {'score': 2}}, config=config)
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
+    async with execute_run_experiment(config, world):
+        pass
+    assert (config.output / 'windows/0/forks/0/u/transcript.jsonl').is_file()
+    assert not (config.output / 'u').exists()

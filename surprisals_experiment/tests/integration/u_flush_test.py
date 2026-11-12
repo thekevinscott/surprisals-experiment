@@ -44,7 +44,7 @@ def chat(window, *turns):
         lines += [{'role': 'system', 'content': ...}, conversation[-1] | {'_attempt': attempt}]
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True, **usage})
-    transcripts = 'u' if window == 0 else f'windows/{window}/forks/0/u'
+    transcripts = f'windows/{window}/forks/0/u'
     return {f'{transcripts}/transcript.jsonl': lines}
 
 

@@ -94,14 +94,6 @@ class Config(BaseModel):
         return self.output / "error.txt"
 
     @property
-    def u_dir(self) -> Path:
-        return self.output / "u"
-
-    @property
-    def u_transcript(self) -> Path:
-        return self.u_dir / "transcript.jsonl"
-
-    @property
     def window_dir(self) -> Path:
         return self.output / "windows" / "0"
 

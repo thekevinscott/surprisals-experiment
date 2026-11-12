@@ -12,7 +12,7 @@ async def test_run_keeps_one_transcript_per_u_conversation(config, execute_run_e
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
     async with execute_run_experiment(config, world, u_layout=True):
         pass
-    for folder in (config.output / 'u', config.output / 'windows/1/forks/0/u'):
+    for folder in (config.output / 'windows/0/forks/0/u', config.output / 'windows/1/forks/0/u'):
         assert sorted(path.name for path in folder.iterdir()) == ['transcript.jsonl']
         messages = [json.loads(line) for line in (folder / 'transcript.jsonl').read_text().splitlines()]
         reply = messages[-1]

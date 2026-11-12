@@ -18,7 +18,7 @@ CONTEXT = Prompt("u/flush/context.txt")
 
 
 @asynccontextmanager
-async def open_u_chat(config, *, transcript=None) -> AsyncGenerator[ChatSession]:
+async def open_u_chat(config, *, transcript) -> AsyncGenerator[ChatSession]:
     prompt = SYSTEM(
         measure_wording=config.advice_measure.wording,
         implementation_access=CONTEXT(),
@@ -28,7 +28,6 @@ async def open_u_chat(config, *, transcript=None) -> AsyncGenerator[ChatSession]
         base_url=OPENROUTER_BASE_URL, api_key=config.api_key.get_secret_value(),
         max_retries=0,
     ) as client:
-        transcript = config.u_transcript if transcript is None else transcript
         transcript.parent.mkdir(parents=True, exist_ok=True)
         u_chat = ChatSession(
             client, config.u_model, config.u_thinking, config.u_provider,
