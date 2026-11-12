@@ -115,6 +115,10 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
         Done(outcome=config.output / attempt(0, 1, 0) / 'src',
              files={**evaluated(attempt(1, 1, 0)), **solved(config, attempt(0, 1, 0), 3)}),
     ]
+    world[1].logs.insert(0, (f'{TURN}/u', 'usage', json.dumps({
+        'completion_tokens': 20, 'prompt_tokens': 10, 'total_tokens': 30,
+        'completion_tokens_details': {'reasoning_tokens': 19},
+    })))
     async with execute_run_experiment(config, world, u_layout=True):
         pass
 

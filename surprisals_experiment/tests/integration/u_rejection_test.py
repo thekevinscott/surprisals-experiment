@@ -22,10 +22,14 @@ async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_exp
     path = turn(0, 0)
     first = u_state(config, path, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None), config=config)})
     first.sent['messages'] = [{'role': 'system', 'content': u_system(config)}, {'role': 'user', 'content': u_user(config, 1, QUESTION)}]
-    retry = u_state(config, path, QUESTION, 'shorter', {
-        **rejected(path, 0), 'windows/0/forks/0/u/transcript.jsonl': ...,
-    })
     feedback = (PROMPTS / 'u/rejected.txt').read_text()
+    transcript = 'windows/0/forks/0/u/transcript.jsonl'
+    retry = u_state(config, path, QUESTION, 'shorter', {
+        **rejected(path, 0), transcript: [
+            *chat(0, (QUESTION, 'too long 0'), config=config)[transcript],
+            {'role': 'user', 'content': feedback},
+        ],
+    })
     assert OVERFLOW not in feedback
     retry.sent['messages'] = [
         *first.sent['messages'],
