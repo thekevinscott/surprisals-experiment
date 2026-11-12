@@ -7,7 +7,10 @@ async def prompt(self, messages: list[dict], *, on_delta=None) -> str:
         return sent[-1]["content"]
     if messages[:len(sent)] != sent:
         diverged = len(list(self.transcript.parent.glob("messages.diverged-*.jsonl")))
-        self.transcript.rename(self.transcript.with_name(f"messages.diverged-{diverged}.jsonl"))
+        moved = self.transcript.with_name(f"messages.diverged-{diverged}.jsonl")
+        self.transcript.rename(moved)
+        if on_delta is not None:
+            on_delta("warning", f"U transcript diverged from the request; moved to {moved}\n")
         self.messages = []
     for message in messages[len(self.messages):]:
         self.record(message)
