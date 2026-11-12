@@ -36,20 +36,22 @@ def appended(*codes):
 
 
 def chat(window, *turns):
-    """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked.
-
-    A prompt is the opening user message, or the whole conversation as a list of messages."""
-    lines = [{'role': 'system', 'content': ...}]
-    for user, advice in turns:
-        conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
-        lines += [{'role': 'system', 'content': ...}, {**conversation[0], '_reset': True}, *conversation[1:]]
-        if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
+    """The transcript and streamed replies for full request/advice pairs."""
+    lines = list(turns[-1][0])
+    if turns[-1][1] is not None:
+        lines.append({'role': 'assistant', 'content': turns[-1][1]})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
+    files = {f'{transcripts}/messages.jsonl': lines}
     if turns[-1][1] is None:
-        return {f'{transcripts}/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
+        return files
+    accepted = [advice for _, advice in turns if advice is not None]
+    if accepted:
+        usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+        files[f'{transcripts}/usage.jsonl'] = [usage] * len(accepted)
+        files[f'{transcripts}/replies.jsonl'] = [
+            {'completion_id': 'u', 'message': {'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}}
+            for advice in accepted]
+    return files
 
 
 def results(path, code):
@@ -78,13 +80,16 @@ def played(windows, scores, *, config, sequential=False, bits=None):
         answered, conversation = [], []
         for index, (prompt, advice, codes) in enumerate(window_turns):
             assert (prompt is None) == (index > 0)
-            conversation = conversation or [{'role': 'user', 'content': prompt}]
+            conversation = conversation or [{'role': 'system', 'content': u_system(config, best)},
+                                            {'role': 'user', 'content': prompt}]
+            conversation.append({'role': 'user', 'content': f'turn {index + 1}' +
+                                 (f' of {config.max_u_turns}' if config.max_u_turns is not None else '')})
             path = f'windows/{window}/forks/0/turns/{index}'
             states.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                      'messages': [{'role': 'system', 'content': u_system(config, index + 1, best)}, *conversation]},
+                      'messages': list(conversation)},
                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)],
                 files={**pending, **chat(window, *answered, (list(conversation), None))},
             ))
