@@ -5,6 +5,7 @@ import PassBlocks from './PassBlocks.vue'
 import { attemptState, attemptOutcome } from '../composables/outcomes.js'
 import ContentPanel from './ContentPanel.vue'
 import TAttempt from './TAttempt.vue'
+import TranscriptButton from './TranscriptButton.vue'
 const props=defineProps({ sample: Object })
 const expanded = ref(true)
 const apiUrl=inject('apiUrl')
@@ -14,13 +15,14 @@ const latest=computed(()=>data.value?.attempts.find(attempt=>attempt.id===props.
 <template>
   <ContentPanel local v-model:expanded="expanded" class="t-sample" :data-sample="sample.id" :title="`T${sample.id}`">
     <template #title><span class="sample-label" :class="attemptOutcome(sample.latest)">T{{ sample.id }}</span></template>
-    <template #summary>
+    <template #actions><TranscriptButton v-if="data?.attempts.length === 1" :files="data.attempts[0].transcriptFiles" label="💬" /></template>
+    <div class="sample-tests">
       <PassBlocks v-if="latest?.tests && !latest.generation?.timed_out && !latest.generation?.error" :passed="latest.tests.passed" :total="latest.tests.total" :cases="latest.tests.cases" :source="latest.testsSource" />
       <span v-else>{{ attemptState(sample.latest) }}</span>
-    </template>
+    </div>
     <div v-if="expanded" class="sample-scroll">
       <p v-if="loading">Loading attempts…</p><p v-else-if="error" role="alert">{{ error }}</p>
-      <TAttempt v-for="attempt in (loading ? [] : data?.attempts ?? [])" :key="attempt.id" :attempt="attempt" />
+      <TAttempt v-for="attempt in (loading ? [] : data?.attempts ?? [])" :key="attempt.id" :attempt="attempt" :flat="data?.attempts.length === 1" />
     </div>
   </ContentPanel>
 </template>
@@ -30,5 +32,10 @@ const latest=computed(()=>data.value?.attempts.find(attempt=>attempt.id===props.
 .sample-label.failed { color: #b91c1c; }
 .sample-label.unknown { color: #657186; }
 .sample-scroll { padding: 0 2px 2px; }
+.sample-tests { display: flex; min-width: 0; margin: 2px 0 4px; font-size: 10px; overflow-wrap: anywhere; }
+.t-sample :deep(.p-panel-header) { flex-wrap: wrap; gap: 0; padding: 2px; }
+.t-sample :deep(.p-panel-header-actions) { flex-wrap: wrap; }
+.t-sample :deep(.p-panel-toggle-button) { width: 18px; height: 18px; }
+.t-sample :deep(.p-panel-content) { padding: 0 2px 2px; }
 p { font-size: 11px; color: #657186; }
 </style>

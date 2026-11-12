@@ -1,21 +1,23 @@
 <script setup>
-import PassBlocks from './PassBlocks.vue'
 import { attemptState } from '../composables/outcomes.js'
 import ContentPanel from './ContentPanel.vue'
 import TranscriptButton from './TranscriptButton.vue'
 import FileContents from './FileContents.vue'
-import TestResults from './TestResults.vue'
-defineProps({attempt:Object})
+defineProps({attempt:Object,flat:Boolean})
 </script>
 <template>
-  <ContentPanel :title="`Attempt ${attempt.id}`" :expanded="true">
-    <template #summary>
-      <PassBlocks v-if="attempt?.tests && !attempt.generation?.timed_out && !attempt.generation?.error" :passed="attempt.tests.passed" :total="attempt.tests.total" :cases="attempt.tests.cases" :source="attempt.testsSource" />
-      <span v-else>{{ attemptState(attempt) }}</span>
-    </template>
-    <template #actions><TranscriptButton :files="attempt.transcriptFiles" label="💬" /></template>
-    <FileContents v-for="file in attempt.files" :key="file.name" :file="file" />
+  <div v-if="flat" class="attempt-files">
+    <FileContents v-for="file in attempt.files" :key="file.name" :file="file" :icon-only="attempt.files.length === 1" />
     <p v-if="!attempt.files.length">No written files recorded</p>
-    <TestResults :results="attempt.tests" :missing-reason="attemptState(attempt)" :source="attempt.testsSource" />
+  </div>
+  <ContentPanel v-else :title="`Attempt ${attempt.id}`" :expanded="true" class="attempt-panel">
+    <template #summary><span>{{ attemptState(attempt) }}</span></template>
+    <template #actions><TranscriptButton :files="attempt.transcriptFiles" label="💬" /></template>
+    <FileContents v-for="file in attempt.files" :key="file.name" :file="file" :icon-only="attempt.files.length === 1" />
+    <p v-if="!attempt.files.length">No written files recorded</p>
   </ContentPanel>
 </template>
+<style scoped>
+p { overflow-wrap: anywhere; font-size: 10px; }
+.attempt-panel :deep(.p-panel-header) { flex-wrap: wrap; }
+</style>

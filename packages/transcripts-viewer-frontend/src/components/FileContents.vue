@@ -1,25 +1,19 @@
 <script setup>
-import { ref, inject } from 'vue'
-import { useLiveResource,fetchText } from '../composables/api.js'
+import { inject } from 'vue'
 import { fileSize } from '../composables/fileSize.js'
-import FileContent from './FileContent.vue'
-import ContentPanel from './ContentPanel.vue'
-const props = defineProps({ file: Object })
-const rawSourceUrl = inject('rawSourceUrl', () => undefined)
-const expanded = ref(false)
-const {data:text,error}=useLiveResource(
-  ()=>expanded.value?[props.file.url ?? rawSourceUrl(props.file.source)]:[],
-  (signal,[url])=>fetchText(url,signal),
-)
+import { openFile } from '../composables/filePreview.js'
+import SourceActions from './SourceActions.vue'
+defineProps({ file: Object, iconOnly: Boolean })
+const sourceUrl=inject('sourceUrl')
 </script>
 <template>
-  <ContentPanel :source="file.source" v-model:expanded="expanded" :title="`File · ${file.name}`" :summary="fileSize(file.bytes)" class="file-content">
-    <p v-if="error" role="alert">{{ error }}</p>
-    <p v-else-if="text === null">Loading file…</p>
-    <FileContent v-else :name="file.name" :text="text" />
-  </ContentPanel>
+  <div class="file-content" :class="{'icon-only':iconOnly}">
+    <button v-if="!iconOnly" class="file-name" type="button" @click="openFile(sourceUrl(file.source))">{{ file.name }} <small>{{ fileSize(file.bytes) }}</small></button>
+    <SourceActions :title="file.name" :source="file.source" />
+  </div>
 </template>
 <style scoped>
-.file-content { margin-top: 8px; }
-p, .file-content :deep(p) { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 11px; }
+.file-content { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.file-name { min-width: 0; padding: 2px 0; border: 0; background: none; color: #254c7f; text-align: left; overflow-wrap: anywhere; font: inherit; font-size: 11px; cursor: pointer; }
+small { color: #657186; font-size: 9px; }
 </style>

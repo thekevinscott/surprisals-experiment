@@ -18,8 +18,8 @@ function openCase(position) { openFile(target.value,{testCase:position}) }
   </span>
 </template>
 <style scoped>
-.pass-blocks { display: inline-flex; flex-wrap: wrap; gap: 3px; vertical-align: middle; }
-.pass-block { width: 8px; height: 8px; border-radius: 2px; border: 0; padding: 0; }
+.pass-blocks { display: inline-flex; flex-wrap: nowrap; gap: 0; max-width: 100%; min-width: 0; vertical-align: middle; }
+.pass-block { flex: 0 1 8px; width: 8px; min-width: 0; height: 8px; border-radius: 0; border: 0; padding: 0; }
 button.pass-block { cursor: pointer; }
 button.pass-block:focus-visible { outline: 2px solid #254c7f; outline-offset: 2px; }
 .passed { background: #15803d; }
