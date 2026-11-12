@@ -18,7 +18,7 @@ async def prepare_flush(turn: Turn, problem: QuestionDatabase, database: Experim
     question = await problem.question
     best = await database.query(BEST_ATTEMPT, samples=config.t_samples, window=turn.window)
     if not best:
-        return question
+        return TURN(question=question.rstrip("\n"), attempt=None)
     metadata = json.loads((config.output / best[0]["turn_id"] / "metadata.json").read_text())
     advice = Advice.load(config.output, metadata["advice"], config.advice_measure)
     attempt = dict(
