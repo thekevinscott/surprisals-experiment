@@ -214,8 +214,10 @@ async def test_diverged_transcript_is_set_aside_and_the_request_sent(config, bot
     transcript = config.u_transcripts / 'messages.jsonl'
     before = transcript.read_bytes()
     request = [{'role': 'user', 'content': 'a different question'}]
+    deltas = []
     async with open_u_chat(config) as resumed:
-        assert await resumed.prompt(request) == 'second'
+        assert await resumed.prompt(request, on_delta=lambda kind, text: deltas.append((kind, text))) == 'second'
     assert (config.u_transcripts / 'messages.diverged-0.jsonl').read_bytes() == before
+    assert deltas[0] == ('warning', f'U transcript diverged from the request; moved to {config.u_transcripts}/messages.diverged-0.jsonl\n')
     assert [json.loads(line) for line in transcript.read_text().splitlines()] == [
         *request, {'role': 'assistant', 'content': 'second'}]
