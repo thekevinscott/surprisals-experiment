@@ -25,14 +25,9 @@ def start(config, instance, command, working_directory):
             check=True,
         )
         state_export = f"export LABNOTES_RUN_STATE={ROOT}/run-state.json\n"
-    log_export = (
-        f"export LABNOTES_LOG={ROOT}/run/log.jsonl\n"
-        if os.environ.get("LABNOTES_LOG")
-        else ""
-    )
     script = f"""#!/bin/sh
 export PATH=/home/ubuntu/.local/bin:$PATH
-{state_export}{log_export}(
+{state_export}(
 cd {shlex.quote(working_directory)} || exit 125
 {shlex.join(command)}
 ) >> {ROOT}/run/command.stdout.log 2>> {ROOT}/run/command.stderr.log
