@@ -6,21 +6,14 @@ export function attemptState(attempt) {
   return `${tests.all_passed ? 'Passed' : 'Failed'} · ${tests.passed}/${tests.total} tests passed`
 }
 export function turnSummary(turn) {
-  return turn.measurement == null ? 'No score' : `${turn.measurement.toLocaleString(undefined, {maximumFractionDigits:2})} ${turn.unit}`
+  return turn.measurement == null ? 'No score' : `${String(turn.measurement)} ${turn.unit}`
 }
 
-export function passBlocks(passed, total) {
-  return Array.from({length: total}, (_, index) => index < passed ? 'passed' : 'failed')
-}
 export function attemptOutcome(attempt) {
   if (attempt?.generation?.timed_out || attempt?.generation?.error) return 'failed'
   if (attempt?.tests?.all_passed == null) return 'unknown'
   return attempt.tests.all_passed ? 'passed' : 'failed'
 }
-export function turnPassed(turn) {
-  return turn.samples.filter(sample => attemptOutcome(sample.latest) === 'passed').length
-}
-
-export function testCaseBlocks(cases) {
-  return cases.map((test, position) => ({outcome: test.passed ? 'passed' : 'failed', index: test.index, position}))
+export function testCaseBlocks(cases=[]) {
+  return cases.map((test, position) => ({status: test.status, index: test.index, position}))
 }

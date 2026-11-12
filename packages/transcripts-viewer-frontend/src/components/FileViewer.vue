@@ -3,7 +3,7 @@ import {computed,provide} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
 import TokenText from './TokenText.vue'
-const props=defineProps({src:String,name:String,line:String,testCase:Number,initialText:String,tokens:Array,measurement:String,showName:{type:Boolean,default:true}})
+const props=defineProps({src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,showName:{type:Boolean,default:true}})
 provide('sourceUrl',(_path,line)=>{
   const viewer=new URL(location.href)
   viewer.hash=`files/${encodeURIComponent(props.name)}?${new URLSearchParams({src:props.src,...(line?{line:String(line)}:{})})}`
@@ -21,7 +21,7 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
       <p>{{ measurement }}</p>
       <pre class="raw-file"><TokenText :text="text" :tokens="tokens" /></pre>
     </template>
-    <FileContent v-else :name="name" :text="text" :line="line" :test-case="testCase" />
+    <FileContent v-else :name="name" :text="text" :line="line" />
   </section>
 </template>
 <style scoped>

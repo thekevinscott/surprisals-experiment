@@ -21,7 +21,7 @@ const files=computed(()=>sampleFiles(data.value?.attempts ?? [],rawUrl))
     <template #title><span class="sample-label" :class="attemptOutcome(sample.latest)">T{{ sample.id }}</span></template>
     <template #actions><Button class="icon-button" text size="small" label="📄" aria-label="Open files" title="Open files" :disabled="!files.length" @click="openFiles({name:`T${sample.id} files`,files})" /><TranscriptButton v-if="data?.attempts.length" :files="data.attempts.flatMap(attempt => attempt.transcriptFiles ?? [])" :modal-title="`T${sample.id} transcript`" label="💬" /></template>
     <div class="sample-tests">
-      <PassBlocks v-if="latest?.tests && !latest.generation?.timed_out && !latest.generation?.error" :passed="latest.tests.passed" :total="latest.tests.total" :cases="latest.tests.cases" :source="latest.testsSource" />
+      <PassBlocks v-if="latest?.tests?.cases" :passed="latest.tests.passed" :total="latest.tests.total" :cases="latest.tests.cases" :source="latest.testsSource" />
       <span v-else :title="status">{{ status }}</span>
     </div>
   </ContentPanel>

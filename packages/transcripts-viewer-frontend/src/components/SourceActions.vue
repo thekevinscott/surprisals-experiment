@@ -20,7 +20,7 @@ onBeforeUnmount(()=>clearTimeout(timer))
     <Button class="icon-button" v-if="source && sourceUrl(source,sourceLine)" as="a" text rounded size="small" label="📄" aria-label="Source file" :href="sourceUrl(source,sourceLine)" @mouseenter="show($event,'source')" @mouseleave="leave" @focus="show($event,'source')" @click.prevent.stop="popup?.hide();openFile(sourceUrl(source,sourceLine))" />
     <Popover ref="popup" @hide="pinned=false" @mouseenter="clearTimeout(timer)" @mouseleave="leave" :style="{maxWidth:'min(500px, 95vw)',maxHeight:'60vh',overflow:'auto'}">
       <strong>{{ mode === 'metadata' ? `Metadata for ${title}` : 'Source file' }}</strong>
-      <VueJsonPretty v-if="mode === 'metadata'" :data="metadata" :deep="2" show-icon />
+      <VueJsonPretty v-if="mode === 'metadata'" :data="metadata" :deep="Infinity" show-icon />
       <pre v-else>{{ source }}</pre>
     </Popover>
   </span>

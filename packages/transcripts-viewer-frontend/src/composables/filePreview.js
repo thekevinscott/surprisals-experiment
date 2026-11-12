@@ -10,7 +10,7 @@ export function openFile(url, options={}) {
     filePreview.value={src,name,title,line:route.get('line'),rawFiles:[{url:src,source:name}],...options}
   }
 }
-export function openTranscript(preview) {filePreview.value={...preview,kind:'transcript'}}
+export function openTranscript(preview,file=preview.files[0]) {filePreview.value={...preview,kind:'transcript',files:[file],source:file.source,rawFiles:[file]}}
 export function openFiles(preview) {filePreview.value={...preview,kind:'files',rawFiles:preview.files.slice(0,1).map(file=>({url:file.url,source:file.source}))}}
 export function selectPreviewFile(file) {
   if(filePreview.value?.kind==='files' && file)filePreview.value={...filePreview.value,rawFiles:[{url:file.url,source:file.source}]}
