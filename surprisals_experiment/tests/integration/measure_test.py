@@ -53,7 +53,7 @@ def priced(advice, score):
 
 
 def advised(path, advice):
-    return {f'{path}/metadata.json': {'advice': advice_path(advice)}}
+    return {f'{path}/metadata.json': {'advice': advice_path(advice), 'u_messages': ..., 'u_request_sha256': ...}}
 
 
 def unscored(path, advice):

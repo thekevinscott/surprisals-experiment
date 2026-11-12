@@ -2,6 +2,7 @@
 
 import json
 from hashlib import sha256
+import pytest
 
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
@@ -80,7 +81,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     def advised(window, number, advice, score=None):
         digest = f'advices/{sha256(advice.encode()).hexdigest()}'
         path = turn(window, number)
-        files = {f'{path}/metadata.json': {'advice': digest}}
+        files = {f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
         return files | ({f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}} if score else {})
 
     def evaluated(window, number):
@@ -122,7 +123,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
                'longer advice': 'advices/6c5930dfdad8282d9030e1cd507d78acfc26231d4fc74758d85584199ee9f561'}
     system = {'role': 'system', 'content': u_system(config)}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None, 'u_messages': ..., 'u_request_sha256': ...}
     tests = {'duration_seconds': 0.0, 'passed': 2, 'failed': 0, 'total': 2, 'all_passed': True, 'cases': [
         {'index': 0, 'passed': True, 'status': 'passed', 'stdout': '6\n', 'stderr': '', 'exit_code': 0},
         {'index': 1, 'passed': True, 'status': 'passed', 'stdout': '14\n', 'stderr': '', 'exit_code': 0},
@@ -171,7 +172,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
             files={
                 f'{transcripts(window)}/transcript.jsonl': messages,
-                f'{t}/metadata.json': {'advice': advices[advice]},
+                f'{t}/metadata.json': {'advice': advices[advice], 'u_messages': ..., 'u_request_sha256': ...},
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,
                 f'{t}/ts/0/attempts/0/src/main.py': PASS,
                 **(files or {}),
@@ -246,7 +247,8 @@ async def test_records_and_uses_a_reply_with_a_lone_surrogate(config, execute_ru
         pass
 
 
-async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execute_run_experiment):
+@pytest.mark.parametrize('request_metadata', [{}, {'u_messages': 2, 'u_request_sha256': 'a' * 64}])
+async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execute_run_experiment, request_metadata):
     config.max_u_turns = 1
     advice = 'double'
     world, pending = played([
@@ -254,7 +256,14 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
         [(flush(0, advice, length=6), advice, [PASS])],
     ], {advice: {'score': 6}}, config=config)
     transcript = 'windows/0/forks/0/u/transcript.jsonl'
-    saved = ''.join(json.dumps(entry) + '\n' for entry in world[1].files.pop(transcript))
+    entries = world[1].files.pop(transcript)
+    entries[-1].pop('u_messages')
+    entries[-1].pop('u_request_sha256')
+    entries[-1].update(request_metadata)
+    saved = ''.join(json.dumps(entry) + '\n' for entry in entries)
+    world[1].files['windows/0/forks/0/turns/0/metadata.json'] = {
+        'advice': world[1].files['windows/0/forks/0/turns/0/metadata.json']['advice'], **request_metadata,
+    }
     path = config.output / transcript
     path.parent.mkdir(parents=True)
     path.write_text(saved)
@@ -265,3 +274,5 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
     async with execute_run_experiment(config, world[1:], u_layout=True):
         pass
     assert path.read_text() == saved
+    metadata = json.loads((path.parent.parent / 'turns/0/metadata.json').read_text())
+    assert {key: value for key, value in metadata.items() if key != 'advice'} == request_metadata
