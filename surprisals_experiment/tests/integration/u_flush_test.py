@@ -37,7 +37,7 @@ def chat(window, *turns, config, best=None):
     """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked.
 
     A prompt is raw opening text, or a conversation whose user messages already include turn lines."""
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None, 'u_messages': ..., 'u_request_sha256': ...}
     lines = [{'role': 'system', 'content': u_system(config)}]
     for attempt, (user, advice) in enumerate(turns):
         conversation = user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, attempt + 1, user, best)}]
@@ -92,7 +92,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
-            pending = {**chat(window, *answered, config=config, best=best), f'{path}/metadata.json': {'advice': digest}}
+            pending = {**chat(window, *answered, config=config, best=best), f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
             if advice not in seen:
                 seen.add(advice)
                 pending[f'{digest}/advice.txt'] = advice

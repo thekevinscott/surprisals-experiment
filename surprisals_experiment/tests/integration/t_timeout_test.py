@@ -54,7 +54,7 @@ def opened(window):
 def advised(window, turn, advice, score=None):
     digest = f'advices/{sha256(advice.encode()).hexdigest()}'
     path = f'windows/{window}/forks/0/turns/{turn}'
-    files = {f'{path}/metadata.json': {'advice': digest}}
+    files = {f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
     if score is not None:
         files |= {f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}}
     return files

@@ -73,7 +73,7 @@ def build(output, settings, rounds, failing, advices):
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))
-            pending = {f'{turn}/metadata.json': {'advice': folder(advice)}}
+            pending = {f'{turn}/metadata.json': {'advice': folder(advice), 'u_messages': ..., 'u_request_sha256': ...}}
             if advice not in saved:
                 saved.add(advice)
                 pending[f'{folder(advice)}/advice.txt'] = advice

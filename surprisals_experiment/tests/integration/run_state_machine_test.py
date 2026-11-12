@@ -52,7 +52,7 @@ def window_world(config, windows):
             files['settings.json'] = settings(config)
         world.append(State(U(advice, thinking='Think.'), sent=u_body(),
                            logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)], files=files))
-        pending = {f'{turn}/metadata.json': {'advice': f'advices/{record}'}}
+        pending = {f'{turn}/metadata.json': {'advice': f'advices/{record}', 'u_messages': ..., 'u_request_sha256': ...}}
         if record not in scored:
             scored.add(record)
             pending[f'advices/{record}/advice.txt'] = advice

@@ -41,10 +41,13 @@ async def write_advice(run: Run, turn: Turn) -> None:
         return
     with run.database.dirsql.lock:
         advice = Advice(config.output, text, config.advice_measure)
+        reply = run.u_chat.entries()[-1]
+        # Older completed replies have no request identity; do not reconstruct one.
+        request_metadata = {key: reply[key] for key in ("u_messages", "u_request_sha256") if key in reply}
         write(
             turn.attempt_dir / "metadata.json",
             json.dumps(
-                {"advice": advice.id}, indent=2
+                {"advice": advice.id, **request_metadata}, indent=2
             )
             + "\n",
         )
