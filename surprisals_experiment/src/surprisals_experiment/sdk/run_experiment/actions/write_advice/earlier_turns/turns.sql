@@ -1,4 +1,4 @@
-SELECT turns.id AS turn_id, advices.text
+SELECT turns.id AS turn_id, turns.position, advices.text
 FROM windows
 JOIN forks ON forks.window_id = windows.id AND forks.position = :fork
 JOIN turns ON turns.fork_id = forks.id AND turns.position < :turn

@@ -13,10 +13,8 @@ from .system_prompt import system_prompt
 
 async def write_advice(run: Run, turn: Turn) -> None:
     config = turn.config
-    system = await system_prompt(run, turn)
-    if run.u_chat.messages[0]["content"] != system:
-        run.u_chat.record({"role": "system", "content": system})
     messages = [
+        {"role": "system", "content": await system_prompt(run, turn)},
         {"role": "user", "content": await prepare_flush(turn, run.problem, run.database)},
         *await earlier_turns(turn, run.database),
     ]

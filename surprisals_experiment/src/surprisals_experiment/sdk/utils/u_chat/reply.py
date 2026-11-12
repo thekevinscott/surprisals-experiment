@@ -9,11 +9,7 @@ from .stream_reply.stream_reply import stream_reply
 
 
 async def reply(self, *, on_delta=None) -> str:
-    history_length = len(self.messages)
-
     def before_sleep(state):
-        # Keep failed partial output on disk, but retry the original conversation.
-        del self.messages[history_length:]
         if on_delta is not None:
             on_delta("retry", f"{state.attempt_number}/{len(DELAYS)} in {state.upcoming_sleep:g}s: "
                               f"{state.outcome.exception()}\n")

@@ -21,8 +21,6 @@ async def system_prompt(run: Run, turn: Turn) -> str:
         measure_wording=turn.config.advice_measure.wording,
         implementation_access=CONTEXT(),
         t_samples=turn.config.t_samples,
-        turn=turn.position + 1,
-        turns=turn.config.max_u_turns,
         best=best,
         target=target,
         improvement=f"{IMPROVEMENT:.0%}",

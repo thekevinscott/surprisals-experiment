@@ -1,11 +1,14 @@
-"""Resume a pending turn, or start a fresh conversation for a new request."""
+"""Send U the conversation, appending to the transcript only what it does not hold yet."""
 
 
 async def prompt(self, messages: list[dict], *, on_delta=None) -> str:
-    if self.attempt is not None and self.turn_attempt == self.attempt:
-        if self.turn_reply is not None:
-            return self.turn_reply
-        return await self.reply(on_delta=on_delta)
-    for index, message in enumerate(messages):
-        self.record(message, reset=index == 0, attempt=self.attempt if index == len(messages) - 1 else None)
-    return await self.reply(on_delta=on_delta)
+    sent = self.messages
+    if sent and sent[:-1] == messages and sent[-1]["role"] == "assistant":
+        return sent[-1]["content"]
+    if messages[:len(sent)] != sent:
+        raise RuntimeError(f"U's transcript {self.transcript} is not the start of the conversation to send")
+    for message in messages[len(sent):]:
+        self.record(message)
+    text = await self.reply(on_delta=on_delta)
+    self.record({"role": "assistant", "content": text})
+    return text
