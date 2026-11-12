@@ -4,11 +4,13 @@ import json
 
 import pytest
 
+import measure_test
 import resilience_test
 import restart_from_every_kill_point_test
 import u_chat_test
 import u_flush_test
 import window_state_machine_test
+from measure_test import scoring_config  # noqa: F401
 from u_flush_test import PASS, QUESTION, flush, outcome, played
 from utils.mock_llm import MockLLM
 from utils.world import U
@@ -144,3 +146,8 @@ async def test_parallel_forks(config, execute_run_experiment, requests, window_s
 async def test_restart(config, execute_run_experiment, requests, kill):
     await restart_from_every_kill_point_test.test_restart_from_every_kill_point(config, execute_run_experiment, *KILLS[kill])
     assert_transcripts_are_requests(config.output, requests)
+
+
+async def test_advice_rejected_by_the_scorer(scoring_config, execute_run_experiment, requests):
+    await measure_test.test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_experiment)
+    assert_transcripts_are_requests(scoring_config.output, requests)
