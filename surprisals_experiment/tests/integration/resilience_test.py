@@ -10,7 +10,7 @@ from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
-from utils.world import U, T, t_sent, u_system
+from utils.world import U, T, t_sent, u_system, u_messages
 
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
@@ -18,7 +18,7 @@ TURN = 'windows/0/forks/0/turns/0'
 OK = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 USAGE = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30,
          'completion_tokens_details': {'reasoning_tokens': 19}}
-PARTIAL = {'role': 'assistant', 'content': 'partial', '_complete': False}
+PARTIAL = {'role': 'assistant', 'content': 'partial'}
 WINDOWS = [[(QUESTION, 'Use a loop', [PASS])], [(flush(0, 'Use a loop', length=10), 'Use a loop', [PASS])]]
 CHUNK = {'id': 'u', 'choices': [{'delta': {'content': 'partial', 'role': 'assistant'}, 'index': 0,
                                  'finish_reason': 'error', 'error': {'message': 'upstream failed', 'code': 502}}],
@@ -37,7 +37,7 @@ class Traceback(str):
 @pytest.mark.parametrize('failure,shown,error,recorded,row', [
     pytest.param(U(thinking='Hmm: what about'), [('thinking', 'Hmm: what about')],
                  'U chat did not produce complete advice (stop)',
-                 {'role': 'assistant', 'reasoning': 'Hmm: what about', '_complete': False}, OK,
+                 {'role': 'assistant', 'reasoning': 'Hmm: what about'}, OK,
                  id='thinking-only-stop'),
     pytest.param(U('partial', finish='content_filter'), [('text', 'partial')],
                  'Could not parse response content as the request was rejected by the content filter', PARTIAL, OK,
@@ -57,16 +57,17 @@ async def test_failed_reply_retries_original_history(
 ):
     world, pending = played(WINDOWS, {'Use a loop': {'score': 10}}, config=config)
     retried, tested = world[0], world[1]
-    asked = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
-    partial = [] if recorded is None else [recorded]
+    asked = retried.sent['messages']
+    partial = [] if recorded is None else [{'completion_id': 'u', 'message': recorded}]
     failed = State(failure, sent=retried.sent, logs=[(f'{TURN}/u', kind, text) for kind, text in shown],
                    files=retried.files)
     retried.logs = [(f'{TURN}/u', 'retry', f'1/8 in 10s: {error}\n'), *retried.logs]
     retried.files = {'u/transcripts/usage.jsonl': [row]}
     if partial:
-        retried.files['u/transcripts/messages.jsonl'] = [*asked, *partial]
+        retried.files['u/transcripts/replies.jsonl'] = partial
     answer = chat(0, (QUESTION, 'Use a loop'))['u/transcripts/messages.jsonl'][-1]
-    tested.files['u/transcripts/messages.jsonl'] = [*asked, *partial, answer]
+    tested.files['u/transcripts/messages.jsonl'] = [*asked, answer]
+    tested.files['u/transcripts/replies.jsonl'] = partial + tested.files['u/transcripts/replies.jsonl']
     tested.files['u/transcripts/usage.jsonl'] = [row, OK]
     world = [failed, *world, outcome(config, TURN, 2, pending)]
     async with execute_run_experiment(config, world):
@@ -97,22 +98,43 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': appended(PASS)}]
-    failed_turn = [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True},
-                   PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ...},
-                   {'role': 'user', 'content': QUESTION, '_reset': True}]
-    asked = [chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'][0], *failed_turn]
-    answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
+    first_request = u_messages(config, QUESTION)
+    asked = [*first_request, {'role': 'user', 'content': 'turn 2 of 2'}]
+    answer = {'role': 'assistant', 'content': advice}
+    failed_reply = {'completion_id': 'u', 'message': PARTIAL | {'reasoning': 'Cut off'}}
+    accepted_reply = {'completion_id': 'u', 'message': {**answer, 'reasoning': 'Think.'}}
+
+    def chat(window, *turns):
+        from u_flush_test import chat as transcript
+        return transcript(window, *turns, max_turns=2)
+
+    def u_state(config, window, turn, prompt, advice, files, previous=None):
+        messages = asked if window == 0 and turn == 1 else u_messages(config, prompt, previous)
+        path = f'windows/{window}/forks/0/turns/{turn}/u'
+        return State(U(advice, thinking='Think.'),
+                     sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
+                           'provider': {'only': ['xiaomi'], 'allow_fallbacks': False}, 'messages': messages},
+                     logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
+
+    def t_state(window, turn, sample, attempt, advice, files):
+        from t_timeout_test import t_state as build_t
+        state = build_t(window, turn, sample, attempt, advice, {})
+        state.check_u_layout = True
+        state.files.update(files)
+        return state
+
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}).sent,
               logs=[(f'{TURN}/u', 'thinking', 'Cut off'), (f'{TURN}/u', 'text', 'partial')],
               files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        # Turn 1 is sent only its system prompt and the question: no partial reasoning or content.
+        # The failed turn contributes its counter but no assistant/code pair.
         u_state(config, 0, 1, QUESTION, advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
-            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}),
+            'u/transcripts/messages.jsonl': asked, 'u/transcripts/replies.jsonl': [failed_reply], 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}),
         t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
+                                     'u/transcripts/replies.jsonl': [failed_reply, accepted_reply],
                                      'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK], **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
                 previous=10),
