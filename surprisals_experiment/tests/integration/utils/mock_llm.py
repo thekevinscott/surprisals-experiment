@@ -13,6 +13,8 @@ from openai import AsyncOpenAI
 
 import surprisals_experiment
 from state_machine.testing import MockWorld, masked
+from state_machine.testing.mock_world import run_files
+from utils.non_u_layout import without_transcripts
 from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 
 from utils.world import U, Case, Score, T
@@ -23,6 +25,14 @@ class MockLLM(MockWorld):
         super().__init__(world, output)
         self.boxes = []
         self.followers = {}
+
+    def check(self, name, expected):
+        if getattr(expected, 'check_u_layout', True):
+            return super().check(name, expected)
+        self.files = without_transcripts(self.files)
+        with patch('state_machine.testing.mock_world.run_files',
+                   lambda output: without_transcripts(run_files(output))):
+            return super().check(name, expected)
 
     def __enter__(self):
         self.patches = [
