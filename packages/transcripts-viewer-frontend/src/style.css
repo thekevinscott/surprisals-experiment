@@ -37,15 +37,17 @@ footer { max-width: 960px; color: #657186; font-size: 12px; line-height: 1.7; }
 a { color: #214da3; }
 .clickable-row { cursor: pointer; }
 .problem a { text-decoration: none; }
-.drilldown-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 16px; }
+.drilldown-header { display:flex;flex-wrap:wrap;align-items:stretch;gap:16px;flex:none; }
 .drilldown-header > :not(:first-child) { border-left: 1px solid #dae1ea; padding-left: 16px; }
-.run-summary { min-width: 0; }
-.selectors { display: flex; flex-wrap: wrap; gap: 16px; }
+.run-summary { flex:0 1 auto;min-width:0;max-width:100%; }
+.drilldown-header .problem-files { flex:1 1 120px;align-items:center;justify-content:center;text-align:center; }
+.selectors { display:flex;flex:0 1 auto;flex-wrap:wrap;gap:16px; }
 .search-select { position: relative; width: 280px; max-width: 100%; }
 .metadata { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 16px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
 .metadata dt { color: #657186; font-size: 10px; margin-bottom: 4px; }
 .metadata dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
-.drilldown { min-height: 60vh; }
+.run-page { height:100dvh;overflow:hidden;display:flex;flex-direction:column; }
+.run-page .drilldown { flex:1;min-height:0;margin:0;display:flex;flex-direction:column; }
 .related-runs a { display: inline-block; margin: 8px; font-size: 12px; }
 .graphs { max-width: 1400px; }
 .graphs article { padding: 20px; border: 1px solid #dae1ea; background: white; border-radius: 8px; margin: 24px 0; }
@@ -61,7 +63,6 @@ a { color: #214da3; }
 .select-option { font-size: 12px; }
 .select-option small { display: block; color: #657186; margin-top: 4px; }
 
-.minimization-loop { margin: 8px 0; padding: 8px; border: 1px solid var(--viewer-border); border-radius: 8px; background: white; min-width: 0; }
 
 
 .back-link { display: inline-block; margin: 2px 0 8px; font-size: 12px; }
@@ -72,12 +73,26 @@ a { color: #214da3; }
 .file-modal .p-dialog-title { font-size: 14px; overflow-wrap: anywhere; }
 .file-modal .p-dialog-content { padding: 0 16px 16px; flex: 1; }
 
-.run-graphs { margin: 8px 0; padding: 8px; border: 1px solid var(--viewer-border); border-radius: 8px; background: white; }
 @media (max-width: 800px) {
-  .drilldown-header { gap: 8px; grid-template-columns: minmax(0, 1fr) auto minmax(120px, 1fr); padding: 8px; }
+  .drilldown-header { gap:8px;padding:8px; }
   .drilldown-header > :not(:first-child) { padding-left: 8px; }
-  .selectors { flex-direction: column; }
+  .selectors { flex-wrap:wrap; }
 }
 
 button.icon-button, a.icon-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; min-width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1; color: var(--viewer-muted); }
 .icon-button svg { width: 12px; height: 12px; }
+
+.run-body { display:flex;flex-direction:column;flex:1;min-height:0;gap:8px;margin-top:8px; }
+.run-page .run-section.content-panel { display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow:hidden;--p-panel-border-radius:8px; }
+.run-page .run-section.content-panel.collapsed { flex:0 0 auto; }
+.run-section > .p-panel-header { flex:none; }
+.run-section > .p-panel-content-container { flex:1;min-height:0;overflow:auto;display:block; }
+.run-section > .p-panel-content-container > .p-panel-content-wrapper,
+.run-section > .p-panel-content-container > .p-panel-content-wrapper > .p-panel-content { height:100%;min-height:0; }
+.run-section > .p-panel-content-container > .p-panel-content-wrapper > .p-panel-content > .disclosure-body,
+.run-section > .p-panel-content-container > .p-panel-content-wrapper > .p-panel-content > .disclosure-body > .box-content { height:100%;min-height:0; }
+.run-graphs .cell-chart { height:100%;min-height:0;margin:0;display:flex;flex-direction:column; }
+.run-graphs .cell-chart > svg { flex:1 1 0;height:0;min-height:0;width:100%; }
+.run-graphs .cell-chart > .filters,.run-graphs .cell-chart > .chart-legend { flex:none; }
+.run-page .back-link { flex:none; }
+.run-section > .p-panel-content-container > .p-panel-content-wrapper > .p-panel-content > .disclosure-body { display:block; }

@@ -28,6 +28,8 @@ import {filePreview,closeFile} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
+import ContentPanel from './components/ContentPanel.vue'
+const graphsExpanded=ref(true), transcriptsExpanded=ref(true)
 import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
@@ -98,7 +100,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
-  <main>
+  <main :class="{'run-page':selected && !fileRoute}">
     <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
     <template v-else>
     <p v-if="error" role="alert">{{ error }}</p>
@@ -122,12 +124,14 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       </div>
       </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
-      <section :key="selected.id" class="run-graphs" aria-label="Run graphs">
-        <CellChart :chart-data="runCharts" kind="advice" :controls="false" />
-      </section>
-      <figure class="minimization-loop">
-        <ForkDiagram :run="selected" :target="target" />
-      </figure>
+      <div class="run-body">
+        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" title="Graphs" aria-label="Run graphs">
+          <CellChart :key="selected.id" :chart-data="runCharts" kind="advice" :controls="false" />
+        </ContentPanel>
+        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" title="Transcripts" aria-label="Run transcripts">
+          <ForkDiagram :run="selected" :target="target" />
+        </ContentPanel>
+      </div>
     </section>
     <section v-else-if="tab === 'graphs'" aria-label="Graphs" class="graphs">
       <p>Graphs from the slides, using live experiment files. ✓ indicates exit 0; ? indicates an open run.</p>
