@@ -21,13 +21,6 @@ def in_problem_dir(config):
 
 
 @pytest.fixture
-def labnotes_log(config):
-    log = config.problem_dir / "log.jsonl"
-    with patch.dict(os.environ, {"LABNOTES_LOG": str(log)}):
-        yield log
-
-
-@pytest.fixture
 def labnotes_run_state(tmp_path):
     state = tmp_path / "state.json"
     state.write_text(json.dumps({"base_url": "http://state-scorer/v1"}))
@@ -56,7 +49,7 @@ def world(config, u_model, t_model, url, u_provider='xiaomi'):
 
 
 async def test_cli_runs_with_selected_measure_and_stopping_budget(
-    config, labnotes_log, in_problem_dir, execute_run_experiment
+    config, in_problem_dir, execute_run_experiment
 ):
     (config.problem_dir / ".env").write_text("OPENROUTER_API_KEY=test-key\n")
     settings = {'window_solo_turns': 2, 'u_model': 'selected-u', 'u_provider': 'selected-provider',
@@ -72,14 +65,6 @@ async def test_cli_runs_with_selected_measure_and_stopping_budget(
     written = json.loads((config.output / "settings.json").read_text())
     assert written.items() >= settings.items()
     assert "window_turns" not in written
-    blocks = [json.loads(line) for line in labnotes_log.read_text().splitlines()]
-    starts = {block["id"]: block for block in blocks if block.get("phase") == "start"}
-    stops = {block["id"] for block in blocks if block.get("phase") == "stop"}
-    assert starts.keys() == stops
-    streams = {block_id.rsplit("/", 1)[0] for block_id in starts}
-    assert len([stream for stream in streams if stream.endswith("/u")]) == 2
-    assert len([stream for stream in streams if "/ts/" in stream]) == 4
-    assert {"thinking", "text"} <= {block["type"] for block in starts.values()}
 
 
 async def test_surprisal_reads_scorer_url_from_labnotes_state(

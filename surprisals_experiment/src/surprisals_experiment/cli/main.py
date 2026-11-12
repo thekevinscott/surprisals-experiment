@@ -29,7 +29,7 @@ from surprisals_experiment.config import (
 )
 from surprisals_experiment.sdk import Config, run_experiment
 
-from .log_streams import LogStreams
+from .print_delta import PrintDelta
 
 
 async def main(argv: list[str] | None = None) -> None:
@@ -130,7 +130,7 @@ async def main(argv: list[str] | None = None) -> None:
         help="Problem directory (for parameter grids)",
     )
     args = parser.parse_args(argv)
-    streams = LogStreams()
+    print_delta = PrintDelta()
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
@@ -166,13 +166,12 @@ async def main(argv: list[str] | None = None) -> None:
                 window_solo_turns=args.window_solo_turns,
                 max_u_turns=args.max_u_turns,
             ),
-            on_delta=streams.delta,
-            on_t_delta=streams.delta,
+            on_delta=print_delta,
+            on_t_delta=print_delta,
         )
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
     finally:
-        streams.close()
         loop.remove_signal_handler(signal.SIGTERM)
 
     print()
