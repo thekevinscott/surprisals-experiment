@@ -73,7 +73,7 @@ Tests execute generated Python on the host, outside the agent containers, with a
 Run artifacts belong in `experiments/<experiment>/runs/<run>/`; experiment files belong in `experiments/<experiment>/files/`. The whole `experiments/` folder is ignored by Git; experiments live in the runs dataset, not this repository. Bank runs in the [surprisals-experiment-runs dataset on Hugging Face](https://huggingface.co/datasets/thekevinscott/surprisals-experiment-runs) at `<experiment>/<run>/`, following [the banking instructions](AGENTS.md#banking-runs). Existing runs under the legacy root `runs/` remain in place until a separate migration while no labnotes run is active.
 
 - `result.json`: best-so-far success status, completed attempt count, and solution path, derived from the database when the run completes.
-- `u_transcripts/`: U’s conversation in `messages.jsonl`, with system, user, and assistant messages (including returned reasoning).
+- `u/transcript.jsonl`: U’s conversation and reply usage, with system, user, and assistant messages (including returned reasoning).
 - `windows/0/window.json` and `windows/0/forks/0/fork.json`: `{}` placeholders; every turn is in window 0, fork 0.
 - `advices/<sha256>/advice.txt`: exact UTF-8 advice bytes, shared by identical texts.
 - Adjacent `advice.json`: `score`, plus `tokens` in surprisal mode.
