@@ -4,10 +4,9 @@ from hashlib import sha256
 
 import pytest
 from state_machine.testing import Done, State
-from utils.world import Score, T, U, t_sent, u_system
-
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
+from utils.world import Score, T, U, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -38,17 +37,15 @@ def chat(window, *turns):
     """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked.
 
     A prompt is the opening user message, or the whole conversation as a list of messages."""
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
     lines = [{'role': 'system', 'content': ...}]
     for attempt, (user, advice) in enumerate(turns):
         conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
         lines += [{'role': 'system', 'content': ...}, conversation[-1] | {'_attempt': attempt}]
         if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
-    transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
-    if turns[-1][1] is None:
-        return {f'{transcripts}/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
+            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True, **usage})
+    transcripts = 'u' if window == 0 else f'windows/{window}/forks/0/u'
+    return {f'{transcripts}/transcript.jsonl': lines}
 
 
 def results(path, code):

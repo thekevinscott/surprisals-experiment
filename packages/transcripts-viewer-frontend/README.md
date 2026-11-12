@@ -57,7 +57,7 @@ U transcripts load when opened. T attempts load when their sample opens; their
 transcripts and written files load when opened. File icons open a full-screen modal over the current view. Closing it preserves
 scroll and disclosure state. Direct `#files/{encoded-relative-path}?src={API-URL}`
 links remain supported.
-A shared file matcher displays messages.jsonl as message blocks with a numbered
+A shared file matcher displays transcript.jsonl as message blocks with a numbered
 navigation rail, other JSONL as records, JSON as a collapsible JSON tree, and
 solutions.json as one preformatted block per solution. Text files remain plain
 text. The Raw view control shows the exact file text in the same viewer. Original files remain unchanged.

@@ -17,8 +17,8 @@ def recorded_windows(config):
     async def recording(self, kind, sent):
         if kind is U:
             window = len(seen) // 2
-            directory = config.u_transcripts if window == 0 else config.output / f'windows/{window}/forks/0/u/transcripts'
-            entries = [json.loads(line) for line in (directory / 'messages.jsonl').read_text().splitlines()]
+            path = config.u_transcript if window == 0 else config.output / f'windows/{window}/forks/0/u/transcript.jsonl'
+            entries = [json.loads(line) for line in path.read_text().splitlines()]
             # Main sends the latest system prompt and plain role/content from
             # completed turns; reasoning remains in the raw transcript.
             system = next(entry for entry in reversed(entries) if entry['role'] == 'system')
@@ -26,7 +26,9 @@ def recorded_windows(config):
             expected = [{key: entry[key] for key in ('role', 'content')} for entry in messages]
             assert sent['messages'] == expected
             if len(seen) % 2:
-                assert any(entry.get('reasoning') == 'Think.' for entry in entries)
+                reply = next(entry for entry in entries if entry.get('reasoning') == 'Think.')
+                assert {'timestamp', 'completion_id', 'usage'} <= reply.keys()
+                assert reply['completion_id'] == 'u'
                 assert len(expected) == 4
             seen.append(window)
         return await answer(self, kind, sent)

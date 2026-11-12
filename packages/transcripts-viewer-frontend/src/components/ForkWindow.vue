@@ -65,7 +65,7 @@ defineExpose({ reveal })
       </ContentPanel>
     </div>
     <ContentPanel title="Original U transcript files">
-      <p v-for="fork in window.forks" :key="fork.id">Fork {{ fork.id }} · messages.jsonl <SourceActions :source="fork.transcriptPath" /></p>
+      <p v-for="fork in window.forks" :key="fork.id">Fork {{ fork.id }} · transcript.jsonl <SourceActions :source="fork.transcriptPath" /></p>
     </ContentPanel>
     <p v-if="!window.continuedForks.length" class="note">No solo continuation recorded in this window.</p>
     <div v-if="hasNext" class="next-window">{{ window.continuedForks.length ? `Fork ${window.continuedForks.join(', ')} → next window` : 'Next recorded window' }}<div aria-hidden="true">↓</div></div>

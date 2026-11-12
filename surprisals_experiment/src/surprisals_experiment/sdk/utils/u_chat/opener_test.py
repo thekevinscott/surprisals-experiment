@@ -14,7 +14,7 @@ PROVIDER_ERROR = {
 
 def transcript(config):
     return [json.loads(line) for line in
-            (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+            config.u_transcript.read_text().splitlines()]
 
 
 async def test_streams_advice_and_appends_each_prompt(
@@ -33,11 +33,11 @@ async def test_streams_advice_and_appends_each_prompt(
     assert [message['role'] for message in chat_provider[1]['messages']] == ['system', 'user', 'assistant', 'user']
     assert ''.join(text for kind, text in deltas if kind == 'text') == 'first\nadvice'
     assert ('thinking', 'Thinking.') in deltas
-    transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
+    transcript = [json.loads(line) for line in config.u_transcript.read_text().splitlines()]
     assert len(transcript) == 5
     assert transcript[2]['reasoning'] == 'Thinking.'
     assert transcript[-1]['content'] == 'next'
-    usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
+    usage = [entry for entry in transcript if entry['role'] == 'assistant']
     assert len(usage) == 2
     assert all(entry['usage'] is None for entry in usage)
 
@@ -53,7 +53,7 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
     with pytest.raises(asyncio.CancelledError):
         async with open_u_chat(config) as session:
             await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=cancel)
-    transcript = (config.u_transcripts / 'messages.jsonl').read_text()
+    transcript = config.u_transcript.read_text()
     assert 'Thinking.' in transcript
 
 
@@ -109,7 +109,7 @@ async def test_reopened_transcript_is_the_only_history(config, botbox_script, ch
     botbox_script.advice.extend(['first', 'second'])
     async with open_u_chat(config) as live:
         await live.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-    path = config.u_transcripts / 'messages.jsonl'
+    path = config.u_transcript
     # A change on disk must be used by the next call, without an in-memory mirror.
     text = path.read_text().replace('question', 'edited question')
     path.write_text(text)
@@ -133,7 +133,7 @@ async def test_reopened_pending_turn_does_not_duplicate_input(config, botbox_scr
     botbox_script.advice.extend(['first', 'second'])
     async with open_u_chat(config) as live:
         await live.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-    path = config.u_transcripts / 'messages.jsonl'
+    path = config.u_transcript
     if not answered:
         path.write_text('\n'.join(path.read_text().splitlines()[:-1]) + '\n')
     async with open_u_chat(config) as reopened:

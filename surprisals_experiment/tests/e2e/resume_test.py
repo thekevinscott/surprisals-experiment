@@ -48,7 +48,7 @@ def snapshot(output):
     for generation in output.glob('**/ts/*/attempts/*/generation.json'):
         paths.update(p for p in (generation.parent / 'src').rglob('*') if p.is_file())
     artifacts = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in paths}
-    transcripts = {p: p.read_bytes() for p in output.rglob('messages.jsonl')}
+    transcripts = {p: p.read_bytes() for p in output.rglob('transcript.jsonl')}
     assert artifacts and transcripts
     return artifacts, transcripts
 
@@ -74,7 +74,7 @@ def check_result(output, forks, samples):
         assert len(list(turn.glob('ts/*/attempts/*/generation.json'))) == samples
         assert len(list(turn.glob('ts/*/attempts/*/tests.json'))) == samples
     # Each completed U turn has one assistant reply, including across restarts.
-    replies = [json.loads(line) for p in output.rglob('messages.jsonl')
+    replies = [json.loads(line) for p in output.rglob('transcript.jsonl')
                for line in p.read_text().splitlines()]
     assert sum(entry.get('role') == 'assistant' and entry.get('_complete') is not False
                for entry in replies) == len(turns)
@@ -494,7 +494,7 @@ cap-strategy = ["characters"]
             if lost == "local":
                 # The U turn is in flight on the box; nothing has to finish before the crash.
                 return (folder / "settings.json").exists() and any(
-                    p.stat().st_size for p in folder.rglob("messages.jsonl"))
+                    p.stat().st_size for p in folder.rglob("transcript.jsonl"))
             return list(folder.glob("windows/*/forks/*/turns/*/u/advice.txt"))
 
         wait(stop_point)
@@ -502,7 +502,7 @@ cap-strategy = ["characters"]
         before = snapshot(folder) if lost == "instance" else ({}, {})
         before[0].update({p: (p.read_bytes(), p.stat().st_mtime_ns)
                           for p in (folder / "settings.json",)})
-        before[1].update({p: p.read_bytes() for p in folder.rglob("messages.jsonl")})
+        before[1].update({p: p.read_bytes() for p in folder.rglob("transcript.jsonl")})
         # Kill the client first so instance loss cannot race labnotes recording
         # this invocation as lost. Recovery uses only already-mirrored artifacts.
         assert any("aws_runner run" in command for command in kill_labnotes())

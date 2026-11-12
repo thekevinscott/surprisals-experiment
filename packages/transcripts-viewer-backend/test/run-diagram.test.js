@@ -13,13 +13,13 @@ test('actual fork IDs, solo continuation, root transcript ownership and reply ma
     await writeFile(join(root, path), value)
   }
   const reply = (content, reasoning) => JSON.stringify({ role: 'assistant', content, reasoning, _complete: true })
-  await put('u/transcripts/messages.jsonl', [JSON.stringify({ role: 'system', content: 'System rules' }), JSON.stringify({ role: 'user', content: 'Question', _reset: true }), reply('root', 'root thinking')].join('\n'))
+  await put('u/transcript.jsonl', [JSON.stringify({ role: 'system', content: 'System rules' }), JSON.stringify({ role: 'user', content: 'Question', _reset: true }), reply('root', 'root thinking')].join('\n'))
   await put('windows/0/forks/0/turns/0/u/advice.txt', 'root')
   await put('windows/0/forks/0/turns/0/metadata.json', JSON.stringify({ advice: 'advices/ab' }))
   await put('advices/ab/advice.json', JSON.stringify({ score: 17.5, tokens: [['root', 17.5]] }))
   await put('windows/0/forks/2/turns/0/u/advice.txt', 'first')
   await put('windows/0/forks/2/turns/2/u/advice.txt', 'solo')
-  await put('windows/0/forks/2/u/transcripts/messages.jsonl', [
+  await put('windows/0/forks/2/u/transcript.jsonl', [
     reply('first', 'thinking'),
     JSON.stringify({ role: 'assistant', content: 'first', reasoning: 'replayed context' }),
     JSON.stringify({ role: 'assistant', content: 'partial', _complete: false }),

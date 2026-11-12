@@ -98,8 +98,8 @@ class Config(BaseModel):
         return self.output / "u"
 
     @property
-    def u_transcripts(self) -> Path:
-        return self.u_dir / "transcripts"
+    def u_transcript(self) -> Path:
+        return self.u_dir / "transcript.jsonl"
 
     @property
     def window_dir(self) -> Path:

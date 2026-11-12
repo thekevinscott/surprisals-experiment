@@ -12,17 +12,17 @@ import httpx2
 from botbox import RunResult
 from openai import AsyncOpenAI
 from state_machine.testing import MockWorld, State, masked
+from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 from utils.world import Case, Score, T, U
 
 import surprisals_experiment
-from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 
-TRANSCRIPTS = '/u/transcripts/'
+TRANSCRIPT = '/u/transcript.jsonl'
 
 
 def without_u_layout(state):
     state = copy(state)
-    state.files = {path: value for path, value in state.files.items() if TRANSCRIPTS not in f'/{path}'}
+    state.files = {path: value for path, value in state.files.items() if not f'/{path}'.endswith(TRANSCRIPT)}
     if isinstance(state, State) and isinstance(state.reply, U):
         state.sent = {**state.sent, 'messages': ...}
     return state
@@ -59,7 +59,7 @@ class MockLLM(MockWorld):
 
     def run_files(self):
         files = super().run_files()
-        return files if self.u_layout else {path: content for path, content in files.items() if TRANSCRIPTS not in f'/{path}'}
+        return files if self.u_layout else {path: content for path, content in files.items() if not f'/{path}'.endswith(TRANSCRIPT)}
 
     def relative(self, path):
         return Path(path).relative_to(self.output).as_posix()

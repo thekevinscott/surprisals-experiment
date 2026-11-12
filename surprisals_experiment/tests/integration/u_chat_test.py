@@ -3,10 +3,9 @@
 from hashlib import sha256
 
 from state_machine.testing import Done, State
+from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
 from utils.world import T, U, t_sent, u_system
-
-from surprisals_experiment.config import WINDOW_SOLO_TURNS
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -31,12 +30,10 @@ def prompt(index, advice, *samples):
 def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
     """U's first try and all 8 retries fail with `error`."""
     def messages(tries):
-        return [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'], *[recorded] * tries]
+        return [*chat(0, (QUESTION, None))['u/transcript.jsonl'], *([recorded | {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}] * tries if recorded else [])]
 
     def files(tries):
-        row = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}
-        return {'u/transcripts/usage.jsonl': [row] * tries,
-                **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
+        return {'u/transcript.jsonl': messages(tries)} if recorded else {}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
@@ -44,7 +41,7 @@ def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id=
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
-             'u/transcripts/messages.jsonl': messages(0)}
+             'u/transcript.jsonl': messages(0)}
     return [State(reply, sent=sent, logs=text, files=first),
             *(State(reply, sent=sent, logs=[(u, 'retry', f'{tries}/8 in {delay}s: {error}\n'), *text],
                     files=files(tries)) for tries, delay in enumerate(DELAYS, 1)),
@@ -147,11 +144,11 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         for attempt, (user, advice) in enumerate(turns):
             messages += [system, user[-1] | {'_attempt': attempt}]
             if advice:
-                messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
+                messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True, **usage})
         return messages
 
     def transcripts(window):
-        return 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
+        return 'u' if window == 0 else f'windows/{window}/forks/0/u'
 
     def tested(window, turn):
         return {f'windows/{window}/forks/0/turns/{turn}/ts/0/attempts/0/generation.json': {'exit_code': 0},
@@ -165,7 +162,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
                   'messages': [{'role': 'system', 'content': u_system(config, turn + 1, 4 if window else None)}, *user]},
             logs=[(f'windows/{window}/forks/0/turns/{turn}/u', 'thinking', 'Think.'),
                   (f'windows/{window}/forks/0/turns/{turn}/u', 'text', advice)],
-            files={f'{transcripts(window)}/messages.jsonl': messages, **files},
+            files={f'{transcripts(window)}/transcript.jsonl': messages, **files},
         )
 
     def t_state(window, turn, advice, messages, files=None):
@@ -175,8 +172,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             sent=t_sent(f'{t}/ts/0/attempts/0', advice),
             logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
             files={
-                f'{transcripts(window)}/messages.jsonl': messages,
-                f'{transcripts(window)}/usage.jsonl': [usage] * (turn + 1),
+                f'{transcripts(window)}/transcript.jsonl': messages,
                 f'{t}/metadata.json': {'advice': advices[advice]},
                 f'{t}/u/advice.txt': advice,
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,

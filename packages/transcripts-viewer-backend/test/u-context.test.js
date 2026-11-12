@@ -10,7 +10,7 @@ test('U context mirrors system replacement, reset and incomplete-reply exclusion
     {role:'assistant',content:'partial',_complete:false}, {role:'assistant',content:'b',_complete:true},
     {role:'system',content:'turn2'}, {role:'user',content:'continue'}, {role:'assistant',content:'c',_complete:true},
   ]
-  const {replies,messages} = parseUTranscript(entries.map(JSON.stringify).join('\n'),'messages.jsonl')
+  const {replies,messages} = parseUTranscript(entries.map(JSON.stringify).join('\n'),'transcript.jsonl')
   assert.deepEqual(replies.map(r=>uContext(messages,r.context).map(m=>messages.indexOf(m))), [[1,2,3],[4,5,7],[8,5,7,9,10]])
 })
 test('U source line numbers survive blank lines',()=>{const {messages}=parseUTranscript('\n'+JSON.stringify({role:'user',content:'q'})+'\n\n'+JSON.stringify({role:'assistant',content:'a',_complete:true}),'u.jsonl');assert.deepEqual(messages.map(m=>m.line),[2,4])})
