@@ -8,9 +8,14 @@ import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
+import {runStatus} from './composables/runStatus.js'
+import {runDuration} from './composables/runDuration.js'
 import {createChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
+const now=ref(Date.now())
+const clock=setInterval(()=>{now.value=Date.now()},1000)
+onUnmounted(()=>clearInterval(clock))
 const chartData=computed(()=>createChartData(data.rows.filter(row=>row.status)))
 import CellChart from './components/CellChart.vue'
 import WaitChart from './components/WaitChart.vue'
@@ -65,8 +70,7 @@ const columns = [
   { key: 'problem', label: 'Problem' },
   { key: 'strategy', label: 'cap-strategy' },
   { key: 'id', label: 'Run' },
-  { key: 'exit', label: 'Status / exit' },
-  { key: 'cause', label: 'Cause' },
+  { key: 'status', label: 'Status' },
   { key: 'elapsed', label: 'Time' },
   { key: 'turns', label: 'Turns' },
   { key: 'best', label: 'Best advice' },
@@ -76,7 +80,7 @@ const columns = [
 ]
 const number = value => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 const money = value => value == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
-const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`
+const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${Math.floor(seconds % 60)}s`
 </script>
 
 <template>
@@ -99,8 +103,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <div class="run-summary">
       <dl class="metadata">
         <div><dt>Run</dt><dd>{{ selected.id }}</dd></div>
-        <div><dt>Status</dt><dd>{{ selected.status }}<template v-if="selected.exit !== null"> · exit {{ selected.exit }}</template><template v-if="selected.cause"> · {{ selected.cause }}</template></dd></div>
-        <div><dt>Duration</dt><dd>{{ time(selected.elapsed) }}</dd></div>
+        <div><dt>Status</dt><dd>{{ runStatus(selected) }}</dd></div>
+        <div><dt>Duration</dt><dd>{{ time(runDuration(selected,now)) }}</dd></div>
         <div><dt>Windows</dt><dd>{{ number(selected.windows) }}</dd></div>
         <div><dt>Best advice</dt><dd><a v-if="selected.bestTarget" :href="runLink(selected.id, selected.bestTarget)">{{ number(selected.best) }}</a><template v-else>{{ number(selected.best) }}</template> {{ selected.strategy === 'surprisal' ? 'bits' : 'chars' }}</dd></div>
       </dl>
@@ -134,8 +138,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         <Column v-for="column in columns" :key="column.key" :field="column.key" :header="column.label" sortable>
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
-            <span v-else-if="column.key === 'exit'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ row.status }}{{ row.exit == null ? '' : ` (${row.exit})` }}</span>
-            <span v-else-if="column.key === 'elapsed'">{{ time(row.elapsed) }}</span>
+            <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
+            <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row,now)) }}</span>
             <span v-else-if="['uCost','tCost','modelCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>
@@ -144,12 +148,6 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         </Column>
       </DataTable>
     </section>
-    <footer v-if="data.rows.length">
-      <p>Best advice is the lowest score with all configured T samples passing. Turns show sequential depth reached; parallel forks count once, using each run’s window settings.</p>
-      <p>Time covers the latest invocation through its recorded end, or the last observed run/test artifact. “Open” does not confirm that a remote process is still running.</p>
-      <p>Costs sum recorded U usage and T transcript usage across the run, including retries. — means unavailable. AWS and scorer costs are not included: the run files do not record their prices.</p>
-      <p>Live updates are delivered while this page is open.</p>
-    </footer>
     </template>
     </template>
   </main>

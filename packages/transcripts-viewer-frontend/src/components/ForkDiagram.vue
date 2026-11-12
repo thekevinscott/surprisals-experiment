@@ -1,4 +1,5 @@
 <script setup>
+import {runStatus} from '../composables/runStatus.js'
 import { ref, watch, provide, nextTick } from 'vue'
 import { fetchJson,watchData } from '../composables/api.js'
 import { runLink } from '../composables/runLinks.js'
@@ -53,8 +54,8 @@ watch([() => windows.value.length > 0, () => props.target], async () => {
     <ForkWindow ref="windowViews" v-for="(window, index) in windows" :key="window.id" :window="window" :target="target" :has-next="index < windows.length - 1" />
     <p v-if="loading">Loading run details…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
-    <p v-else-if="!windows.length">No windows recorded. Run status: {{ run.status }}<template v-if="run.exit != null"> · exit {{ run.exit }}</template><template v-if="run.cause"> · {{ run.cause }}</template></p>
-    <div v-else class="run-end">{{ run.status }}<template v-if="run.exit !== null"> · exit {{ run.exit }}</template></div>
+    <p v-else-if="!windows.length">No windows recorded. Run status: {{ runStatus(run) }}</p>
+    <div v-else class="run-end">{{ runStatus(run) }}</div>
   </div>
 </template>
 <style scoped>
