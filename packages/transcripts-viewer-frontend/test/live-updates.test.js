@@ -56,3 +56,17 @@ test('opening a second view of the same file uses its current snapshot immediate
   await tick();assert.equal(Events.instances.at(-1),stream);assert.deepEqual(values,['question'])
   a.abort();b.abort();await tick();delete globalThis.EventSource
 })
+
+test('an immediate modal read does not wait for the live stream handshake, and still receives later updates',async()=>{
+  globalThis.EventSource=Events
+  const controller=new AbortController(),values=[]
+  let reads=0
+  watchData(['/api/runs/a/transcripts/u.jsonl'],async()=>++reads,{
+    signal:controller.signal,onData:value=>values.push(value),onError:assert.fail,immediate:true,
+  })
+  await tick()
+  assert.deepEqual(values,[1],'first content is ready before EventSource supplies any snapshot')
+  Events.instances.at(-1).data('/api/runs/a/transcripts/u.jsonl',{total:2,blocks:[]})
+  await tick();assert.deepEqual(values,[1,2],'live changes still refresh the view')
+  controller.abort();await tick();delete globalThis.EventSource
+})
