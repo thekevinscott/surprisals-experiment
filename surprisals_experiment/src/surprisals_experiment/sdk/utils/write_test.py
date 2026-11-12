@@ -36,3 +36,14 @@ def test_write_syncs_file_before_rename_and_parent_after(tmp_path, content):
     assert synced == ['file', 'directory']
     assert path.read_bytes() == expected
     assert not list(tmp_path.glob('.artifact.*'))
+
+
+@pytest.mark.parametrize('content', ['same text\n', b'same bytes\x00\xff'])
+def test_write_skips_identical_content(tmp_path, content):
+    path = tmp_path / 'artifact'
+    write(path, content)
+    inode = path.stat().st_ino
+    with patch('os.fsync') as sync:
+        write(path, content)
+    assert sync.call_count == 0
+    assert path.stat().st_ino == inode
