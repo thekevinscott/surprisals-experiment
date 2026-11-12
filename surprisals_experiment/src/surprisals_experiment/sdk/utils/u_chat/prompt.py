@@ -6,8 +6,10 @@ async def prompt(self, messages: list[dict], *, on_delta=None) -> str:
     if sent and sent[:-1] == messages and sent[-1]["role"] == "assistant":
         return sent[-1]["content"]
     if messages[:len(sent)] != sent:
-        raise RuntimeError(f"U's transcript {self.transcript} is not the start of the conversation to send")
-    for message in messages[len(sent):]:
+        diverged = len(list(self.transcript.parent.glob("messages.diverged-*.jsonl")))
+        self.transcript.rename(self.transcript.with_name(f"messages.diverged-{diverged}.jsonl"))
+        self.messages = []
+    for message in messages[len(self.messages):]:
         self.record(message)
     text = await self.reply(on_delta=on_delta)
     self.record({"role": "assistant", "content": text})
