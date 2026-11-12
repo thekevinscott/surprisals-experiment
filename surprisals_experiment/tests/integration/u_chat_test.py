@@ -57,9 +57,9 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     best = prompt(1, 'short', clean, clean)
     first = [{'role': 'user', 'content': QUESTION}, {'role': 'assistant', 'content': 'long advice'},
-             {'role': 'user', 'content': code(mutated, clean)}]
+             {'role': 'user', 'content': '<length>11 characters</length>\n' + code(mutated, clean)}]
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': 'short'},
-              {'role': 'user', 'content': code(clean, clean)}]
+              {'role': 'user', 'content': '<length>5 characters</length>\n' + code(clean, clean)}]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -137,7 +137,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
     def talk(opening, *said):
         return [{'role': 'user', 'content': opening}, *[message for advice in said for message in (
-            {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': code({'main.py': PASS})})]]
+            {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': f'<length>{len(advice)} characters</length>\n' + code({'main.py': PASS})})]]
 
     def chat(*turns):
         messages = [system]

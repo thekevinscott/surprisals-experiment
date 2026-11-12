@@ -1,0 +1,7 @@
+{% if unit == "characters" %}
+<length>{{ attempt.length }} {{ unit }}</length>
+{% else %}
+<bits>
+{{ attempt.score_text }}
+</bits>
+{% endif %}

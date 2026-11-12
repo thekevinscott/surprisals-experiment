@@ -5,15 +5,13 @@
 <attempt>
 <index>{{ attempt.number }}</index>
 {% if unit == "characters" %}
-<length>{{ attempt.length }} {{ unit }}</length>
+{{ measurement }}
 {% endif %}
 <advice>
 {{ attempt.advice }}
 </advice>
 {% if unit != "characters" %}
-<bits>
-{{ attempt.score_text }}
-</bits>
+{{ measurement }}
 {% endif %}
 {{ attempt.code }}
 </attempt>

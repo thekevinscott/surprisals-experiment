@@ -104,7 +104,7 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     advice = 'Use a loop'
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
-              {'role': 'user', 'content': appended(PASS)}]
+              {'role': 'user', 'content': f'<length>{len(advice)} characters</length>\n' + appended(PASS)}]
     asked = [*chat(0, (QUESTION, None))['windows/0/forks/0/u/transcript.jsonl'],
              PARTIAL | {'reasoning': 'Cut off', **OK, 'usage': USAGE}, {'role': 'system', 'content': ..., '_attempt': 1}]
     answer = chat(0, (QUESTION, advice))['windows/0/forks/0/u/transcript.jsonl'][-1]

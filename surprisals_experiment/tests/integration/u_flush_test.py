@@ -85,7 +85,10 @@ def played(windows, scores, *, config, sequential=False, bits=None):
                 files={**pending, **chat(window, *answered, (list(conversation), None))},
             ))
             answered.append((list(conversation), advice))
-            conversation += [{'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*codes)}]
+            measurement = (f'<bits>\n{"".join(f"{token}<{value:.1f}>" for token, value in bits[advice])}\n</bits>'
+                           if advice in bits else f'<length>{len(advice)} characters</length>')
+            conversation += [{'role': 'assistant', 'content': advice},
+                             {'role': 'user', 'content': measurement + '\n' + appended(*codes)}]
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'

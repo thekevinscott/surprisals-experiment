@@ -121,7 +121,7 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},
         {'role': 'assistant', 'content': 'Later.'},
-        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': '<length>6 characters</length>\n' + code('print(3)\n', 'print(4)\n', passed=0)},
         {'role': 'assistant', 'content': 'Again.'},
-        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': '<length>6 characters</length>\n' + code('print(5)\n', 'print(6)\n', passed=0)},
     ]
