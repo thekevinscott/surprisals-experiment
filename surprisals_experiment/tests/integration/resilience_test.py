@@ -5,12 +5,11 @@ import json
 import httpx2
 import pytest
 from state_machine.testing import Done, State
+from surprisals_experiment.config import Config
+from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
 from utils.world import T, U, t_sent
-
-from surprisals_experiment.config import Config
-from surprisals_experiment.retry_policy.constants import DELAYS
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
 TURN = 'windows/0/forks/0/turns/0'
@@ -56,17 +55,16 @@ async def test_failed_reply_retries_original_history(
 ):
     world, pending = played(WINDOWS, {'Use a loop': {'score': 10}}, config=config)
     retried, tested = world[0], world[1]
-    asked = chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
-    partial = [] if recorded is None else [recorded]
+    asked = chat(0, (QUESTION, None))['u/transcript.jsonl']
+    partial = [] if recorded is None else [recorded | row]
     failed = State(failure, sent=retried.sent, logs=[(f'{TURN}/u', kind, text) for kind, text in shown],
                    files=retried.files)
     retried.logs = [(f'{TURN}/u', 'retry', f'1/8 in 10s: {error}\n'), *retried.logs]
-    retried.files = {'u/transcripts/usage.jsonl': [row]}
+    retried.files = {}
     if partial:
-        retried.files['u/transcripts/messages.jsonl'] = [*asked, *partial]
-    answer = chat(0, (QUESTION, 'Use a loop'))['u/transcripts/messages.jsonl'][-1]
-    tested.files['u/transcripts/messages.jsonl'] = [*asked, *partial, answer]
-    tested.files['u/transcripts/usage.jsonl'] = [row, OK]
+        retried.files['u/transcript.jsonl'] = [*asked, *partial]
+    answer = chat(0, (QUESTION, 'Use a loop'))['u/transcript.jsonl'][-1]
+    tested.files['u/transcript.jsonl'] = [*asked, *partial, answer]
     world = [failed, *world, outcome(config, TURN, 2, pending)]
     async with execute_run_experiment(config, world, u_layout=True):
         pass
@@ -96,9 +94,9 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': appended(PASS)}]
-    asked = [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'],
-             PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ..., '_attempt': 1}]
-    answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
+    asked = [*chat(0, (QUESTION, None))['u/transcript.jsonl'],
+             PARTIAL | {'reasoning': 'Cut off', **OK, 'usage': USAGE}, {'role': 'system', 'content': ..., '_attempt': 1}]
+    answer = chat(0, (QUESTION, advice))['u/transcript.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
@@ -108,9 +106,9 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
         u_state(config, 0, 1, QUESTION, advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
-            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}, u_layout=True),
-        t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
-                                     'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK], **advised(0, 1, advice, 10)}),
+            'u/transcript.jsonl': asked}, u_layout=True),
+        t_state(0, 1, 0, 0, advice, {'u/transcript.jsonl': [*asked, answer],
+                                     **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
                 previous=10, u_layout=True),
         t_state(1, 0, 0, 0, advice, {**chat(1, (best, advice)), **advised(1, 0, advice)}),
