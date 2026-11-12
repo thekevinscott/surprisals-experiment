@@ -16,5 +16,5 @@ const {data,loading,error}=useLiveResource(
 <template>
   <p v-if="loading">Loading transcript…</p>
   <p v-else-if="error" role="alert">{{ error }}</p>
-  <TranscriptView v-else-if="data" :messages="data" :source="source" />
+  <TranscriptView v-else-if="data" content-only :messages="data" :source="source" />
 </template>

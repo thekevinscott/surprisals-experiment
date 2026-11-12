@@ -10,3 +10,11 @@ test('popup content excludes metadata and preserves content whitespace and incom
   assert.equal(transcriptContent('broken'), '')
   assert.equal(transcriptContent('{"content":[{"type":"text","text":"hello"}]}'), '[\n  {\n    "type": "text",\n    "text": "hello"\n  }\n]')
 })
+
+test('non-role fields remain available as header metadata, excluding the body content', async () => {
+  const {transcriptMetadata} = await import('../src/composables/transcriptFile.js')
+  assert.deepEqual(transcriptMetadata('{"role":"assistant","content":"body","_complete":false,"usage":{"tokens":3}}'), {_complete:false,usage:{tokens:3}})
+  assert.deepEqual(transcriptMetadata('{"timestamp":"now","message":{"role":"user","content":"body","id":7}}'), {timestamp:'now',message:{id:7}})
+  assert.equal(transcriptMetadata('{"role":"system","content":"body"}'), undefined)
+  assert.equal(transcriptMetadata(''), undefined)
+})
