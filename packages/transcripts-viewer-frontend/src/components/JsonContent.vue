@@ -16,5 +16,8 @@ const parsed=computed(()=>{
 </template>
 <style scoped>
 .json-content { min-width:0; overflow:auto; font-family:ui-monospace,monospace; font-size:12px; }
+.json-content :deep(.vjs-tree) { font: inherit; }
+.json-content :deep(.vjs-tree-node) { width: max-content; min-width: 100%; }
+.json-content :deep(.vjs-value) { white-space: pre; word-break: normal; }
 pre { white-space:pre; overflow-x:auto; font-family:inherit; }
 </style>
