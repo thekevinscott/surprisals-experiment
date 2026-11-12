@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref, inject, watch, nextTick, onMounted } from 'vue'
-import SourceActions from './SourceActions.vue'
 import ContentPanel from './ContentPanel.vue'
 import { useColumnLayout } from '../composables/useColumnLayout.js'
 import { visibleEnds } from '../composables/visibleEnds.js'
@@ -64,10 +63,6 @@ defineExpose({ reveal })
       </div>
       </ContentPanel>
     </div>
-    <ContentPanel title="Original U transcript files">
-      <p v-for="fork in window.forks" :key="fork.id">Fork {{ fork.id }} · transcript.jsonl <SourceActions :source="fork.transcriptPath" /></p>
-    </ContentPanel>
-    <p v-if="!window.continuedForks.length" class="note">No solo continuation recorded in this window.</p>
     <div v-if="hasNext" class="next-window">{{ window.continuedForks.length ? `Fork ${window.continuedForks.join(', ')} → next window` : 'Next recorded window' }}<div aria-hidden="true">↓</div></div>
   </ContentPanel>
 </template>
@@ -84,5 +79,4 @@ h3 { font-size: 12px; margin: 0; color: #47745b; }
 .next-window div { font-size: 24px; }
 .collapsed-forks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 11px; color: #657186; }
 .collapsed-forks button { border: 1px solid #bac7d9; border-radius: 5px; padding: 5px 8px; background: white; color: #214da3; cursor: pointer; }
-.note { color: #657186; font-size: 12px; }
 </style>
