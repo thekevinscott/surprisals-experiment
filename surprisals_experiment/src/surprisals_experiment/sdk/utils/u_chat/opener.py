@@ -32,7 +32,7 @@ async def open_u_chat(config, *, transcript=None) -> AsyncGenerator[ChatSession]
         transcript.parent.mkdir(parents=True, exist_ok=True)
         u_chat = ChatSession(
             client, config.u_model, config.u_thinking, config.u_provider,
-            transcripts / "transcript.jsonl",
+            transcript,
         )
         if u_chat.transcript.exists():
             lines = u_chat.transcript.read_bytes().splitlines(keepends=True)

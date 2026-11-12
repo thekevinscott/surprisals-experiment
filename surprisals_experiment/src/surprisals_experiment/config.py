@@ -99,7 +99,7 @@ class Config(BaseModel):
 
     @property
     def u_transcript(self) -> Path:
-        return self.u_dir
+        return self.u_dir / "transcript.jsonl"
 
     @property
     def window_dir(self) -> Path:
