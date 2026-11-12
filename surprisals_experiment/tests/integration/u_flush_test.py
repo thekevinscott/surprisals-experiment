@@ -20,8 +20,8 @@ def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, source in enumerate(codes))
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
-            + (f'<length>{length} characters</length>\n' if length else '')
             + f'<advice>\n{advice}\n</advice>\n'
+            + (f'<length>{length} characters</length>\n' if length else '')
             + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
             + f'<code>\n{code}\n</code>\n</attempt>')
 
@@ -85,7 +85,10 @@ def played(windows, scores, *, config, sequential=False, bits=None):
                 files={**pending, **chat(window, *answered, (list(conversation), None))},
             ))
             answered.append((list(conversation), advice))
-            conversation += [{'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*codes)}]
+            measurement = (f'<bits>\n{"".join(f"{token}<{value:.1f}>" for token, value in bits[advice])}\n</bits>'
+                           if advice in bits else f'<length>{len(advice)} characters</length>')
+            conversation += [{'role': 'assistant', 'content': advice},
+                             {'role': 'user', 'content': measurement + '\n' + appended(*codes)}]
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
@@ -224,4 +227,25 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
     world[1].files['windows/0/forks/0/turns/0/ts/0/attempts/0/src/data.txt'] = data
     async with execute_run_experiment(config, world[:3], u_layout=True) as run:
         await run.reached(world[2])
+        run.kill()
+
+
+@pytest.mark.parametrize('measure,measurement', [
+    ('characters', '<length>9 characters</length>'),
+    ('surprisal', '<bits>\ndouble<2.5> it<1.2>\n</bits>'),
+])
+async def test_turn_two_contains_previous_advice_measurement(config, execute_run_experiment, measure, measurement):
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 'max_u_turns': 2,
+    }))
+    bits = {'double it': [('double', 2.5), (' it', 1.25)]} if measure == 'surprisal' else {}
+    scores = {'double it': {'score': 3.75, 'tokens': [['double', 2.5], [' it', 1.25]]}
+              if bits else {'score': 9}, 'next': {'score': 4}}
+    world, _ = played([[(QUESTION, 'double it', [PASS]), (None, 'next', [PASS])]],
+                      scores, bits=bits, config=config)
+    second = world[3 if bits else 2]
+    second.sent['messages'][-1]['content'] = measurement + '\n' + appended(PASS)
+    second.files['windows/0/forks/0/u/transcript.jsonl'][-1]['content'] = measurement + '\n' + appended(PASS)
+    async with execute_run_experiment(config, world[:world.index(second) + 1], u_layout=True) as run:
+        await run.reached(second)
         run.kill()
