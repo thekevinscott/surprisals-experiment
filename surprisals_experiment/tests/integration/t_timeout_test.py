@@ -3,24 +3,36 @@ import asyncio
 import signal
 from contextlib import chdir
 from hashlib import sha256
-import pytest
 
+import pytest
+from run_state_machine_test import settings
 from state_machine.testing import Done, State
+from u_flush_test import (
+    PASS,
+    QUESTION,
+    STDOUT,
+    appended,
+    chat,
+    flush,
+    outcome,
+    played,
+    results,
+)
+from utils.world import T, U, t_sent, u_system
+
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
-from run_state_machine_test import settings
-from u_flush_test import PASS, QUESTION, STDOUT, appended, chat, flush, outcome, played, results
-from utils.world import U, T, t_sent, u_system
 
 
-def u_state(config, window, turn, prompt, advice, files, previous=None):
+def u_state(config, window, turn, prompt, advice, files, previous=None, *, u_layout=False):
     """`prompt` is the window's opening user message, or the whole conversation as a list of messages."""
     path = f'windows/{window}/forks/0/turns/{turn}'
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
-                                    *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}])]},
+                       **({'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
+                                        *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}])]}
+                          if u_layout else {})},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 

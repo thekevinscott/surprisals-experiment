@@ -3,9 +3,10 @@
 from hashlib import sha256
 
 from state_machine.testing import Done, State
-from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, T, t_sent, u_system
+from utils.world import T, U, t_sent, u_system
+
+from surprisals_experiment.config import WINDOW_SOLO_TURNS
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -115,7 +116,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
         Done(outcome=solution, files={**evaluated(1, 1),
                                       'result.json': {'success': True, 'attempts': 4, 'solution': str(solution)}}),
     ]
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -224,20 +225,20 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             'result.json': {'success': True, 'attempts': 6, 'solution': str(solution)},
         }),
     ]
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
 async def test_does_not_accept_empty_replies(config, execute_run_experiment):
     world = exhausted(config, U(finish=None), 'U chat stream ended before completion',
                       recorded={'role': 'assistant', '_complete': False})
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
 async def test_preserves_the_prompt_on_provider_failure(config, execute_run_experiment):
     world = exhausted(config, U(status=400), "Error code: 400 - {'error': {'message': 'provider failed'}}", completion_id=None)
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -249,5 +250,5 @@ async def test_records_and_uses_a_reply_with_a_lone_surrogate(config, execute_ru
     world[0].reply = U('Use a loop \ud83d', thinking='Think.')
     world[0].logs[-1] = ('windows/0/forks/0/turns/0/u', 'text', 'Use a loop \ud83d')
     world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass

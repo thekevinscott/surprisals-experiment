@@ -23,10 +23,13 @@ class MockWorld:
         self.advance = asyncio.Event()
         self.events = []
         self.seen = 0
-        self.files = run_files(output)
+        self.files = self.run_files()
         self.failure = None
         self.killed = False
         self.waiting = []
+
+    def run_files(self):
+        return run_files(self.output)
 
     async def reached(self, state):
         """Let the run go on to `state`, and wait until that state has been checked."""
@@ -59,7 +62,7 @@ class MockWorld:
     def check(self, name, expected):
         assert self.events[self.seen:] == expected.logs, f'{name} logs'
         self.seen = len(self.events)
-        now = run_files(self.output)
+        now = self.run_files()
         changed = {path: content for path, content in now.items() if self.files.get(path) != content}
         changed |= {path: REMOVED for path in self.files.keys() - now.keys()}
         self.files = now

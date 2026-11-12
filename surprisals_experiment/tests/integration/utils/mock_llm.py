@@ -4,23 +4,37 @@ import asyncio
 import json
 import math
 from concurrent.futures import ThreadPoolExecutor
+from copy import copy
 from pathlib import Path
 from unittest.mock import patch
 
 import httpx2
 from botbox import RunResult
 from openai import AsyncOpenAI
+from state_machine.testing import MockWorld, State, masked
+from utils.world import Case, Score, T, U
 
 import surprisals_experiment
-from state_machine.testing import MockWorld, masked
 from surprisals_experiment.sdk.run_test_suite.run_case import run_case
 
-from utils.world import U, Case, Score, T
+TRANSCRIPTS = '/u/transcripts/'
+
+
+def without_u_layout(state):
+    state = copy(state)
+    state.files = {path: value for path, value in state.files.items() if TRANSCRIPTS not in f'/{path}'}
+    if isinstance(state, State) and isinstance(state.reply, U):
+        state.sent = {**state.sent, 'messages': ...}
+    return state
 
 
 class MockLLM(MockWorld):
-    def __init__(self, world, output):
-        super().__init__(world, output)
+    """Only tests about U's conversation pass `u_layout=True`; the rest ignore its messages and transcript files."""
+
+    def __init__(self, world, output, *, u_layout=False):
+        self.u_layout = u_layout
+        self.original_states = [state for state in world if isinstance(state, State)]
+        super().__init__(world if u_layout else [without_u_layout(state) for state in world], output)
         self.boxes = []
         self.followers = {}
 
@@ -39,6 +53,13 @@ class MockLLM(MockWorld):
     def __exit__(self, *args):
         for p in self.patches:
             p.stop()
+
+    async def reached(self, state):
+        await super().reached(self.states[self.original_states.index(state)])
+
+    def run_files(self):
+        files = super().run_files()
+        return files if self.u_layout else {path: content for path, content in files.items() if TRANSCRIPTS not in f'/{path}'}
 
     def relative(self, path):
         return Path(path).relative_to(self.output).as_posix()

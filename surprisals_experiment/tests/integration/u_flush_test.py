@@ -2,13 +2,12 @@
 
 from hashlib import sha256
 
-from state_machine.testing import Done, State
-from surprisals_experiment.prompt import PROMPTS
-
 import pytest
+from state_machine.testing import Done, State
+from utils.world import Score, T, U, t_sent, u_system
 
 from surprisals_experiment.config import Config
-from utils.world import U, Score, T, t_sent, u_system
+from surprisals_experiment.prompt import PROMPTS
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -158,7 +157,7 @@ async def test_shows_only_best_all_pass_attempt(config, execute_run_experiment, 
     context = (PROMPTS / 'u/flush/context.txt').read_text()
     world[3 * len(advices)].sent['messages'][0]['content'] = Containing(context)
     world.append(outcome(config, f'windows/0/forks/0/turns/{winner}', 2 * config.max_u_turns, pending))
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -169,7 +168,7 @@ async def test_appends_turns_within_a_window_and_flushes_at_the_next(config, exe
         [(flush(2, 'ok', length=2), 'ok', [PASS]), (None, 'ok', [PASS]), (None, 'ok', [PASS])],
     ], {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending))
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -189,7 +188,7 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, execute_
         bits=scores, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/2', 6, pending, best_measurement=1.0,
                          cap_strategy='surprisal', scorer_base_url='http://scorer/v1', scorer_model='openai/gpt-oss-120b'))
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -214,7 +213,7 @@ async def test_shows_only_the_selected_measure_and_no_results(config, execute_ru
         [(best, 'next', [PASS, OTHER_PASS]), (None, 'next', [PASS, OTHER_PASS])],
     ], scores, bits=bits, config=config)
     world.append(outcome(config, 'windows/0/forks/0/turns/1', 4, pending, **scoring))
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -227,6 +226,6 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
                       config=config)
     world[1].reply.files['data.txt'] = data
     world[1].files['windows/0/forks/0/turns/0/ts/0/attempts/0/src/data.txt'] = data
-    async with execute_run_experiment(config, world[:3]) as run:
+    async with execute_run_experiment(config, world[:3], u_layout=True) as run:
         await run.reached(world[2])
         run.kill()

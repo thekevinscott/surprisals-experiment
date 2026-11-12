@@ -4,14 +4,13 @@ import json
 
 import httpx2
 import pytest
-
 from state_machine.testing import Done, State
-from surprisals_experiment.config import Config
-from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
-from utils.world import U, T, t_sent, u_system
+from utils.world import T, U, t_sent
 
+from surprisals_experiment.config import Config
+from surprisals_experiment.retry_policy.constants import DELAYS
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
 TURN = 'windows/0/forks/0/turns/0'
@@ -69,7 +68,7 @@ async def test_failed_reply_retries_original_history(
     tested.files['u/transcripts/messages.jsonl'] = [*asked, *partial, answer]
     tested.files['u/transcripts/usage.jsonl'] = [row, OK]
     world = [failed, *world, outcome(config, TURN, 2, pending)]
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -104,26 +103,26 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
-              sent=u_state(config, 0, 0, QUESTION, advice, {}).sent,
+              sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
               logs=[(f'{TURN}/u', 'thinking', 'Cut off'), (f'{TURN}/u', 'text', 'partial')],
               files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
         # Turn 1 is sent only its system prompt and the question: no partial reasoning or content.
         u_state(config, 0, 1, QUESTION, advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
-            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}),
+            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}, u_layout=True),
         t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
                                      'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK], **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
-                previous=10),
+                previous=10, u_layout=True),
         t_state(1, 0, 0, 0, advice, {**chat(1, (best, advice)), **advised(1, 0, advice)}),
         u_state(config, 1, 1, second, advice, {**evaluated(attempt(1, 0, 0)), **chat(1, (best, advice), (second, None))},
-                previous=10),
+                previous=10, u_layout=True),
         t_state(1, 1, 0, 0, advice, {**chat(1, (best, advice), (second, advice)), **advised(1, 1, advice)}),
         Done(outcome=config.output / attempt(0, 1, 0) / 'src',
              files={**evaluated(attempt(1, 1, 0)), **solved(config, attempt(0, 1, 0), 3)}),
     ]
-    async with execute_run_experiment(config, world):
+    async with execute_run_experiment(config, world, u_layout=True):
         pass
 
 
@@ -137,11 +136,11 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}}, config=config)
     generation = (lambda attempt: {f'{TURN}/ts/0/attempts/{attempt}/generation.json': {'exit_code': -1}}
                   if t.exit_code == -1 else {})
-    for attempt in range(9):
-        world.append(State(t, sent=t_sent(f'{TURN}/ts/0/attempts/{attempt}', 'Use a loop'),
-                           logs=[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {DELAYS[attempt - 1]}s: {failure}\n')]
-                           if attempt else [],
-                           files=generation(attempt - 1) if attempt else pending))
+    for retry in range(9):
+        world.append(State(t, sent=t_sent(f'{TURN}/ts/0/attempts/{retry}', 'Use a loop'),
+                           logs=[(f'{TURN}/ts/0', 'retry', f'T {retry}/8 in {DELAYS[retry - 1]}s: {failure}\n')]
+                           if retry else [],
+                           files=generation(retry - 1) if retry else pending))
     exhausted = f'T sample failed: {failure}; 8 retries exhausted'
     world.append(Done(outcome=RuntimeError(exhausted),
                       files={**generation(8), f'{TURN}/error.txt': Traceback(exhausted)}))
