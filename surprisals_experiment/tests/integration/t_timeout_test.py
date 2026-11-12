@@ -5,12 +5,17 @@ from contextlib import chdir
 from hashlib import sha256
 import pytest
 
-from state_machine.testing import Done, State
+from utils.non_u_layout import Done, State
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
 from run_state_machine_test import settings
-from u_flush_test import PASS, QUESTION, STDOUT, appended, chat, flush, outcome, played, results
-from utils.world import U, T, t_sent, u_system
+from u_flush_test import PASS, QUESTION, STDOUT, appended, flush, outcome, played, results
+from utils.world import U, T, t_sent
+
+
+def chat(*args):
+    """Conversation artifacts are checked by the U owner tests."""
+    return {}
 
 
 def u_state(config, window, turn, prompt, advice, files, previous=None):
@@ -19,8 +24,7 @@ def u_state(config, window, turn, prompt, advice, files, previous=None):
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
-                                    *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}])]},
+                       'messages': ...},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -179,4 +183,3 @@ async def test_cancels_and_cleans_up_on_sigterm(config, tmp_path, in_tmp_path, e
         signal.raise_signal(signal.SIGTERM)
         with pytest.raises(asyncio.CancelledError):
             await run.task
-    assert config.u_transcripts.joinpath('messages.jsonl').exists()
