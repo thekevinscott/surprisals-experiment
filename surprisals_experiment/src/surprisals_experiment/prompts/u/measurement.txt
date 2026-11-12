@@ -1,0 +1,7 @@
+{% if unit == "characters" %}
+<length>{{ score }} {{ unit }}</length>
+{% else %}
+<bits>
+{{ score_text }}
+</bits>
+{% endif %}

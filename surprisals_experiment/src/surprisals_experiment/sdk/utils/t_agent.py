@@ -29,6 +29,7 @@ class TAgent(RetryingPiAgent):
     def command(self) -> str:
         return (
             super().command("@/advice/advice.md")
+            + " --tools read,write"
             + " --append-system-prompt "
             + shlex.quote(self.instructions)
         )

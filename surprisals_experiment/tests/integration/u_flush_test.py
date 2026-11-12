@@ -6,7 +6,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
-from utils.world import Score, T, U, t_sent, u_system
+from utils.world import Score, T, U, t_sent, u_system, u_user
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -20,8 +20,8 @@ def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, source in enumerate(codes))
     return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
-            + (f'<length>{length} characters</length>\n' if length else '')
             + f'<advice>\n{advice}\n</advice>\n'
+            + (f'<length>{length} characters</length>\n' if length else '')
             + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
             + f'<code>\n{code}\n</code>\n</attempt>')
 
@@ -33,17 +33,17 @@ def appended(*codes):
         f'</T-{sample}>\n' for sample, source in enumerate(codes)) + '</code>'
 
 
-def chat(window, *turns):
+def chat(window, *turns, config, best=None):
     """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked.
 
-    A prompt is the opening user message, or the whole conversation as a list of messages."""
+    A prompt is raw opening text, or a conversation whose user messages already include turn lines."""
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    lines = [{'role': 'system', 'content': ...}]
+    lines = [{'role': 'system', 'content': u_system(config)}]
     for attempt, (user, advice) in enumerate(turns):
-        conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
-        lines += [{'role': 'system', 'content': ...}, conversation[-1] | {'_attempt': attempt}]
+        conversation = user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, attempt + 1, user, best)}]
+        lines.append(conversation[-1] | {'_attempt': attempt})
         if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True, **usage})
+            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
     transcripts = f'windows/{window}/forks/0/u'
     return {f'{transcripts}/transcript.jsonl': lines}
 
@@ -74,22 +74,25 @@ def played(windows, scores, *, config, sequential=False, bits=None):
         answered, conversation = [], []
         for index, (prompt, advice, codes) in enumerate(window_turns):
             assert (prompt is None) == (index > 0)
-            conversation = conversation or [{'role': 'user', 'content': prompt}]
+            conversation = conversation or [{'role': 'user', 'content': u_user(config, 1, prompt, best)}]
             path = f'windows/{window}/forks/0/turns/{index}'
             states.append(State(
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                      'messages': [{'role': 'system', 'content': u_system(config, index + 1, best)}, *conversation]},
+                      'messages': [{'role': 'system', 'content': u_system(config)}, *conversation]},
                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)],
-                files={**pending, **chat(window, *answered, (list(conversation), None))},
+                files={**pending, **chat(window, *answered, (list(conversation), None), config=config, best=best)},
             ))
             answered.append((list(conversation), advice))
-            conversation += [{'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*codes)}]
+            measurement = (f'<bits>\n{"".join(f"{token}<{value:.1f}>" for token, value in bits[advice])}\n</bits>'
+                           if advice in bits else f'<length>{len(advice)} characters</length>')
+            conversation += [{'role': 'assistant', 'content': advice},
+                             {'role': 'user', 'content': u_user(config, index + 2, measurement + '\n' + appended(*codes), best)}]
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
-            pending = {**chat(window, *answered), f'{path}/metadata.json': {'advice': digest}}
+            pending = {**chat(window, *answered, config=config, best=best), f'{path}/metadata.json': {'advice': digest}}
             if advice not in seen:
                 seen.add(advice)
                 pending[f'{digest}/advice.txt'] = advice
@@ -224,4 +227,25 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
     world[1].files['windows/0/forks/0/turns/0/ts/0/attempts/0/src/data.txt'] = data
     async with execute_run_experiment(config, world[:3], u_layout=True) as run:
         await run.reached(world[2])
+        run.kill()
+
+
+@pytest.mark.parametrize('measure,measurement', [
+    ('characters', '<length>9 characters</length>'),
+    ('surprisal', '<bits>\ndouble<2.5> it<1.2>\n</bits>'),
+])
+async def test_turn_two_contains_previous_advice_measurement(config, execute_run_experiment, measure, measurement):
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 'max_u_turns': 2,
+    }))
+    bits = {'double it': [('double', 2.5), (' it', 1.25)]} if measure == 'surprisal' else {}
+    scores = {'double it': {'score': 3.75, 'tokens': [['double', 2.5], [' it', 1.25]]}
+              if bits else {'score': 9}, 'next': {'score': 4}}
+    world, _ = played([[(QUESTION, 'double it', [PASS]), (None, 'next', [PASS])]],
+                      scores, bits=bits, config=config)
+    second = world[3 if bits else 2]
+    second.sent['messages'][-1]['content'] = u_user(config, 2, measurement + '\n' + appended(PASS))
+    second.files['windows/0/forks/0/u/transcript.jsonl'][-1]['content'] = u_user(config, 2, measurement + '\n' + appended(PASS))
+    async with execute_run_experiment(config, world[:world.index(second) + 1], u_layout=True) as run:
+        await run.reached(second)
         run.kill()

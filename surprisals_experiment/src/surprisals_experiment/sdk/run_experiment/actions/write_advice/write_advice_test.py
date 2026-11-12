@@ -21,11 +21,11 @@ from surprisals_experiment.sdk.utils.write import write
 
 
 @pytest.mark.parametrize('window,measure,best,expected', [
-    (0, 'characters', 412, 'turn 23 of 40'),
-    (1, 'characters', 412, 'turn 23 of 40; best at window start: 412; target: 391 (5%)'),
-    (1, 'surprisal', 41.25, 'turn 23 of 40; best at window start: 41.2; target: 39.2 (5%)'),
+    (0, 'characters', 412, 'turn 13 of 20'),
+    (1, 'characters', 412, 'turn 13 of 20; best at window start: 412; target: 391 (5%)'),
+    (1, 'surprisal', 41.25, 'turn 13 of 20; best at window start: 41.2; target: 39.2 (5%)'),
 ])
-async def test_system_progress(config, botbox_script, chat_provider, window, measure, best, expected):
+async def test_user_progress_keeps_the_system_prompt_fixed(config, botbox_script, chat_provider, window, measure, best, expected):
     config = Config(**(config.model_dump() | {
         'max_u_turns': 40, 'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1',
     }))
@@ -45,15 +45,23 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
     botbox_script.advice.extend(['Double.', 'Double again.'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
-        await write_advice(run, Turn(config, 22, window))
+        await write_advice(run, Turn(config, 12, window))
         system = chat_provider[-1]['messages'][0]['content']
-        assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
+        assert not any(line.startswith('turn ') for line in system.splitlines())
+        assert [message['role'] for message in chat_provider[-1]['messages']] == ['system', 'user']
+        assert chat_provider[-1]['messages'][1]['content'].splitlines()[0] == expected
+    # The normal workflow scores the completed advice before starting the next turn.
+    seed_advice(config, Turn(config, 12, window).attempt_dir, 'Double.', 7,
+                [['Double.', 7.0]] if measure == 'surprisal' else None)
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
-        await write_advice(run, Turn(config, 23, window))
-        assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
-                if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
+        await write_advice(run, Turn(config, 13, window))
+        messages = chat_provider[-1]['messages']
+        assert [message['role'] for message in messages] == ['system', 'user', 'assistant', 'user']
+        assert messages[0]['content'] == system
+        assert messages[-1]['content'].splitlines()[0] == expected.replace('turn 13', 'turn 14')
+        assert sum(entry['role'] == 'system' for entry in chat.entries()) == 1
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
@@ -110,7 +118,7 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     # Shorter and all-pass, but in this window and another fork: in neither the opening nor this fork's turns.
     seed_turn(config, 1, 1, 0, 'Ok.', ['print(7)\n', 'print(8)\n'])
     opening = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-               '<attempt>\n<index>0</index>\n<length>5 characters</length>\n<advice>\nBest.\n</advice>\n'
+               '<attempt>\n<index>0</index>\n<advice>\nBest.\n</advice>\n<length>5 characters</length>\n'
                + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
     botbox_script.advice.extend(['Later.', 'Again.', 'Next.'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
@@ -119,11 +127,11 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         await write_advice(run, Turn(config, 1, 1, 0))
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
-        {'role': 'user', 'content': opening},
+        {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 5 (5%)\n' + opening},
         {'role': 'assistant', 'content': 'Later.'},
-        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(3)\n', 'print(4)\n', passed=0)},
         {'role': 'assistant', 'content': 'Again.'},
-        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(5)\n', 'print(6)\n', passed=0)},
     ]
 
 
@@ -139,5 +147,5 @@ async def test_window_zero_first_user_message_labels_original_question(
         run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 0))
     assert [message for message in chat_provider[0]['messages'] if message['role'] == 'user'] == [
-        {'role': 'user', 'content': '<original_question>\nRead an integer and print its double.\n</original_question>'},
+        {'role': 'user', 'content': 'turn 1 of 20\n<original_question>\nRead an integer and print its double.\n</original_question>'},
     ]
