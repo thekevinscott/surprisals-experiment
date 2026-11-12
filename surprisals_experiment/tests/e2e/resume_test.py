@@ -493,8 +493,8 @@ cap-strategy = ["characters"]
             assert not record(folder)["ended"], term._get_screen_text()
             if lost == "local":
                 # The U turn is in flight on the box; nothing has to finish before the crash.
-                log = folder / "log.jsonl"
-                return (folder / "settings.json").exists() and log.exists() and log.stat().st_size
+                return (folder / "settings.json").exists() and any(
+                    p.stat().st_size for p in folder.rglob("messages.jsonl"))
             return list(folder.glob("windows/*/forks/*/turns/*/u/advice.txt"))
 
         wait(stop_point)
@@ -502,7 +502,7 @@ cap-strategy = ["characters"]
         before = snapshot(folder) if lost == "instance" else ({}, {})
         before[0].update({p: (p.read_bytes(), p.stat().st_mtime_ns)
                           for p in (folder / "settings.json",)})
-        before[1][folder / "log.jsonl"] = (folder / "log.jsonl").read_bytes()
+        before[1].update({p: p.read_bytes() for p in folder.rglob("messages.jsonl")})
         # Kill the client first so instance loss cannot race labnotes recording
         # this invocation as lost. Recovery uses only already-mirrored artifacts.
         assert any("aws_runner run" in command for command in kill_labnotes())

@@ -65,10 +65,7 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
         for call in calls
         if "--unit=aws-runner " in call.args[0][-1]
     )
-    assert (
-        "export LABNOTES_LOG=/srv/aws-runner/run/log.jsonl\n" in script
-    ) == log_enabled
-    assert str(tmp_path / "local log.jsonl") not in script
+    assert "LABNOTES_LOG" not in script
     assert "cd /srv/aws-runner/repo || exit 125" in script
     assert shlex.join(command) in script
     assert "export PATH=/home/ubuntu/.local/bin:$PATH" in script

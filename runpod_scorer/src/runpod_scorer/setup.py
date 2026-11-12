@@ -1,12 +1,14 @@
 """Create a vLLM scorer and wait for readiness."""
 
+import asyncio
 import time
+from contextlib import suppress
 
 import httpx
 import labnotes
 
 from . import teardown, users
-from .logs import save_logs
+from .logs import save_logs, stream_logs
 from .timestamp import timestamp
 
 READY_TIMEOUT = 1800
@@ -96,11 +98,27 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
         started = time.monotonic()
         deadline = started + READY_TIMEOUT
+        asyncio.run(wait_ready(pod_id, key, base_url, deadline))
+        if time.monotonic() - started > SLOW_START:
+            save_logs(pod_id, key, folder)
+        labnotes.set_state({"base_url": base_url})
+    except BaseException:
+        if started is not None:
+            save_logs(pod_id, key, folder)
+        if pod_id is not None:
+            with users.locked():
+                teardown.release(pod_id, key, users.user_file(pod_id, folder))
+        raise
+
+
+async def wait_ready(pod_id, key, base_url, deadline):
+    logs = asyncio.create_task(stream_logs(pod_id, key))
+    try:
         last = None
         steps = {}
         while time.monotonic() < deadline:
             try:
-                ready = teardown.request("GET", f"{base_url}/models")
+                ready = await asyncio.to_thread(teardown.request, "GET", f"{base_url}/models")
                 ready.raise_for_status()
                 timestamp(f"Pod {pod_id} ready")
                 break
@@ -114,7 +132,9 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
                     timestamp(f"Pod {pod_id} not ready: {outcome}")
                     last = outcome
                 try:
-                    pod = teardown.request("GET", f"{teardown.API}/pods/{pod_id}", key)
+                    pod = await asyncio.to_thread(
+                        teardown.request, "GET", f"{teardown.API}/pods/{pod_id}", key
+                    )
                     pod.raise_for_status()
                     pod = pod.json()
                 except (httpx.HTTPError, OSError):
@@ -123,16 +143,10 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
                     if field in pod and pod[field] != steps.get(field):
                         timestamp(f"Pod {pod_id} {field}: {pod[field]}")
                         steps[field] = pod[field]
-                time.sleep(10)
+                await asyncio.to_thread(time.sleep, 10)
         else:
             raise TimeoutError(f"Pod {pod_id} did not become ready")
-        if time.monotonic() - started > SLOW_START:
-            save_logs(pod_id, key, folder)
-        labnotes.set_state({"base_url": base_url})
-    except BaseException:
-        if started is not None:
-            save_logs(pod_id, key, folder)
-        if pod_id is not None:
-            with users.locked():
-                teardown.release(pod_id, key, users.user_file(pod_id, folder))
-        raise
+    finally:
+        logs.cancel()
+        with suppress(asyncio.CancelledError):
+            await logs

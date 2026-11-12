@@ -22,7 +22,7 @@ from surprisals_experiment.config import (
 from surprisals_experiment.sdk import Config
 from surprisals_experiment.sdk.run_baseline import run_baseline
 
-from .log_streams import LogStreams
+from .print_delta import PrintDelta
 
 
 async def main(argv: list[str] | None = None) -> None:
@@ -45,7 +45,6 @@ async def main(argv: list[str] | None = None) -> None:
         "--problem-dir", type=Path, required=True, help="Directory containing question.txt and input_output.json"
     )
     args = parser.parse_args(argv)
-    streams = LogStreams()
 
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, asyncio.current_task().cancel)
@@ -72,12 +71,11 @@ async def main(argv: list[str] | None = None) -> None:
                 t_sample_timeout=args.t_sample_timeout,
                 t_sample_retries=args.t_sample_retries,
             ),
-            on_t_delta=streams.delta,
+            on_t_delta=PrintDelta(),
         )
     except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
     finally:
-        streams.close()
         loop.remove_signal_handler(signal.SIGTERM)
 
 
