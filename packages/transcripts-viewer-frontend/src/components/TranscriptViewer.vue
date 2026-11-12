@@ -6,10 +6,10 @@ import TranscriptView from './TranscriptView.vue'
 const props=defineProps({source:String,files:Array,sourceUrl:Function})
 provide('sourceUrl',props.sourceUrl)
 const {data,loading,error}=useLiveResource(
-  ()=>props.files.map(file=>transcriptMetadataUrl(file.url)),
+  ()=>[transcriptMetadataUrl(props.files[0].url)],
   async(signal,urls)=>{
-    const metadata=await Promise.all(urls.map(url=>fetchJson(url,signal)))
-    return metadata.flatMap((item,index)=>transcriptBlocks(item,props.files[index].source,props.files[index].url,data.value ?? []))
+    const metadata=await fetchJson(urls[0],signal)
+    return transcriptBlocks(metadata,props.files[0].source,props.files[0].url,data.value ?? [])
   },
 )
 let blocks
@@ -30,5 +30,5 @@ watch(data,(messages,_,cleanup)=>{
 <template>
   <p v-if="loading">Loading transcript…</p>
   <p v-if="error" role="alert">{{ error }}</p>
-  <TranscriptView v-if="data" lazy content-only :messages="data" :source="source" @visible="(index,visible)=>blocks?.visible(index,visible)" />
+  <TranscriptView v-if="data" lazy :messages="data" :source="source" @visible="(index,visible)=>blocks?.visible(index,visible)" />
 </template>

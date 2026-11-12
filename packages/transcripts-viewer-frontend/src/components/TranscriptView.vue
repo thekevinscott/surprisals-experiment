@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import TranscriptRecord from './TranscriptRecord.vue'
-const props = defineProps({ messages: Array, source: String, initialLine: String, contentOnly: Boolean, lazy: Boolean })
+const props = defineProps({ messages: Array, source: String, initialLine: String, lazy: Boolean })
 const emit = defineEmits(['visible'])
 const selectedBlock = ref(null)
 const blocks = new Map()
@@ -15,11 +15,10 @@ watch(()=>props.messages, async (_messages,_,cleanup)=>{
   await nextTick()
   if(!disposed)for(const element of blocks.values())observer.observe(element)
 },{immediate:true,flush:'post'})
-const roles = { system: 'System prompt', user: 'User', assistant: 'Assistant', toolResult: 'Tool result', tool: 'Tool result' }
 const legend = computed(() => [...new Set(props.messages.map(message=>message.role))])
 const options = computed(() => props.messages.map((message, index) => ({
-  value: `${index + 1} · ${roles[message.role] ?? message.role}`,
-  description: message.raw == null ? 'Load original record' : message.raw.slice(0, 120),
+  value: `${index + 1} · ${message.role}`,
+  description: message.raw == null ? 'Load original record' : message.raw,
 })))
 const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })))
 async function jump(value) {
@@ -43,15 +42,15 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 </script>
 <template>
   <div class="transcript-view">
-    <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript role colors"><span v-for="role in legend" :key="role"><i :class="`role-${role}`" aria-hidden="true"></i>{{ roles[role] ?? role }}</span></div></div>
+    <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript role colors"><span v-for="role in legend" :key="role"><i :class="`role-${role}`" aria-hidden="true"></i>{{ role }}</span></div></div>
     <p v-if="!messages.length">Transcript not recorded</p>
     <div class="transcript-layout">
     <nav v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
-      <button v-for="(option,index) in options" :key="index" class="block-jump" :class="[{active:selectedBlock===option.value}, `role-${messages[index].role}`]" :aria-current="selectedBlock===option.value?'true':undefined" :aria-label="`Jump to ${option.value}`" :title="option.description" @click="jump(option.value)"><b>{{ index+1 }}</b></button>
+      <button v-for="(option,index) in options" :key="index" class="block-jump" :class="[{active:selectedBlock===option.value}, `role-${messages[index].role}`]" :aria-current="selectedBlock===option.value?'true':undefined" :aria-label="`Jump to ${option.value}`" :title="option.description" @click="jump(option.value)"><b>{{ messages[index].line }}</b></button>
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">
-      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }}</strong><p>Loading block…</p></div><TranscriptRecord v-else class="transcript-record" :label="String(index + 1)" :message="message" :content-only="contentOnly" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
+      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }}</strong><p>Loading block…</p></div><TranscriptRecord v-else class="transcript-record" :label="String(message.line)" :message="message" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
 
     </template>
     </div>

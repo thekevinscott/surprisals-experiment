@@ -15,11 +15,10 @@ const expanded = ref(true)
 const link = inject('runLink')
 </script>
 <template>
-  <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)">
+  <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :metadata="{'metadata.json':turn.metadata,'advice.json':turn.adviceMetadata}">
     <template #summary><span>{{ turnSummary(turn) }}</span></template>
     <template #actions><Button class="icon-button" v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /><TranscriptButton :source="turn.transcriptPath" label="💬" /></template>
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
-    <p v-if="turn.rejections" role="status">Scorer rejections: {{ turn.rejections }}</p>
     <TTranscripts :samples="turn.samples ?? []" />
   </ContentPanel>
 </template>

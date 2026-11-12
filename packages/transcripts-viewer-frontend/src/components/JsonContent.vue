@@ -11,7 +11,7 @@ const parsed=computed(()=>{
 <template>
   <div class="json-content">
     <template v-if="parsed.error"><p role="alert">Invalid JSON: {{ parsed.error }}</p><pre>{{ text }}</pre></template>
-    <VueJsonPretty v-else :data="parsed.value" :deep="3" show-icon show-length show-line-number :editable="false" />
+    <VueJsonPretty v-else :data="parsed.value" show-icon show-length show-line-number :editable="false" />
   </div>
 </template>
 <style scoped>
