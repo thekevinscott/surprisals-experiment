@@ -30,10 +30,10 @@ def prompt(index, advice, *samples):
 def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
     """U's first try and all 8 retries fail with `error`."""
     def messages(tries):
-        return [*chat(0, (QUESTION, None))['u/transcript.jsonl'], *([recorded | {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}] * tries if recorded else [])]
+        return [*chat(0, (QUESTION, None))['windows/0/forks/0/u/transcript.jsonl'], *([recorded | {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}] * tries if recorded else [])]
 
     def files(tries):
-        return {'u/transcript.jsonl': messages(tries)} if recorded else {}
+        return {'windows/0/forks/0/u/transcript.jsonl': messages(tries)} if recorded else {}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
@@ -41,7 +41,7 @@ def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id=
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
-             'u/transcript.jsonl': messages(0)}
+             'windows/0/forks/0/u/transcript.jsonl': messages(0)}
     return [State(reply, sent=sent, logs=text, files=first),
             *(State(reply, sent=sent, logs=[(u, 'retry', f'{tries}/8 in {delay}s: {error}\n'), *text],
                     files=files(tries)) for tries, delay in enumerate(DELAYS, 1)),
@@ -148,7 +148,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return messages
 
     def transcripts(window):
-        return 'u' if window == 0 else f'windows/{window}/forks/0/u'
+        return f'windows/{window}/forks/0/u'
 
     def tested(window, turn):
         return {f'windows/{window}/forks/0/turns/{turn}/ts/0/attempts/0/generation.json': {'exit_code': 0},

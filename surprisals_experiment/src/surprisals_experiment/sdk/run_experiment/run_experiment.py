@@ -9,7 +9,6 @@ from surprisals_experiment.config import Config
 
 from run_database import ExperimentDatabase, QuestionDatabase
 from ..run import Run
-from ..utils.u_chat import open_u_chat
 from ..utils.write import write
 from .actions.run_tests import run_tests
 from .actions.score_advice import score_advice
@@ -64,11 +63,10 @@ async def run_experiment(
     config.save_settings()
     database = ExperimentDatabase(config.output)
     await database.dirsql.ready()
-    async with open_u_chat(config) as u_chat:
-        run = Run(config, database, problem, actions, on_t_delta, u_chat, on_delta)
-        await state_machine(state, actions, run)
-        await write_result(run)
-        result, best_solution = await read_progress(run)
+    run = Run(config, database, problem, actions, on_t_delta=on_t_delta, on_delta=on_delta)
+    await state_machine(state, actions, run)
+    await write_result(run)
+    result, best_solution = await read_progress(run)
     if best_solution is None:
         write(
             config.error_file,

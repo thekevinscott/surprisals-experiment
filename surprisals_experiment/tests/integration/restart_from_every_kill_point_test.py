@@ -167,14 +167,14 @@ def restart(world, own, first, last, answered):
 
 def found(output, expected):
     return {path: decoded(expected[path], content) if path in expected else content
-            for path, content in run_files(output).items() if not f'/{path}'.endswith('/u/transcript.jsonl')}
+            for path, content in run_files(output).items() if not Path(path).match('windows/*/forks/*/u/transcript.jsonl')}
 
 
 def finished(output):
     return {path.relative_to(output).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns)
             for path in output.rglob('*')
             if path.is_file() and path.name not in REWRITTEN
-            and not path.as_posix().endswith('/u/transcript.jsonl')
+            and not path.match('windows/*/forks/*/u/transcript.jsonl')
             and not (path.name == 'advice.txt' and path.parent.parent == output / 'advices')}
 
 

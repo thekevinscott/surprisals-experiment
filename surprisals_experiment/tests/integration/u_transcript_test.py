@@ -17,7 +17,7 @@ def recorded_windows(config):
     async def recording(self, kind, sent):
         if kind is U:
             window = len(seen) // 2
-            path = config.u_transcript if window == 0 else config.output / f'windows/{window}/forks/0/u/transcript.jsonl'
+            path = config.output / f'windows/{window}/forks/0/u/transcript.jsonl'
             entries = [json.loads(line) for line in path.read_text().splitlines()]
             # Main sends the latest system prompt and plain role/content from
             # completed turns; reasoning remains in the raw transcript.

@@ -9,7 +9,7 @@ from docent_upload import convert
 
 
 class SingleTranscriptTest(unittest.TestCase):
-    def test_exports_root_and_fork_conversations_with_failed_reply_metadata(self):
+    def test_exports_fork_conversations_with_failed_reply_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory) / 'experiment' / 'run'
             run.mkdir(parents=True)
@@ -20,7 +20,7 @@ class SingleTranscriptTest(unittest.TestCase):
                       'provider_error': {'message': 'failed'}, 'timestamp': '2026-01-01T00:00:00+00:00'}
             messages = [{'role': 'system', 'content': 'system'}, {'role': 'user', 'content': 'question'},
                         failed, {'role': 'assistant', 'content': 'advice', '_complete': True, 'usage': None}]
-            for path in [run / 'u/transcript.jsonl', run / 'windows/1/forks/0/u/transcript.jsonl']:
+            for path in [run / 'windows/0/forks/0/u/transcript.jsonl', run / 'windows/1/forks/0/u/transcript.jsonl']:
                 path.parent.mkdir(parents=True)
                 path.write_text(''.join(json.dumps(message) + '\n' for message in messages))
             _, runs, missing = convert(run)

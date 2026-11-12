@@ -43,12 +43,12 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
     write(config.output / f'windows/{window}/forks/0/fork.json', '{}')
     database = ExperimentDatabase(config.output)
     botbox_script.advice.extend(['Double.', 'Double again.'])
-    async with open_u_chat(config) as chat:
+    async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 22, window))
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
-    async with open_u_chat(config) as chat:
+    async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 23, window))
@@ -74,7 +74,7 @@ async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, 
     monkeypatch.setattr(write_advice_module, 'write', lambda path, data: written.update({path.name: bool(held)}) or write(path, data))
     monkeypatch.setattr(advice_module, 'write', lambda path, data: written.update({path.name: bool(held)}) or write(path, data))
     botbox_script.advice.append('Double.')
-    async with open_u_chat(config) as chat:
+    async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 0))
     assert written['advice.json'] and written['metadata.json']
@@ -113,7 +113,7 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
                '<attempt>\n<index>0</index>\n<length>5 characters</length>\n<advice>\nBest.\n</advice>\n'
                + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
     botbox_script.advice.extend(['Later.', 'Again.', 'Next.'])
-    async with open_u_chat(config) as chat:
+    async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 0, 1, 0))
         await write_advice(run, Turn(config, 1, 1, 0))

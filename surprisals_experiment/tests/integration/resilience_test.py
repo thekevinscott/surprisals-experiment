@@ -62,20 +62,20 @@ async def test_failed_reply_retries_original_history(
     windows = [[*window, (None, 'Use a loop', [PASS])] for window in WINDOWS]
     world, pending = played(windows, {'Use a loop': {'score': 10}}, config=config)
     retried = world[0]
-    asked = chat(0, (QUESTION, None))['u/transcript.jsonl']
+    asked = chat(0, (QUESTION, None))['windows/0/forks/0/u/transcript.jsonl']
     partial = [] if recorded is None else [recorded | row]
     failed = State(failure, sent=retried.sent, logs=[(f'{TURN}/u', kind, text) for kind, text in shown],
                    files=retried.files)
     retried.logs = [(f'{TURN}/u', 'retry', f'1/8 in 10s: {error}\n'), *retried.logs]
     retried.files = {}
     if partial:
-        retried.files['u/transcript.jsonl'] = [*asked, *partial]
+        retried.files['windows/0/forks/0/u/transcript.jsonl'] = [*asked, *partial]
     # Keep the failed reply as evidence on disk, including at the next turn.
     # The exact requests from played contain only accepted advice and T feedback.
     for state in world[1:]:
-        if 'u/transcript.jsonl' in state.files:
-            messages = state.files['u/transcript.jsonl']
-            state.files['u/transcript.jsonl'] = [*asked, *partial, *messages[len(asked):]]
+        if 'windows/0/forks/0/u/transcript.jsonl' in state.files:
+            messages = state.files['windows/0/forks/0/u/transcript.jsonl']
+            state.files['windows/0/forks/0/u/transcript.jsonl'] = [*asked, *partial, *messages[len(asked):]]
     world = [failed, *world, outcome(config, TURN, 4, pending)]
     async with execute_run_experiment(config, world, u_layout=True):
         pass
@@ -105,9 +105,9 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': appended(PASS)}]
-    asked = [*chat(0, (QUESTION, None))['u/transcript.jsonl'],
+    asked = [*chat(0, (QUESTION, None))['windows/0/forks/0/u/transcript.jsonl'],
              PARTIAL | {'reasoning': 'Cut off', **OK, 'usage': USAGE}, {'role': 'system', 'content': ..., '_attempt': 1}]
-    answer = chat(0, (QUESTION, advice))['u/transcript.jsonl'][-1]
+    answer = chat(0, (QUESTION, advice))['windows/0/forks/0/u/transcript.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
@@ -117,8 +117,8 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
         u_state(config, 0, 1, QUESTION, advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
-            'u/transcript.jsonl': asked}, u_layout=True),
-        t_state(0, 1, 0, 0, advice, {'u/transcript.jsonl': [*asked, answer],
+            'windows/0/forks/0/u/transcript.jsonl': asked}, u_layout=True),
+        t_state(0, 1, 0, 0, advice, {'windows/0/forks/0/u/transcript.jsonl': [*asked, answer],
                                      **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
                 previous=10, u_layout=True),
