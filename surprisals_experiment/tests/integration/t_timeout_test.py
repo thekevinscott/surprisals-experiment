@@ -11,8 +11,6 @@ from u_flush_test import (
     PASS,
     QUESTION,
     STDOUT,
-    appended,
-    chat,
     flush,
     outcome,
     played,
@@ -79,15 +77,14 @@ async def test_retries_a_hung_sample_once_with_a_fresh_t(config, execute_run_exp
     config.t_samples = 3
     config.t_sample_timeout = .1
     config.t_sample_retries = 1
-    best = flush(0, 'Double.', length=7, codes=[PASS] * 3)
     world = [
-        u_state(config, 0, 0, QUESTION, 'Double.', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)}),
+        u_state(config, 0, 0, None, 'Double.', {'settings.json': ..., **opened(0)}),
+        t_state(0, 0, 0, 0, 'Double.', {**advised(0, 0, 'Double.', 7)}),
         t_state(0, 0, 1, 0, 'Double.', {}, code={'partial.py': 'partial'}, hang=True),
         t_state(0, 0, 2, 0, 'Double.', {}),
         t_state(0, 0, 1, 1, 'Double.', {**evaluated(attempt(0, 0, 0), attempt(0, 0, 2)), **timed_out(attempt(0, 0, 1))}),
-        u_state(config, 1, 0, best, 'Double.', {**evaluated(attempt(0, 0, 1, 1)), **opened(1), **chat(1, (best, None))}, previous=len('Double.')),
-        t_state(1, 0, 0, 0, 'Double.', {**chat(1, (best, 'Double.')), **advised(1, 0, 'Double.')}),
+        u_state(config, 1, 0, None, 'Double.', {**evaluated(attempt(0, 0, 1, 1)), **opened(1)}, previous=len('Double.')),
+        t_state(1, 0, 0, 0, 'Double.', {**advised(1, 0, 'Double.')}),
         t_state(1, 0, 1, 0, 'Double.', {}),
         t_state(1, 0, 2, 0, 'Double.', {}),
         Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={
@@ -103,28 +100,23 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     config.t_sample_timeout = .1
     config.t_sample_retries = 1
     long = 'Double the input.'
-    best = flush(0, long, length=17, codes=[PASS] * 3)
-    later = [{'role': 'assistant', 'content': long}, {'role': 'user', 'content': appended(*[PASS] * 3)}]
-    first, second = [{'role': 'user', 'content': QUESTION}, *later], [{'role': 'user', 'content': best}, *later]
     world = [
-        u_state(config, 0, 0, QUESTION, long, {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None))}),
-        t_state(0, 0, 0, 0, long, {**chat(0, (QUESTION, long)), **advised(0, 0, long, 17)}),
+        u_state(config, 0, 0, None, long, {'settings.json': ..., **opened(0)}),
+        t_state(0, 0, 0, 0, long, {**advised(0, 0, long, 17)}),
         t_state(0, 0, 1, 0, long, {}),
         t_state(0, 0, 2, 0, long, {}),
-        u_state(config, 0, 1, first, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3))),
-                                         **chat(0, (QUESTION, long), (first, None))}),
-        t_state(0, 1, 0, 0, 'Double.', {**chat(0, (QUESTION, long), (first, 'Double.')), **advised(0, 1, 'Double.', 7)}),
+        u_state(config, 0, 1, None, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3)))}),
+        t_state(0, 1, 0, 0, 'Double.', {**advised(0, 1, 'Double.', 7)}),
         t_state(0, 1, 1, 0, 'Double.', {}),
         t_state(0, 1, 2, 0, 'Double.', {}, hang=True),
         t_state(0, 1, 2, 1, 'Double.', {**evaluated(attempt(0, 1, 0), attempt(0, 1, 1)), **timed_out(attempt(0, 1, 2))},
                 hang=True),
-        u_state(config, 1, 0, best, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1), **chat(1, (best, None))}, previous=len(long)),
-        t_state(1, 0, 0, 0, long, {**chat(1, (best, long)), **advised(1, 0, long)}),
+        u_state(config, 1, 0, None, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1)}, previous=len(long)),
+        t_state(1, 0, 0, 0, long, {**advised(1, 0, long)}),
         t_state(1, 0, 1, 0, long, {}),
         t_state(1, 0, 2, 0, long, {}),
-        u_state(config, 1, 1, second, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3))),
-                                     **chat(1, (best, long), (second, None))}, previous=len(long)),
-        t_state(1, 1, 0, 0, long, {**chat(1, (best, long), (second, long)), **advised(1, 1, long)}),
+        u_state(config, 1, 1, None, long, {**evaluated(*(attempt(1, 0, sample) for sample in range(3)))}, previous=len(long)),
+        t_state(1, 1, 0, 0, long, {**advised(1, 1, long)}),
         t_state(1, 1, 1, 0, long, {}),
         t_state(1, 1, 2, 0, long, {}),
         Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={
@@ -153,13 +145,12 @@ async def test_does_not_retry_with_a_zero_budget(config, execute_run_experiment)
     config.t_sample_timeout = .05
     partial = {'partial.py': 'partial'}
     world = [
-        u_state(config, 0, 0, QUESTION, 'Double.', {'settings.json': {**settings(config), 't_sample_timeout': .05, 't_sample_retries': 0,
-                                                             'max_u_turns': config.max_u_turns},
-                                           **opened(0), **chat(0, (QUESTION, None))}),
-        t_state(0, 0, 0, 0, 'Double.', {**chat(0, (QUESTION, 'Double.')), **advised(0, 0, 'Double.', 7)},
+        u_state(config, 0, 0, None, 'Double.', {'settings.json': {**settings(config), 't_sample_timeout': .05, 't_sample_retries': 0,
+                                                             'max_u_turns': config.max_u_turns}, **opened(0)}),
+        t_state(0, 0, 0, 0, 'Double.', {**advised(0, 0, 'Double.', 7)},
                 code=partial, hang=True),
-        u_state(config, 1, 0, QUESTION, 'Double.', {**timed_out(attempt(0, 0, 0)), **opened(1), **chat(1, (QUESTION, None))}),
-        t_state(1, 0, 0, 0, 'Double.', {**chat(1, (QUESTION, 'Double.')), **advised(1, 0, 'Double.')},
+        u_state(config, 1, 0, None, 'Double.', {**timed_out(attempt(0, 0, 0)), **opened(1)}),
+        t_state(1, 0, 0, 0, 'Double.', {**advised(1, 0, 'Double.')},
                 code=partial, hang=True),
         Done(outcome=None, files={**timed_out(attempt(1, 0, 0)), 'error.txt': 'No passing solution after 2 U turns\n',
                                   'result.json': {'success': False, 'attempts': 2, 'solution': None}}),
@@ -191,4 +182,3 @@ async def test_cancels_and_cleans_up_on_sigterm(config, tmp_path, in_tmp_path, e
         signal.raise_signal(signal.SIGTERM)
         with pytest.raises(asyncio.CancelledError):
             await run.task
-    assert config.u_transcripts.joinpath('messages.jsonl').exists()
