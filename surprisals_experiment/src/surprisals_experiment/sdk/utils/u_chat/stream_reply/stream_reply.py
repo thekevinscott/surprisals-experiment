@@ -59,20 +59,18 @@ async def stream_reply(self, *, on_delta=None) -> str:
                 snapshot.choices[0].message.model_dump(exclude_none=True), ensure_ascii=False)))
             message.pop("parsed", None)
             message["role"] = "assistant"
-            if provider_error is not None:
-                message["provider_error"] = provider_error
             # The SDK concatenates unknown string fields; format is metadata, not a text delta.
             for detail in message.get("reasoning_details") or []:
                 if detail["index"] in reasoning_formats:
                     detail["format"] = reasoning_formats[detail["index"]]
             complete = (completion is not None and completion.choices[0].finish_reason == "stop"
                         and bool(completion.choices[0].message.content) and provider_error is None)
-            append(self.transcript, json.dumps(message | {
-                "_complete": complete,
-                "timestamp": datetime.now(UTC).isoformat(),
-                "completion_id": snapshot.id,
-                "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
-            }, ensure_ascii=False) + "\n")
+            if complete:
+                append(self.transcript, json.dumps(message | {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "completion_id": snapshot.id,
+                    "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
+                }, ensure_ascii=False) + "\n")
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
