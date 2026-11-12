@@ -33,5 +33,4 @@ class Turn:
     @property
     def advice(self) -> Advice:
         metadata = json.loads((self.attempt_dir / "metadata.json").read_text())
-        text = (self.config.output / metadata["advice"] / "advice.txt").read_bytes().decode("utf-8")
-        return Advice(text, self.config.advice_measure, self.config.output)
+        return Advice(self.config.output, metadata["advice"], self.config.advice_measure)

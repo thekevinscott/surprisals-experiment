@@ -9,16 +9,22 @@ from .utils.write import write
 
 
 class Advice:
-    def __init__(self, text: str, measure: AdviceMeasure, root: Path):
-        self.text = text
+    def __init__(self, root: Path, id: str, measure: AdviceMeasure):
+        self.id = id
+        self.directory = root / id
         self.measure = measure
-        self.directory = root / "advices" / sha256(self.text.encode("utf-8")).hexdigest()
 
-    def save(self) -> None:
-        write(self.directory / "advice.txt", self.text.encode("utf-8"))
-        path = self.directory / "advice.json"
-        if not path.exists():
-            write(path, "{}\n")
+    @classmethod
+    def save(cls, text: str, measure: AdviceMeasure, root: Path) -> "Advice":
+        advice = cls(root, f"advices/{sha256(text.encode('utf-8')).hexdigest()}", measure)
+        write(advice.directory / "advice.txt", text.encode("utf-8"))
+        if not (advice.directory / "advice.json").exists():
+            write(advice.directory / "advice.json", "{}\n")
+        return advice
+
+    @property
+    def text(self) -> str:
+        return (self.directory / "advice.txt").read_bytes().decode("utf-8")
 
     async def score(self, on_delta=None) -> int | float:
         path = self.directory / "advice.json"

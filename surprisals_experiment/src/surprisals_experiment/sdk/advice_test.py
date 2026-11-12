@@ -20,8 +20,7 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
     for attempt in range(2):
         config.attempt_dir(attempt).mkdir(parents=True)
         turn = Turn(config, attempt)
-        advice = Advice(text, config.advice_measure, config.output)
-        advice.save()
+        advice = Advice.save(text, config.advice_measure, config.output)
         assert json.loads((advice.directory / "advice.json").read_text()) == ({} if attempt == 0 else {"score": len(text)})
         write(turn.attempt_dir / "metadata.json",
               json.dumps({"advice": str(advice.directory.relative_to(config.output))}) + "\n")
