@@ -32,5 +32,5 @@ async def score_advice(run: Run, turn: Turn) -> None:
         rejected.mkdir(exist_ok=True)
         (turn.u_dir / "advice.txt").rename(rejected / f"{rejections}.txt")
         append(run.u_chat.transcript, json.dumps({
-            "role": "user", "content": REJECTED.format(error=error),
+            "role": "user", "content": REJECTED,
         }, ensure_ascii=False) + "\n")
