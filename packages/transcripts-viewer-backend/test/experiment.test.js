@@ -39,6 +39,10 @@ test('best score requires all samples, retries use latest test, forks share dept
   assert.equal(rows[0].problem, '0054')
   assert.equal(rows[0].best, 12)
   assert.deepEqual(rows[0].passing, [[42, 12]])
+  assert.deepEqual(rows[0].forks, [
+    {window:1,id:0,turns:43,passing:[[42,12]]},
+    {window:1,id:1,turns:43,passing:[]},
+  ])
   assert.equal(rows[0].turns, 43)
   assert.equal(rows[0].windows, 1)
   assert.equal(rows[0].elapsed, 9000)
