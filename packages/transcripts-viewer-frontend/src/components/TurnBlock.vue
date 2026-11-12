@@ -13,12 +13,11 @@ function openAdvice() {
 }
 const expanded = ref(true)
 const link = inject('runLink')
-const apiUrl = inject('apiUrl')
 </script>
 <template>
   <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :summary="turnSummary(turn)">
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
-    <TranscriptButton v-if="!turn.error || turn.advice != null" :source="turn.transcriptPath" :url="apiUrl(`${turn.source}/transcript`)" />
+    <TranscriptButton v-if="!turn.error || turn.advice != null" :source="turn.transcriptPath" />
     <Button v-if="turn.advice != null" text size="small" label="Open advice" @click="openAdvice" />
 
     <TTranscripts :samples="turn.samples ?? []" />

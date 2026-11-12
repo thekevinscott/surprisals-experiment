@@ -1,6 +1,5 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { recordPresentation } from '../composables/recordPresentation.js'
 import TranscriptRecord from './TranscriptRecord.vue'
 const props = defineProps({ messages: Array, source: String, initialLine: String })
 const selectedBlock = ref(null)
@@ -8,7 +7,7 @@ const blocks = new Map()
 const roles = { system: 'System prompt', user: 'User', assistant: 'Assistant', toolResult: 'Tool result', tool: 'Tool result' }
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${roles[message.role] ?? message.role}`,
-  description: message.raw == null ? 'Load original record' : recordPresentation(message.raw).text.replace(/\s+/g, ' ').slice(0, 120),
+  description: message.raw == null ? 'Load original record' : message.raw.slice(0, 120),
 })))
 const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })))
 async function jump(value) {

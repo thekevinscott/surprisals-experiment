@@ -5,7 +5,7 @@ import { attemptState } from '../composables/outcomes.js'
 import ContentPanel from './ContentPanel.vue'
 import TAttempt from './TAttempt.vue'
 const props=defineProps({ sample: Object })
-const expanded = ref(false)
+const expanded = ref(true)
 const apiUrl=inject('apiUrl')
 const {data,loading,error}=useLiveResource(()=>expanded.value?[apiUrl(props.sample.source)]:[],(signal,[url])=>fetchJson(url,signal))
 </script>

@@ -4,11 +4,11 @@ import TSample from './TSample.vue'
 defineProps({ samples: Array })
 </script>
 <template>
-  <ContentPanel v-if="samples.length" title="T samples" :summary="`${samples.length} samples`" preview :collapsible="samples.length > 1" class="t-transcripts" v-slot="{ expanded }">
-    <div class="sample-columns" :style="{ '--sample-count': expanded ? samples.length : 1 }">
+  <ContentPanel v-if="samples.length" title="T samples" :summary="`${samples.length} samples`" :expanded="true" class="t-transcripts">
+    <div class="sample-columns" :style="{ '--sample-count': samples.length }">
       <TSample v-for="sample in samples" :key="sample.id" :sample="sample" />
     </div>
-    <p class="comparison-hint">{{ expanded ? 'Scroll horizontally to compare samples, or widen the fork.' : 'Expand to compare T samples side by side.' }}</p>
+    <p class="comparison-hint">Scroll horizontally to compare samples, or widen the fork.</p>
   </ContentPanel>
 </template>
 <style scoped>
