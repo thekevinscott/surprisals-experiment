@@ -24,7 +24,7 @@ async def test_later_turn_rejection_cap(config, scorer_provider, rejections):
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
     }))
     turn = Turn(config, 1)
-    advice = Advice.save('too long', config.advice_measure, config.output)
+    advice = Advice(config.output, 'too long', config.advice_measure)
     metadata = turn.attempt_dir / 'metadata.json'
     write(metadata, json.dumps({'advice': advice.id}) + '\n')
     rejection = {'role': 'user', 'content': REJECTED}

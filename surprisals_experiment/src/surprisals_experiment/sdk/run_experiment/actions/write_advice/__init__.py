@@ -39,7 +39,7 @@ async def write_advice(run: Run, turn: Turn) -> None:
         )
         return
     with run.database.dirsql.lock:
-        advice = Advice.save(text, config.advice_measure, config.output)
+        advice = Advice(config.output, text, config.advice_measure)
         write(
             turn.attempt_dir / "metadata.json",
             json.dumps(

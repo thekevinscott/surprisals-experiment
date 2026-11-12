@@ -9,31 +9,27 @@ from .utils.write import write
 
 
 class Advice:
-    def __init__(self, root: Path, id: str, measure: AdviceMeasure):
-        self.id = id
-        self.directory = root / id
+    def __init__(self, root: Path, text: str, measure: AdviceMeasure):
+        self.text = text
         self.measure = measure
+        self.id = f"advices/{sha256(text.encode('utf-8')).hexdigest()}"
+        self.directory = root / self.id
+        path = self.directory / "advice.json"
+        self.metadata = json.loads(path.read_text()) if path.exists() else {}
+        self.save()
 
     @classmethod
-    def save(cls, text: str, measure: AdviceMeasure, root: Path) -> "Advice":
-        advice = cls(root, f"advices/{sha256(text.encode('utf-8')).hexdigest()}", measure)
-        write(advice.directory / "advice.txt", text.encode("utf-8"))
-        if not (advice.directory / "advice.json").exists():
-            write(advice.directory / "advice.json", "{}\n")
-        return advice
+    def load(cls, root: Path, id: str, measure: AdviceMeasure) -> "Advice":
+        return cls(root, (root / id / "advice.txt").read_bytes().decode("utf-8"), measure)
 
-    @property
-    def text(self) -> str:
-        return (self.directory / "advice.txt").read_bytes().decode("utf-8")
+    def save(self) -> None:
+        write(self.directory / "advice.txt", self.text.encode("utf-8"))
+        write(self.directory / "advice.json", json.dumps(self.metadata, indent=2) + "\n")
 
     async def score(self, on_delta=None) -> int | float:
-        path = self.directory / "advice.json"
-        if path.exists():
-            metadata = json.loads(path.read_text())
-            if "score" in metadata:
-                return metadata["score"]
+        if "score" in self.metadata:
+            return self.metadata["score"]
         score, tokens = await self.measure.score(self.text, on_delta=on_delta)
-        write(path, json.dumps({
-            "score": score, **({"tokens": tokens} if tokens is not None else {}),
-        }, indent=2) + "\n")
+        self.metadata = {"score": score, **({"tokens": tokens} if tokens is not None else {})}
+        self.save()
         return score
