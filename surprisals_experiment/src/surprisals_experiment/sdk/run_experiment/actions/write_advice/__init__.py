@@ -8,23 +8,23 @@ from ....utils.u_chat.stream_reply.errors import OutputTokenLimitError
 from ....utils.write import write
 from .prepare_flush import prepare_flush
 from .render_code import render_code
-from .system_prompt import system_prompt
+from .turn_line import turn_line
 
 
 async def write_advice(run: Run, turn: Turn) -> None:
     assert run.u_chat is not None
     config = turn.config
-    system = await system_prompt(run, turn)
-    messages = [{"role": "system", "content": system}]
+    content = await turn_line(run, turn)
     if not any(entry["role"] == "user" for entry in run.u_chat.entries()):
-        messages.append({"role": "user", "content": await prepare_flush(turn, run.problem, run.database)})
+        content += "\n" + await prepare_flush(turn, run.problem, run.database)
     elif turn.position:
         previous = Turn(config, turn.position - 1, turn.window, turn.fork)
         metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
         if metadata["advice"] is not None:
-            messages.append({"role": "user", "content": await render_code(
+            content += "\n" + await render_code(
                 config, run.database, str(previous.attempt_dir.relative_to(config.output)),
-            )})
+            )
+    messages = [{"role": "user", "content": content}]
     try:
         text = await run.u_chat.prompt(
             messages, attempt=turn.position,

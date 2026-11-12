@@ -15,12 +15,7 @@ def request_messages(self) -> list[dict]:
             continue
         # Reply reasoning and timestamp/completion_id/usage remain on disk only.
         message = {key: entry[key] for key in ("role", "content")}
-        if message["role"] == "system":
-            if messages:
-                messages[0] = message
-            else:
-                messages.append(message)
-        elif message["role"] == "assistant":
+        if message["role"] == "assistant":
             # Only the latest successful reply has T feedback. Earlier replies
             # may have been rejected by the scorer or interrupted before saving.
             reply = message
