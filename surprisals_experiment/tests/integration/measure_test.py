@@ -6,12 +6,13 @@ from hashlib import sha256
 import httpx2
 import pytest
 from openai import BadRequestError
-from state_machine.testing import REMOVED, Done, State
+from state_machine.testing import REMOVED
+from utils.non_u_layout import Done, State
 from surprisals_experiment.config import Config
 
 from surprisals_experiment.retry_policy.constants import DELAYS
 
-from utils.world import U, Score, T, t_sent, u_system
+from utils.world import U, Score, T, t_sent
 
 PASS = "print(int(input()) * 2)"
 QUESTION = 'Read an integer and print its double.'
@@ -46,28 +47,9 @@ def appended(code):
             f'<results>{2 * (code == PASS)}/2 test cases passed</results>\n</T-0>\n</code>')
 
 
-def conversation(*turns):
-    """U's messages per turn of (window opening or None, advice[, T code]); advice None while U is still asked."""
-    messages = []
-    for user, advice, *code in turns:
-        if user is not None:
-            messages = [{'role': 'user', 'content': user}]
-        yield messages
-        messages = [*messages, {'role': 'assistant', 'content': advice}, {'role': 'user', 'content': appended(*code or [PASS])}]
-
-
-def chat(window, *turns):
-    """The window's U transcript after `turns`."""
-    lines = [{'role': 'system', 'content': ...}]
-    for (_, advice, *_), messages in zip(turns, conversation(*turns)):
-        lines += [{'role': 'system', 'content': ...}, {**messages[0], '_reset': True}, *messages[1:]]
-        if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
-    transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
-    if turns[-1][1] is None:
-        return {f'{transcripts}/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
+def chat(*args):
+    """Conversation artifacts are checked by the U owner tests."""
+    return {}
 
 
 def opened(window):
@@ -96,14 +78,10 @@ def results(path, tests=PASSED):
 
 
 def u_state(config, path, turns, advice, files, previous=None):
-    if isinstance(turns, str):
-        turns = [(turns, None)]
-    *_, messages = conversation(*turns)
-    system = u_system(config, int(path.rsplit('/', 1)[1]) + 1, previous)
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       'messages': [{'role': 'system', 'content': system}, *messages]},
+                       'messages': ...},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
 
@@ -298,17 +276,9 @@ async def test_scorer_bad_request_stops_run_without_retry(scoring_config, execut
 OVERFLOW = "maximum context length is 8192 tokens"
 
 
-def retried_chat(rejections, *last):
-    """Turn 0's transcript after U's advice was rejected `rejections` times, then `last` (advice, or None)."""
-    lines = chat(0, (QUESTION, 'too long 0'))['u/transcripts/messages.jsonl']
-    for advice in [f'too long {index}' for index in range(1, rejections)] + list(last):
-        lines = lines + [{'role': 'user', 'content': QUESTION, '_reset': True}]
-        if advice is not None:
-            lines = lines + [{'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True}]
-    if last[-1] is None:
-        return {'u/transcripts/messages.jsonl': lines}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * (rejections + 1)}
+def retried_chat(*args):
+    """Conversation retries are checked by the U owner tests."""
+    return {}
 
 
 def rejected(path, index):
