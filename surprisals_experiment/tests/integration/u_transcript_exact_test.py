@@ -3,6 +3,8 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from state_machine.testing import State
 from u_flush_test import PASS, QUESTION, flush, outcome, played
 from utils.mock_llm import MockLLM
@@ -12,7 +14,8 @@ TURN = 'windows/0/forks/0/turns/0'
 TRANSCRIPT = 'windows/{}/forks/0/u/transcript.jsonl'
 
 
-async def run_and_record(config, execute_run_experiment, world):
+@pytest.fixture
+def run_and_record(config, execute_run_experiment):
     answer = MockLLM.answer
     sent = []
 
@@ -21,10 +24,13 @@ async def run_and_record(config, execute_run_experiment, world):
             sent.append([dict(message) for message in request['messages']])
         return await answer(self, kind, request)
 
-    with patch.object(MockLLM, 'answer', recording):
+    async def run(world):
         async with execute_run_experiment(config, world):
             pass
-    return sent
+        return sent
+
+    with patch.object(MockLLM, 'answer', recording):
+        yield run
 
 
 def lines(config, window):
@@ -39,7 +45,7 @@ def assert_exact(file, requests):
     assert file[-1]['role'] == 'assistant'
 
 
-async def test_multi_turn_transcript_is_exactly_what_u_was_sent(config, execute_run_experiment):
+async def test_multi_turn_transcript_is_exactly_what_u_was_sent(config, run_and_record):
     config.max_u_turns = 2
     windows = [
         [(QUESTION, 'double it', [PASS]), (None, 'double it', [PASS])],
@@ -49,13 +55,13 @@ async def test_multi_turn_transcript_is_exactly_what_u_was_sent(config, execute_
     ]
     world, pending = played(windows, {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}, config=config)
     world.append(outcome(config, 'windows/2/forks/0/turns/0', 8, pending))
-    sent = await run_and_record(config, execute_run_experiment, world)
+    sent = await run_and_record(world)
     assert len(sent) == 8
     for window in range(4):
         assert_exact(lines(config, window), sent[2 * window:2 * window + 2])
 
 
-async def test_interrupted_reply_is_not_in_the_transcript(config, execute_run_experiment):
+async def test_interrupted_reply_is_not_in_the_transcript(config, run_and_record):
     config.max_u_turns = 2
     windows = [
         [(QUESTION, 'Use a loop', [PASS]), (None, 'Use a loop', [PASS])],
@@ -68,14 +74,14 @@ async def test_interrupted_reply_is_not_in_the_transcript(config, execute_run_ex
     retried.logs = [(f'{TURN}/u', 'retry', '1/8 in 10s: Connection error.\n'), *retried.logs]
     retried.files = {}
     world = [failed, *world, outcome(config, TURN, 4, pending)]
-    sent = await run_and_record(config, execute_run_experiment, world)
+    sent = await run_and_record(world)
     assert len(sent) == 5
     assert sent[0] == sent[1]
     assert_exact(lines(config, 0), sent[1:3])
     assert_exact(lines(config, 1), sent[3:])
 
 
-async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experiment):
+async def test_failed_reply_usage_goes_to_the_run_log(config, run_and_record):
     usage = {'completion_tokens': 20, 'prompt_tokens': 10, 'total_tokens': 30}
     config.max_u_turns = 2
     windows = [
@@ -91,11 +97,11 @@ async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experi
                     (f'{TURN}/u', 'retry', '1/8 in 10s: Connection error.\n'), *retried.logs]
     retried.files = {}
     world = [failed, *world, outcome(config, TURN, 4, pending)]
-    sent = await run_and_record(config, execute_run_experiment, world)
+    sent = await run_and_record(world)
     assert_exact(lines(config, 0), sent[1:3])
 
 
-async def test_reasoning_is_saved_but_never_sent_back(config, execute_run_experiment):
+async def test_reasoning_is_saved_but_never_sent_back(config, run_and_record):
     config.max_u_turns = 2
     windows = [
         [(QUESTION, 'double it', [PASS]), (None, 'double it', [PASS])],
@@ -105,7 +111,7 @@ async def test_reasoning_is_saved_but_never_sent_back(config, execute_run_experi
     ]
     world, pending = played(windows, {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}, config=config)
     world.append(outcome(config, 'windows/2/forks/0/turns/0', 8, pending))
-    sent = await run_and_record(config, execute_run_experiment, world)
+    sent = await run_and_record(world)
     for window in range(4):
         path = config.output / TRANSCRIPT.format(window)
         replies = [entry for entry in map(json.loads, path.read_text().splitlines()) if entry['role'] == 'assistant']
