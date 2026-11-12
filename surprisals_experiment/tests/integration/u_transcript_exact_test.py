@@ -73,3 +73,22 @@ async def test_interrupted_reply_is_not_in_the_transcript(config, execute_run_ex
     assert sent[0] == sent[1]
     assert_exact(lines(config, 0), sent[1:3])
     assert_exact(lines(config, 1), sent[3:])
+
+
+async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experiment):
+    usage = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30}
+    config.max_u_turns = 2
+    windows = [
+        [(QUESTION, 'Use a loop', [PASS]), (None, 'Use a loop', [PASS])],
+        [(flush(0, 'Use a loop', length=10), 'Use a loop', [PASS]), (None, 'Use a loop', [PASS])],
+    ]
+    world, pending = played(windows, {'Use a loop': {'score': 10}}, config=config)
+    retried = world[0]
+    failed = State(U('partial', finish=None, drop=True, usage=usage), sent=retried.sent,
+                   logs=[(f'{TURN}/u', 'text', 'partial'), (f'{TURN}/u', 'usage', json.dumps(usage))],
+                   files=retried.files)
+    retried.logs = [(f'{TURN}/u', 'retry', '1/8 in 10s: Connection error.\n'), *retried.logs]
+    retried.files = {}
+    world = [failed, *world, outcome(config, TURN, 4, pending)]
+    sent = await run_and_record(config, execute_run_experiment, world)
+    assert_exact(lines(config, 0), sent[1:3])
