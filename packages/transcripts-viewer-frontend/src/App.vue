@@ -10,7 +10,7 @@ import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
 import {runDuration} from './composables/runDuration.js'
-import {createChartData} from './graphs.js'
+import {createChartData, createForkChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
 const now=ref(Date.now())
@@ -38,7 +38,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 const fileRoute = computed(() => parseFileRoute(route.value))
 const target = computed(() => runRoute(route.value))
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
-const runCharts = computed(() => createChartData(selected.value ? [selected.value] : []))
+const runCharts = computed(() => createForkChartData(selected.value))
 const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
@@ -88,7 +88,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
-  <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
+  <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template #closebutton="{ closeCallback }">
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
@@ -122,10 +122,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       </div>
       </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
-      <section :key="selected.id" class="run-graphs graphs" aria-label="Run graphs">
-        <article><h2>Best advice over turns</h2><CellChart :chart-data="runCharts" kind="advice" /></article>
-        <article><h2>Turns between improvements</h2><CellChart :chart-data="runCharts" kind="improvements" /></article>
-        <article><h2>Improvement as advice shrinks</h2><WaitChart :chart-data="runCharts" /></article>
+      <section :key="selected.id" class="run-graphs" aria-label="Run graphs">
+        <CellChart :chart-data="runCharts" kind="advice" :controls="false" />
       </section>
       <figure class="minimization-loop">
         <ForkDiagram :run="selected" :target="target" />
@@ -168,6 +166,6 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 <style>
 .live-dot { position:fixed; top:10px; right:10px; z-index:1000; width:10px; height:10px; border-radius:50%; background:#e6b800; animation:live-pulse 1.2s ease-in-out infinite; }
 @keyframes live-pulse { 50% { opacity:.3; transform:scale(.8); } }
-.modal-action { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:24px;cursor:pointer; }
+.modal-action { display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:12px;cursor:pointer; }
 .modal-action:hover { background:#eef2f7; }
 </style>

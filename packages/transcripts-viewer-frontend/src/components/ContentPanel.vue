@@ -45,16 +45,16 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
 </template>
 <style scoped>
 .content-panel { margin:0; min-width:0; --p-panel-header-padding:4px; --p-panel-content-padding:0 4px 4px; --p-panel-border-radius:6px; }
-.panel-label { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; min-width:0; }
+.panel-label { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; }
 .permalink { color:#697b94;text-decoration:none;font-size:12px; }
 .panel-label strong { font-size:12px; }
 .panel-summary { display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:10px; color:#657186; }
 .content-panel :deep(.p-panel-header-actions) { display:flex; align-items:center; }
-.accordion-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:14px; height:18px; padding:0; border:0; background:none; color:#52657e; cursor:pointer; align-self:flex-start; }
-.accordion-toggle svg { width:10px; height:10px; fill:none; stroke:currentColor; stroke-width:1.5; }
+.accordion-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:22px; height:22px; padding:0; border:0; background:none; color:#52657e; cursor:pointer; align-self:center; }
+.accordion-toggle svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.5; }
 .accordion-toggle svg.expanded { transform:rotate(90deg); }
 .accordion-toggle:focus-visible { outline:2px solid #254c7f; outline-offset:1px; border-radius:2px; }
-.content-panel :deep(.p-button) { font-size:10px; padding:3px 5px; }
+
 .disclosure-body { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; }
 .box-content { min-width:0; }
 </style>

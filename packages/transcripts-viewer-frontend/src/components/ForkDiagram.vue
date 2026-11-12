@@ -10,6 +10,7 @@ const windows = ref([])
 const windowViews = ref([])
 const apiUrl = path => `/api/runs/${encodeURIComponent(props.run.id)}/${path.split('/').map(encodeURIComponent).join('/')}`
 provide('apiUrl',apiUrl)
+provide('sampleCount', () => props.run.samples)
 const rawUrl = path => !path || path.includes(', ') ? undefined : apiUrl(path.startsWith('problem/') ? path : `files/${path}`)
 provide('rawSourceUrl', rawUrl)
 provide('sourceUrl', (path, line) => {
