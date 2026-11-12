@@ -40,7 +40,7 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   await put(join(run,turn,'metadata.json'),{advice:'advices/ab'})
   await put(join(run,'advices/ab/advice.json'),{score:3})
   await put(join(run,turn,'u/advice.txt'),'old')
-  await put(join(run,'u/transcripts/messages.jsonl'),'{"role":"assistant","content":"old","_complete":true}')
+  await put(join(run,'u/transcript.jsonl'),'{"role":"assistant","content":"old","_complete":true}')
   await put(join(run,attempt,'tests.json'),{passed:1,total:1,all_passed:true})
   await put(join(problem,'question.txt'),'old question')
   const app=createApi(root)
@@ -57,7 +57,7 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   assert.equal((await changes.next('resource')).data.rows.length,1)
   // Same-size replacement and new nested files both need to be observed.
   await put(join(run,turn,'u/advice.txt'),'new')
-  await put(join(run,'u/transcripts/messages.jsonl'),'{"role":"assistant","content":"new","_complete":true}')
+  await put(join(run,'u/transcript.jsonl'),'{"role":"assistant","content":"new","_complete":true}')
   await put(join(run,'advices/ab/advice.json'),{score:1})
   await put(join(run,attempt,'tests.json'),{passed:0,total:1,all_passed:false})
   await put(join(run,'run.json'),{created:'2026-01-01',params:{'cap-strategy':'changed'}})
