@@ -93,3 +93,26 @@ async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experi
     world = [failed, *world, outcome(config, TURN, 4, pending)]
     sent = await run_and_record(config, execute_run_experiment, world)
     assert_exact(lines(config, 0), sent[1:3])
+
+
+async def test_reasoning_is_saved_but_never_sent_back(config, execute_run_experiment):
+    config.max_u_turns = 2
+    windows = [
+        [(QUESTION, 'double it', [PASS]), (None, 'double it', [PASS])],
+        [(flush(0, 'double it', length=9), 'double', [PASS]), (None, 'double', [PASS])],
+        [(flush(0, 'double', length=6), 'ok', [PASS]), (None, 'ok', [PASS])],
+        [(flush(0, 'ok', length=2), 'ok', [PASS]), (None, 'ok', [PASS])],
+    ]
+    world, pending = played(windows, {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}, config=config)
+    world.append(outcome(config, 'windows/2/forks/0/turns/0', 8, pending))
+    sent = await run_and_record(config, execute_run_experiment, world)
+    for window in range(4):
+        path = config.output / TRANSCRIPT.format(window)
+        replies = [entry for entry in map(json.loads, path.read_text().splitlines()) if entry['role'] == 'assistant']
+        assert len(replies) == 2
+        assert all(reply['reasoning'] == 'Think.' for reply in replies)
+    assert any(message['role'] == 'assistant' for request in sent for message in request)
+    for request in sent:
+        for message in request:
+            assert set(message) == {'role', 'content'}, message
+            assert 'Think.' not in message['content']
