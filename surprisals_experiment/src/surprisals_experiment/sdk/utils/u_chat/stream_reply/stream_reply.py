@@ -54,6 +54,11 @@ async def stream_reply(self, *, on_delta=None) -> str:
         raise output_limit_error(snapshot) from error
     finally:
         usage = snapshot.usage if snapshot is not None else None
+        complete = (completion is not None and completion.choices[0].finish_reason == "stop"
+                    and bool(completion.choices[0].message.content) and provider_error is None)
+        if not complete and usage is not None and on_delta is not None:
+            # Billed but never sent back to U, so it cannot live in the transcript.
+            on_delta("usage", json.dumps(usage.model_dump(exclude_unset=True)))
         if snapshot is not None and snapshot.choices:
             message = json.loads(well_formed(json.dumps(
                 snapshot.choices[0].message.model_dump(exclude_none=True), ensure_ascii=False)))
@@ -63,8 +68,6 @@ async def stream_reply(self, *, on_delta=None) -> str:
             for detail in message.get("reasoning_details") or []:
                 if detail["index"] in reasoning_formats:
                     detail["format"] = reasoning_formats[detail["index"]]
-            complete = (completion is not None and completion.choices[0].finish_reason == "stop"
-                        and bool(completion.choices[0].message.content) and provider_error is None)
             if complete:
                 append(self.transcript, json.dumps(message | {
                     "timestamp": datetime.now(UTC).isoformat(),

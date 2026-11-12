@@ -76,7 +76,7 @@ async def test_interrupted_reply_is_not_in_the_transcript(config, execute_run_ex
 
 
 async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experiment):
-    usage = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30}
+    usage = {'completion_tokens': 20, 'prompt_tokens': 10, 'total_tokens': 30}
     config.max_u_turns = 2
     windows = [
         [(QUESTION, 'Use a loop', [PASS]), (None, 'Use a loop', [PASS])],
@@ -85,9 +85,10 @@ async def test_failed_reply_usage_goes_to_the_run_log(config, execute_run_experi
     world, pending = played(windows, {'Use a loop': {'score': 10}}, config=config)
     retried = world[0]
     failed = State(U('partial', finish=None, drop=True, usage=usage), sent=retried.sent,
-                   logs=[(f'{TURN}/u', 'text', 'partial'), (f'{TURN}/u', 'usage', json.dumps(usage))],
+                   logs=[(f'{TURN}/u', 'text', 'partial')],
                    files=retried.files)
-    retried.logs = [(f'{TURN}/u', 'retry', '1/8 in 10s: Connection error.\n'), *retried.logs]
+    retried.logs = [(f'{TURN}/u', 'usage', json.dumps(usage)),
+                    (f'{TURN}/u', 'retry', '1/8 in 10s: Connection error.\n'), *retried.logs]
     retried.files = {}
     world = [failed, *world, outcome(config, TURN, 4, pending)]
     sent = await run_and_record(config, execute_run_experiment, world)
