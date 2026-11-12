@@ -4,13 +4,13 @@ import json
 from hashlib import sha256
 from itertools import accumulate
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
-from state_machine.testing import Done, State, decoded, run_files
+from state_machine.testing import decoded, run_files
+from utils.non_u_layout import Done, State, without_transcripts
 from surprisals_experiment.config import Config
-from utils.world import U, Case, Score, T, t_sent, u_system
+from utils.world import U, Case, Score, T, t_sent
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
@@ -18,8 +18,6 @@ BITS = [('Double', 1.5), (' it.', 0.5)]
 WORSE = ('Double the input.', [('Double', 1.5), (' the input.', 2.5)])
 DOUBLE = 'print(int(input()) * 2)\n'
 ZERO = 'print(0)\n'
-USAGE = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-UNANSWERED = {**USAGE, 'completion_id': None}
 TESTS = {'duration_seconds': 0.0, 'passed': 2, 'failed': 0, 'total': 2, 'all_passed': True, 'cases': [
     {'index': 0, 'passed': True, 'status': 'passed', 'stdout': '6\n', 'stderr': '', 'exit_code': 0},
     {'index': 1, 'passed': True, 'status': 'passed', 'stdout': '14\n', 'stderr': '', 'exit_code': 0},
@@ -31,7 +29,7 @@ FAILED = {'duration_seconds': 0.0, 'passed': 0, 'failed': 2, 'total': 2, 'all_pa
 STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write."}}\n'
           '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 # Every turn saves its advice again, so advices/*/advice.txt is rewritten too.
-REWRITTEN = {'messages.jsonl', 'usage.jsonl', 'window.json', 'fork.json'}
+REWRITTEN = {'messages.jsonl', 'replies.jsonl', 'usage.jsonl', 'window.json', 'fork.json'}
 SHAPES = {
     'sequential': ({'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1', 'window_forks': 1,
                     'fork_turns': 1, 'window_solo_turns': 1, 'max_u_turns': None, 't_samples': 2, 't_pool_size': 1},
@@ -44,16 +42,8 @@ SHAPES = {
 }
 
 
-def transcript(window, fork):
-    return 'u/transcripts' if (window, fork) == (0, 0) else f'windows/{window}/forks/{fork}/u/transcripts'
-
-
 def folder(advice):
     return f'advices/{sha256(advice.encode()).hexdigest()}'
-
-
-def answer(advice, complete):
-    return {'content': advice, 'role': 'assistant', 'reasoning': 'Think.', '_complete': complete}
 
 
 def attempt(window, fork, position, sample):
@@ -65,29 +55,12 @@ def build(output, settings, rounds, failing, advices):
     its ask, apart from what the answer before it left."""
     surprisal = settings.get('cap_strategy') == 'surprisal'
     samples = settings['t_samples']
-    system = SimpleNamespace(**{'cap_strategy': 'characters', **settings})
-    previous = sum(value for _, value in BITS) if surprisal else len(ADVICE)
-
-    def code(source, passed):
-        return '<code>\n' + '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source}</file>\n<results>{passed}/2 test cases passed</results>\n</T-{sample}>'
-                                       for sample in range(samples)) + '\n</code>'
-
-    best = (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>0</index>\n'
-            + ('' if surprisal else f'<length>{len(ADVICE)} characters</length>\n')
-            + f'<advice>\n{ADVICE}\n</advice>\n'
-            + (f'<bits>\n{"".join(f"{token}<{bits}>" for token, bits in BITS)}\n</bits>\n' if surprisal else '')
-            + f'{code(DOUBLE, 2)}\n</attempt>')
-    world, kills, own, transcripts, saved, earlier = [], [], [], {}, set(), {}
+    world, kills, own, saved = [], [], [], set()
     pending = {'settings.json': ...}
     for turns in rounds:
         for window, fork, position in turns:
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
-            path = transcript(window, fork)
-            messages = transcripts.setdefault(path, [])
-            messages += [{'role': 'system', 'content': ...}] * (1 if messages else 2)
-            conversation = [{'role': 'user', 'content': best if window else QUESTION}, *earlier.get((window, fork), [])]
-            messages += [{**conversation[0], '_reset': True}, *conversation[1:]]
-            asked = {f'{path}/messages.jsonl': list(messages)}
+            asked = {}
             if position == 0:
                 asked[f'windows/{window}/forks/{fork}/fork.json'] = {}
                 if fork == 0:
@@ -100,14 +73,11 @@ def build(output, settings, rounds, failing, advices):
                 U(advice, thinking='Think.'),
                 sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                      'messages': [{'role': 'system', 'content': u_system(system, position + 1, previous if window else None)},
-                                   *conversation]},
+                      'messages': ...},
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))
-            messages.append(answer(advice, True))
-            pending = {f'{path}/messages.jsonl': list(messages), f'{path}/usage.jsonl': [USAGE] * sum('_complete' in entry for entry in messages),
-                       f'{turn}/metadata.json': {'advice': folder(advice)}, f'{turn}/u/advice.txt': advice}
+            pending = {f'{turn}/metadata.json': {'advice': folder(advice)}, f'{turn}/u/advice.txt': advice}
             if advice not in saved:
                 saved.add(advice)
                 pending[f'{folder(advice)}/advice.txt'] = advice
@@ -140,12 +110,6 @@ def build(output, settings, rounds, failing, advices):
                 own.append({f'{done}/generation.json': {'exit_code': 0}})
                 world.append(State(Case(), sent=(done, 0), files={**pending, **own[-1]}))
                 pending = {f'{done}/tests.json': FAILED if fork in failing else TESTS}
-        for window, fork, position in turns:
-            advice, _ = advices.get((fork, position), (ADVICE, BITS))
-            earlier.setdefault((window, fork), []).extend([
-                {'role': 'assistant', 'content': advice},
-                {'role': 'user', 'content': code(ZERO, 0) if fork in failing else code(DOUBLE, 2)},
-            ])
     solution = output / attempt(0, rounds[1][0][1], 0, 0) / 'src'
     scoring = {'best_measurement': 2.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
                'scorer_model': 'openai/gpt-oss-120b'} if surprisal else {}
@@ -165,21 +129,11 @@ def restart(world, own, first, last, answered):
     on_disk = {**snapshots[first]}
     for asked in own[first + 1:last]:
         on_disk |= asked
-    renames, retries = {}, []
+    renames = {}
     for index in range(first, last):
         state = world[index]
         replied = answered and index == first
-        if isinstance(state.reply, U):
-            _, window, _, fork = state.logs[0][0].split('/')[:4]
-            messages, usage = (f'{transcript(int(window), int(fork))}/{name}' for name in ('messages.jsonl', 'usage.jsonl'))
-            partial = [answer(state.reply.text, False)] if replied else []
-            line = USAGE if replied else UNANSWERED
-            log = on_disk[messages]
-            reset = max(index for index, entry in enumerate(log) if entry.get('_reset'))
-            retries.append((messages, usage, len(log), len(on_disk.get(usage, [])), partial, line, log[reset:]))
-            on_disk[messages] = [*on_disk[messages], *partial]
-            on_disk[usage] = [*on_disk.get(usage, []), line]
-        elif isinstance(state.reply, T):
+        if isinstance(state.reply, T):
             old = state.sent['output']
             renames[old] = old.removesuffix('0') + '1'
             if not replied:
@@ -193,10 +147,6 @@ def restart(world, own, first, last, answered):
 
     def moved(files):
         files = {renamed(path): content for path, content in files.items()} | partials
-        for messages, usage, mid, lines, partial, line, conversation in retries:
-            if messages in files:
-                files[messages] = [*files[messages][:mid], *partial, *conversation, *files[messages][mid:]]
-                files[usage] = [*files.get(usage, [])[:lines], line, *files.get(usage, [])[lines:]]
         if 'result.json' in files:
             files['result.json'] = {**files['result.json'], 'solution': renamed(files['result.json']['solution'])}
         return files
@@ -221,7 +171,7 @@ def restart(world, own, first, last, answered):
 
 def found(output, expected):
     return {path: decoded(expected[path], content) if path in expected else content
-            for path, content in run_files(output).items()}
+            for path, content in without_transcripts(run_files(output)).items()}
 
 
 def finished(output):
