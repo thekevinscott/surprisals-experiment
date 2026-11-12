@@ -1,4 +1,4 @@
-"""Upload a run's U and T Pi transcripts to the Docent collection named after its experiment.
+"""Upload a run's U and T transcripts to the Docent collection named after its experiment.
 
 Usage: uv run --project scripts/docent-upload docent-upload experiments/<experiment>/runs/<run>
 """
@@ -27,7 +27,13 @@ def text(content):
 
 
 def convert_message(message):
-    role, content = message["role"], message["content"]
+    role, content = message["role"], message.get("content")
+    if role in {"system", "user", "assistant"} and not isinstance(content, list) and "sections" not in message:
+        metadata = {key: value for key, value in message.items() if key not in {"role", "content"}}
+        if role == "assistant" and message.get("reasoning"):
+            content = [ContentReasoning(reasoning=message["reasoning"]), ContentText(text=content or "")]
+        return {"system": SystemMessage, "user": UserMessage, "assistant": AssistantMessage}[role](
+            content=content or "", metadata=metadata or None)
     if role == "system":
         return SystemMessage(content="\n\n".join(message["sections"].values()))
     if role == "user":
@@ -51,14 +57,14 @@ def convert_message(message):
 
 
 def transcript(directories, metadata):
-    sessions = next((found for d in directories if (found := sorted(d.rglob("*.jsonl")))), [])
+    sessions = next((found for d in directories if (found := ([d] if d.is_file() else sorted(d.rglob("*.jsonl"))))), [])
     if not sessions:
         return None
     messages = [
-        convert_message(entry["message"])
+        convert_message(entry if "role" in entry else entry["message"])
         for session in sessions
         for entry in map(json.loads, session.read_text().splitlines())
-        if entry["type"] == "message"
+        if "role" in entry or entry.get("type") == "message"
     ]
     return AgentRun(transcripts=[Transcript(messages=messages)], metadata=metadata)
 
@@ -82,11 +88,15 @@ def convert(run):
             "exit_code": record["exit_code"],
             "settings": json.loads((problem_run / "settings.json").read_text()),
         }
-        # Runs before botbox 0.1.70 used u_transcripts/ and t_transcripts/.
-        u = transcript([problem_run / "u/transcripts", problem_run / "u_transcripts"], base | {
-            "agent": "U", "success": result.get("success"), "attempts": result.get("attempts"),
-        })
-        agent_runs.append(u) if u else missing.append(f"{base['problem_run']} U")
+        u_files = [path for path in [problem_run / "u/transcript.jsonl",
+                                     *sorted(problem_run.glob("windows/*/forks/*/u/transcript.jsonl"))] if path.exists()]
+        # Retain the existing Pi export path for historical runs.
+        u_sources = [[path] for path in u_files] or [[problem_run / "u/transcripts", problem_run / "u_transcripts"]]
+        for sources in u_sources:
+            u = transcript(sources, base | {
+                "agent": "U", "success": result.get("success"), "attempts": result.get("attempts"),
+            })
+            agent_runs.append(u) if u else missing.append(f"{base['problem_run']} U")
         for try_ in sorted(problem_run.glob("windows/*/forks/*/turns/*/ts/*/attempts/*")):
             sample = try_.parent.parent
             attempt = sample.parent.parent
