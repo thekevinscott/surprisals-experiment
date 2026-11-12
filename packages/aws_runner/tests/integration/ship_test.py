@@ -43,7 +43,7 @@ def test_ships_env_when_present_and_runs_unchanged_command_from_root(
     )
     command = ["uv", "run", "experiment.py", "--run-dir", str(directory)]
     assert run(ec2, config, directory, command) == 0
-    assert json.loads((directory / "aws_runner.json").read_text()) == {
+    assert json.loads((directory / "aws/aws_runner.json").read_text()) == {
         "commit": "abc123",
         "dirty": True,
     }

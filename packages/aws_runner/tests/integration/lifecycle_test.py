@@ -50,8 +50,8 @@ def test_run_collects_then_removes_instance_and_volume(
     assert not any(
         "mkfs.ext4" in script or "/etc/fstab" in script for script in scripts
     )
-    assert "command.stdout.log" in stream.call_args.args[0][-1]
-    assert "command.stderr.log" in stream.call_args.args[0][-1]
+    assert "aws/command.stdout.log" in stream.call_args.args[0][-1]
+    assert "aws/command.stderr.log" in stream.call_args.args[0][-1]
     stream.return_value.terminate.assert_not_called()
     stream.return_value.wait.assert_called_once()
 
