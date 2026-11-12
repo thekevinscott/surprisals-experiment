@@ -54,12 +54,6 @@ async def stream_reply(self, *, on_delta=None) -> str:
         raise output_limit_error(snapshot) from error
     finally:
         usage = snapshot.usage if snapshot is not None else None
-        log = self.transcript.with_name("usage.jsonl")
-        append(log, json.dumps({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "completion_id": snapshot.id if snapshot is not None else None,
-                "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
-        }) + "\n")
         if snapshot is not None and snapshot.choices:
             message = json.loads(well_formed(json.dumps(
                 snapshot.choices[0].message.model_dump(exclude_none=True), ensure_ascii=False)))
@@ -73,7 +67,12 @@ async def stream_reply(self, *, on_delta=None) -> str:
                     detail["format"] = reasoning_formats[detail["index"]]
             complete = (completion is not None and completion.choices[0].finish_reason == "stop"
                         and bool(completion.choices[0].message.content) and provider_error is None)
-            append(self.transcript, json.dumps(message | {"_complete": complete}, ensure_ascii=False) + "\n")
+            append(self.transcript, json.dumps(message | {
+                "_complete": complete,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "completion_id": snapshot.id,
+                "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
+            }, ensure_ascii=False) + "\n")
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
