@@ -205,3 +205,17 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     assert [entry['message']['content'] for entry in replies] == ['partial'] * 9
     assert all('provider_error' in entry['message'] for entry in replies)
     assert no_retry_wait.await_count == len(DELAYS)
+
+
+async def test_diverged_transcript_is_set_aside_and_the_request_sent(config, botbox_script, chat_provider):
+    botbox_script.advice.extend(['first', 'second'])
+    async with open_u_chat(config) as live:
+        await live.prompt([{'role': 'user', 'content': 'question'}])
+    transcript = config.u_transcripts / 'messages.jsonl'
+    before = transcript.read_bytes()
+    request = [{'role': 'user', 'content': 'a different question'}]
+    async with open_u_chat(config) as resumed:
+        assert await resumed.prompt(request) == 'second'
+    assert (config.u_transcripts / 'messages.diverged-0.jsonl').read_bytes() == before
+    assert [json.loads(line) for line in transcript.read_text().splitlines()] == [
+        *request, {'role': 'assistant', 'content': 'second'}]
