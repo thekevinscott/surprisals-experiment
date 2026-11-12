@@ -22,6 +22,18 @@ def u_system(config, best=None):
         best=best, target=target, improvement='5%')
 
 
+def u_messages(config, prompt, best=None):
+    conversation = prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}]
+    messages = [{'role': 'system', 'content': u_system(config, best)}]
+    for index, message in enumerate(conversation):
+        messages.append(message)
+        if index % 2 == 0:
+            number = index // 2 + 1
+            messages.append({'role': 'user', 'content': f'turn {number}' +
+                             (f' of {config.max_u_turns}' if config.max_u_turns is not None else '')})
+    return messages
+
+
 def t_sent(attempt, advice, *, model='t'):
     """What T is run with for `attempt` on `advice`."""
     return {
