@@ -125,3 +125,19 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         {'role': 'assistant', 'content': 'Again.'},
         {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
     ]
+
+
+@pytest.mark.parametrize('trailing_newlines', ['', '\n', '\n\n'])
+async def test_window_zero_first_user_message_labels_original_question(
+    config, botbox_script, chat_provider, trailing_newlines,
+):
+    (config.problem_dir / 'question.txt').write_text('Read an integer and print its double.' + trailing_newlines)
+    write(config.window_dir / 'window.json', '{}')
+    write(config.fork_dir / 'fork.json', '{}')
+    botbox_script.advice.append('Double.')
+    async with open_u_chat(config, transcript=config.fork_dir / 'u/transcript.jsonl') as chat:
+        run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
+        await write_advice(run, Turn(config, 0))
+    assert [message for message in chat_provider[0]['messages'] if message['role'] == 'user'] == [
+        {'role': 'user', 'content': '<original_question>\nRead an integer and print its double.\n</original_question>'},
+    ]
