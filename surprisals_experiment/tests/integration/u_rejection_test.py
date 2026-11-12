@@ -10,10 +10,11 @@ from measure_test import (
     u_state,
     unscored,
 )
-from u_flush_test import Containing, chat
+from u_flush_test import chat
 from utils.world import u_system
 
 from surprisals_experiment.config import Config
+from surprisals_experiment.prompt import PROMPTS
 
 
 async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_experiment):
@@ -24,10 +25,12 @@ async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_exp
     retry = u_state(config, path, QUESTION, 'shorter', {
         **rejected(path, 0), 'u/transcripts/messages.jsonl': ...,
     })
+    feedback = (PROMPTS / 'u/rejected.txt').read_text()
+    assert OVERFLOW not in feedback
     retry.sent['messages'] = [
         *first.sent['messages'],
         {'role': 'assistant', 'content': 'too long 0'},
-        {'role': 'user', 'content': Containing(OVERFLOW)},
+        {'role': 'user', 'content': feedback},
     ]
     world = [
         first,
