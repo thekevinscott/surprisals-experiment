@@ -10,7 +10,7 @@ defineProps({attempt:Object})
 <template>
   <ContentPanel :title="`Attempt ${attempt.id}`" :expanded="true">
     <template #summary>
-      <PassBlocks v-if="attempt?.tests && !attempt.generation?.timed_out && !attempt.generation?.error" :passed="attempt.tests.passed" :total="attempt.tests.total" />
+      <PassBlocks v-if="attempt?.tests && !attempt.generation?.timed_out && !attempt.generation?.error" :passed="attempt.tests.passed" :total="attempt.tests.total" :cases="attempt.tests.cases" :source="attempt.testsSource" />
       <span v-else>{{ attemptState(attempt) }}</span>
     </template>
     <template #actions><TranscriptButton :files="attempt.transcriptFiles" label="💬" /></template>

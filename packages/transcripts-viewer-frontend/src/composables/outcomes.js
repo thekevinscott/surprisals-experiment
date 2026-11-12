@@ -20,3 +20,7 @@ export function attemptOutcome(attempt) {
 export function turnPassed(turn) {
   return turn.samples.filter(sample => attemptOutcome(sample.latest) === 'passed').length
 }
+
+export function testCaseBlocks(cases) {
+  return cases.map((test, position) => ({outcome: test.passed ? 'passed' : 'failed', index: test.index, position}))
+}

@@ -7,7 +7,7 @@ defineProps({ missingReason: { type: String, default: 'Tests not recorded' }, re
 <template>
   <ContentPanel title="Test results" :source="results ? source : undefined" class="test-results">
     <template #summary>
-      <PassBlocks v-if="results?.passed != null && results?.total != null" :passed="results.passed" :total="results.total" />
+      <PassBlocks v-if="results?.passed != null && results?.total != null" :passed="results.passed" :total="results.total" :cases="results.cases" :source="source" />
       <span v-else>{{ results ? `${results.passed ?? '?'} / ${results.total ?? '?'} passed` : missingReason }}</span>
     </template>
     <p v-if="!results">{{ missingReason }}</p>

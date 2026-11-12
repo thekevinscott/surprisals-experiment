@@ -3,16 +3,18 @@ import {computed} from 'vue'
 import {matchFile} from '../composables/fileMatcher.js'
 import TranscriptView from './TranscriptView.vue'
 import {transcriptFile} from '../composables/transcriptFile.js'
+import TestCasesContent from './TestCasesContent.vue'
 import JsonContent from './JsonContent.vue'
 import JsonlContent from './JsonlContent.vue'
 import SolutionsContent from './SolutionsContent.vue'
-const props=defineProps({name:String,text:String,line:String})
+const props=defineProps({name:String,text:String,line:String,testCase:Number})
 const kind=computed(()=>matchFile(props.name))
 const messages=computed(()=>kind.value==='transcript'?transcriptFile(props.text,props.name):[])
 </script>
 <template>
   <TranscriptView v-if="kind==='transcript'" :messages="messages" :source="name" :initial-line="line" />
   <SolutionsContent v-else-if="kind==='solutions'" :text="text" />
+  <TestCasesContent v-else-if="kind==='json' && testCase != null" :text="text" :selected-case="testCase" />
   <JsonContent v-else-if="kind==='json'" :text="text" />
   <JsonlContent v-else-if="kind==='jsonl'" :text="text" :line="line" />
   <pre v-else>{{ text }}</pre>
