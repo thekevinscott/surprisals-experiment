@@ -2,9 +2,9 @@
 
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -46,7 +46,7 @@ Path(os.environ["LABNOTES_STATE"]).write_text(json.dumps({"base_url": "http://sc
 def test_cell_injects_base_url_for_surprisal(fake_commands, flags, exit_code):
     env, log = fake_commands
     args = ["experiment", *flags, "--output", "output with spaces", "problem", "problem with spaces"]
-    result = subprocess.run([str(WRAPPER), *args], env=env | {"EXPERIMENT_EXIT": str(exit_code)})
+    result = subprocess.run([str(WRAPPER), *args], check=False, env=env | {"EXPERIMENT_EXIT": str(exit_code)})
     assert result.returncode == exit_code
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     if any("surprisal" in arg for arg in flags):
@@ -61,7 +61,7 @@ def test_cell_injects_base_url_for_surprisal(fake_commands, flags, exit_code):
 def test_missing_state_does_not_start_experiment(fake_commands):
     env, log = fake_commands
     env = {k: v for k, v in env.items() if k != "LABNOTES_RUN_STATE"}
-    result = subprocess.run([str(WRAPPER), "experiment", "--cap-strategy=surprisal"], env=env)
+    result = subprocess.run([str(WRAPPER), "experiment", "--cap-strategy=surprisal"], check=False, env=env)
     assert result.returncode != 0
     assert not log.exists()
 
@@ -69,7 +69,7 @@ def test_failed_startup_does_not_start_experiment(fake_commands):
     env, log = fake_commands
     result = subprocess.run(
         [str(WRAPPER), "experiment", "--cap-strategy=surprisal"],
-        env=env | {"UP_EXIT": "9"},
+        check=False, env=env | {"UP_EXIT": "9"},
     )
     assert result.returncode == 9
     calls = [json.loads(line) for line in log.read_text().splitlines()]
