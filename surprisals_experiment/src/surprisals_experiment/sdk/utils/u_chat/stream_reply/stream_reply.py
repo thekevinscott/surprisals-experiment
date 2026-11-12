@@ -1,10 +1,11 @@
-"""Stream a chat reply and retain its complete message, including reasoning."""
+"""Stream a chat reply; keep every reply, with its reasoning, beside the transcript."""
 
 import json
 from datetime import UTC, datetime
 
 from openai import LengthFinishReasonError
 
+from ...append import append
 from ...write import write
 from .errors import IncompleteStreamError, ProviderError
 from .output_limit_error import output_limit_error
@@ -72,9 +73,9 @@ async def stream_reply(self, *, on_delta=None) -> str:
             for detail in message.get("reasoning_details") or []:
                 if detail["index"] in reasoning_formats:
                     detail["format"] = reasoning_formats[detail["index"]]
-            complete = (completion is not None and completion.choices[0].finish_reason == "stop"
-                        and bool(completion.choices[0].message.content) and provider_error is None)
-            self.record(message, complete=complete)
+            append(self.transcript.with_name("replies.jsonl"), json.dumps({
+                "completion_id": snapshot.id, "message": message,
+            }, ensure_ascii=False) + "\n")
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
