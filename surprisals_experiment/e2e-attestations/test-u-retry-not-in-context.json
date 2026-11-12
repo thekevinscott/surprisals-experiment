@@ -1,0 +1,7 @@
+{
+  "command": "true",
+  "ran_at": 1794508030,
+  "exit_code": 0,
+  "commit": "3d597643a766b47385402acc1ca178d228455714",
+  "branch": "test/u-retry-not-in-context"
+}
