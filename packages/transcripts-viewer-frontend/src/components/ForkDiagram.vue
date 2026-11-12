@@ -55,10 +55,8 @@ watch([() => windows.value.length > 0, () => props.target], async () => {
     <p v-if="loading">Loading run details…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
     <p v-else-if="!windows.length">No windows recorded. Run status: {{ runStatus(run) }}</p>
-    <div v-else class="run-end">{{ runStatus(run) }}</div>
   </div>
 </template>
 <style scoped>
 .fork-diagram { overflow-x: auto; }
-.run-end { padding: 16px; margin-top: 20px; text-align: center; background: #edf1f7; border-radius: 6px; font-size: 12px; }
 </style>
