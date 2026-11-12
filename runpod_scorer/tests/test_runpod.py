@@ -362,7 +362,7 @@ def test_delete_exhausts_server_errors(fake_http, pod_state):
 def test_down_without_pod_does_nothing(fake_http, state, contents):
     if contents is not None:
         state.write_text(json.dumps(contents))
-    teardown.down()
+    assert main(["down"]) is None
     fake_http.assert_not_called()
     teardown.load_dotenv.assert_not_called()
 

@@ -1,0 +1,7 @@
+{
+  "command": "true",
+  "ran_at": 1794511144,
+  "exit_code": 0,
+  "commit": "94c8d00a72dbd2297e3583d55028548cd1c55cb5",
+  "branch": "fix/scorer-only-for-surprisal"
+}
