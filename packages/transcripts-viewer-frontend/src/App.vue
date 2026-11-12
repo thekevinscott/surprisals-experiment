@@ -18,6 +18,7 @@ import SearchSelect from './components/SearchSelect.vue'
 import { runRoute, runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
+import TranscriptViewer from './components/TranscriptViewer.vue'
 import {filePreview,closeFile} from './composables/filePreview.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
@@ -79,8 +80,13 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
-  <Dialog :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'100vw',height:'100dvh',maxHeight:'100dvh',margin:0,borderRadius:0}" :draggable="false" :dismissable-mask="false">
-    <FileViewer v-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
+  <Dialog :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
+    <template #closebutton="{ closeCallback }">
+      <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
+      <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
+    </template>
+    <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
+    <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
   </Dialog>
   <main>
     <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
@@ -148,3 +154,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     </template>
   </main>
 </template>
+
+<style>
+.modal-action { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:24px;cursor:pointer; }
+.modal-action:hover { background:#eef2f7; }
+</style>

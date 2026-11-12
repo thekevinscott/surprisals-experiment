@@ -6,4 +6,5 @@ export function openFile(url) {
   const route=fileRoute(new URL(url,location.href).hash)
   if(route)filePreview.value={src:route.get('src'),name:route.get('name'),line:route.get('line')}
 }
+export function openTranscript(preview) {filePreview.value={...preview,kind:'transcript'}}
 export function closeFile() {filePreview.value=null}

@@ -11,7 +11,7 @@ const kind=computed(()=>matchFile(props.name))
 const messages=computed(()=>kind.value==='transcript'?transcriptFile(props.text,props.name):[])
 </script>
 <template>
-  <TranscriptView v-if="kind==='transcript'" :messages="messages" :source="name" :initial-line="line" :initial-expanded="true" />
+  <TranscriptView v-if="kind==='transcript'" :messages="messages" :source="name" :initial-line="line" />
   <SolutionsContent v-else-if="kind==='solutions'" :text="text" />
   <JsonContent v-else-if="kind==='json'" :text="text" />
   <JsonlContent v-else-if="kind==='jsonl'" :text="text" :line="line" />
