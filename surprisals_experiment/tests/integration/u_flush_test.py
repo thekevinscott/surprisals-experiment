@@ -43,7 +43,7 @@ def chat(window, *turns, config, best=None):
         conversation = user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, attempt + 1, user, best)}]
         lines.append(conversation[-1] | {'_attempt': attempt})
         if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True, **usage})
+            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
     transcripts = f'windows/{window}/forks/0/u'
     return {f'{transcripts}/transcript.jsonl': lines}
 
