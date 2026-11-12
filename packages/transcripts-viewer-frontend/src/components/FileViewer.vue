@@ -26,6 +26,6 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
 </template>
 <style scoped>
 .file-viewer { min-width:0; }
-header { display:flex;justify-content:space-between;gap:16px;font-size:12px;overflow-wrap:anywhere;margin-bottom:12px; }
+header { display:flex;justify-content:space-between;gap:16px;font-size:12px;overflow-wrap:anywhere;margin-bottom:8px; }
 .raw-file { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px; }
 </style>

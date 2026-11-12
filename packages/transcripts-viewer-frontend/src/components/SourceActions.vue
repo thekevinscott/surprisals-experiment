@@ -27,5 +27,5 @@ onBeforeUnmount(()=>clearTimeout(timer))
 </template>
 <style scoped>
 .source-actions { display:inline-flex; align-items:center; gap:2px; }
-pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; }
 </style>

@@ -12,8 +12,8 @@ defineEmits(['select'])
 </template>
 <style scoped>
 .file-tree { list-style:none;padding:0;margin:0; }
-.file-tree .file-tree { padding-left:12px; }
-.directory { display:block;padding:6px 4px 2px;color:#657186;font-size:11px; }
-button { display:block;width:100%;border:0;border-radius:3px;background:none;color:#254c7f;text-align:left;padding:6px;font:inherit;font-size:12px;overflow-wrap:anywhere;cursor:pointer; }
+.file-tree .file-tree { padding-left:16px; }
+.directory { display:block;padding:4px 4px 2px;color:var(--viewer-muted);font-size:12px; }
+button { display:block;width:100%;border:0;border-radius:6px;background:none;color:#254c7f;text-align:left;padding:4px;font:inherit;font-size:12px;overflow-wrap:anywhere;cursor:pointer; }
 button:hover,button[aria-current] { background:#e8eef8; }
 </style>

@@ -16,7 +16,7 @@ const solutions=computed(()=>{
   <JsonContent v-else :text="text" />
 </template>
 <style scoped>
-h4 { margin:0 0 6px;font-size:12px; }
-section+section { margin-top:12px; }
+h4 { margin:0 0 8px;font-size:12px; }
+section+section { margin-top:16px; }
 
 </style>

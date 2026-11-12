@@ -21,6 +21,6 @@ watch(active,file=>selectPreviewFile(file),{immediate:true})
 <style scoped>
 .files-viewer { display:grid;grid-template-columns:minmax(0,1fr);min-width:0;min-height:100%; }
 .with-tree { grid-template-columns:minmax(120px,20%) minmax(0,1fr); }
-nav { position:sticky;top:0;align-self:start;max-height:calc(100dvh - 100px);overflow:auto;border-right:1px solid #d0dae7;padding-right:10px;margin-right:12px; }
-p { color:#657186;font-size:12px; }
+nav { position:sticky;top:0;align-self:start;max-height:calc(100dvh - 100px);overflow:auto;border-right:1px solid var(--viewer-border);padding-right:8px;margin-right:8px; }
+p { color:var(--viewer-muted);font-size:12px; }
 </style>
