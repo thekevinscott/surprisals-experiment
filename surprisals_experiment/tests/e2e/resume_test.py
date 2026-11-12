@@ -21,13 +21,22 @@ U = 'google/gemini-2.5-flash-lite'
 U_PROVIDER = 'google-ai-studio'
 
 
-def command(output, forks=1, samples=2):
+@pytest.fixture(scope="module")
+def main_checkout():
+    common_dir = subprocess.check_output(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=PACKAGE, text=True,
+    ).strip()
+    return Path(common_dir).parent
+
+
+def command(output, problem, forks=1, samples=2):
     return [sys.executable, '-m', 'surprisals_experiment.cli.run',
             '--output', str(output), '--cap-strategy', 'characters',
             '-U', U, '--u-provider', U_PROVIDER, '--u-thinking', 'off', '--t-samples', str(samples),
             '--t-pool-size', '1', '--max-u-turns', '1',
             '--window-forks', str(forks), '--fork-turns', '1',
-            '--window-solo-turns', '0', PROBLEM]
+            '--window-solo-turns', '0', str(problem)]
 
 
 def wait_until(process, ready, timeout=1200):
@@ -86,14 +95,14 @@ def sigint_default():
 
 
 def describe_real_cli_resume():
-    def it_resumes_sigint_in_the_fork_round(tmp_path):
+    def it_resumes_sigint_in_the_fork_round(tmp_path, main_checkout):
         output = tmp_path / 'run'
         forks = output / 'windows/0/forks'
 
         def finished():
             return list(forks.glob('*/turns/0/ts/0/attempts/*/tests.json'))
 
-        args = command(output, forks=2, samples=1)
+        args = command(output, main_checkout / 'data/APPS/test/2286', forks=2, samples=1)
         with (tmp_path / 'cli.log').open('w') as log:
             process = subprocess.Popen(args, cwd=PACKAGE, stdout=log, stderr=log, preexec_fn=sigint_default)
             try:
@@ -156,7 +165,7 @@ def stop_aws_runs(under):
 
 @pytest.mark.parametrize("experiment", ["forks-testing", "forks-testing-aws"])
 def test_experiment_relaunch_continues_both_cells(
-    tmp_path, experiment, terminal, request
+    tmp_path, experiment, terminal, request, main_checkout
 ):
     """Drive launch, stop and relaunch through the TUI."""
     # A timeout or kill sends SIGTERM, which otherwise skips the cleanup below.
@@ -193,7 +202,7 @@ cap-strategy = ["characters", "surprisal"]
         if target.is_symlink():
             target.unlink()
         if not target.exists():
-            target.symlink_to((PACKAGE.parent / name).resolve())
+            target.symlink_to((main_checkout / name).resolve())
     state = tmp_path / "state"
     env = dict(os.environ, XDG_STATE_HOME=str(state), TERM="xterm-256color")
     cli = [
@@ -381,7 +390,7 @@ def test_terminated_relaunch_leaves_no_aws_runs(tmp_path):
 
 
 @pytest.mark.parametrize("lost", ["local", "instance"])
-def test_aws_relaunch_after_losing_one_side(tmp_path, lost, terminal):
+def test_aws_relaunch_after_losing_one_side(tmp_path, lost, terminal, main_checkout):
     """A new box resumes the experiment from the locally mirrored run folder."""
     import boto3
     import psutil
@@ -405,7 +414,7 @@ def test_aws_relaunch_after_losing_one_side(tmp_path, lost, terminal):
         if target.is_symlink():
             target.unlink()
         if not target.exists():
-            target.symlink_to((PACKAGE.parent / name).resolve())
+            target.symlink_to((main_checkout / name).resolve())
     experiment = "aws-restart"
     ladder = LADDER.replace("--t-samples 2", "--t-samples 1")
     run = (
