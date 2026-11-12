@@ -35,11 +35,12 @@ async def test_later_turn_rejection_cap(config, scorer_provider, rejections):
             entries.extend([{'role': 'assistant', 'content': 'too long'}, rejection])
     entries.append({'role': 'assistant', 'content': 'too long'})
     before = ''.join(json.dumps(entry, ensure_ascii=False) + '\n' for entry in entries).encode()
-    write(config.u_transcript, before)
+    transcript = config.fork_dir / 'u/transcript.jsonl'
+    write(transcript, before)
     scorer_provider.replies.append(httpx2.Response(
         400, json={'error': {'message': 'maximum context length is 8192 tokens'}},
     ))
-    async with open_u_chat(config) as chat:
+    async with open_u_chat(config, transcript=transcript) as chat:
         run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), {}, u_chat=chat)
         if rejections == len(DELAYS):
             with pytest.raises(BadRequestError, match='context limit'):
