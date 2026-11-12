@@ -162,9 +162,9 @@ async def test_fatal_error_restarts_the_run_after_60_seconds(config, execute_run
     solved_at, best = attempt(0, 0, 0, 9), flush(0, 'Use a loop', length=10)
     world += [
         restarted,
-        u_state(config, 1, 0, best, 'Use a loop', {**evaluated(solved_at), **opened(1), **chat(1, (best, None))},
+        u_state(config, 1, 0, best, 'Use a loop', {**evaluated(solved_at), **opened(1)},
                 previous=10),
-        t_state(1, 0, 0, 0, 'Use a loop', {**chat(1, (best, 'Use a loop')), **advised(1, 0, 'Use a loop')}),
+        t_state(1, 0, 0, 0, 'Use a loop', {**advised(1, 0, 'Use a loop')}),
         Done(outcome=config.output / solved_at / 'src',
              files={**evaluated(attempt(1, 0, 0)), **solved(config, solved_at, 2)}),
     ]
