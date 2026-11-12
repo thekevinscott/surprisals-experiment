@@ -11,7 +11,7 @@ from utils.world import Score, T, U, t_sent, u_system
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
 FAIL = 'print(0)\n'
-QUESTION = 'Read an integer and print its double.'
+QUESTION = '<original_question>\nRead an integer and print its double.\n</original_question>'
 STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
           '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
@@ -19,7 +19,7 @@ STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinkin
 def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, source in enumerate(codes))
-    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
+    return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
             + (f'<length>{length} characters</length>\n' if length else '')
             + f'<advice>\n{advice}\n</advice>\n'
             + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
@@ -141,7 +141,7 @@ async def test_shows_only_best_all_pass_attempt(config, execute_run_experiment, 
     config.t_pool_size = 1
     config.max_u_turns = len(advices) + 1
     (config.problem_dir / 'question.txt').write_text((config.problem_dir / 'question.txt').read_text() + '\n')
-    question = (config.problem_dir / 'question.txt').read_text()
+    question = '<original_question>\n' + (config.problem_dir / 'question.txt').read_text().rstrip('\n') + '\n</original_question>'
     texts = [*advices, 'final']
     winner = min((index for index, ok in enumerate([*passed, True]) if ok), key=lambda index: len(texts[index]))
     first = [(question, texts[0], [PASS, OTHER_PASS if passed[0] else FAIL])]

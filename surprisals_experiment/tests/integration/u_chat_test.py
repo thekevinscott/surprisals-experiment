@@ -22,7 +22,7 @@ def code(*samples):
 
 
 def prompt(index, advice, *samples):
-    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
+    return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
             f'<length>{len(advice)} characters</length>\n<advice>\n{advice}\n</advice>\n'
             f'{code(*samples)}\n</attempt>')
 
@@ -119,7 +119,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
 
 async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     config.max_u_turns = 3
-    question = 'Read an integer and print its double.'
+    question = '<original_question>\nRead an integer and print its double.\n</original_question>'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
             '<attempt>\n<index>0</index>\n<length>4 characters</length>\n<advice>\ntiny\n</advice>\n'
             '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')

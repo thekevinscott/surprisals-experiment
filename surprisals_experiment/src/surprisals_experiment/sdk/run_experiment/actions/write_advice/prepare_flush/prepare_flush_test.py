@@ -23,7 +23,8 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     (config.fork_dir / 'fork.json').write_text('{}')
     problem = QuestionDatabase(config.problem_dir)
     database = ExperimentDatabase(config.output)
-    assert await prepare_flush(Turn(config, 0, 1), problem, database) == await problem.question
+    assert await prepare_flush(Turn(config, 0, 1), problem, database) == (
+        '<original_question>\nRead an integer and print its double.\n</original_question>')
 
     # Numeric ties favor 2 over 10; smaller failed/incomplete attempts cannot win.
     for number, measurement, results in [

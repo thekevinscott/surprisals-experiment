@@ -15,12 +15,10 @@ async def prepare_flush(turn: Turn, problem: QuestionDatabase, database: Experim
     config = turn.config
     question = await problem.question
     best = await database.query(BEST_ATTEMPT, samples=config.t_samples, window=turn.window)
-    if not best:
-        return question
-    return TURN(
-        question=question.rstrip("\n"), unit=config.advice_measure.unit,
-        attempt=dict(
+    attempt = None
+    if best:
+        attempt = dict(
             number=best[0]["turn"], length=best[0]["score"], advice=best[0]["text"], score_text=best[0]["score_text"],
             code=await render_code(config, database, best[0]["turn_id"]),
-        ),
-    )
+        )
+    return TURN(question=question.rstrip("\n"), unit=config.advice_measure.unit, attempt=attempt)

@@ -2,7 +2,6 @@
 
 from measure_test import (
     OVERFLOW,
-    QUESTION,
     opened,
     rejected,
     score_state,
@@ -10,7 +9,7 @@ from measure_test import (
     u_state,
     unscored,
 )
-from u_flush_test import chat
+from u_flush_test import QUESTION, chat
 from utils.world import u_system
 
 from surprisals_experiment.config import Config
