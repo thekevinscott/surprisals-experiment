@@ -1,9 +1,8 @@
 <script setup>
-import {computed,provide,ref} from 'vue'
+import {computed,provide} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
 import TokenText from './TokenText.vue'
-const raw=ref(false)
 const props=defineProps({src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,showName:{type:Boolean,default:true}})
 provide('sourceUrl',(_path,line)=>{
   const viewer=new URL(location.href)
@@ -15,10 +14,9 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
 </script>
 <template>
   <section class="file-viewer" aria-label="File viewer">
-    <header><strong v-if="showName">{{ name }}</strong><button type="button" @click="raw=!raw">{{ raw ? 'Formatted view' : 'Raw view' }}</button></header>
+    <header v-if="showName"><strong>{{ name }}</strong></header>
     <p v-if="error" role="alert">{{ error }}</p>
     <p v-else-if="text===null">Loading file…</p>
-    <pre v-else-if="raw" class="raw-file">{{ text }}</pre>
     <template v-else-if="tokens">
       <p>{{ measurement }}</p>
       <pre class="raw-file"><TokenText :text="text" :tokens="tokens" /></pre>
@@ -29,6 +27,5 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
 <style scoped>
 .file-viewer { background:white;padding:12px;border:1px solid #d0dae7;border-radius:6px; }
 header { display:flex;justify-content:space-between;gap:16px;font-size:12px;overflow-wrap:anywhere;margin-bottom:12px; }
-header button { flex-shrink:0; }
 .raw-file { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px; }
 </style>
