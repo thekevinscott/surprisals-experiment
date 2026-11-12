@@ -1,6 +1,7 @@
 """U's transcript on disk is exactly the conversation the provider received."""
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -16,7 +17,7 @@ from utils.mock_llm import MockLLM
 from utils.world import U
 
 
-async def test_transcript_matches_every_request(config, execute_run_experiment, monkeypatch):
+async def test_transcript_matches_every_request(config, execute_run_experiment, requests):
     config.max_u_turns = 2
     scores = {'double it': {'score': 9}, 'double': {'score': 6}, 'ok': {'score': 2}}
     windows = [
@@ -28,15 +29,6 @@ async def test_transcript_matches_every_request(config, execute_run_experiment, 
     world, pending = played(windows, scores, config=config)
     world.append(outcome(config, 'windows/2/forks/0/turns/0', 8, pending))
 
-    requests = []
-    answer = MockLLM.answer
-
-    async def recording(self, kind, sent):
-        if kind is U:
-            requests.append(sent['messages'])
-        return await answer(self, kind, sent)
-
-    monkeypatch.setattr(MockLLM, 'answer', recording)
     async with execute_run_experiment(config, world):
         pass
 
@@ -52,7 +44,7 @@ async def test_transcript_matches_every_request(config, execute_run_experiment, 
 
 
 @pytest.fixture
-def requests(monkeypatch):
+def requests():
     sent = []
     answer = MockLLM.answer
 
@@ -61,8 +53,8 @@ def requests(monkeypatch):
             sent.append(request['messages'])
         return await answer(self, kind, request)
 
-    monkeypatch.setattr(MockLLM, 'answer', recording)
-    return sent
+    with patch.object(MockLLM, 'answer', recording):
+        yield sent
 
 
 def assert_transcripts_are_requests(output, requests):
