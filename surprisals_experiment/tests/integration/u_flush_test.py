@@ -225,3 +225,24 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
     async with execute_run_experiment(config, world[:3], u_layout=True) as run:
         await run.reached(world[2])
         run.kill()
+
+
+@pytest.mark.parametrize('measure,measurement', [
+    ('characters', '<length>9 characters</length>'),
+    ('surprisal', '<bits>\ndouble<2.5> it<1.2>\n</bits>'),
+])
+async def test_turn_two_contains_previous_advice_measurement(config, execute_run_experiment, measure, measurement):
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 'max_u_turns': 2,
+    }))
+    bits = {'double it': [('double', 2.5), (' it', 1.25)]} if measure == 'surprisal' else {}
+    scores = {'double it': {'score': 3.75, 'tokens': [['double', 2.5], [' it', 1.25]]}
+              if bits else {'score': 9}, 'next': {'score': 4}}
+    world, _ = played([[(QUESTION, 'double it', [PASS]), (None, 'next', [PASS])]],
+                      scores, bits=bits, config=config)
+    second = world[3 if bits else 2]
+    second.sent['messages'][-1]['content'] = measurement + '\n' + appended(PASS)
+    second.files['windows/0/forks/0/u/transcript.jsonl'][-1]['content'] = measurement + '\n' + appended(PASS)
+    async with execute_run_experiment(config, world[:world.index(second) + 1], u_layout=True) as run:
+        await run.reached(second)
+        run.kill()
