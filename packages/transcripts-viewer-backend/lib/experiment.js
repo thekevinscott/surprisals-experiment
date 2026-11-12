@@ -80,7 +80,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
       }
     }
   }
-  const uCost = includeCosts ? await costs(directory, '{u/transcript.jsonl,windows/*/forks/*/u/transcript.jsonl}', r => r.usage, warnings, database) : null
+  const uCost = includeCosts ? await costs(directory, '{u/transcript.jsonl,windows/*/forks/*/u/transcript.jsonl}', r => r.usage ?? (r.role === 'assistant' ? {} : null), warnings, database) : null
   const tCost = includeCosts ? await costs(directory, 'windows/*/forks/*/turns/*/ts/*/attempts/*/transcripts/*/*.jsonl', r => r.type === 'message' ? r.message?.usage : null, warnings, database) : null
   const started = current.started ?? meta.created
   const ended = current.ended
