@@ -50,3 +50,16 @@ async def test_transcript_matches_every_request(config, execute_run_experiment, 
     async with execute_run_experiment(config, world, u_layout=True):
         pass
     assert recorded_windows == [0, 0, 1, 1, 2, 2, 3, 3]
+
+
+async def test_first_fork_owns_its_transcript(config, execute_run_experiment):
+    config.max_u_turns = 1
+    world, pending = played([
+        [(QUESTION, 'ok', [PASS])],
+        [(flush(0, 'ok', length=2), 'ok', [PASS])],
+    ], {'ok': {'score': 2}}, config=config)
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 2, pending))
+    async with execute_run_experiment(config, world):
+        pass
+    assert (config.output / 'windows/0/forks/0/u/transcript.jsonl').is_file()
+    assert not (config.output / 'u').exists()
