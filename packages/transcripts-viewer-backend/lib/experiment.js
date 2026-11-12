@@ -119,10 +119,10 @@ function runIdentity(directory, meta, settings) {
 
 // The selector index must not scan every turn or transcript before a run opens.
 export async function readRunIndex(directory, database) {
-  if(!database)return withDatabase(join(directory,'runs'),null,db=>readRunIndex(directory,db),{relations:false})
+  if(!database)return withDatabase(directory,null,db=>readRunIndex(directory,db),{relations:false})
   const json=(...args)=>database.json(...args)
-  const root = join(resolve(directory), 'runs'), rows = []
-  for (const {path} of await database.files('*/run.json')) {
+  const root = resolve(directory), rows = []
+  for (const {path} of await database.files('runs/*/run.json')) {
     const run = join(root,path,'..')
     rows.push(runIdentity(run, await json(join(run,'run.json')), await json(join(run,'settings.json'),true) ?? {}))
   }
@@ -132,7 +132,13 @@ export async function readRunIndex(directory, database) {
 export async function readExperiment(directory, getDatabase) {
   directory = resolve(directory)
   const runsDirectory = join(directory, 'runs')
-  if (!(await stat(runsDirectory)).isDirectory()) throw new Error(`Expected a runs directory in ${directory}`)
+  let entries
+  try { entries = await readdir(runsDirectory, {withFileTypes:true}) }
+  catch (error) {
+    if (error.code !== 'ENOENT') throw error
+    await stat(directory) // Only a missing runs/ is empty; a missing experiment is an error.
+    return {rows:[],warnings:[]}
+  }
   const warnings = new Set()
   const rows = []
   const index=await readRunIndex(directory)
@@ -140,7 +146,7 @@ export async function readExperiment(directory, getDatabase) {
     const root=join(runsDirectory,id)
     rows.push(await runSummary(root,warnings,getDatabase?.(root)))
   }
-  const folders = (await readdir(runsDirectory, { withFileTypes: true })).filter(entry => entry.isDirectory()).length
+  const folders = entries.filter(entry => entry.isDirectory()).length
   if (folders > rows.length) warnings.add(`${folders - rows.length} run folders have no run.json yet and are omitted from the run list.`)
   rows.sort((a, b) => a.strategy.localeCompare(b.strategy) || a.problem.localeCompare(b.problem) || a.id.localeCompare(b.id))
   return { rows, warnings: [...warnings] }

@@ -65,7 +65,7 @@ test('missing prices stay unknown, incomplete usage is flagged, unfinished folde
   assert.equal(data.warnings.length, 2)
 })
 
-test('rejects a directory without runs and malformed metadata with its file path', async t => {
+test('rejects a missing experiment and malformed metadata with its file path', async t => {
   const { root, put } = await fixture(t)
   await assert.rejects(readExperiment(join(root, 'absent')), /ENOENT/)
   await put('run.json', '{broken')

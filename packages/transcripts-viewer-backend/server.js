@@ -44,7 +44,7 @@ export function createApi(directory) {
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
   endpoint('/api/runs',()=>readExperiment(directory,root=>database(root)))
-  endpoint('/api/runs/index',()=>readRunIndex(directory,database(join(directory,'runs'),false)))
+  endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{
     const warnings=new Set(),root=await rootFor(request.params.run)
     return {row:await runSummary(root,warnings,database(root),{includeCosts:false}),warnings:[...warnings]}
