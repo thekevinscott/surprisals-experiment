@@ -21,9 +21,9 @@ from surprisals_experiment.sdk.utils.write import write
 
 
 @pytest.mark.parametrize('window,measure,best,expected', [
-    (0, 'characters', 412, 'turn 23 of 40'),
-    (1, 'characters', 412, 'turn 23 of 40; best at window start: 412; target: 391 (5%)'),
-    (1, 'surprisal', 41.25, 'turn 23 of 40; best at window start: 41.2; target: 39.2 (5%)'),
+    (0, 'characters', 412, 'turn 13 of 20'),
+    (1, 'characters', 412, 'turn 13 of 20; best at window start: 412; target: 391 (5%)'),
+    (1, 'surprisal', 41.25, 'turn 13 of 20; best at window start: 41.2; target: 39.2 (5%)'),
 ])
 async def test_system_progress(config, botbox_script, chat_provider, window, measure, best, expected):
     config = Config(**(config.model_dump() | {
@@ -45,7 +45,7 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
     botbox_script.advice.extend(['Double.', 'Double again.'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
-        await write_advice(run, Turn(config, 22, window))
+        await write_advice(run, Turn(config, 12, window))
         system = chat_provider[-1]['messages'][0]['content']
         assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
     # The normal workflow scores the completed advice before starting the next turn.
@@ -54,9 +54,9 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
-        await write_advice(run, Turn(config, 23, window))
+        await write_advice(run, Turn(config, 13, window))
         assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
-                if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
+                if line.startswith('turn ')] == [expected.replace('turn 13', 'turn 14')]
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):

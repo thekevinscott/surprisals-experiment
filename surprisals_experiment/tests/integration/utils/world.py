@@ -19,7 +19,7 @@ def u_system(config, turn, best=None):
     return Prompt('u/system.txt')(
         measure_wording=Prompt('u/measure_surprisal.txt')() if surprisal else '',
         implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples, turn=turn,
-        turns=config.max_u_turns, best=best, target=target, improvement='5%')
+        turns=config.fork_turns + config.window_solo_turns, best=best, target=target, improvement='5%')
 
 
 def t_sent(attempt, advice, *, model='t'):

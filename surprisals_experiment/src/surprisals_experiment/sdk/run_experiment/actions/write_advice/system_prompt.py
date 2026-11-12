@@ -22,7 +22,7 @@ async def system_prompt(run: Run, turn: Turn) -> str:
         implementation_access=CONTEXT(),
         t_samples=turn.config.t_samples,
         turn=turn.position + 1,
-        turns=turn.config.max_u_turns,
+        turns=turn.config.fork_turns + turn.config.window_solo_turns,
         best=best,
         target=target,
         improvement=f"{IMPROVEMENT:.0%}",
