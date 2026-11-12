@@ -11,7 +11,7 @@ test('T renders every attempt tests in order with independent original-file targ
     {id:2,tests:{passed:0,total:0,cases:[]}},
     {id:10,tests:{passed:1,total:1,cases:[{index:0,status:'passed'}]}},
   ].map(attempt=>({...attempt,testsSource:`turns/0/ts/0/attempts/${attempt.id}/tests.json`,files:[],transcriptFiles:[]}))
-  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true},plugins:[{
+  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[{
     name:'sample-test-data',enforce:'pre',transform(code,id){
       if(id.endsWith('/ContentPanel.vue'))return '<script setup>defineProps({title:String})</script><template><section><slot /></section></template>'
       if(id.endsWith('/composables/api.js'))return `import {ref} from 'vue';export const fetchJson=()=>{};export const useLiveResource=()=>({data:ref(${JSON.stringify({attempts})}),loading:ref(false),error:ref('')});`
