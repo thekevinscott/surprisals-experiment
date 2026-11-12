@@ -16,7 +16,7 @@ root = Path({ROOT!r})
 offsets = {offsets!r}
 while True:
     done = (root / 'exit-code').exists()
-    for index, name in enumerate(['command.stdout.log', 'command.stderr.log']):
+    for index, name in enumerate(['aws/command.stdout.log', 'aws/command.stderr.log']):
         path = root / 'run' / name
         if path.exists():
             with path.open('rb') as source:

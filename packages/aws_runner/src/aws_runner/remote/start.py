@@ -13,7 +13,7 @@ export PATH=/home/ubuntu/.local/bin:$PATH
 (
 cd {shlex.quote(working_directory)} || exit 125
 {shlex.join(command)}
-) >> {ROOT}/run/command.stdout.log 2>> {ROOT}/run/command.stderr.log
+) >> {ROOT}/run/aws/command.stdout.log 2>> {ROOT}/run/aws/command.stderr.log
 code=$?
 printf '%s\\n' "$code" > {ROOT}/exit-code.tmp
 mv {ROOT}/exit-code.tmp {ROOT}/exit-code

@@ -24,8 +24,8 @@ def ship(config, instance, directory):
             ["git", "status", "--porcelain"], check=True, capture_output=True, text=True
         ).stdout.strip()
     )
-    directory.mkdir(parents=True, exist_ok=True)
-    (directory / "aws_runner.json").write_text(
+    (directory / "aws").mkdir(parents=True, exist_ok=True)
+    (directory / "aws/aws_runner.json").write_text(
         json.dumps({"commit": commit, "dirty": dirty}) + "\n"
     )
     connection = ssh(config, instance)
