@@ -15,10 +15,16 @@ from surprisals_experiment.sdk.utils.append import append
     ('café \U0001f600\n', 'café \U0001f600\n'.encode()),
     ('crlf\r\nkept\r\n', b'crlf\r\nkept\r\n'),
 ])
-def test_creates_a_missing_file_and_its_parents(tmp_path, content, expected):
-    path = tmp_path / 'a' / 'b' / 'log.jsonl'
+def test_creates_a_missing_file(tmp_path, content, expected):
+    path = tmp_path / 'log.jsonl'
     append(path, content)
     assert path.read_bytes() == expected
+
+
+def test_does_not_create_a_missing_directory(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        append(tmp_path / 'missing' / 'log.jsonl', 'line\n')
+    assert not (tmp_path / 'missing').exists()
 
 
 @pytest.mark.parametrize('content, expected', [
@@ -84,6 +90,7 @@ def test_an_open_reader_sees_the_appended_bytes(tmp_path):
 
 def test_leaves_no_other_files(tmp_path):
     path = tmp_path / 'logs' / 'log.jsonl'
+    path.parent.mkdir()
     append(path, 'one\n')
     append(path, 'two\n')
     assert sorted(p.name for p in path.parent.iterdir()) == ['log.jsonl']

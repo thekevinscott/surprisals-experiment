@@ -5,7 +5,6 @@ from pathlib import Path
 
 
 def append(path: Path, content: str | bytes):
-    path.parent.mkdir(parents=True, exist_ok=True)
     created = not path.exists()
     with path.open('ab' if isinstance(content, bytes) else 'a') as file:
         file.write(content)
