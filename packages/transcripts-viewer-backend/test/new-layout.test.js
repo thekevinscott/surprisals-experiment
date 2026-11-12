@@ -16,7 +16,7 @@ test('fork zero links shared advice and retains rejected turns and exact transcr
     {role:'user',content:'question',_attempt:0}, {role:'assistant',content:'too long',_complete:true},
     {role:'user',content:rejected}, {role:'assistant',content:'accepted',_complete:true},
     {role:'system',content:'system'}, {role:'user',content:'next',_attempt:1},
-    {role:'user',content:rejected.trim()}, {role:'assistant',content:'partial',_complete:false},
+    {role:'user',content:rejected+' '}, {role:'assistant',content:'partial',_complete:false},
     {role:'user',content:rejected}, {role:'user',content:rejected}]
   const text=records.map(JSON.stringify).join('\n\n')+'\n\n{"incomplete":'
   await put(source,text)

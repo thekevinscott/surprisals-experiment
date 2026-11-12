@@ -9,7 +9,7 @@ import TTranscripts from './TTranscripts.vue'
 const props=defineProps({ turn: Object })
 const sourceUrl=inject('sourceUrl')
 function openAdvice() {
-  openFile(sourceUrl(`${props.turn.source}/u/advice.txt`),{initialText:props.turn.advice,tokens:props.turn.tokens,measurement:props.turn.measurement==null?'Measurement unavailable':`${props.turn.measurement} ${props.turn.unit}`})
+  openFile(sourceUrl(props.turn.adviceSource),{initialText:props.turn.advice,tokens:props.turn.tokens,measurement:props.turn.measurement==null?'Measurement unavailable':`${props.turn.measurement} ${props.turn.unit}`})
 }
 const expanded = ref(true)
 const link = inject('runLink')
@@ -17,7 +17,8 @@ const link = inject('runLink')
 <template>
   <ContentPanel v-model:expanded="expanded" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :summary="turnSummary(turn)">
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
-    <TranscriptButton v-if="!turn.error || turn.advice != null" :source="turn.transcriptPath" />
+    <p v-if="turn.rejections" role="status">Scorer rejections: {{ turn.rejections }}</p>
+    <TranscriptButton :source="turn.transcriptPath" />
     <Button v-if="turn.advice != null" text size="small" label="Open advice" @click="openAdvice" />
 
     <TTranscripts :samples="turn.samples ?? []" />
