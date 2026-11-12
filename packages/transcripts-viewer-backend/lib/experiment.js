@@ -60,12 +60,18 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
   let best = null
   let bestTarget = null
   const passing = []
+  const forks = new Map()
   let latest = (await stat(join(directory, 'run.json'))).mtimeMs
   for (const {id} of turnsInDatabase) {
     const path=`${id}/metadata.json`
     const turnDirectory = join(directory, path, '..')
     const [, window, , fork, , turn] = path.split('/')
     windows.add(window)
+    const key = `${window}/${fork}`
+    if (!forks.has(key)) forks.set(key, {window:Number(window),id:Number(fork),turns:0,passing:[]})
+    const branch = forks.get(key)
+    const depth = Number(window) === 0 ? Number(turn) : Number(window) * stride + Number(turn)
+    if (Number.isFinite(depth)) branch.turns = Math.max(branch.turns, depth + 1)
     const metadata = await json(join(directory, path))
     latest = Math.max(latest, (await stat(join(directory, path))).mtimeMs)
     turns = Math.max(turns, Number(window) === 0 ? Number(turn) + 1 : Number.isFinite(stride) ? Number(window) * stride + Number(turn) + 1 : 0)
@@ -76,8 +82,10 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
       const advice = await json(join(directory, metadata.advice, 'advice.json'), true)
       if (typeof advice?.score === 'number') {
         if (best === null || advice.score < best) { best = advice.score; bestTarget = `windows/${window}/forks/${fork}/turns/${turn}` }
-        const depth = Number(window) === 0 ? Number(turn) : Number(window) * stride + Number(turn)
-        if (Number.isFinite(depth)) passing.push([depth, advice.score])
+        if (Number.isFinite(depth)) {
+          passing.push([depth, advice.score])
+          branch.passing.push([depth, advice.score])
+        }
       }
     }
   }
@@ -96,6 +104,9 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     windows: windows.size,
     samples: settings.t_samples ?? null,
     passing: passing.sort((a, b) => a[0] - b[0] || a[1] - b[1]),
+    forks: [...forks.values()].sort((a,b) => a.window - b.window || a.id - b.id).map(fork => ({
+      ...fork, passing: fork.passing.sort((a,b) => a[0] - b[0]),
+    })),
     uCost, tCost,
     modelCost: uCost !== null && tCost !== null ? uCost + tCost : null,
   }
