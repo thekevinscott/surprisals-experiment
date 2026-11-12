@@ -22,6 +22,7 @@ async def score_advice(run: Run, turn: Turn) -> None:
         rejections = len(list(rejected.glob("*.txt"))) if rejected.exists() else 0
         if "context limit" not in str(error) or rejections == len(DELAYS):
             raise
+        run.u_chat.retract()
         (turn.attempt_dir / "metadata.json").unlink()
         rejected.mkdir(exist_ok=True)
         (turn.u_dir / "advice.txt").rename(rejected / f"{rejections}.txt")

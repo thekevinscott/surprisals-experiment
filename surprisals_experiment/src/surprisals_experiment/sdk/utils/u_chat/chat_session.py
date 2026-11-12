@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from .reply import reply
 from .prompt import prompt
 from .record import record
+from .retract import retract
 
 
 @dataclass
@@ -22,3 +23,4 @@ class ChatSession:
     reply = reply
     prompt = prompt
     record = record
+    retract = retract
