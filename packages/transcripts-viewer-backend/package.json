@@ -1,0 +1,11 @@
+{
+  "name": "transcripts-viewer-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8"
+  }
+}

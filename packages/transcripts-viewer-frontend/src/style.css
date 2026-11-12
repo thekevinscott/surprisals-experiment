@@ -1,0 +1,68 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #1c293b; background: #f6f8fb; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { padding: 8px; }
+h1 { font-size: 32px; margin: 6px 0 12px; letter-spacing: -.8px; }
+section { margin: 0 0 8px; }
+h2 { font-size: 19px; font-weight: 600; }
+h2 span { font-size: 12px; color: #657186; font-weight: 400; margin-left: 12px; }
+.table-wrap { overflow-x: auto; border: 1px solid #dae1ea; border-radius: 8px; background: white; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; text-align: left; }
+th { background: #edf1f7; color: #506078; font-size: 11px; font-weight: 600; white-space: nowrap; }
+th, td { padding: 13px 12px; border-bottom: 1px solid #e6ebf2; }
+td { white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #f8faff; }
+.run { font-family: ui-monospace, monospace; font-size: 11px; }
+.run small { display: block; margin-top: 5px; color: #778398; font-family: ui-sans-serif, sans-serif; }
+.problem { font-weight: 700; }
+.cause { white-space: normal; min-width: 90px; max-width: 240px; overflow-wrap: anywhere; }
+.status { display: inline-block; padding: 4px 7px; border-radius: 4px; color: #75591c; background: #fff6db; font-size: 11px; }
+.success { color: #176747; background: #e6f6ee; }
+.failed { color: #93413d; background: #fceeee; }
+footer { max-width: 960px; color: #657186; font-size: 12px; line-height: 1.7; }
+.warning, .empty { padding: 16px; background: #fff6db; border-radius: 6px; }
+
+.sort-button { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-align: left; }
+.sort-button:hover { color: #1c293b; }
+.sort-button:focus-visible { outline: 2px solid #4169bb; outline-offset: 5px; border-radius: 2px; }
+.sort-button span { color: #778398; }
+.unit { color: #657186; font-size: 10px; }
+
+.cost-heading { text-align: center; border-bottom: 1px solid #cbd5e1; }
+
+.tabs { display: flex; gap: 24px; border-bottom: 1px solid #dae1ea; margin-bottom: 24px; }
+.tabs a { padding: 12px 4px; text-decoration: none; color: #657186; border-bottom: 3px solid transparent; }
+.tabs a[aria-current] { color: #214da3; border-color: #4169bb; font-weight: 600; }
+a { color: #214da3; }
+.clickable-row { cursor: pointer; }
+.problem a { text-decoration: none; }
+.drilldown-header { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.run-summary { flex: 1 1 480px; min-width: 0; }
+.selectors { display: flex; flex-wrap: wrap; gap: 16px; margin-left: auto; }
+.search-select { position: relative; width: 280px; max-width: 100%; }
+.metadata { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0; padding: 12px 14px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
+.metadata dt { color: #657186; font-size: 10px; margin-bottom: 4px; }
+.metadata dd { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.drilldown { min-height: 60vh; }
+.related-runs a { display: inline-block; margin: 8px; font-size: 12px; }
+.graphs { max-width: 1400px; }
+.graphs article { padding: 20px; border: 1px solid #dae1ea; background: white; border-radius: 8px; margin: 24px 0; }
+.graphs p { color: #657186; font-size: 13px; }
+
+.drilldown-header { padding: 12px 14px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
+.drilldown-header .metadata { padding: 0; border: 0; background: none; }
+.selectors .search-select { width: 140px; }
+.selectors .search-select label { color: #657186; font-size: 10px; font-weight: 400; line-height: normal; margin-bottom: 4px; }
+
+.search-select > label { display: block; }
+.search-select .p-select { width: 100%; --p-select-sm-font-size: 12px; --p-select-sm-padding-y: 4px; --p-select-sm-padding-x: 8px; }
+.select-option { font-size: 12px; }
+.select-option small { display: block; color: #657186; margin-top: 4px; }
+
+.minimization-loop { margin: 8px 0; }
+
+
+.back-link { display: inline-block; margin: 2px 0 8px; font-size: 12px; }
+
+.freshness { margin: 4px 0 8px; color: #657186; font-size: 11px; }
