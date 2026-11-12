@@ -67,3 +67,15 @@ test('rejects a directory without runs and malformed metadata with its file path
   await put('run.json', '{broken')
   await assert.rejects(readExperiment(root), /Cannot read .*run.json/)
 })
+
+test('single U transcript keeps cost unknown when an assistant reply has null usage', async t => {
+  const {root,put}=await fixture(t)
+  const records=[
+    {role:'system',content:'Instructions'},
+    {role:'user',content:'Question'},
+    {role:'assistant',content:'Advice',reasoning:'Reasoning remains in the source',timestamp:'2026-11-12T12:00:00Z',completion_id:'priced',usage:{cost:1},_complete:true},
+    {role:'assistant',content:'Partial',reasoning:'Partial reasoning',timestamp:'2026-11-12T12:01:00Z',completion_id:'unpriced',usage:null,_complete:false},
+  ]
+  await put('u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
+  assert.equal((await readExperiment(root)).rows[0].uCost,null)
+})
