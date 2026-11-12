@@ -1,12 +1,12 @@
 # Shared RunPod scorer
 
 All labnotes invocations on mentees share one pod named `surprisal-scorer-24k`.
-Surprisal cells call up through run-cell.sh; down runs as the teardown hook.
-Both use labnotes state (`labnotes.set_state` / `get_state`). The wrapper passes
-`LABNOTES_RUN_STATE` as `LABNOTES_STATE` for up, which also requires a parent
-labnotes daemon (`python -m labnotes ... daemon`).
+Up and down run as setup and teardown hooks, using labnotes state
+(`labnotes.set_state` / `get_state`). Both require the hook context; up also
+requires a parent labnotes daemon (`python -m labnotes ... daemon`).
 
 ~~~toml
+setup = "uv run --project runpod_scorer runpod-scorer up"
 command = '''runpod_scorer/run-cell.sh uv run --project surprisals_experiment python -m surprisals_experiment.cli.run --cap-strategy {cap_strategy} --output "{run_dir}" --problem-dir {problem_dir}'''
 teardown = "uv run --project runpod_scorer runpod-scorer down"
 ~~~
@@ -27,7 +27,7 @@ timestamp) to `runpod-logs.jsonl` in the state folder before any deletion.
 Each invocation has a JSON file under `~/.runpod/users/<pod_id>/`, keyed by its
 state folder. It records the folder containing `$LABNOTES_STATE` and the nearest
 parent labnotes daemon's PID. A user is live only while both that folder and the
-process exist. All scorer clients must use this wrapper and teardown on mentees: the ownership
+process exist. All scorer clients must use these hooks on mentees: the ownership
 files and lock are local to one host, not a cross-host coordination mechanism.
 
 Down removes its own user file, drops dead users, and deletes the pod only when
@@ -71,14 +71,11 @@ These files are not installed automatically.
 ## Per-cell command
 
 run-cell.sh takes the **full experiment command**. For --cap-strategy surprisal
-or --cap-strategy=surprisal it first calls `runpod-scorer up`, then reads
-base_url from `$LABNOTES_RUN_STATE` and
+or --cap-strategy=surprisal it reads base_url from `$LABNOTES_RUN_STATE` and
 inserts --scorer-base-url immediately before the cap-strategy flag. Other
 arguments and their boundaries are preserved. Character cells execute the
-command unchanged without calling up or reading scorer state. Do not add an
-unconditional setup hook: characters-only invocations never need a scorer.
-Concurrent surprisal cells safely reuse the pod through the existing up lock.
-The script never deletes the pod; teardown succeeds even if no pod was started.
+command unchanged. The script never deletes the pod. With this setup hook, even
+a characters-only invocation acquires the shared scorer.
 
 ## Scorer configuration
 
