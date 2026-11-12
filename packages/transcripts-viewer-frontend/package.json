@@ -1,0 +1,24 @@
+{
+  "name": "transcripts-viewer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node bin/transcripts-viewer.js",
+    "build": "vite build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^3.1.1",
+    "primevue": "^4.5.5",
+    "vue": "^3.5.44",
+    "vue-json-pretty": "^2.6.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vite": "^8.3.6"
+  },
+  "bin": {
+    "transcripts-viewer": "./bin/transcripts-viewer.js"
+  }
+}
