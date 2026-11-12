@@ -9,25 +9,27 @@ from .utils.write import write
 
 
 class Advice:
-    def __init__(self, path: Path, measure: AdviceMeasure, root: Path):
-        self.text = path.read_bytes().decode("utf-8")
+    def __init__(self, root: Path, text: str, measure: AdviceMeasure):
+        self.text = text
         self.measure = measure
-        self.directory = root / "advices" / sha256(self.text.encode("utf-8")).hexdigest()
+        self.id = f"advices/{sha256(text.encode('utf-8')).hexdigest()}"
+        self.directory = root / self.id
+        path = self.directory / "advice.json"
+        self.metadata = json.loads(path.read_text()) if path.exists() else {}
+        self.save()
+
+    @classmethod
+    def load(cls, root: Path, id: str, measure: AdviceMeasure) -> "Advice":
+        return cls(root, (root / id / "advice.txt").read_bytes().decode("utf-8"), measure)
 
     def save(self) -> None:
         write(self.directory / "advice.txt", self.text.encode("utf-8"))
-        path = self.directory / "advice.json"
-        if not path.exists():
-            write(path, "{}\n")
+        write(self.directory / "advice.json", json.dumps(self.metadata, indent=2) + "\n")
 
     async def score(self, on_delta=None) -> int | float:
-        path = self.directory / "advice.json"
-        if path.exists():
-            metadata = json.loads(path.read_text())
-            if "score" in metadata:
-                return metadata["score"]
+        if "score" in self.metadata:
+            return self.metadata["score"]
         score, tokens = await self.measure.score(self.text, on_delta=on_delta)
-        write(path, json.dumps({
-            "score": score, **({"tokens": tokens} if tokens is not None else {}),
-        }, indent=2) + "\n")
+        self.metadata = {"score": score, **({"tokens": tokens} if tokens is not None else {})}
+        self.save()
         return score

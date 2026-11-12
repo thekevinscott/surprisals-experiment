@@ -89,8 +89,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
-            pending = {**chat(window, *answered), f'{path}/metadata.json': {'advice': digest},
-                       f'{path}/u/advice.txt': advice}
+            pending = {**chat(window, *answered), f'{path}/metadata.json': {'advice': digest}}
             if advice not in seen:
                 seen.add(advice)
                 pending[f'{digest}/advice.txt'] = advice

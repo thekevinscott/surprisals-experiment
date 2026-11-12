@@ -75,7 +75,7 @@ Run artifacts belong in `experiments/<experiment>/runs/<run>/`; experiment files
 - `result.json`: best-so-far success status, completed attempt count, and solution path, derived from the database when the run completes.
 - `windows/<window>/forks/<fork>/u/transcript.jsonl`: Each fork’s U conversation and reply usage, with system, user, and assistant messages (including returned reasoning).
 - `windows/0/window.json` and `windows/0/forks/0/fork.json`: `{}` placeholders; every turn is in window 0, fork 0.
-- `advices/<sha256>/advice.txt`: exact UTF-8 advice bytes, shared by identical texts.
+- `advices/<sha256>/advice.txt`: exact UTF-8 advice bytes, shared by identical texts. No files are written under `turns/<turn>/u/`, including for scorer rejections.
 - Adjacent `advice.json`: `score`, plus `tokens` in surprisal mode.
 - `windows/0/forks/0/turns/<turn>/metadata.json`: the relative advice path (`advices/<sha256>`) for that turn; any `error.txt` remains alongside it. U prompts are derived from the database instead of saved as `feedback.txt`.
 - `settings.json`: every `Config` field except `api_key`, written by `Config.save_settings()`.
