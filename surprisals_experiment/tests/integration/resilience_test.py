@@ -44,6 +44,10 @@ class Traceback(str):
                  OK | {'completion_id': None}, id='connection-error'),
     pytest.param(U('partial', finish=None, drop=True), [('text', 'partial')], 'Connection error.', PARTIAL, OK,
                  id='dropped-stream'),
+    pytest.param(U(thinking='discard this interrupted reasoning', finish=None, drop=True),
+                 [('thinking', 'discard this interrupted reasoning')], 'Connection error.',
+                 {'role': 'assistant', 'reasoning': 'discard this interrupted reasoning', '_complete': False}, OK,
+                 id='dropped-reasoning-stream'),
     pytest.param(U('partial', thinking='partial reasoning', finish='error',
                    choice={'error': CHUNK['choices'][0]['error']}),
                  [('thinking', 'partial reasoning'), ('text', 'partial')],
@@ -53,8 +57,10 @@ class Traceback(str):
 async def test_failed_reply_retries_original_history(
     config, execute_run_experiment, failure, shown, error, recorded, row,
 ):
-    world, pending = played(WINDOWS, {'Use a loop': {'score': 10}}, config=config)
-    retried, tested = world[0], world[1]
+    config.max_u_turns = 2
+    windows = [[*window, (None, 'Use a loop', [PASS])] for window in WINDOWS]
+    world, pending = played(windows, {'Use a loop': {'score': 10}}, config=config)
+    retried = world[0]
     asked = chat(0, (QUESTION, None))['u/transcript.jsonl']
     partial = [] if recorded is None else [recorded | row]
     failed = State(failure, sent=retried.sent, logs=[(f'{TURN}/u', kind, text) for kind, text in shown],
@@ -63,9 +69,13 @@ async def test_failed_reply_retries_original_history(
     retried.files = {}
     if partial:
         retried.files['u/transcript.jsonl'] = [*asked, *partial]
-    answer = chat(0, (QUESTION, 'Use a loop'))['u/transcript.jsonl'][-1]
-    tested.files['u/transcript.jsonl'] = [*asked, *partial, answer]
-    world = [failed, *world, outcome(config, TURN, 2, pending)]
+    # Keep the failed reply as evidence on disk, including at the next turn.
+    # The exact requests from played contain only accepted advice and T feedback.
+    for state in world[1:]:
+        if 'u/transcript.jsonl' in state.files:
+            messages = state.files['u/transcript.jsonl']
+            state.files['u/transcript.jsonl'] = [*asked, *partial, *messages[len(asked):]]
+    world = [failed, *world, outcome(config, TURN, 4, pending)]
     async with execute_run_experiment(config, world, u_layout=True):
         pass
 
