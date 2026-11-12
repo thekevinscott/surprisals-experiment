@@ -35,9 +35,19 @@ def appended(*codes):
         f'</T-{sample}>\n' for sample, source in enumerate(codes)) + '</code>'
 
 
-def chat(window, *turns):
+def chat(window, *turns, max_turns=1):
     """The transcript and streamed replies for full request/advice pairs."""
-    lines = list(turns[-1][0])
+    user = turns[-1][0]
+    conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
+    if conversation[0]['role'] == 'system':
+        lines = list(conversation)
+    else:
+        lines = [{'role': 'system', 'content': ...}]
+        for index, message in enumerate(conversation):
+            lines.append(message)
+            if index % 2 == 0:
+                lines.append({'role': 'user', 'content': f'turn {index // 2 + 1}' +
+                              (f' of {max_turns}' if max_turns is not None else '')})
     if turns[-1][1] is not None:
         lines.append({'role': 'assistant', 'content': turns[-1][1]})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
