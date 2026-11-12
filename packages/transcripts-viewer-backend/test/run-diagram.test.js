@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { readRunDiagram, readTurnTranscript, readSample } from '../lib/experiment.js'
+import { readRunDiagram, readSample } from '../lib/experiment.js'
 
 test('actual fork IDs, solo continuation, per-fork transcripts and shared advice', async t => {
   const root = await mkdtemp(join(tmpdir(), 'run-diagram-'))
@@ -37,9 +37,6 @@ test('actual fork IDs, solo continuation, per-fork transcripts and shared advice
   assert.deepEqual(windows.map(w => w.forks.map(f => f.id)), [[0, 2], [5]])
   assert.deepEqual(windows.map(w => w.continuedForks), [[2], []])
   const firstFork = windows[0].forks[0]
-  const messages = await readTurnTranscript(root,0,0,0)
-  assert.deepEqual(messages.map(message => message.role), ['system', 'user', 'assistant'])
-  assert.equal(messages[0].raw, JSON.stringify({ role: 'system', content: 'System rules' }))
   assert.equal(windows[0].forks[0].parallel[0].advice, 'root')
   assert.equal(windows[0].forks[0].parallel[0].measurement, 17.5)
   assert.equal(windows[0].forks[0].parallel[0].unit, 'bits')
@@ -52,9 +49,7 @@ test('actual fork IDs, solo continuation, per-fork transcripts and shared advice
   assert.equal('transcript' in firstFork.parallel[0], false)
   assert.equal('transcriptSource' in firstFork, false)
   assert.equal('messageIds' in firstFork.parallel[0], false)
-  assert.equal((await readTurnTranscript(root,0,2,2)).at(-1).raw, reply('solo', 'last thinking'))
   assert.equal('messages' in firstFork, false)
   assert.equal('context' in firstFork.parallel[0], false)
   assert.equal('attempts' in firstFork.parallel[0].samples[0], false)
-  assert.deepEqual(await readTurnTranscript(root,1,5,0), [])
 })

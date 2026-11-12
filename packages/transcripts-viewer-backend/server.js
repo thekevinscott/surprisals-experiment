@@ -2,7 +2,7 @@ import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
 import {join,resolve} from 'node:path'
-import {readExperiment,readRunIndex,runSummary,readRunDiagram,readTurnTranscript,readSample} from './lib/experiment.js'
+import {readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
 import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
@@ -56,11 +56,6 @@ export function createApi(directory) {
   endpoint('/api/runs/:run',async request=>{
     const root=await rootFor(request.params.run)
     return {diagram:await readRunDiagram(root,await settingsFor(root),database(root))}
-  })
-  endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/transcript',async request=>{
-    const p=request.params,root=await rootFor(p.run)
-    await runFile(root,turnPath(p))
-    return {messages:await readTurnTranscript(root,p.window,p.fork,p.turn,database(root,false))}
   })
   endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/ts/:sample',async request=>{
     const p=request.params,root=await rootFor(p.run)

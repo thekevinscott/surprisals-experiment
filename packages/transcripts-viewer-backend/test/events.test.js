@@ -46,7 +46,7 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   const app=createApi(root)
   t.after(async()=>{await app.close();await rm(root,{recursive:true});await rm(problem,{recursive:true})})
   const base=await app.listen({host:'127.0.0.1',port:0})
-  const urls=['/api/runs','/api/runs/index','/api/runs/one/summary','/api/runs/one',`/api/runs/one/${turn}/transcript`,`/api/runs/one/${turn}/ts/0`,`/api/runs/one/files/advices/ab/advice.txt`,'/api/runs/one/problem/question.txt']
+  const urls=['/api/runs','/api/runs/index','/api/runs/one/summary','/api/runs/one','/api/runs/one/transcript-blocks/0/1/windows/0/forks/0/u/transcript.jsonl',`/api/runs/one/${turn}/ts/0`,`/api/runs/one/files/advices/ab/advice.txt`,'/api/runs/one/problem/question.txt']
   const streams=[]
   for(const url of urls){
     const s=await stream(base,url,t);streams.push(s)
@@ -67,7 +67,7 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   assert.equal(updates[1].rows[0].strategy,'changed')
   assert.equal(updates[2].row.best,null)
   assert.equal(updates[3].diagram[0].forks[0].parallel[0].advice,'new')
-  assert.match(updates[4].messages[0].raw,/new/)
+  assert.match(updates[4].blocks[0].raw,/new/)
   assert.equal(updates[5].attempts[0].tests.all_passed,false)
   assert.equal(updates[6],'new')
   assert.equal(updates[7],'new question')

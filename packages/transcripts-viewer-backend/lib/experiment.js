@@ -1,11 +1,8 @@
-import { readFile, readdir, stat } from 'node:fs/promises'
+import { readdir, stat } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
 import {withDatabase} from './experiment-database.js'
 
-const rejected = await readFile(new URL('../../../surprisals_experiment/src/surprisals_experiment/prompts/u/rejected.txt', import.meta.url), 'utf8')
-
-// Batched SQL queries gather the structured artifacts for each request. Transcript
-// bodies stay outside this snapshot; the diagram reads U records for rejection counts.
+// Batched SQL queries gather structured artifacts without reading transcript bodies.
 async function artifacts(directory, db) {
   const patterns = ['{run,settings}.json', 'windows/*/forks/*/turns/*/metadata.json',
     'advices/*/advice.txt', 'advices/*/advice.json',
@@ -159,30 +156,7 @@ function transcriptPath(window, fork) {
   return `windows/${window}/forks/${fork}/u/transcript.jsonl`
 }
 
-export async function readTurnTranscript(root, window, fork, turn, database) {
-  if(!database)return withDatabase(root,null,db=>readTurnTranscript(root,window,fork,turn,db),{relations:false})
-  const optionalText=path=>database.text(path,true)
-  const source = transcriptPath(window, fork)
-  const text = await optionalText(join(root,source))
-  return text === null ? [] : text.split('\n').map((raw,index) => {
-    const {record, ...message} = transcriptRecord(raw)
-    return {...message, source, line:index+1}
-  })
-}
-
-function rejectionCounts(text) {
-  const counts = new Map()
-  let turn = null
-  for (const raw of text.split('\n')) {
-    const {record} = transcriptRecord(raw)
-    if (!record) continue
-    if (record._attempt !== undefined) turn = record._attempt
-    else if (turn !== null && record.role === 'user' && record.content === rejected) counts.set(turn, (counts.get(turn) ?? 0) + 1)
-  }
-  return counts
-}
-
-async function readFork(directory, id, forkTurns, source, unit, sourceRoot, store, rejections) {
+async function readFork(directory, id, forkTurns, source, unit, sourceRoot, store) {
   const optionalText=store.text
   const turns = []
   for (const id of await numericDirectories(join(directory,'turns'))) {
@@ -192,18 +166,16 @@ async function readFork(directory, id, forkTurns, source, unit, sourceRoot, stor
     let adviceSource = null
     let measurement = null
     let tokens = null
-    if (/^advices\/[a-f0-9]+$/.test(metadata?.advice ?? '')) {
+    let adviceMetadata = null
+    if (typeof metadata?.advice === 'string') {
       adviceSource = `${metadata.advice}/advice.txt`
       advice = await optionalText(join(sourceRoot, adviceSource))
-      const adviceMetadata = await optionalText(join(sourceRoot, metadata.advice, 'advice.json'))
-      if (adviceMetadata) {
-        const scored = JSON.parse(adviceMetadata)
-        measurement = scored.score ?? null
-        tokens = unit === 'bits' ? scored.tokens ?? null : null
-      }
+      adviceMetadata = await store.json(join(sourceRoot, metadata.advice, 'advice.json'),true)
+      measurement = adviceMetadata?.score ?? null
+      tokens = adviceMetadata?.tokens ?? null
     }
     const samples = await readSamples(join(directory, 'turns', String(id)), sourceRoot, store)
-    turns.push({ id, error: metadata?.error ?? null, source: relative(sourceRoot, join(directory, 'turns', String(id))), transcriptPath: source, samples, advice, adviceSource, measurement, unit, tokens, rejections:rejections.get(id) ?? 0 })
+    turns.push({ id, error: metadata?.error ?? null, source: relative(sourceRoot, join(directory, 'turns', String(id))), transcriptPath: source, samples, advice, adviceSource, measurement, unit, tokens, metadata, adviceMetadata })
   }
   return {
     id, source: relative(sourceRoot, directory), transcriptPath: source,
@@ -221,8 +193,7 @@ export async function readRunDiagram(directory, settings, database) {
     const forks = []
     for (const fork of await numericDirectories(join(directory,`windows/${id}/forks`))) {
       const source = transcriptPath(id,fork)
-      const rejections = rejectionCounts(await database.text(join(directory,source),true) ?? '')
-      forks.push(await readFork(join(directory,`windows/${id}/forks/${fork}`), fork, settings.fork_turns, source, unit, directory, store, rejections))
+      forks.push(await readFork(join(directory,`windows/${id}/forks/${fork}`), fork, settings.fork_turns, source, unit, directory, store))
     }
     forks.sort((a, b) => a.id - b.id)
     windows.push({ id, forks, continuedForks: forks.filter(f => f.solo.length).map(f => f.id) })
@@ -264,11 +235,4 @@ export async function readAttempt(directory, id, sourceRoot, database) {
   const files=(await database.files(`${prefix}/src/**/*`)).map(row=>({name:relative(join(prefix,'src'),row.path),source:row.path,bytes:row.size,text:null}))
   const store={json:(...args)=>database.json(...args)}
   return {...await readOutcome(directory,id,store),source:prefix,testsSource:`${prefix}/tests.json`,transcriptFiles,files}
-}
-
-// Parse for navigation labels and rejection counts; display the original line.
-export function transcriptRecord(raw) {
-  let record
-  try { record = JSON.parse(raw) } catch { return { role: 'Unparsed record', raw, record: null } }
-  return { role: record?.message?.role ?? record?.role ?? record?.type ?? 'Record', raw, record }
 }

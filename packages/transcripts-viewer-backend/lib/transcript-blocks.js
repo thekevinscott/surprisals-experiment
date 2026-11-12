@@ -6,10 +6,12 @@ export function createTranscriptReader() {
   return async path=>{
     const info=await stat(path),version=`${info.size}:${info.mtimeMs}:${info.ctimeMs}`
     if(cache.get(path)?.version===version)return cache.get(path)
-    const lines=(await readFile(path,'utf8')).split('\n')
+    const text=await readFile(path,'utf8')
+    const lines=text.split('\n')
+    if(lines.at(-1)==='')lines.pop()
     const blocks=lines.map((raw,index)=>{
-      let type='Unparsed record'
-      try{const record=JSON.parse(raw);type=record?.message?.role??record?.role??record?.type??'Record'}catch{}
+      let type=''
+      try{const record=JSON.parse(raw);type=record?.message?.role??record?.role??record?.type??''}catch{}
       return {index,type}
     })
     const result={version,lines,metadata:{total:blocks.length,blocks}}
