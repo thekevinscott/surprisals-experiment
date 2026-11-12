@@ -1,0 +1,7 @@
+{
+  "command": "true",
+  "ran_at": 1794510581,
+  "exit_code": 0,
+  "commit": "79cbdb90c31ea3852f5cc4847d94d8f55437bda0",
+  "branch": "fix/aws-runner-missing-config"
+}
