@@ -4,20 +4,20 @@ from hashlib import sha256
 
 import pytest
 
-from state_machine.testing import Done, State
+from utils.non_u_layout import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 
-from utils.world import U, T, t_sent, u_system
+from utils.world import U, T, t_sent
 
 QUESTION = 'Read an integer and print its double.'
 PASS = 'print(int(input()) * 2)\n'
 FAIL = 'print(0)\n'
 
 
-def u_body(config, turn, conversation, best):
+def u_body():
     return {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config, turn + 1, best)}, *conversation]}
+            'messages': ...}
 
 
 def code(sources):
@@ -52,16 +52,14 @@ def advice_path(advice):
 
 def run_world(config, turns, *, outcome, attempts):
     """States for `turns`, each (window, U's window opening or None, advice, T sources), then Done."""
-    world, evaluated, transcripts, usage, advices, counts, passed, conversation = [], {}, {}, {}, set(), {}, [], []
+    world, evaluated, advices, counts = [], {}, set(), {}
     for window, user, advice, sources in turns:
         turn = counts[window] = counts.get(window, -1) + 1
         fork = f'windows/{window}/forks/0'
         directory = f'{fork}/turns/{turn}'
-        root = f'{fork}/u/transcripts' if window else 'u/transcripts'
         files = evaluated
         if not turn:
             files |= {f'windows/{window}/window.json': {}, f'{fork}/fork.json': {}}
-            transcripts[root] = [{'role': 'system', 'content': ...}]
         if not world:
             files['settings.json'] = {
                 'problem_dir': str(config.problem_dir), 'output': str(config.output), 'u_model': 'u',
@@ -71,21 +69,13 @@ def run_world(config, turns, *, outcome, attempts):
                 'git_commit': ...,
             }
         assert (user is None) == bool(turn)
-        if not turn:
-            conversation = [{'role': 'user', 'content': user}]
-        transcripts[root] += [{'role': 'system', 'content': ...}, {**conversation[0], '_reset': True}, *conversation[1:]]
         world.append(State(
             U(advice, thinking='Thinking.'),
-            sent=u_body(config, turn, conversation, min((score for w, score in passed if w < window), default=None)),
+            sent=u_body(),
             logs=[(f'{directory}/u', 'thinking', 'Thinking.'), (f'{directory}/u', 'text', advice)],
-            files={**files, f'{root}/messages.jsonl': list(transcripts[root])},
+            files=files,
         ))
-        transcripts[root].append({'content': advice, 'role': 'assistant', 'reasoning': 'Thinking.', '_complete': True})
-        usage[root] = [*usage.get(root, []),
-                       {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}]
         files = {
-            f'{root}/messages.jsonl': list(transcripts[root]),
-            f'{root}/usage.jsonl': list(usage[root]),
             f'{directory}/metadata.json': {'advice': advice_path(advice)},
             f'{directory}/u/advice.txt': advice,
         }
@@ -105,9 +95,6 @@ def run_world(config, turns, *, outcome, attempts):
             ))
             files = {}
             evaluated |= {f'{attempt}/generation.json': {'exit_code': 0}, f'{attempt}/tests.json': evaluation(source)}
-        conversation += [{'role': 'assistant', 'content': advice}, {'role': 'user', 'content': code(sources)}]
-        if sources and FAIL not in sources:
-            passed.append((window, len(advice)))
     if outcome is None:
         evaluated['error.txt'] = f'No passing solution after {attempts} U turns\n'
     solution = outcome and str(outcome)
