@@ -19,9 +19,9 @@ from surprisals_experiment.sdk.run_experiment.actions import write_advice as wri
 
 
 @pytest.mark.parametrize('window,measure,best,expected', [
-    (0, 'characters', 412, 'turn 23 of 40'),
-    (1, 'characters', 412, 'turn 23 of 40; best at window start: 412; target: 391 (5%)'),
-    (1, 'surprisal', 41.25, 'turn 23 of 40; best at window start: 41.2; target: 39.2 (5%)'),
+    (0, 'characters', 412, None),
+    (1, 'characters', 412, 'best at window start: 412; target: 391 (5%)'),
+    (1, 'surprisal', 41.25, 'best at window start: 41.2; target: 39.2 (5%)'),
 ])
 async def test_system_progress(config, botbox_script, chat_provider, window, measure, best, expected):
     config = Config(**(config.model_dump() | {
@@ -45,13 +45,16 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 22, window))
         system = chat_provider[-1]['messages'][0]['content']
-        assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
+        assert [line for line in system.splitlines() if line.startswith('best at window start:')] == (
+            [expected] if expected is not None else [])
+        assert not any(line.startswith('turn ') for line in system.splitlines())
+        assert chat_provider[-1]['messages'][-1] == {'role': 'user', 'content': 'turn 23 of 40'}
     async with open_u_chat(config) as chat:
         assert chat.messages[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 23, window))
-        assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
-                if line.startswith('turn ')] == [expected.replace('turn 23', 'turn 24')]
+        assert chat_provider[-1]['messages'][0]['content'] == system
+        assert chat_provider[-1]['messages'][-1] == {'role': 'user', 'content': 'turn 24 of 40'}
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
@@ -116,8 +119,11 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},
+        {'role': 'user', 'content': f'turn 1 of {config.max_u_turns}'},
         {'role': 'assistant', 'content': 'Later.'},
         {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': f'turn 2 of {config.max_u_turns}'},
         {'role': 'assistant', 'content': 'Again.'},
         {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': f'turn 3 of {config.max_u_turns}'},
     ]
