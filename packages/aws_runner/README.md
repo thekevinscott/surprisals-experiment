@@ -18,12 +18,12 @@ fail. Directory tags are labels only. A unique invocation tag permits cleanup if
 launch is interrupted before the instance ID is returned.
 
 The runner waits for SSH and cloud-init, installs prerequisites, and ships the
-checkout, `.env`, and run folder. It writes local `aws_runner.json` provenance.
+checkout, `.env`, and run folder. It writes local `aws/aws_runner.json` provenance.
 Layout runs once over SSH; the command runs inline under systemd and survives
 SSH disconnects. Nothing is reattached, restored, or restarted on later runs.
 
 Command stdout and stderr stream to the client and append to
-`command.stdout.log` and `command.stderr.log` in the run folder. `LABNOTES_LOG`
+`aws/command.stdout.log` and `aws/command.stderr.log` in the run folder. `LABNOTES_LOG`
 is mapped to remote `run/log.jsonl`. `LABNOTES_RUN_STATE` is not copied; pass
 needed values in the command (the local `runpod_scorer/run-cell.sh` wrapper
 supplies `--scorer-base-url` for surprisal cells).

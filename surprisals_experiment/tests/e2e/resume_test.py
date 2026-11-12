@@ -538,7 +538,7 @@ cap-strategy = ["characters"]
         assert list(folder.glob(ATTEMPTS + "/tests.json"))
         ids = {i["InstanceId"] for i in instances(folder)}
         assert ids == {first["InstanceId"], second["InstanceId"]}
-        assert json.loads((folder / "aws_runner.json").read_text())["commit"]
+        assert json.loads((folder / "aws/aws_runner.json").read_text())["commit"]
         wait(lambda: not leftovers(folder), 80, lambda: f"Tagged AWS resources survived: {leftovers(folder)}")
         step("no tagged resources left")
     finally:

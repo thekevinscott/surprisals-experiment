@@ -19,7 +19,7 @@ from aws_runner.remote.start import start
 
 def test_complete_output_on_correct_streams(tmp_path, capfd, monkeypatch):
     root = tmp_path / "remote"
-    (root / "run").mkdir(parents=True)
+    (root / "run/aws").mkdir(parents=True)
     monkeypatch.delenv("LABNOTES_RUN_STATE", raising=False)
     stdout = "out" * 40000 + "last stdout"
     stderr = "err" * 40000 + "last stderr"
@@ -67,8 +67,8 @@ def test_complete_output_on_correct_streams(tmp_path, capfd, monkeypatch):
         if process.poll() is None:
             process.kill()
             process.wait()
-    assert (root / "run/command.stdout.log").read_text() == stdout
-    assert (root / "run/command.stderr.log").read_text() == stderr
+    assert (root / "run/aws/command.stdout.log").read_text() == stdout
+    assert (root / "run/aws/command.stderr.log").read_text() == stderr
 
 
 def test_mirror_keeps_local_logs_and_collects_command_output(tmp_path):
@@ -76,10 +76,11 @@ def test_mirror_keeps_local_logs_and_collects_command_output(tmp_path):
     remote.mkdir()
     local = tmp_path / "local"
     local.mkdir()
+    (remote / "aws").mkdir()
     for name in ("stdout.log", "stderr.log"):
         (remote / name).write_text("stale")
         (local / name).write_text("local runner output")
-        (remote / f"command.{name}").write_text("command output")
+        (remote / f"aws/command.{name}").write_text("command output")
     execute = subprocess.run
 
     def copy(args, **kwargs):
@@ -92,7 +93,7 @@ def test_mirror_keeps_local_logs_and_collects_command_output(tmp_path):
         mirror({}, {}, local)
     for name in ("stdout.log", "stderr.log"):
         assert (local / name).read_text() == "local runner output"
-        assert (local / f"command.{name}").read_text() == "command output"
+        assert (local / f"aws/command.{name}").read_text() == "command output"
 
 
 @pytest.mark.parametrize("during_drain", [False, True])
@@ -100,9 +101,9 @@ def test_killed_follower_resumes_without_missing_or_duplicate_bytes(
     tmp_path, capfdbinary, during_drain
 ):
     root = tmp_path / "remote"
-    (root / "run").mkdir(parents=True)
-    stdout = root / "run/command.stdout.log"
-    stderr = root / "run/command.stderr.log"
+    (root / "run/aws").mkdir(parents=True)
+    stdout = root / "run/aws/command.stdout.log"
+    stderr = root / "run/aws/command.stderr.log"
     stdout.write_bytes(b"stdout before\x00\xff")
     stderr.write_bytes(b"stderr before\x00\xfe")
     streams = []
