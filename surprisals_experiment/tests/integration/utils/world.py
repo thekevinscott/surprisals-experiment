@@ -10,16 +10,22 @@ from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
 
 
-def u_system(config, turn, best=None):
-    """U's system prompt at `turn`, after earlier windows' `best` measurement."""
-    surprisal = config.cap_strategy == 'surprisal'
-    target = None if best is None else best * 0.95
-    if best is not None:
-        best, target = (f'{best:.1f}', f'{target:.1f}') if surprisal else (str(round(best)), str(round(target)))
+def u_system(config):
+    """The single, fixed system prompt at the start of a fork."""
     return Prompt('u/system.txt')(
-        measure_wording=Prompt('u/measure_surprisal.txt')() if surprisal else '',
-        implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples, turn=turn,
-        turns=config.fork_turns + config.window_solo_turns, best=best, target=target, improvement='5%')
+        measure_wording=Prompt('u/measure_surprisal.txt')() if config.cap_strategy == 'surprisal' else '',
+        implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples)
+
+
+def u_user(config, turn, content='', best=None):
+    """Expected user text, specified independently of the production turn template."""
+    line = f'turn {turn} of {config.fork_turns + config.window_solo_turns}'
+    if best is not None:
+        target = best * 0.95
+        best, target = ((f'{best:.1f}', f'{target:.1f}') if config.cap_strategy == 'surprisal'
+                        else (str(round(best)), str(round(target))))
+        line += f'; best at window start: {best}; target: {target} (5%)'
+    return line + ('\n' + content if content else '')
 
 
 def t_sent(attempt, advice, *, model='t'):

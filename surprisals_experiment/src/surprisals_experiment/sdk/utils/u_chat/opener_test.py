@@ -42,7 +42,7 @@ async def test_streams_advice_and_appends_each_prompt(
     assert all(entry['usage'] is None for entry in usage)
 
 
-async def test_saves_partial_output_on_cancellation(config, botbox_script):
+async def test_cancellation_leaves_only_the_request_on_disk(config, botbox_script):
     import asyncio
 
     botbox_script.advice.append('advice')
@@ -53,8 +53,9 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
     with pytest.raises(asyncio.CancelledError):
         async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as session:
             await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=cancel)
-    transcript = (config.fork_dir / "u/transcript.jsonl").read_text()
-    assert 'Thinking.' in transcript
+    entries = transcript(config)
+    assert [entry['role'] for entry in entries] == ['system', 'user']
+    assert entries[-1] == {'role': 'user', 'content': 'question'}
 
 
 async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
@@ -98,10 +99,15 @@ async def test_reasoning_format_preserves_latest_provider_value(
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
             await session.prompt([{'role': 'user', 'content': 'question'}])
-        assert session.entries()[-1]['reasoning_details'] == expected
-        transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
-        assert transcript[-1]['reasoning_details'] == expected
-        assert transcript[-1]['content'] == 'advice'
+        entries = transcript(config)
+        assert session.entries() == entries
+        if finish == 'stop':
+            assert [entry['role'] for entry in entries] == ['system', 'user', 'assistant']
+            assert entries[-1]['reasoning_details'] == expected
+            assert entries[-1]['content'] == 'advice'
+        else:
+            assert [entry['role'] for entry in entries] == ['system', 'user']
+            assert entries[-1] == {'role': 'user', 'content': 'question'}
 
 
 @pytest.mark.parametrize('partial', [False, True])
@@ -115,7 +121,6 @@ async def test_reopened_transcript_is_the_only_history(config, botbox_script, ch
     path.write_text(text)
     if partial:
         with path.open('a') as output:
-            output.write(json.dumps({'role': 'assistant', 'content': 'unfinished', '_complete': False}) + '\n')
             output.write('{"role": "assistant", "content":')
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as reopened:
         await reopened.prompt([{'role': 'user', 'content': 'feedback'}], attempt=1)
@@ -137,7 +142,12 @@ async def test_reopened_pending_turn_does_not_duplicate_input(config, botbox_scr
     if not answered:
         path.write_text('\n'.join(path.read_text().splitlines()[:-1]) + '\n')
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as reopened:
-        await reopened.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
+        saved = path.read_bytes()
+        assert await reopened.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == (
+            'first' if answered else 'second')
+        if answered:
+            assert path.read_bytes() == saved
+    assert len(chat_provider) == (1 if answered else 2)
     assert chat_provider[-1]['messages'] == chat_provider[0]['messages']
     assert sum(entry['role'] == 'user' for entry in transcript(config)) == 1
 
@@ -154,7 +164,7 @@ async def test_rebuilt_transcript_rejects_invalid_interior_line(config, chat_pro
     assert len(chat_provider) == requests
 
 
-async def test_provider_error_exhaustion_preserves_partial_evidence(
+async def test_provider_error_exhaustion_leaves_the_transcript_unchanged(
     config, botbox_script, chat_provider, no_retry_wait,
 ):
     botbox_script.advice.extend([PROVIDER_ERROR] * (len(DELAYS) + 1))
@@ -165,21 +175,16 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == len(DELAYS) + 1
     assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
-    assert [m['content'] for m in transcript(config) if m['role'] == 'assistant'] == ['partial'] * 9
-    assert session.entries()[-1]['content'] == 'partial'
+    assert [entry['role'] for entry in transcript(config)] == ['system', 'user']
+    assert session.entries()[-1] == {'role': 'user', 'content': 'question'}
     assert no_retry_wait.await_count == len(DELAYS)
 
 
-async def test_rejected_reply_stays_on_disk_but_only_its_replacement_gets_feedback(config, botbox_script, chat_provider):
-    botbox_script.advice.extend(['rejected', 'accepted', 'next'])
+async def test_repeated_completed_attempt_returns_saved_reply_without_request(config, botbox_script, chat_provider):
+    botbox_script.advice.extend(['rejected', 'unexpected'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as session:
-        await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-        await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0)
-        await session.prompt([{'role': 'user', 'content': 'feedback'}], attempt=1)
-    assert chat_provider[0]['messages'] == chat_provider[1]['messages']
-    assert chat_provider[2]['messages'][1:] == [
-        {'role': 'user', 'content': 'question'},
-        {'role': 'assistant', 'content': 'accepted'},
-        {'role': 'user', 'content': 'feedback'},
-    ]
-    assert [entry['content'] for entry in transcript(config) if entry['role'] == 'assistant'] == ['rejected', 'accepted', 'next']
+        assert await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == 'rejected'
+        saved = session.transcript.read_bytes()
+        assert await session.prompt([{'role': 'user', 'content': 'question'}], attempt=0) == 'rejected'
+        assert session.transcript.read_bytes() == saved
+    assert len(chat_provider) == 1

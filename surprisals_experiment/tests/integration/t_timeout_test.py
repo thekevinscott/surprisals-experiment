@@ -16,20 +16,20 @@ from u_flush_test import (
     played,
     results,
 )
-from utils.world import T, U, t_sent, u_system
+from utils.world import T, U, t_sent, u_system, u_user
 
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
 
 
 def u_state(config, window, turn, prompt, advice, files, previous=None, *, u_layout=False):
-    """`prompt` is the window's opening user message, or the whole conversation as a list of messages."""
+    """`prompt` is raw opening text, or a conversation with turn-prefixed user messages."""
     path = f'windows/{window}/forks/0/turns/{turn}'
     return State(U(advice, thinking='Think.'),
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-                       **({'messages': [{'role': 'system', 'content': u_system(config, turn + 1, previous)},
-                                        *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': prompt}])]}
+                       **({'messages': [{'role': 'system', 'content': u_system(config)},
+                                        *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': u_user(config, turn + 1, prompt, previous)}])]}
                           if u_layout else {})},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 

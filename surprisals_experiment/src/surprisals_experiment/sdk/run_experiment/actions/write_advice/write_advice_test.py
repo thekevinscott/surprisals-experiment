@@ -25,7 +25,7 @@ from surprisals_experiment.sdk.utils.write import write
     (1, 'characters', 412, 'turn 13 of 20; best at window start: 412; target: 391 (5%)'),
     (1, 'surprisal', 41.25, 'turn 13 of 20; best at window start: 41.2; target: 39.2 (5%)'),
 ])
-async def test_system_progress(config, botbox_script, chat_provider, window, measure, best, expected):
+async def test_user_progress_keeps_the_system_prompt_fixed(config, botbox_script, chat_provider, window, measure, best, expected):
     config = Config(**(config.model_dump() | {
         'max_u_turns': 40, 'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1',
     }))
@@ -47,16 +47,21 @@ async def test_system_progress(config, botbox_script, chat_provider, window, mea
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 12, window))
         system = chat_provider[-1]['messages'][0]['content']
-        assert [line for line in system.splitlines() if line.startswith('turn ')] == [expected]
+        assert not any(line.startswith('turn ') for line in system.splitlines())
+        assert [message['role'] for message in chat_provider[-1]['messages']] == ['system', 'user']
+        assert chat_provider[-1]['messages'][1]['content'].splitlines()[0] == expected
     # The normal workflow scores the completed advice before starting the next turn.
-    seed_advice(config, Turn(config, 22, window).attempt_dir, 'Double.', 7,
+    seed_advice(config, Turn(config, 12, window).attempt_dir, 'Double.', 7,
                 [['Double.', 7.0]] if measure == 'surprisal' else None)
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         assert chat.request_messages()[0]['content'] == system
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 13, window))
-        assert [line for line in chat_provider[-1]['messages'][0]['content'].splitlines()
-                if line.startswith('turn ')] == [expected.replace('turn 13', 'turn 14')]
+        messages = chat_provider[-1]['messages']
+        assert [message['role'] for message in messages] == ['system', 'user', 'assistant', 'user']
+        assert messages[0]['content'] == system
+        assert messages[-1]['content'].splitlines()[0] == expected.replace('turn 13', 'turn 14')
+        assert sum(entry['role'] == 'system' for entry in chat.entries()) == 1
 
 
 async def test_advice_and_turn_written_under_dirsql_lock(config, botbox_script, monkeypatch):
@@ -122,9 +127,9 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         await write_advice(run, Turn(config, 1, 1, 0))
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
-        {'role': 'user', 'content': opening},
+        {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 5 (5%)\n' + opening},
         {'role': 'assistant', 'content': 'Later.'},
-        {'role': 'user', 'content': '<length>6 characters</length>\n' + code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(3)\n', 'print(4)\n', passed=0)},
         {'role': 'assistant', 'content': 'Again.'},
-        {'role': 'user', 'content': '<length>6 characters</length>\n' + code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(5)\n', 'print(6)\n', passed=0)},
     ]

@@ -4,11 +4,10 @@ from ....run import Run
 from ....turn import Turn
 from ...state.read_window import IMPROVEMENT, read_window
 
-SYSTEM = Prompt("u/system.txt")
-CONTEXT = Prompt("u/flush/context.txt")
+TURN = Prompt("u/turn.txt")
 
 
-async def system_prompt(run: Run, turn: Turn) -> str:
+async def turn_line(run: Run, turn: Turn) -> str:
     row = await read_window(run)
     best = row["previous"] if turn.window else None
     target = best * (1 - IMPROVEMENT) if best is not None else None
@@ -17,10 +16,7 @@ async def system_prompt(run: Run, turn: Turn) -> str:
             best, target = str(round(best)), str(round(target))
         else:
             best, target = f"{best:.1f}", f"{target:.1f}"
-    return SYSTEM(
-        measure_wording=turn.config.advice_measure.wording,
-        implementation_access=CONTEXT(),
-        t_samples=turn.config.t_samples,
+    return TURN(
         turn=turn.position + 1,
         turns=turn.config.fork_turns + turn.config.window_solo_turns,
         best=best,

@@ -16,5 +16,5 @@ async def test_run_keeps_one_transcript_per_u_conversation(config, execute_run_e
         assert sorted(path.name for path in folder.iterdir()) == ['transcript.jsonl']
         messages = [json.loads(line) for line in (folder / 'transcript.jsonl').read_text().splitlines()]
         reply = messages[-1]
-        assert reply == {'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True,
+        assert reply == {'role': 'assistant', 'content': advice, 'reasoning': 'Think.',
                          'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
