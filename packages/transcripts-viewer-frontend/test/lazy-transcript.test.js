@@ -53,8 +53,11 @@ test('appended metadata retains loaded raw blocks without fetching new offscreen
   const before=transcriptBlocks(metadata,source,url)
   before[0].raw='{"role":"system","content":"  prompt\\n\\n  "}'
   before[1].raw='{"role":"assistant","_complete":false}'
+  const retained=before.map(message=>message.raw)
+  const previousObserver=observeTranscriptBlocks(before,()=>()=>{})
   const after=transcriptBlocks({total:3,blocks:[...metadata.blocks,{index:2,type:'user'}]},source,url,before)
-  assert.deepEqual(after.slice(0,2).map(message=>message.raw),before.map(message=>message.raw))
+  previousObserver.dispose()
+  assert.deepEqual(after.slice(0,2).map(message=>message.raw),retained)
   assert.equal(after[2].raw,undefined)
   const requests=[]
   const observer=observeTranscriptBlocks(after,(url,receive)=>{requests.push({url,receive});return ()=>{}})
