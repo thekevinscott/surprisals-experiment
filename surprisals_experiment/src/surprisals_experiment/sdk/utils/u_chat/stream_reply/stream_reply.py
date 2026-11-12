@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from openai import LengthFinishReasonError
 
-from ...write import write
+from ...append import append
 from .errors import IncompleteStreamError, ProviderError
 from .output_limit_error import output_limit_error
 from .well_formed import well_formed
@@ -19,7 +19,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
     reasoning_formats = {}
     try:
         async with self.client.chat.completions.stream(
-            model=self.model, messages=self.messages, extra_body={
+            model=self.model, messages=self.request_messages(), extra_body={
                 "reasoning": reasoning,
                 "provider": {"only": [self.provider], "allow_fallbacks": False},
             },
@@ -55,8 +55,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
     finally:
         usage = snapshot.usage if snapshot is not None else None
         log = self.transcript.with_name("usage.jsonl")
-        previous = log.read_text() if log.exists() else ""
-        write(log, previous + json.dumps({
+        append(log, json.dumps({
                 "timestamp": datetime.now(UTC).isoformat(),
                 "completion_id": snapshot.id if snapshot is not None else None,
                 "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,
@@ -74,7 +73,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
                     detail["format"] = reasoning_formats[detail["index"]]
             complete = (completion is not None and completion.choices[0].finish_reason == "stop"
                         and bool(completion.choices[0].message.content) and provider_error is None)
-            self.record(message, complete=complete)
+            append(self.transcript, json.dumps(message | {"_complete": complete}, ensure_ascii=False) + "\n")
     choice = completion.choices[0]
     if choice.finish_reason == "error":
         raise ProviderError(f"U chat provider error: {json.dumps(provider_error)}")
