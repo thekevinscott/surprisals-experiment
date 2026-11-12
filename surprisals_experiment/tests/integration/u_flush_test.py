@@ -2,13 +2,11 @@
 
 from hashlib import sha256
 
-from state_machine.testing import Done, State
-from surprisals_experiment.prompt import PROMPTS
-
 import pytest
-
+from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
-from utils.world import U, Score, T, t_sent, u_system
+from surprisals_experiment.prompt import PROMPTS
+from utils.world import Score, T, U, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -40,16 +38,19 @@ def chat(window, *turns):
 
     A prompt is the opening user message, or the whole conversation as a list of messages."""
     lines = [{'role': 'system', 'content': ...}]
+    replies = []
     for user, advice in turns:
         conversation = user if isinstance(user, list) else [{'role': 'user', 'content': user}]
         lines += [{'role': 'system', 'content': ...}, {**conversation[0], '_reset': True}, *conversation[1:]]
         if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
+            lines.append({'role': 'assistant', 'content': advice})
+            replies.append({'completion_id': 'u', 'message': {'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
     if turns[-1][1] is None:
         return {f'{transcripts}/messages.jsonl': lines}
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
+    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns),
+            f'{transcripts}/replies.jsonl': replies}
 
 
 def results(path, code):

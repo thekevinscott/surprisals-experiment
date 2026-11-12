@@ -3,10 +3,9 @@
 from hashlib import sha256
 
 import pytest
-
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS, Config
-from utils.world import U, Score, T, t_sent, u_system
+from utils.world import Score, T, U, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)'
@@ -32,7 +31,7 @@ def asked(user):
 
 
 def answered(user, advice):
-    return [*asked(user), {'content': advice, 'role': 'assistant', 'reasoning': 'Think.', '_complete': True}]
+    return [*asked(user), {'content': advice, 'role': 'assistant'}]
 
 
 def stdout():
@@ -76,6 +75,8 @@ def window_world(config, windows):
         world.append(State(U(advice, thinking='Think.'), sent=u_body(config, user, best and best[2]),
                            logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)], files=files))
         pending = {f'{u_dir}/messages.jsonl': answered(user, advice),
+                   f'{u_dir}/replies.jsonl': [{'completion_id': 'u', 'message': {
+                       'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}}],
                    f'{u_dir}/usage.jsonl': [{'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}],
                    f'{turn}/metadata.json': {'advice': f'advices/{record}'},
                    f'{turn}/u/advice.txt': advice}

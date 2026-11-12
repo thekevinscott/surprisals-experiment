@@ -4,21 +4,19 @@ import json
 
 import httpx2
 import pytest
-
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
-from utils.world import U, T, t_sent, u_system
-
+from utils.world import T, U, t_sent
 
 BUILD = {'agent': {'provider': 'openrouter', 'model': 't', 'api_key': 'test-key'}, 'dockerfile': 'docker/Dockerfile.t'}
 TURN = 'windows/0/forks/0/turns/0'
 OK = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
 USAGE = {'prompt_tokens': 10, 'completion_tokens': 20, 'total_tokens': 30,
          'completion_tokens_details': {'reasoning_tokens': 19}}
-PARTIAL = {'role': 'assistant', 'content': 'partial', '_complete': False}
+PARTIAL = {'role': 'assistant', 'content': 'partial'}
 WINDOWS = [[(QUESTION, 'Use a loop', [PASS])], [(flush(0, 'Use a loop', length=10), 'Use a loop', [PASS])]]
 CHUNK = {'id': 'u', 'choices': [{'delta': {'content': 'partial', 'role': 'assistant'}, 'index': 0,
                                  'finish_reason': 'error', 'error': {'message': 'upstream failed', 'code': 502}}],
@@ -37,7 +35,7 @@ class Traceback(str):
 @pytest.mark.parametrize('failure,shown,error,recorded,row', [
     pytest.param(U(thinking='Hmm: what about'), [('thinking', 'Hmm: what about')],
                  'U chat did not produce complete advice (stop)',
-                 {'role': 'assistant', 'reasoning': 'Hmm: what about', '_complete': False}, OK,
+                 {'role': 'assistant', 'reasoning': 'Hmm: what about'}, OK,
                  id='thinking-only-stop'),
     pytest.param(U('partial', finish='content_filter'), [('text', 'partial')],
                  'Could not parse response content as the request was rejected by the content filter', PARTIAL, OK,
@@ -64,9 +62,12 @@ async def test_failed_reply_retries_original_history(
     retried.logs = [(f'{TURN}/u', 'retry', f'1/8 in 10s: {error}\n'), *retried.logs]
     retried.files = {'u/transcripts/usage.jsonl': [row]}
     if partial:
-        retried.files['u/transcripts/messages.jsonl'] = [*asked, *partial]
+        retried.files['u/transcripts/replies.jsonl'] = [{'completion_id': 'u', 'message': message} for message in partial]
     answer = chat(0, (QUESTION, 'Use a loop'))['u/transcripts/messages.jsonl'][-1]
-    tested.files['u/transcripts/messages.jsonl'] = [*asked, *partial, answer]
+    tested.files['u/transcripts/messages.jsonl'] = [*asked, answer]
+    tested.files['u/transcripts/replies.jsonl'] = [
+        *[{'completion_id': 'u', 'message': message} for message in partial],
+        *tested.files['u/transcripts/replies.jsonl']]
     tested.files['u/transcripts/usage.jsonl'] = [row, OK]
     world = [failed, *world, outcome(config, TURN, 2, pending)]
     async with execute_run_experiment(config, world):
@@ -98,7 +99,7 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
     second = [{'role': 'user', 'content': best}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': appended(PASS)}]
     failed_turn = [{'role': 'system', 'content': ...}, {'role': 'user', 'content': QUESTION, '_reset': True},
-                   PARTIAL | {'reasoning': 'Cut off'}, {'role': 'system', 'content': ...},
+                   {'role': 'system', 'content': ...},
                    {'role': 'user', 'content': QUESTION, '_reset': True}]
     asked = [chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'][0], *failed_turn]
     answer = chat(0, (QUESTION, advice))['u/transcripts/messages.jsonl'][-1]
@@ -111,9 +112,13 @@ async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(con
         u_state(config, 0, 1, QUESTION, advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
-            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}]}),
+            'u/transcripts/messages.jsonl': asked, 'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}],
+            'u/transcripts/replies.jsonl': [{'completion_id': 'u', 'message': PARTIAL | {'reasoning': 'Cut off'}}]}),
         t_state(0, 1, 0, 0, advice, {'u/transcripts/messages.jsonl': [*asked, answer],
-                                     'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK], **advised(0, 1, advice, 10)}),
+                                     'u/transcripts/usage.jsonl': [OK | {'usage': USAGE}, OK],
+                                     'u/transcripts/replies.jsonl': [
+                                         {'completion_id': 'u', 'message': PARTIAL | {'reasoning': 'Cut off'}},
+                                         {'completion_id': 'u', 'message': answer | {'reasoning': 'Think.'}}], **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None))},
                 previous=10),
         t_state(1, 0, 0, 0, advice, {**chat(1, (best, advice)), **advised(1, 0, advice)}),
@@ -137,11 +142,11 @@ async def test_botbox_failure_retains_infrastructure_and_traceback_diagnostics(
     world, pending = played([[(QUESTION, 'Use a loop', [])]], {'Use a loop': {'score': 10}}, config=config)
     generation = (lambda attempt: {f'{TURN}/ts/0/attempts/{attempt}/generation.json': {'exit_code': -1}}
                   if t.exit_code == -1 else {})
-    for attempt in range(9):
-        world.append(State(t, sent=t_sent(f'{TURN}/ts/0/attempts/{attempt}', 'Use a loop'),
-                           logs=[(f'{TURN}/ts/0', 'retry', f'T {attempt}/8 in {DELAYS[attempt - 1]}s: {failure}\n')]
-                           if attempt else [],
-                           files=generation(attempt - 1) if attempt else pending))
+    for number in range(9):
+        world.append(State(t, sent=t_sent(f'{TURN}/ts/0/attempts/{number}', 'Use a loop'),
+                           logs=[(f'{TURN}/ts/0', 'retry', f'T {number}/8 in {DELAYS[number - 1]}s: {failure}\n')]
+                           if number else [],
+                           files=generation(number - 1) if number else pending))
     exhausted = f'T sample failed: {failure}; 8 retries exhausted'
     world.append(Done(outcome=RuntimeError(exhausted),
                       files={**generation(8), f'{TURN}/error.txt': Traceback(exhausted)}))

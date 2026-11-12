@@ -3,11 +3,9 @@
 from hashlib import sha256
 
 import pytest
-
 from state_machine.testing import Done, State
 from u_flush_test import PASS, flush, outcome, played
-from utils.world import U, T, t_sent, u_system
-
+from utils.world import T, U, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 DOUBLE = 'print(int(input()) * 2)\n'
@@ -43,6 +41,7 @@ def run_world(config, rounds, advice, code):
     Returns the states and the files the last T round leaves for Done.
     """
     states, pending, transcripts, written, best, starts, conversations = [], {}, {}, set(), None, {}, {}
+    replies = {}
     for window, position, forks in rounds:
         start = starts.setdefault(window, best)
         for fork in forks:
@@ -76,13 +75,16 @@ def run_world(config, rounds, advice, code):
                 logs=[(f'{turn}/u', 'thinking', 'Shorten.'), (f'{turn}/u', 'text', text)],
                 files=files,
             ))
-            messages.append({'content': text, 'role': 'assistant', 'reasoning': 'Shorten.', '_complete': True})
+            messages.append({'role': 'assistant', 'content': text})
+            replies.setdefault(path, []).append({'completion_id': 'u', 'message': {
+                'role': 'assistant', 'content': text, 'reasoning': 'Shorten.'}})
             stored = 'advices/' + sha256(text.encode()).hexdigest()
             pending = {
                 f'{turn}/metadata.json': {'advice': stored},
                 f'{turn}/u/advice.txt': text,
                 f'{path}/messages.jsonl': list(messages),
-                f'{path}/usage.jsonl': [USAGE] * sum('_complete' in message for message in messages),
+                f'{path}/replies.jsonl': list(replies[path]),
+                f'{path}/usage.jsonl': [USAGE] * len(replies[path]),
             }
             if stored not in written:
                 written.add(stored)

@@ -3,11 +3,9 @@
 from hashlib import sha256
 
 import pytest
-
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
-
-from utils.world import U, T, t_sent, u_system
+from utils.world import T, U, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 PASS = 'print(int(input()) * 2)\n'
@@ -53,6 +51,7 @@ def advice_path(advice):
 def run_world(config, turns, *, outcome, attempts):
     """States for `turns`, each (window, U's window opening or None, advice, T sources), then Done."""
     world, evaluated, transcripts, usage, advices, counts, passed, conversation = [], {}, {}, {}, set(), {}, [], []
+    replies = {}
     for window, user, advice, sources in turns:
         turn = counts[window] = counts.get(window, -1) + 1
         fork = f'windows/{window}/forks/0'
@@ -80,12 +79,15 @@ def run_world(config, turns, *, outcome, attempts):
             logs=[(f'{directory}/u', 'thinking', 'Thinking.'), (f'{directory}/u', 'text', advice)],
             files={**files, f'{root}/messages.jsonl': list(transcripts[root])},
         ))
-        transcripts[root].append({'content': advice, 'role': 'assistant', 'reasoning': 'Thinking.', '_complete': True})
+        transcripts[root].append({'content': advice, 'role': 'assistant'})
+        replies.setdefault(root, []).append({'completion_id': 'u', 'message': {
+            'role': 'assistant', 'content': advice, 'reasoning': 'Thinking.'}})
         usage[root] = [*usage.get(root, []),
                        {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}]
         files = {
             f'{root}/messages.jsonl': list(transcripts[root]),
             f'{root}/usage.jsonl': list(usage[root]),
+            f'{root}/replies.jsonl': list(replies[root]),
             f'{directory}/metadata.json': {'advice': advice_path(advice)},
             f'{directory}/u/advice.txt': advice,
         }

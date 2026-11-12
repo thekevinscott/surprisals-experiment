@@ -35,7 +35,9 @@ async def test_streams_advice_and_starts_each_prompt_fresh(
     assert ('thinking', 'Thinking.') in deltas
     transcript = [json.loads(line) for line in (config.u_transcripts / 'messages.jsonl').read_text().splitlines()]
     assert len(transcript) == 5
-    assert transcript[2]['reasoning'] == 'Thinking.'
+    assert transcript[2] == {'role': 'assistant', 'content': 'first\nadvice'}
+    replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+    assert replies[0]['message']['reasoning'] == 'Thinking.'
     assert transcript[-1]['content'] == 'next'
     usage = [json.loads(line) for line in (config.u_transcripts / 'usage.jsonl').read_text().splitlines()]
     assert len(usage) == 2
@@ -53,8 +55,9 @@ async def test_saves_partial_output_on_cancellation(config, botbox_script):
     with pytest.raises(asyncio.CancelledError):
         async with open_u_chat(config) as session:
             await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=cancel)
-    transcript = (config.u_transcripts / 'messages.jsonl').read_text()
-    assert 'Thinking.' in transcript
+    replies = (config.u_transcripts / 'replies.jsonl').read_text()
+    assert 'Thinking.' in replies
+    assert all(entry['role'] != 'assistant' for entry in transcript(config))
 
 
 async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
@@ -68,7 +71,9 @@ async def test_streams_no_empty_text_alongside_reasoning(config, botbox_script):
         await session.prompt([{'role': 'user', 'content': 'question'}], on_delta=lambda *delta: deltas.append(delta))
     assert deltas == [('thinking', 'Thinking.'), ('thinking', ' More.'), ('text', 'advice')]
     assert session.messages[-1]['role'] == 'assistant'
-    assert session.messages[-1]['reasoning'] == 'Thinking. More.'
+    assert session.messages[-1] == {'role': 'assistant', 'content': 'advice'}
+    replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+    assert replies[-1]['message']['reasoning'] == 'Thinking. More.'
 
 
 @pytest.mark.parametrize('finish', ['stop', None])
@@ -98,10 +103,12 @@ async def test_reasoning_format_preserves_latest_provider_value(
     async with open_u_chat(config) as session:
         with nullcontext() if finish == 'stop' else pytest.raises(RuntimeError):
             await session.prompt([{'role': 'user', 'content': 'question'}])
-        assert session.messages[-1]['reasoning_details'] == expected
-        transcript = [json.loads(line) for line in session.transcript.read_text().splitlines()]
-        assert transcript[-1]['reasoning_details'] == expected
-        assert transcript[-1]['content'] == 'advice'
+        assert session.messages[-1] == ({'role': 'assistant', 'content': 'advice'} if finish == 'stop'
+                                        else {'role': 'user', 'content': 'question'})
+        replies = [json.loads(line) for line in session.transcript.with_name('replies.jsonl').read_text().splitlines()]
+        assert len(replies) == (1 if finish == 'stop' else 9)
+        assert all(reply['message']['reasoning_details'] == expected for reply in replies)
+        assert replies[-1]['message']['content'] == 'advice'
 
 
 @pytest.mark.parametrize('mode', ['plain', 'partial'])
@@ -128,7 +135,9 @@ async def test_rebuilt_transcript_matches_live_session(
     before_replay = transcript.read_bytes()
     before_inode = transcript.stat().st_ino
     if mode == 'partial':
-        assert any(entry.get('_complete') is False for entry in entries)
+        assert all(entry.get('content') != 'unfinished' for entry in entries)
+        replies = [json.loads(line) for line in transcript.with_name('replies.jsonl').read_text().splitlines()]
+        assert replies[1]['message']['content'] == 'unfinished'
         assert all(message.get('content') != 'unfinished' for message in live.messages)
         # A process can stop midway through the next appended transcript entry.
         with transcript.open('a') as output:
@@ -199,6 +208,9 @@ async def test_provider_error_exhaustion_preserves_partial_evidence(
     assert 'upstream failed' in str(raised.value)
     assert len(chat_provider) == len(DELAYS) + 1
     assert all(request['messages'] == chat_provider[0]['messages'] for request in chat_provider)
-    assert [m['content'] for m in transcript(config) if m['role'] == 'assistant'] == ['partial'] * 9
-    assert session.messages[-1]['content'] == 'partial'
+    assert [m for m in transcript(config) if m['role'] == 'assistant'] == []
+    replies = [json.loads(line) for line in (config.u_transcripts / 'replies.jsonl').read_text().splitlines()]
+    assert [reply['message']['content'] for reply in replies] == ['partial'] * 9
+    assert all('provider_error' in reply['message'] for reply in replies)
+    assert session.messages[-1]['content'] == 'question'
     assert no_retry_wait.await_count == len(DELAYS)

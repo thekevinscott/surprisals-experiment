@@ -5,7 +5,7 @@ from hashlib import sha256
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import U, T, t_sent, u_system
+from utils.world import T, U, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -30,12 +30,12 @@ def prompt(index, advice, *samples):
 def exhausted(config, reply, error, *, recorded=None, usage=None, completion_id='u'):
     """U's first try and all 8 retries fail with `error`."""
     def messages(tries):
-        return [*chat(0, (QUESTION, None))['u/transcripts/messages.jsonl'], *[recorded] * tries]
+        return chat(0, (QUESTION, None))['u/transcripts/messages.jsonl']
 
     def files(tries):
         row = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': completion_id, 'usage': usage}
         return {'u/transcripts/usage.jsonl': [row] * tries,
-                **({'u/transcripts/messages.jsonl': messages(tries)} if recorded else {})}
+                **({'u/transcripts/replies.jsonl': [{'completion_id': completion_id, 'message': recorded}] * tries} if recorded else {})}
 
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
@@ -146,7 +146,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         for user, advice in turns:
             messages += [system, {**user[0], '_reset': True}, *user[1:]]
             if advice:
-                messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
+                messages.append({'role': 'assistant', 'content': advice})
         return messages
 
     def transcripts(window):
@@ -176,6 +176,10 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             files={
                 f'{transcripts(window)}/messages.jsonl': messages,
                 f'{transcripts(window)}/usage.jsonl': [usage] * (turn + 1),
+                f'{transcripts(window)}/replies.jsonl': [
+                    {'completion_id': 'u', 'message': {'role': 'assistant', 'content': message['content'], 'reasoning': 'Think.'}}
+                    for message, following in zip(messages, [*messages[1:], None])
+                    if message['role'] == 'assistant' and (following is None or following['role'] == 'system')],
                 f'{t}/metadata.json': {'advice': advices[advice]},
                 f'{t}/u/advice.txt': advice,
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,
@@ -230,7 +234,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
 async def test_does_not_accept_empty_replies(config, execute_run_experiment):
     world = exhausted(config, U(finish=None), 'U chat stream ended before completion',
-                      recorded={'role': 'assistant', '_complete': False})
+                      recorded={'role': 'assistant'})
     async with execute_run_experiment(config, world):
         pass
 

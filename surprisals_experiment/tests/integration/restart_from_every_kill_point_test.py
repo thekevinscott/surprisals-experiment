@@ -7,10 +7,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from state_machine.testing import Done, State, decoded, run_files
 from surprisals_experiment.config import Config
-from utils.world import U, Case, Score, T, t_sent, u_system
+from utils.world import Case, Score, T, U, t_sent, u_system
 
 QUESTION = 'Read an integer and print its double.'
 ADVICE = 'Double it.'
@@ -52,8 +51,8 @@ def folder(advice):
     return f'advices/{sha256(advice.encode()).hexdigest()}'
 
 
-def answer(advice, complete):
-    return {'content': advice, 'role': 'assistant', 'reasoning': 'Think.', '_complete': complete}
+def answer(advice):
+    return {'completion_id': 'u', 'message': {'content': advice, 'role': 'assistant', 'reasoning': 'Think.'}}
 
 
 def attempt(window, fork, position, sample):
@@ -79,6 +78,7 @@ def build(output, settings, rounds, failing, advices):
             + f'{code(DOUBLE, 2)}\n</attempt>')
     world, kills, own, transcripts, saved, earlier = [], [], [], {}, set(), {}
     pending = {'settings.json': ...}
+    replies = {}
     for turns in rounds:
         for window, fork, position in turns:
             turn = f'windows/{window}/forks/{fork}/turns/{position}'
@@ -105,8 +105,11 @@ def build(output, settings, rounds, failing, advices):
                 logs=[(f'{turn}/u', 'thinking', 'Think.'), (f'{turn}/u', 'text', advice)],
                 files={**pending, **asked},
             ))
-            messages.append(answer(advice, True))
-            pending = {f'{path}/messages.jsonl': list(messages), f'{path}/usage.jsonl': [USAGE] * sum('_complete' in entry for entry in messages),
+            messages.append({'role': 'assistant', 'content': advice})
+            replies.setdefault(path, []).append({'completion_id': 'u', 'message': {
+                'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}})
+            pending = {f'{path}/messages.jsonl': list(messages), f'{path}/usage.jsonl': [USAGE] * len(replies[path]),
+                       f'{path}/replies.jsonl': list(replies[path]),
                        f'{turn}/metadata.json': {'advice': folder(advice)}, f'{turn}/u/advice.txt': advice}
             if advice not in saved:
                 saved.add(advice)
@@ -171,13 +174,16 @@ def restart(world, own, first, last, answered):
         replied = answered and index == first
         if isinstance(state.reply, U):
             _, window, _, fork = state.logs[0][0].split('/')[:4]
-            messages, usage = (f'{transcript(int(window), int(fork))}/{name}' for name in ('messages.jsonl', 'usage.jsonl'))
-            partial = [answer(state.reply.text, False)] if replied else []
+            messages, usage, replies = (f'{transcript(int(window), int(fork))}/{name}'
+                                       for name in ('messages.jsonl', 'usage.jsonl', 'replies.jsonl'))
+            partial = [answer(state.reply.text)] if replied else []
             line = USAGE if replied else UNANSWERED
             log = on_disk[messages]
             reset = max(index for index, entry in enumerate(log) if entry.get('_reset'))
-            retries.append((messages, usage, len(log), len(on_disk.get(usage, [])), partial, line, log[reset:]))
-            on_disk[messages] = [*on_disk[messages], *partial]
+            retries.append((messages, usage, replies, len(log), len(on_disk.get(usage, [])),
+                            len(on_disk.get(replies, [])), partial, line, log[reset:]))
+            if partial:
+                on_disk[replies] = [*on_disk.get(replies, []), *partial]
             on_disk[usage] = [*on_disk.get(usage, []), line]
         elif isinstance(state.reply, T):
             old = state.sent['output']
@@ -193,9 +199,11 @@ def restart(world, own, first, last, answered):
 
     def moved(files):
         files = {renamed(path): content for path, content in files.items()} | partials
-        for messages, usage, mid, lines, partial, line, conversation in retries:
+        for messages, usage, replies, mid, lines, reply_lines, partial, line, conversation in retries:
             if messages in files:
-                files[messages] = [*files[messages][:mid], *partial, *conversation, *files[messages][mid:]]
+                files[messages] = [*files[messages][:mid], *conversation, *files[messages][mid:]]
+                if partial or replies in files:
+                    files[replies] = [*files.get(replies, [])[:reply_lines], *partial, *files.get(replies, [])[reply_lines:]]
                 files[usage] = [*files.get(usage, [])[:lines], line, *files.get(usage, [])[lines:]]
         if 'result.json' in files:
             files['result.json'] = {**files['result.json'], 'solution': renamed(files['result.json']['solution'])}

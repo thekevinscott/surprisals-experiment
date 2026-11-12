@@ -8,10 +8,8 @@ import pytest
 from openai import BadRequestError
 from state_machine.testing import REMOVED, Done, State
 from surprisals_experiment.config import Config
-
 from surprisals_experiment.retry_policy.constants import DELAYS
-
-from utils.world import U, Score, T, t_sent, u_system
+from utils.world import Score, T, U, t_sent, u_system
 
 PASS = "print(int(input()) * 2)"
 QUESTION = 'Read an integer and print its double.'
@@ -59,15 +57,18 @@ def conversation(*turns):
 def chat(window, *turns):
     """The window's U transcript after `turns`."""
     lines = [{'role': 'system', 'content': ...}]
+    replies = []
     for (_, advice, *_), messages in zip(turns, conversation(*turns)):
         lines += [{'role': 'system', 'content': ...}, {**messages[0], '_reset': True}, *messages[1:]]
         if advice is not None:
-            lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True})
+            lines.append({'role': 'assistant', 'content': advice})
+            replies.append({'completion_id': 'u', 'message': {'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}})
     transcripts = 'u/transcripts' if window == 0 else f'windows/{window}/forks/0/u/transcripts'
     if turns[-1][1] is None:
         return {f'{transcripts}/messages.jsonl': lines}
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns)}
+    return {f'{transcripts}/messages.jsonl': lines, f'{transcripts}/usage.jsonl': [usage] * len(turns),
+            f'{transcripts}/replies.jsonl': replies}
 
 
 def opened(window):
@@ -300,15 +301,19 @@ OVERFLOW = "maximum context length is 8192 tokens"
 
 def retried_chat(rejections, *last):
     """Turn 0's transcript after U's advice was rejected `rejections` times, then `last` (advice, or None)."""
-    lines = chat(0, (QUESTION, 'too long 0'))['u/transcripts/messages.jsonl']
+    initial = chat(0, (QUESTION, 'too long 0'))
+    lines = initial['u/transcripts/messages.jsonl']
+    replies = initial['u/transcripts/replies.jsonl']
     for advice in [f'too long {index}' for index in range(1, rejections)] + list(last):
         lines = lines + [{'role': 'user', 'content': QUESTION, '_reset': True}]
         if advice is not None:
-            lines = lines + [{'role': 'assistant', 'content': advice, 'reasoning': 'Think.', '_complete': True}]
+            lines = lines + [{'role': 'assistant', 'content': advice}]
+            replies.append({'completion_id': 'u', 'message': {'role': 'assistant', 'content': advice, 'reasoning': 'Think.'}})
     if last[-1] is None:
         return {'u/transcripts/messages.jsonl': lines}
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
-    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * (rejections + 1)}
+    return {'u/transcripts/messages.jsonl': lines, 'u/transcripts/usage.jsonl': [usage] * (rejections + 1),
+            'u/transcripts/replies.jsonl': replies}
 
 
 def rejected(path, index):
