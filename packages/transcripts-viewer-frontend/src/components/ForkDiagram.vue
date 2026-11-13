@@ -11,6 +11,13 @@ const windows = ref([])
 const windowViews = ref([])
 const apiUrl = path => `/api/runs/${encodeURIComponent(props.run.id)}/${path.split('/').map(encodeURIComponent).join('/')}`
 provide('apiUrl',apiUrl)
+provide('uTurnContext', source => {
+  for(const window of windows.value)for(const fork of window.forks){
+    const turns=[...fork.parallel,...fork.solo].sort((a,b)=>a.id-b.id)
+    const turn=turns.find(turn=>turn.source===source)
+    if(turn)return {window:window.id,fork:fork.id,turn:turn.id,turns:turns.map(({id,metadata})=>({id,metadata}))}
+  }
+})
 provide('sampleCount', () => props.run.samples)
 provide('forkChart', (window,id) => createForkChartData({...props.run,forks:(props.run.forks ?? []).filter(fork=>fork.window===window && fork.id===id)}))
 const rawUrl = path => !path || path.includes(', ') ? undefined : apiUrl(path.startsWith('problem/') ? path : `files/${path}`)

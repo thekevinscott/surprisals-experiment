@@ -16,7 +16,7 @@ const link = inject('runLink')
 <template>
   <ContentPanel :collapsible="false" class="turn-block" :data-turn="turn.id" :title="`U · turn ${turn.id}`" :href="link(turn.source)" :metadata="{'metadata.json':turn.metadata,'advice.json':turn.adviceMetadata}">
     <template #summary><span>{{ turnSummary(turn) }}</span></template>
-    <template #actions><Button class="icon-button" v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /><TranscriptButton :source="turn.transcriptPath" :turn-metadata="turn.metadata" label="💬" /></template>
+    <template #actions><Button class="icon-button" v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /><TranscriptButton :source="turn.transcriptPath" :turn-source="turn.source" :turn-metadata="turn.metadata" label="💬" /></template>
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
     <TTranscripts :samples="turn.samples ?? []" />
   </ContentPanel>

@@ -24,7 +24,7 @@ import { runRoute, runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
 import TranscriptViewer from './components/TranscriptViewer.vue'
-import {filePreview,closeFile} from './composables/filePreview.js'
+import {filePreview,closeFile,stepUTurn} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
@@ -33,6 +33,17 @@ const graphsExpanded=ref(true), transcriptsExpanded=ref(true)
 import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
+const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
+const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
+function turnKey(event) {
+  if(!uTurns.value.length || event.altKey || event.ctrlKey || event.metaKey || event.target?.isContentEditable || event.target?.closest?.('input:not([type=checkbox]):not([type=radio]),textarea,select'))return
+  if(event.key==='ArrowLeft' || event.key==='ArrowRight'){
+    event.preventDefault()
+    stepUTurn(event.key==='ArrowLeft' ? -1 : 1)
+  }
+}
+window.addEventListener('keydown',turnKey)
+onUnmounted(()=>window.removeEventListener('keydown',turnKey))
 const route = ref(location.hash)
 const syncRoute = () => { route.value = location.hash }
 window.addEventListener('hashchange', syncRoute)
@@ -95,6 +106,10 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
     </template>
+    <nav v-if="uTurns.length" class="u-turn-navigation" aria-label="U turns">
+      <button type="button" aria-label="Previous U turn" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
+      <button type="button" aria-label="Next U turn" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
+    </nav>
     <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />

@@ -3,7 +3,8 @@ import {computed,inject,ref} from 'vue'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import {openTranscript} from '../composables/filePreview.js'
-const props=defineProps({source:String,files:Array,modalTitle:String,turnMetadata:Object,label:{type:String,default:'Open transcript'}})
+const props=defineProps({source:String,files:Array,modalTitle:String,turnMetadata:Object,turnSource:String,label:{type:String,default:'Open transcript'}})
+const uTurnContext=inject('uTurnContext',null)
 const rawUrl=inject('rawSourceUrl')
 const sourceUrl=inject('sourceUrl')
 const picker=ref(null)
@@ -12,7 +13,7 @@ function openFile(file) {
   picker.value?.hide()
   const title=props.modalTitle ?? (props.source?'U transcript':'Transcript')
   const hash=props.turnMetadata?.u_request_sha256
-  openTranscript({name:hash ? `${title} · u_request_sha256: ${hash}` : title,files:files.value,sourceUrl,turnMetadata:props.turnMetadata,uView:!!props.source},file)
+  openTranscript({name:hash ? `${title} · u_request_sha256: ${hash}` : title,files:files.value,sourceUrl,turnMetadata:props.turnMetadata,uView:!!props.source,uNavigation:props.turnSource && uTurnContext ? ()=>uTurnContext(props.turnSource) : undefined},file)
 }
 function open(event) {
   if(files.value.length===1)openFile(files.value[0])
