@@ -7,12 +7,12 @@ const sourceUrl=inject('sourceUrl',()=>undefined)
 const blocks=computed(()=>testCaseBlocks(props.cases))
 const target=computed(()=>props.source && sourceUrl(props.source))
 const clickable=computed(()=>!!props.cases && !!target.value)
-function openCase() { openFile(target.value) }
+function openCase(index) { openFile(target.value,{testCase:index}) }
 </script>
 <template>
   <span class="pass-blocks" :style="{'--test-count':blocks.length,'--gap-count':Math.max(1,blocks.length-1)}" :role="clickable ? 'group' : 'img'" :aria-label="`${passed}/${total} ${unit} passed`" :title="`${passed}/${total} ${unit} passed`">
     <template v-for="(block, index) in blocks" :key="index">
-      <button v-if="clickable" type="button" class="pass-block" :data-status="block.status" :aria-label="`Case ${block.index}: ${block.status ?? ''}. Open test results`" :title="JSON.stringify(cases[index],null,2)" @click.stop="openCase"></button>
+      <button v-if="clickable" type="button" class="pass-block" :data-status="block.status" :aria-label="`Case ${block.index}: ${block.status ?? ''}. Open test results`" :title="JSON.stringify(cases[index],null,2)" @click.stop="openCase(index)"></button>
       <span v-else class="pass-block" :data-status="block.status" aria-hidden="true"></span>
     </template>
   </span>

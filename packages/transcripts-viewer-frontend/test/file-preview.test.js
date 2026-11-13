@@ -14,14 +14,16 @@ test('file modal has one raw link that follows selected file',()=>{
 })
 
 test('short file titles retain renderer filename and original source link',()=>{
- globalThis.location={href:'http://localhost/'}
+ globalThis.location={href:'http://localhost/',hash:''}
+ globalThis.history={replaceState:(_state,_title,hash)=>{location.hash=hash}}
  openFile('http://localhost/#files/windows%2F0%2Ftests.json?src=%2Fapi%2Ffiles%2Ftests.json')
  assert.equal(filePreview.value.title,'Test results')
  assert.equal(filePreview.value.name,'windows/0/tests.json')
  assert.deepEqual(filePreview.value.rawFiles,[{url:'/api/files/tests.json',source:'windows/0/tests.json'}])
  openFile('http://localhost/#files/advices%2Fhash%2Fadvice.txt?src=%2Fapi%2Ffiles%2Fadvice.txt')
  assert.equal(filePreview.value.title,'Advice')
- closeFile();delete globalThis.location
+ assert.ok(new URLSearchParams(location.hash.split('?')[1]).has('modal'))
+ closeFile();assert.equal(location.hash,'#dashboard');delete globalThis.location;delete globalThis.history
 })
 
 test('in-progress samples reserve configured columns without hiding extra recorded samples',()=>{

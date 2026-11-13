@@ -5,6 +5,7 @@ import {transcriptMetadataUrl,transcriptBlocks,observeTranscriptBlocks} from '..
 import TranscriptView from './TranscriptView.vue'
 const props=defineProps({source:String,files:Array,sourceUrl:Function,turnMetadata:Object,uView:Boolean})
 provide('sourceUrl',props.sourceUrl)
+provide('disclosurePath',()=>props.files[0].source)
 const {data,loading,error}=useLiveResource(
   ()=>[transcriptMetadataUrl(props.files[0].url)],
   async(signal,urls)=>{

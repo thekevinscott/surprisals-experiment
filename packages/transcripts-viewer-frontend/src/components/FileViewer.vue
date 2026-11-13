@@ -3,7 +3,10 @@ import {computed,provide} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
 import TokenText from './TokenText.vue'
-const props=defineProps({src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,showName:{type:Boolean,default:true}})
+const props=defineProps({src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,testCase:Number,showName:{type:Boolean,default:true}})
+provide('viewStateKey',()=>props.src)
+provide('testCase',()=>props.testCase)
+provide('disclosurePath',()=>props.src)
 provide('sourceUrl',(_path,line)=>{
   const viewer=new URL(location.href)
   viewer.hash=`files/${encodeURIComponent(props.name)}?${new URLSearchParams({src:props.src,...(line?{line:String(line)}:{})})}`

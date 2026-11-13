@@ -1,19 +1,22 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import {useUrlState} from '../composables/urlState.js'
 import TranscriptRecord from './TranscriptRecord.vue'
 const props = defineProps({ messages: Array, source: String, initialLine: String, lazy: Boolean, uView: Boolean })
 const emit = defineEmits(['visible'])
-const selectedBlock = ref(null)
+const selectedBlock = useUrlState(()=>`transcript:${props.source}:block`,null)
 const blocks = new Map()
 const legend = computed(() => [...new Set(props.messages.map(message=>message.role))])
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${message.role}`,
   description: message.raw == null ? 'Load original record' : message.raw,
 })))
-const hiddenTypes=ref(new Set(['session','model_change','thinking_level_change']))
+const hiddenRoles=useUrlState(()=>`transcript:${props.source}:hidden`,['model_change','session','thinking_level_change'])
+const hiddenTypes=computed(()=>new Set(hiddenRoles.value))
 function setTypeVisible(type,visible) {
-  if(visible)hiddenTypes.value.delete(type)
-  else hiddenTypes.value.add(type)
+  const hidden=new Set(hiddenRoles.value)
+  if(visible)hidden.delete(type);else hidden.add(type)
+  hiddenRoles.value=[...hidden].sort()
 }
 const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })).filter(({message})=>!hiddenTypes.value.has(message.role)))
 watch(visibleMessages, async (_messages,_,cleanup)=>{
@@ -39,6 +42,7 @@ async function jump(value) {
   block?.scrollIntoView({ block: 'start', behavior: 'instant' })
 }
 watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
+  if(selectedBlock.value){await jump(selectedBlock.value);return}
   if(!props.initialLine)return
   const index=props.messages.findIndex(message=>message.line===Number(props.initialLine))
   if(index<0)return

@@ -35,7 +35,7 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
     <template #header="{id}"><div :id="id" class="panel-label"><button v-if="collapsible" type="button" class="accordion-toggle" :aria-expanded="expanded" :aria-controls="id.replace(/_header$/, '_content')" :aria-label="`${expanded ? 'Collapse' : 'Expand'} ${title}`" @click="toggle"><svg viewBox="0 0 12 12" aria-hidden="true" :class="{expanded}"><path d="m4 2 4 4-4 4" /></svg></button><strong><slot name="title">{{ title }}</slot></strong><a v-if="href" class="permalink" :href="href" :aria-label="`Link to ${title}`" :title="`Link to ${title}`">#</a><span v-if="summary || $slots.summary" class="panel-summary"><slot name="summary">{{ summary }}</slot></span></div></template>
     <template #icons>
       <slot name="actions" />
-      <SourceActions :title="title" :metadata="metadata" :source="source" :source-line="sourceLine" />
+      <SourceActions :state-key="href || source || path" :title="title" :metadata="metadata" :source="source" :source-line="sourceLine" />
     </template>
     <div ref="content" class="disclosure-body" :style="{ minHeight: visible && shared?.heights.get(path) ? `${shared.heights.get(path)}px` : undefined }">
       <div ref="inner" v-show="visible" class="box-content"><slot :expanded="expanded" :toggle="toggle" /></div>

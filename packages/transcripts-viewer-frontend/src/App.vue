@@ -1,6 +1,7 @@
 <script setup>
+import {installScrollState} from './composables/scrollState.js'
 import {routeHash,useUrlState} from './composables/urlState.js'
-import { computed, ref, reactive, watch, onUnmounted } from 'vue'
+import { computed, ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ColumnGroup from 'primevue/columngroup'
@@ -18,6 +19,7 @@ const loading=ref(false),error=ref('')
 const now=ref(Date.now())
 const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
+const sortField=useUrlState('sort','problem'),sortOrder=useUrlState('order',1)
 const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
 import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
@@ -26,7 +28,7 @@ import { runRoute, runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
 import TranscriptViewer from './components/TranscriptViewer.vue'
-import {filePreview,closeFile,stepUTurn} from './composables/filePreview.js'
+import {filePreview,closeFile,stepUTurn,restoreModals} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
@@ -34,6 +36,10 @@ import ContentPanel from './components/ContentPanel.vue'
 import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
+restoreModals()
+let stopScroll
+onMounted(()=>{stopScroll=installScrollState()})
+onUnmounted(()=>stopScroll?.())
 const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
 const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
 function turnKey(event) {
@@ -113,7 +119,8 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <button type="button" aria-label="Previous U turn" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
       <button type="button" aria-label="Next U turn" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
     </nav>
-    <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
+    <p v-if="filePreview?.restoreError" role="alert">{{ filePreview.restoreError }}</p>
+    <TranscriptViewer v-else-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
   </Dialog>
@@ -156,7 +163,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <p v-for="warning in data.warnings" :key="warning" class="warning">{{ warning }}</p>
     <p v-if="!loading && !error && !data.rows.length" class="empty">No runs loaded. Start <code>transcripts-viewer /path/to/experiment</code> with a directory containing <code>runs/*/run.json</code>.</p>
     <section v-if="!loading && data.rows.length" aria-label="Runs">
-      <DataTable :value="dashboardRows" data-key="id" sort-field="problem" :sort-order="1" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
+      <DataTable :value="dashboardRows" data-key="id" :sort-field="sortField" :sort-order="sortOrder" @sort="event=>{sortField=event.sortField;sortOrder=event.sortOrder}" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
         <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-4)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="4" /></Row><Row><Column v-for="column in columns.slice(-4)" :key="column.key" :field="column.key" sortable><template #header><span :title="column.key==='awsCost' ? awsCostTooltip : undefined">{{ column.label }}</span></template></Column></Row></ColumnGroup>
         <Column v-for="column in columns" :key="column.key" :field="column.key" :header="column.label" sortable>
           <template #body="{data:row}">

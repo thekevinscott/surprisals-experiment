@@ -24,3 +24,10 @@ export function useUrlState(key,fallback) {
     set:value=>setUrlState(toValue(key),value,toValue(fallback)),
   })
 }
+
+export function clearUrlState(matches) {
+  const [path,query]=location.hash.split('?'),params=new URLSearchParams(query)
+  for(const key of [...params.keys()])if(matches(key))params.delete(key)
+  const hash=path+(params.size?`?${params}`:'')
+  history.replaceState(null,'',hash);routeHash.value=hash
+}
