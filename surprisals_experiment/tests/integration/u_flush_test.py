@@ -6,7 +6,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
-from utils.world import Score, T, U, measurement, t_sent, u_system, u_user
+from utils.world import u_opening, Score, T, U, measurement, t_sent, u_system, u_user
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -40,7 +40,9 @@ def chat(window, *turns, config, best=None, bits=None, measured=True):
     usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None, 'u_messages': ..., 'u_request_sha256': ...}
     lines = [{'role': 'system', 'content': u_system(config)}]
     for attempt, (user, advice) in enumerate(turns):
-        conversation = user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, attempt + 1, user, best)}]
+        conversation = user if isinstance(user, list) else u_opening(config, user, best)
+        if attempt == 0:
+            lines.extend(conversation[:-1])
         lines.append(conversation[-1] | {'_attempt': attempt})
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
@@ -76,7 +78,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
         answered, conversation = [], []
         for index, (prompt, advice, codes) in enumerate(window_turns):
             assert (prompt is None) == (index > 0)
-            conversation = conversation or [{'role': 'user', 'content': u_user(config, 1, prompt, best)}]
+            conversation = conversation or u_opening(config, prompt, best)
             path = f'windows/{window}/forks/0/turns/{index}'
             states.append(State(
                 U(advice, thinking='Think.'),

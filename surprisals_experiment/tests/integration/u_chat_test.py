@@ -7,7 +7,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import T, U, t_sent, u_system, u_user
+from utils.world import u_opening, T, U, t_sent, u_system, u_user
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -33,7 +33,7 @@ def exhausted(config, reply, error):
     """U's first try and all 8 retries fail with `error`."""
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config)}, {'role': 'user', 'content': u_user(config, 1, QUESTION)}]}
+            'messages': [{'role': 'system', 'content': u_system(config)}, *u_opening(config, QUESTION)]}
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
@@ -52,10 +52,10 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     mutated = {'helper.py': 'VALUE = 42\n', 'main.py': MUTATING, 'nested/extra.py': 'EXTRA = 7\n'}
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     best = prompt(1, 'short', clean, clean)
-    first = [{'role': 'user', 'content': u_user(config, 1, QUESTION)}, {'role': 'assistant', 'content': 'long advice'},
+    first = [*u_opening(config, QUESTION), {'role': 'assistant', 'content': 'long advice'},
              {'role': 'user', 'content': '<advice_length>11 characters</advice_length>'},
              {'role': 'user', 'content': u_user(config, 2, code(mutated, clean))}]
-    second = [{'role': 'user', 'content': u_user(config, 1, best, 5)}, {'role': 'assistant', 'content': 'short'},
+    second = [*u_opening(config, best, 5), {'role': 'assistant', 'content': 'short'},
               {'role': 'user', 'content': '<advice_length>5 characters</advice_length>'},
               {'role': 'user', 'content': u_user(config, 2, code(clean, clean), 5)}]
 
@@ -68,7 +68,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                            'messages': [{'role': 'system', 'content': u_system(config)},
-                                        *(user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, number + 1, user, previous)}])]},
+                                        *(user if isinstance(user, list) else u_opening(config, user, previous))]},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
 
     def t(window, number, sample, advice, code, files=None):
@@ -135,7 +135,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
     def talk(opening, *said):
         previous = 4 if opening == best else None
-        return [{'role': 'user', 'content': u_user(config, 1, opening, previous)},
+        return [*u_opening(config, opening, previous),
                 *[message for turn, advice in enumerate(said, 2) for message in (
                     {'role': 'assistant', 'content': advice},
                     {'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'},
@@ -144,6 +144,8 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     def chat(*turns):
         messages = [system]
         for attempt, (user, advice) in enumerate(turns):
+            if attempt == 0:
+                messages.extend(user[:-1])
             messages.append(user[-1] | {'_attempt': attempt})
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})

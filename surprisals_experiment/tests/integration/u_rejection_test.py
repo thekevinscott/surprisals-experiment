@@ -10,7 +10,7 @@ from measure_test import (
     unscored,
 )
 from u_flush_test import QUESTION, chat
-from utils.world import u_system, u_user
+from utils.world import u_opening, u_system
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
@@ -20,7 +20,7 @@ async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_exp
     config = Config(**(config.model_dump() | {'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1'}))
     path = turn(0, 0)
     first = u_state(config, path, QUESTION, 'too long 0', {'settings.json': ..., **opened(0), **chat(0, (QUESTION, None), config=config)})
-    first.sent['messages'] = [{'role': 'system', 'content': u_system(config)}, {'role': 'user', 'content': u_user(config, 1, QUESTION)}]
+    first.sent['messages'] = [{'role': 'system', 'content': u_system(config)}, *u_opening(config, QUESTION)]
     feedback = (PROMPTS / 'u/rejected.txt').read_text()
     transcript = 'windows/0/forks/0/u/transcript.jsonl'
     retry = u_state(config, path, QUESTION, 'shorter', {

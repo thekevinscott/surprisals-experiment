@@ -63,7 +63,7 @@ Each fork’s U conversation has one `windows/<window>/forks/<fork>/u/transcript
 
 Chat messages are appended to the fork’s `u/transcript.jsonl` as they arrive. Assistant reasoning and reasoning details are retained, including available partial output on failure or cancellation. Thinking and advice stream to the existing callbacks. A truncated or incomplete reply is an infrastructure error, never valid advice. Chat uses the shared Tenacity decorator with SDK retries disabled; Pi's retry/compaction configuration applies only to agent mode.
 
-Prompt wording lives in `prompts/u/system.txt`, `prompts/u/flush/context.txt`, `prompts/u/flush/turn.txt`, and `prompts/u/code.txt`.
+Prompt wording lives in `prompts/u/system.txt`, `prompts/u/flush/context.txt`, `prompts/u/flush/question.txt`, and `prompts/u/code.txt`.
 
 ### Advice cap strategy
 

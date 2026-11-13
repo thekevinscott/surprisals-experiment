@@ -19,9 +19,10 @@ FAILED = Prompt("u/failed.txt")
 async def write_advice(run: Run, turn: Turn) -> None:
     assert run.u_chat is not None
     config = turn.config
+    messages = []
     content = await turn_line(run, turn)
     if not any(entry["role"] == "user" for entry in run.u_chat.entries()):
-        content += "\n" + await prepare_flush(turn, run.problem, run.database)
+        messages.append({"role": "user", "content": await prepare_flush(turn, run.problem, run.database)})
     elif turn.position:
         previous = Turn(config, turn.position - 1, turn.window, turn.fork)
         metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
@@ -31,7 +32,7 @@ async def write_advice(run: Run, turn: Turn) -> None:
             )
         else:
             content += "\n" + FAILED(error=metadata["error"])
-    messages = [{"role": "user", "content": content}]
+    messages.append({"role": "user", "content": content})
     try:
         text = await run.u_chat.prompt(
             messages, attempt=turn.position,

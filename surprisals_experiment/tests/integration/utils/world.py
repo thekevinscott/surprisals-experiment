@@ -29,6 +29,11 @@ def u_user(config, turn, content='', best=None):
     return line + ('\n' + content if content else '')
 
 
+def u_opening(config, question, best=None):
+    return [{'role': 'user', 'content': question},
+            {'role': 'user', 'content': u_user(config, 1, best=best)}]
+
+
 def t_sent(attempt, advice, *, model='t'):
     """What T is run with for `attempt` on `advice`."""
     return {
