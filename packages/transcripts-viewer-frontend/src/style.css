@@ -40,7 +40,7 @@ a { color: #214da3; }
 .drilldown-header { display:flex;flex-wrap:wrap;align-items:stretch;gap:16px;flex:none; }
 .drilldown-header > :not(:first-child) { border-left: 1px solid #dae1ea; padding-left: 16px; }
 .run-summary { flex:0 1 auto;min-width:0;max-width:100%; }
-.drilldown-header .problem-files { flex:1 1 120px;align-items:center;justify-content:center;text-align:center; }
+.drilldown-header .problem-files { flex:1 1 120px;align-items:flex-start;justify-content:center;text-align:left; }
 .selectors { display:flex;flex:0 1 auto;flex-wrap:wrap;gap:16px; }
 .search-select { position: relative; width: 280px; max-width: 100%; }
 .metadata { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 16px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
