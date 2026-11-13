@@ -18,6 +18,7 @@ const now=ref(Date.now())
 const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
 const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
+import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
 import { runRoute, runLink } from './composables/runLinks.js'
@@ -116,6 +117,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
+  <RunpodCost :now="now" />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template #closebutton="{ closeCallback }">
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>

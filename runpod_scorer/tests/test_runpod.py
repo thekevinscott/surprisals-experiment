@@ -15,6 +15,10 @@ from runpod_scorer import logs, setup, teardown, users
 
 
 def response(status=200, body=None):
+    if isinstance(body, dict) and "id" in body:
+        body = {"costPerHr": 2.5, **body}
+    if isinstance(body, list):
+        body = [{"costPerHr": 2.5, **pod} for pod in body]
     return httpx.Response(
         status, json=body, request=httpx.Request("GET", "https://example.com")
     )
@@ -22,6 +26,7 @@ def response(status=200, body=None):
 
 @pytest.fixture(autouse=True)
 def state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
     monkeypatch.setattr(users, "daemon_pid", os.getpid)
     path = tmp_path / "state.json"
@@ -664,3 +669,59 @@ def test_live_log_error_is_reported_once_and_readiness_continues(
     main(["up"])
     assert read(state)["base_url"] == "https://pod1-8000.proxy.runpod.net/v1"
     assert capsys.readouterr().err.count("Pod pod1 log stream failed:") == 1
+
+
+def test_cost_lifecycle_shared_experiments(fake_http, state, tmp_path):
+    from runpod_scorer import costs
+
+    fake_http.side_effect = [response(body=[]), response(body={
+        'id': 'pod1', 'costPerHr': '3.25',
+        'gpu': {'displayName': 'H100'}, 'lastStartedAt': '2026-11-13T00:00:00Z',
+        'env': {'SECRET': 'must-not-save'},
+    }), response()]
+    setup.up(experiment=tmp_path / 'first')
+    path = tmp_path / 'first/runpod-costs/pod1.json'
+    record = json.loads(path.read_text())
+    assert record == {'id': 'pod1', 'gpu': 'H100', 'costPerHr': 3.25,
+                      'start': '2026-11-13T00:00:00Z', 'stop': None}
+    costs.record({'id': 'pod1'}, tmp_path / 'second', 'unused')
+    other = tmp_path / 'other-state'
+    other.mkdir()
+    users.register('pod1', other, os.getpid())
+    fake_http.reset_mock()
+    teardown.down()
+    fake_http.assert_not_called()
+    assert json.loads(path.read_text())['stop'] is None
+    fake_http.side_effect = [response(204), response(404)]
+    with users.locked():
+        teardown.release('pod1', 'test-key', users.user_file('pod1', other))
+    finished = json.loads(path.read_text())
+    assert finished['stop'] is not None
+    assert finished == json.loads((tmp_path / 'second/runpod-costs/pod1.json').read_text())
+    assert 'test-key' not in costs.registry('pod1').read_text()
+
+
+def test_failed_delete_keeps_cost_live(fake_http, state, tmp_path):
+    from runpod_scorer import costs
+
+    costs.record({'id': 'pod1', 'costPerHr': 2}, tmp_path, 'H100')
+    fake_http.side_effect = [response(403)]
+    with pytest.raises(httpx.HTTPStatusError):
+        teardown.release('pod1', 'test-key')
+    assert json.loads((tmp_path / 'runpod-costs/pod1.json').read_text())['stop'] is None
+
+
+def test_reuse_records_api_rate_and_preserves_start(fake_http, tmp_path):
+    pod = scorer() | {'costPerHr': 4.25, 'gpu': {'displayName': 'H200'},
+                      'lastStartedAt': '2026-11-12T00:00:00Z'}
+    fake_http.side_effect = [response(body=[pod]), response(), response(body=[pod]), response()]
+    main(['up', '--experiment', str(tmp_path / 'experiment')])
+    path = tmp_path / 'experiment/runpod-costs/pod1.json'
+    before = path.read_text()
+    main(['up', '--experiment', str(tmp_path / 'experiment')])
+    assert path.read_text() == before
+    record = json.loads(before)
+    assert record['costPerHr'] == 4.25
+    assert record['gpu'] == 'H200'
+    assert record['start'] == '2026-11-12T00:00:00Z'
+    assert len(list(path.parent.glob('*.json'))) == 1

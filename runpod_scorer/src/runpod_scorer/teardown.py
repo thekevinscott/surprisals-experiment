@@ -8,7 +8,7 @@ import httpx
 import labnotes
 from dotenv import load_dotenv
 
-from . import users
+from . import costs, users
 
 API = "https://rest.runpod.io/v1"
 DELETE_TIMEOUT = 120
@@ -56,6 +56,7 @@ def release(pod_id, key, own=None):
     """Caller holds scorer.lock through the ownership check and deletion."""
     if not users.remaining(pod_id, own):
         delete_pod(pod_id, key)
+        costs.stopped(pod_id)
 
 
 def down():

@@ -104,3 +104,15 @@ HTTP is mocked and the cell script uses fake commands on PATH. The concurrent
 up test uses two real processes and the real flock with a shared fake API; it
 also checks that readiness waiting does not hold the lock. No provider calls
 or costs are incurred by the tests.
+
+## Cost records
+
+Up writes `runpod-costs/<pod-id>.json` in `experiments/surprisal` (relative to
+the hook working directory); pass `up --experiment PATH` for another experiment.
+Records contain only pod ID, GPU, API `costPerHr`, start, and stop timestamps.
+Start is the API `lastStartedAt`, or the time up observed the pod when unavailable.
+Repeated joins preserve the original start and count the pod once. A local
+`~/.runpod/costs/` registry retains experiment destinations after users leave,
+so final release or reap records the verified deletion time in every destination.
+The viewer reads these files without RunPod credentials and estimates compute
+cost through stop time (or now while live). Existing unrecorded pods stay hidden.

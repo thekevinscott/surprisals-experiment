@@ -7,7 +7,7 @@ from contextlib import suppress
 import httpx
 import labnotes
 
-from . import teardown, users
+from . import costs, teardown, users
 from .logs import save_logs, stream_logs
 from .timestamp import timestamp
 
@@ -56,10 +56,10 @@ def create_pod(model, gpu, key):
     result.raise_for_status()
     pod_id = result.json()["id"]
     timestamp(f"Created pod {pod_id}")
-    return pod_id
+    return result.json()
 
 
-def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
+def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU, experiment="experiments/surprisal"):
     folder = users.state_directory()
     pid = users.daemon_pid()
     key = teardown.api_key()
@@ -92,9 +92,11 @@ def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU):
                 pod_id = pod["id"]
                 timestamp(f"Reusing pod {pod_id}")
             else:
-                pod_id = create_pod(model, gpu, key)
+                pod = create_pod(model, gpu, key)
+                pod_id = pod["id"]
             users.register(pod_id, folder, pid)
             labnotes.set_state({"pod_id": pod_id})
+            costs.record(pod, experiment, gpu)
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
         started = time.monotonic()
         deadline = started + READY_TIMEOUT
