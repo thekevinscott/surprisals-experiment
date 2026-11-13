@@ -7,7 +7,7 @@ from unittest.mock import patch
 import httpx2
 import pytest
 from state_machine.testing import State
-from u_flush_test import PASS, QUESTION, flush, outcome, played
+from u_flush_test import PASS, QUESTION, appended, flush, outcome, played
 from utils.world import U, u_user
 from surprisals_experiment.config import Config
 
@@ -75,7 +75,10 @@ async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_p
             'role': 'user', 'content': expected,
         }
         if turn:
-            assert request['messages'][-2] == {
+            assert request['messages'][-3] == {
                 'role': 'user', 'content': expected,
             }
-            assert '<advice_' not in request['messages'][-1]['content']
+            assert request['messages'][-2] == {'role': 'user', 'content': appended(PASS)}
+            assert request['messages'][-1] == {
+                'role': 'user', 'content': u_user(config, turn + 1, best=None if window == 0 else score['score']),
+            }
