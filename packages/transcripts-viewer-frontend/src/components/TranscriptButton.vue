@@ -12,7 +12,7 @@ function openFile(file) {
   picker.value?.hide()
   const title=props.modalTitle ?? (props.source?'U transcript':'Transcript')
   const hash=props.turnMetadata?.u_request_sha256
-  openTranscript({name:hash ? `${title} · u_request_sha256: ${hash}` : title,files:files.value,sourceUrl,turnMetadata:props.turnMetadata},file)
+  openTranscript({name:hash ? `${title} · u_request_sha256: ${hash}` : title,files:files.value,sourceUrl,turnMetadata:props.turnMetadata,uView:!!props.source},file)
 }
 function open(event) {
   if(files.value.length===1)openFile(files.value[0])

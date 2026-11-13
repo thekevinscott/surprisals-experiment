@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import TranscriptRecord from './TranscriptRecord.vue'
-const props = defineProps({ messages: Array, source: String, initialLine: String, lazy: Boolean })
+const props = defineProps({ messages: Array, source: String, initialLine: String, lazy: Boolean, uView: Boolean })
 const emit = defineEmits(['visible'])
 const selectedBlock = ref(null)
 const blocks = new Map()
@@ -50,7 +50,7 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">
-      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }}</strong><p>Loading block…</p></div><TranscriptRecord v-else class="transcript-record" :label="String(message.line)" :message="message" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
+      <div :ref="element => { if (element) blocks.set(index, element); else blocks.delete(index) }" :data-block="index + 1" :class="{ 'jump-target': selectedBlock === options[index].value }" tabindex="-1"><div v-if="lazy && message.raw === undefined" class="block-placeholder" :class="`message-${message.role}`"><strong>{{ index + 1 }}</strong><p>Loading block…</p></div><TranscriptRecord v-else :u-view="uView" class="transcript-record" :label="String(message.line)" :message="message" :state-key="`message-${index}`" :class="`message-${message.role}`" /></div>
 
     </template>
     </div>

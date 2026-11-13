@@ -3,7 +3,7 @@ import {computed,provide,watch} from 'vue'
 import {fetchJson,useLiveResource,watchData} from '../composables/api.js'
 import {transcriptMetadataUrl,transcriptBlocks,observeTranscriptBlocks} from '../composables/lazyTranscript.js'
 import TranscriptView from './TranscriptView.vue'
-const props=defineProps({source:String,files:Array,sourceUrl:Function,turnMetadata:Object})
+const props=defineProps({source:String,files:Array,sourceUrl:Function,turnMetadata:Object,uView:Boolean})
 provide('sourceUrl',props.sourceUrl)
 const {data,loading,error}=useLiveResource(
   ()=>[transcriptMetadataUrl(props.files[0].url)],
@@ -37,7 +37,7 @@ watch(data,(messages,_,cleanup)=>{
 <template>
   <p v-if="loading">Loading transcript…</p>
   <p v-if="error" role="alert">{{ error }}</p>
-  <TranscriptView v-if="data" lazy :messages="data" :source="source" @visible="(index,visible)=>blocks?.visible(index,visible)" />
+  <TranscriptView v-if="data" :u-view="uView" lazy :messages="data" :source="source" @visible="(index,visible)=>blocks?.visible(index,visible)" />
   <p v-if="turnError" class="turn-error" role="status">{{ turnError }}</p>
 </template>
 <style scoped>
