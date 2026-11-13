@@ -15,6 +15,7 @@ const {data,loading,error}=useLiveResource(
   },
 )
 const turnError=computed(()=>{
+  if(props.files[0].error)return props.files[0].error
   const count=props.turnMetadata?.u_messages
   const hasReply=count != null && data.value?.some(message=>message.index===count && message.role==='assistant')
   return hasReply ? null : props.turnMetadata?.error

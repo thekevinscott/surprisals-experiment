@@ -29,7 +29,6 @@ import {connected} from './composables/liveUpdates.js'
 import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
 import ForkDiagram from './components/ForkDiagram.vue'
 import ContentPanel from './components/ContentPanel.vue'
-const graphsExpanded=ref(true), transcriptsExpanded=ref(true)
 import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
@@ -45,6 +44,20 @@ function turnKey(event) {
 window.addEventListener('keydown',turnKey)
 onUnmounted(()=>window.removeEventListener('keydown',turnKey))
 const route = ref(location.hash)
+function panelState(name) {
+  return computed({
+    get:()=>new URLSearchParams(route.value.split('?')[1]).get(name)!=='closed',
+    set:open=>{
+      const [path,query]=route.value.split('?'),params=new URLSearchParams(query)
+      if(open)params.delete(name);else params.set(name,'closed')
+      const hash=path+(params.size ? `?${params}` : '')
+      history.replaceState(null,'',hash)
+      route.value=hash
+    },
+  })
+}
+const graphsExpanded=panelState('graphs'),transcriptsExpanded=panelState('transcripts')
+
 const syncRoute = () => { route.value = location.hash }
 window.addEventListener('hashchange', syncRoute)
 onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
@@ -127,14 +140,14 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <dl class="metadata">
         <div><dt>Run</dt><dd>{{ selected.id }}</dd></div>
         <div><dt>Status</dt><dd>{{ runStatus(selected) }}</dd></div>
-        <div><dt>Duration</dt><dd>{{ time(runDuration(selected,now)) }}</dd></div>
+        <div class="duration-metadata"><dt>Duration</dt><dd>{{ time(runDuration(selected,now)) }}</dd></div>
         <div><dt>Windows</dt><dd>{{ number(selected.windows) }}</dd></div>
         <div><dt>Best advice</dt><dd><a v-if="selected.bestTarget" :href="runLink(selected.id, selected.bestTarget)">{{ number(selected.best) }}</a><template v-else>{{ number(selected.best) }}</template> {{ selected.strategy === 'surprisal' ? 'bits' : 'chars' }}</dd></div>
       </dl>
       </div>
       <ProblemFiles :key="selected.id" :run-id="selected.id" />
       <div class="selectors">
-        <SearchSelect label="cap-strategy" :model-value="selected.strategy" :options="strategyOptions" @update:model-value="changeStrategy" />
+        <SearchSelect label="cap-strategy" :searchable="false" :model-value="selected.strategy" :options="strategyOptions" @update:model-value="changeStrategy" />
         <SearchSelect label="Problem" :model-value="selected.problem" :options="problemOptions" @update:model-value="changeProblem" />
       </div>
       </header>

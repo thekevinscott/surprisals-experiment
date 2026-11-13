@@ -107,6 +107,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     windows: windows.size,
     windowPositions: [...windows].map(Number).sort((a,b)=>a-b).map(id=>({id,depth:id===0 ? 0 : id*stride})).filter(window=>Number.isFinite(window.depth)),
     samples: settings.t_samples ?? null,
+    forkTurns: settings.fork_turns, soloTurns: settings.window_solo_turns,
     scored: scored.sort((a,b) => a[0] - b[0]),
     passing: passing.sort((a, b) => a[0] - b[0] || a[1] - b[1]),
     forks: [...forks.values()].sort((a,b) => a.window - b.window || a.id - b.id).map(fork => ({

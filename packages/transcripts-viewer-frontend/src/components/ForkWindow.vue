@@ -2,6 +2,7 @@
 import { computed, ref, inject, watch, nextTick, onMounted } from 'vue'
 import ContentPanel from './ContentPanel.vue'
 import ForkBranch from './ForkBranch.vue'
+import ForkChart from './ForkChart.vue'
 import TurnBlock from './TurnBlock.vue'
 const props = defineProps({ window: Object, target: Object, hasNext: Boolean })
 const link = inject('runLink')
@@ -30,6 +31,7 @@ defineExpose({ reveal })
         <template v-for="(fork,index) in window.forks" :key="fork.id">
           <div v-if="fork.solo.length" class="solo" :style="{ gridColumn: index + 1 }" :data-continuation="fork.id" :data-fork="fork.id">
             <h3>Fork {{ fork.id }} continues</h3>
+            <ForkChart :window-id="window.id" :fork-id="fork.id" solo />
             <TurnBlock v-for="turn in fork.solo" :key="turn.id" :turn="turn" />
           </div>
         </template>

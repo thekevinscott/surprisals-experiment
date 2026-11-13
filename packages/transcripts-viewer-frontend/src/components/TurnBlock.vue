@@ -9,7 +9,7 @@ import TTranscripts from './TTranscripts.vue'
 const props=defineProps({ turn: Object })
 const sourceUrl=inject('sourceUrl')
 function openAdvice() {
-  openFile(sourceUrl(props.turn.adviceSource),{initialText:props.turn.advice,tokens:props.turn.tokens,measurement:props.turn.measurement==null?'Measurement unavailable':`${props.turn.measurement} ${props.turn.unit}`})
+  openFile(sourceUrl(props.turn.adviceSource),{initialText:props.turn.advice,tokens:props.turn.tokens,measurement:props.turn.measurement==null?'Measurement unavailable':turnSummary(props.turn)})
 }
 const link = inject('runLink')
 </script>

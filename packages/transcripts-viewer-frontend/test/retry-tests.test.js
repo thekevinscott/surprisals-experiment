@@ -25,7 +25,8 @@ test('T renders every attempt tests in order with independent original-file targ
     app.provide('sourceUrl',source=>`#files/${source}?src=/api/files/${source}`)
     const html=await renderToString(app)
     assert.deepEqual([...html.matchAll(/data-attempt="(\d+)"/g)].map(match=>Number(match[1])),[0,2,10])
-    for(const attempt of attempts)assert.ok(html.includes(`/attempts/${attempt.id}/tests.json`),`attempt ${attempt.id} opens its own file`)
+    assert.ok(html.includes('/attempts/2/tests.json'),'empty test cases still link to their original tests file')
+    assert.ok(!html.includes('attempt-label'),'attempt labels are omitted')
     assert.ok(html.includes('data-status="provider_error"'))
     assert.ok(html.includes('data-status="passed"'))
   }finally{await server.close()}

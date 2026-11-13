@@ -1,13 +1,15 @@
 <script setup>
-import {createForkChartData} from '../graphs.js'
+import {createForkPhaseChartData} from '../graphs.js'
 import {runStatus} from '../composables/runStatus.js'
-import { computed, ref, watch, provide, nextTick } from 'vue'
+import { ref, watch, provide, nextTick } from 'vue'
 import { fetchJson,watchData } from '../composables/api.js'
 import { runLink } from '../composables/runLinks.js'
 import { createDisclosureState } from '../composables/disclosureState.js'
 import ForkWindow from './ForkWindow.vue'
 const props = defineProps({ run: Object, target: Object })
 const windows = ref([])
+const forkRange = ref(null)
+provide('forkRange',forkRange)
 const windowViews = ref([])
 const apiUrl = path => `/api/runs/${encodeURIComponent(props.run.id)}/${path.split('/').map(encodeURIComponent).join('/')}`
 provide('apiUrl',apiUrl)
@@ -19,12 +21,7 @@ provide('uTurnContext', source => {
   }
 })
 provide('sampleCount', () => props.run.samples)
-const sharedForkDomains = computed(() => createForkChartData(props.run).domains)
-provide('forkChart', (window,id) => {
-  const chart = createForkChartData({...props.run,forks:(props.run.forks ?? []).filter(fork=>fork.window===window && fork.id===id)})
-  for (const kind of ['advice','surprisal']) chart.domains[kind].y = sharedForkDomains.value[kind].y
-  return chart
-})
+provide('forkChart', (window,id,solo) => createForkPhaseChartData(props.run,window,id,solo))
 const rawUrl = path => !path || path.includes(', ') ? undefined : apiUrl(path.startsWith('problem/') ? path : `files/${path}`)
 provide('rawSourceUrl', rawUrl)
 provide('sourceUrl', (path, line) => {
@@ -43,6 +40,7 @@ watch(() => props.run.id, async (_, __, onCleanup) => {
   const controller = new AbortController()
   onCleanup(() => controller.abort())
   windows.value = []
+  forkRange.value = null
   loading.value = true
   error.value = ''
   const url=`/api/runs/${encodeURIComponent(props.run.id)}`
