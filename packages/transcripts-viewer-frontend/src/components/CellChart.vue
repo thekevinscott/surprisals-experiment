@@ -1,7 +1,10 @@
 <script setup>
 import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps({ chartData:Object, allPoints:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const emit = defineEmits(['open-turn'])
+const pointTurn = (series,point) => ({window:series.window,fork:series.fork,turn:point[0]-series.turnStart})
+function openPoint(series,point) { if(props.clickable)emit('open-turn',pointTurn(series,point)) }
 const armSel = ref(props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
@@ -132,7 +135,11 @@ function path(s) {
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem" :class="{'series-dimmed':highlightedSeries!==null && highlightedSeries!==s.cell,'series-highlighted':highlightedSeries===s.cell}">
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
-          <circle v-for="(p, i) in (!dots ? [] : kind === 'advice' ? (allPoints ? s.scored : s.passing) : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
+          <g v-for="(p, i) in (!dots ? [] : kind === 'advice' ? (allPoints ? s.scored : s.passing) : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
+            <title>{{ `${clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ` : ''}${p[1].toLocaleString(undefined,{maximumFractionDigits:3})} ${unit}` }}</title>
+            <circle :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
+            <circle v-if="clickable" :cx="x(p[0])" :cy="y(p[1])" r="7" fill="transparent" class="point-hit" />
+          </g>
           <g v-for="(p,i) in (kind === 'improvements' ? s.streak : [])" :key="`streak-${i}`">
             <line :x1="x(p[0] - p[1])" :y1="y(0)" :x2="x(p[0])" :y2="y(p[1])"
               :stroke="s.color" :stroke-width="p[1] >= 50 ? 1 : 0.5" class="stop-rule-line" />
@@ -144,8 +151,8 @@ function path(s) {
 
       </g>
     </svg>
-    <p v-if="allPoints" class="outcome-legend">● T passed · ○ T failed / incomplete</p>
-    <div v-if="allPoints" class="window-chart-legend" aria-label="Window and fork legend">
+    <p v-if="allPoints && fullWidth" class="outcome-legend">● T passed · ○ T failed / incomplete</p>
+    <div v-if="allPoints && fullWidth" class="window-chart-legend" aria-label="Window and fork legend">
       <section v-for="[window,series] in legendWindows" :key="window" class="legend-window">
         <strong>Window {{ window }}</strong>
         <div v-for="s in series" :key="s.cell" class="legend-fork" :class="{continues:s.continues}" :title="s.continues ? 'Continues into solo phase' : undefined" tabindex="0" @mouseenter="highlightedSeries=s.cell" @mouseleave="highlightedSeries=null" @focus="highlightedSeries=s.cell" @blur="highlightedSeries=null" :style="{borderColor:s.continues ? '#15803d' : s.color}"><span :style="{background:s.color}"></span>Fork {{ s.fork }}<b v-if="s.continues" class="continuation-label">Continues</b><small v-if="s.scored.length">{{ s.scored.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:3}) }}</small></div>
@@ -178,6 +185,9 @@ svg .axis-title { font-size:10px; }
 .full-width svg [data-cell] > path { stroke-width:0.75; }
 .window-boundary line { stroke:#334155; stroke-width:3; }
 .window-boundary text { fill:#334155; font-weight:700; }
+.chart-point { cursor:pointer; }
+.chart-point:focus { outline:none; }
+.chart-point:focus-visible .point-hit { stroke:#111827;stroke-width:1.5; }
 .series-dimmed { opacity:.15; }
 .full-width svg .series-highlighted > path { stroke-width:2; }
 .legend-fork:hover,.legend-fork:focus-visible { background:#eef2f6;outline:1px solid currentColor; }

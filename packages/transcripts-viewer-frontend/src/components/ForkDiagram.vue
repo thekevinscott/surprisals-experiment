@@ -1,5 +1,6 @@
 <script setup>
 import {createForkPhaseChartData} from '../graphs.js'
+import {openTranscript} from '../composables/filePreview.js'
 import {runStatus} from '../composables/runStatus.js'
 import { ref, watch, provide, nextTick } from 'vue'
 import { fetchJson,watchData } from '../composables/api.js'
@@ -13,24 +14,40 @@ provide('forkRange',forkRange)
 const windowViews = ref([])
 const apiUrl = path => `/api/runs/${encodeURIComponent(props.run.id)}/${path.split('/').map(encodeURIComponent).join('/')}`
 provide('apiUrl',apiUrl)
-provide('uTurnContext', source => {
+function uTurnContext(source) {
   for(const window of windows.value)for(const fork of window.forks){
     const turns=[...fork.parallel,...fork.solo].sort((a,b)=>a.id-b.id)
     const turn=turns.find(turn=>turn.source===source)
     if(turn)return {window:window.id,fork:fork.id,turn:turn.id,turns:turns.map(({id,metadata})=>({id,metadata}))}
   }
-})
+}
+provide('uTurnContext',uTurnContext)
 provide('sampleCount', () => props.run.samples)
 provide('forkChart', (window,id,solo) => createForkPhaseChartData(props.run,window,id,solo))
 const rawUrl = path => !path || path.includes(', ') ? undefined : apiUrl(path.startsWith('problem/') ? path : `files/${path}`)
 provide('rawSourceUrl', rawUrl)
-provide('sourceUrl', (path, line) => {
+const sourceUrl = (path, line) => {
   const source = rawUrl(path)
   if (!source) return source
   const viewer = new URL(location.href)
   viewer.hash = `files/${encodeURIComponent(path)}?${new URLSearchParams({src:source,...(line ? {line:String(line)} : {})})}`
   return viewer.href
-})
+}
+provide('sourceUrl',sourceUrl)
+async function openChartTurn({window,fork,turn}) {
+  const runId=props.run.id
+  if(loading.value) {
+    const data=await fetchJson(`/api/runs/${encodeURIComponent(runId)}`)
+    if(props.run.id!==runId)return
+    windows.value=data.diagram
+  }
+  const source=`windows/${window}/forks/${fork}/turns/${turn}`
+  if(!uTurnContext(source))return
+  const transcript=`windows/${window}/forks/${fork}/u/transcript.jsonl`
+  openTranscript({name:'U transcript',uView:true,sourceUrl,files:[{source:transcript,url:rawUrl(transcript)}],uNavigation:()=>uTurnContext(source)})
+}
+provide('openChartTurn',openChartTurn)
+defineExpose({openChartTurn})
 const loading = ref(false)
 provide('disclosureState', createDisclosureState())
 provide('disclosurePath', () => props.run.id)

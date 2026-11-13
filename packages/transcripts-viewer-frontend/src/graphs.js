@@ -42,6 +42,7 @@ export function createForkChartData(row) {
   const chart = createChartData(forks.map(fork => ({...row, ...fork, id:`${row.id}/windows/${fork.window}/forks/${fork.id}`})))
   chart.series.forEach((series, index) => {
     const fork = forks[index]
+    series.turnStart = fork.window * (row.forkTurns + row.soloTurns)
     series.window = fork.window
     series.fork = fork.id
     series.continues = fork.turns > fork.window * (row.forkTurns + row.soloTurns) + row.forkTurns
@@ -75,7 +76,7 @@ export function createRunChartData(row) {
 export function createForkPhaseChartData(row, window, id, solo=false) {
   const start = window * (row.forkTurns + row.soloTurns) + (solo ? row.forkTurns : 0)
   const end = start + (solo ? row.soloTurns : row.forkTurns)
-  const all = createForkChartData(row)
+  const all = createRunChartData(row)
   const forks = (row.forks ?? []).filter(f=>f.window===window && f.id===id).map(f=>({...f,
     passing:f.passing.filter(([depth])=>depth>=start && depth<end),
     scored:(f.scored ?? []).filter(([depth])=>depth>=start && depth<end)}))
