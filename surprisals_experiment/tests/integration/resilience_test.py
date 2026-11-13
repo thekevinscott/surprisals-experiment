@@ -84,23 +84,25 @@ async def test_credential_proxy_startup_retries(config, execute_run_experiment):
         pass
 
 
-async def test_output_limit_fails_the_turn_and_the_next_turn_sees_none_of_it(config, execute_run_experiment):
+async def test_output_limit_next_turn_reports_failure_without_failed_content(config, execute_run_experiment):
     config.max_u_turns = 2
     advice = 'Use a loop'
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': u_user(config, 1, best, 10)}, {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': u_user(config, 2, '<length>10 characters</length>\n' + appended(PASS), 10)}]
+    failure = ('turn 2 of 20\nYour previous reply failed: U hit its output token limit '
+               '(20 completion tokens, 19 reasoning tokens). No advice was produced.')
     asked = [*chat(0, (QUESTION, None), config=config)['windows/0/forks/0/u/transcript.jsonl'],
-             {'role': 'user', 'content': 'turn 2 of 20', '_attempt': 1}]
+             {'role': 'user', 'content': failure, '_attempt': 1}]
     answer = chat(0, (QUESTION, advice), config=config)['windows/0/forks/0/u/transcript.jsonl'][-1]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
               logs=[(f'{TURN}/u', 'thinking', 'Cut off'), (f'{TURN}/u', 'text', 'partial')],
               files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None), config=config)}),
-        # The next turn retains the opening question and adds only its turn line.
+        # The next turn reports only the recorded failure, in its single user message.
         u_state(config, 0, 1, [{'role': 'user', 'content': u_user(config, 1, QUESTION)},
-                               {'role': 'user', 'content': 'turn 2 of 20'}], advice, {
+                               {'role': 'user', 'content': failure}], advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
             'windows/0/forks/0/u/transcript.jsonl': asked}, u_layout=True),
