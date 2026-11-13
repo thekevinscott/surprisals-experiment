@@ -40,3 +40,18 @@ async def test_scorer_connection_error_keeps_retry_schedule(
     )
     assert len(scorer_provider.requests) == 2
     no_retry_wait.assert_awaited_once_with(10)
+
+
+@pytest.mark.parametrize(("measure", "wording"), [
+    ("characters", "Advice is measured in characters: the length of your final message. "
+     "Fewer is better. After each advice you receive <advice_length> with its length.\n"),
+    ("surprisal", "Advice is measured in bits of surprisal under T's model: the sum of -log2 "
+     "token probabilities, scoring the advice without the problem or conversation as context. "
+     "Fewer is better. After each advice you receive <advice_surprisal_bits> with its <total> "
+     "and the bits of each token.\n"),
+])
+def test_both_arms_explain_the_measure_and_feedback(config, scorer_provider, measure, wording):
+    config = Config(**(config.model_dump() | {
+        "cap_strategy": measure, "scorer_base_url": "http://scorer/v1",
+    }))
+    assert config.advice_measure.wording == wording
