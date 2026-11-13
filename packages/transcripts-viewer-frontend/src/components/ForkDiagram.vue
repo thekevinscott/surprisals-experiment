@@ -9,8 +9,6 @@ import { createDisclosureState } from '../composables/disclosureState.js'
 import ForkWindow from './ForkWindow.vue'
 const props = defineProps({ run: Object, target: Object })
 const windows = ref([])
-const forkRange = ref(null)
-provide('forkRange',forkRange)
 const windowViews = ref([])
 const apiUrl = path => `/api/runs/${encodeURIComponent(props.run.id)}/${path.split('/').map(encodeURIComponent).join('/')}`
 provide('apiUrl',apiUrl)
@@ -57,7 +55,6 @@ watch(() => props.run.id, async (_, __, onCleanup) => {
   const controller = new AbortController()
   onCleanup(() => controller.abort())
   windows.value = []
-  forkRange.value = null
   loading.value = true
   error.value = ''
   const url=`/api/runs/${encodeURIComponent(props.run.id)}`

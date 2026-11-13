@@ -1,24 +1,26 @@
 <script setup>
+import {useUrlState} from '../composables/urlState.js'
 import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps({ chartData:Object, xZoom:{type:Boolean,default:true}, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, stateKey:{type:String,default:'main'}, rangeKey:String, xZoom:{type:Boolean,default:true}, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const emit = defineEmits(['open-turn'])
 const pointTurn = (series,point) => ({window:series.window,fork:series.fork,turn:point[0]-series.turnStart})
 function openPoint(series,point) { if(props.clickable)emit('open-turn',pointTurn(series,point)) }
-const armSel = ref(props.chartData.arms[0])
+const control=(name,value)=>useUrlState(()=>`chart:${props.stateKey}:${name}`,value)
+const armSel = control('arm',()=>props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
-const mode = ref('all')
+const mode = control('mode','all')
 const data = computed(()=>props.chartData.series)
 const domains = computed(()=>props.chartData.domains)
-const range = defineModel('range', {default:null})
-const xRange = defineModel('xRange', {default:null})
+const range = useUrlState(()=>`chart:${props.rangeKey??props.stateKey}:y`,null)
+const xRange = control('x',null)
 const xKnob = ref(null)
 const knob = ref(null)
 const clipId = useId()
-const dots = ref(true)
+const dots = control('dots',true)
 const highlightedSeries = ref(null)
-const logarithmic = ref(false)
+const logarithmic = control('log',false)
 const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => points(s).at(-1)
