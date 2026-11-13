@@ -56,7 +56,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
   const windows = new Set()
   let best = null
   let bestTarget = null
-  const passing = []
+  const passing = [], scored = []
   const forks = new Map()
   let latest = (await stat(join(directory, 'run.json'))).mtimeMs
   for (const {id} of turnsInDatabase) {
@@ -65,7 +65,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     const [, window, , fork, , turn] = path.split('/')
     windows.add(window)
     const key = `${window}/${fork}`
-    if (!forks.has(key)) forks.set(key, {window:Number(window),id:Number(fork),turns:0,passing:[]})
+    if (!forks.has(key)) forks.set(key, {window:Number(window),id:Number(fork),turns:0,passing:[],scored:[]})
     const branch = forks.get(key)
     const depth = Number(window) === 0 ? Number(turn) : Number(window) * stride + Number(turn)
     if (Number.isFinite(depth)) branch.turns = Math.max(branch.turns, depth + 1)
@@ -74,14 +74,20 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     turns = Math.max(turns, Number(window) === 0 ? Number(turn) + 1 : Number.isFinite(stride) ? Number(window) * stride + Number(turn) + 1 : 0)
     for (const artifact of store.rows.filter(row=>row.path.startsWith(id+'/ts/'))) latest = Math.max(latest,(await stat(join(directory,artifact.path))).mtimeMs)
     const samples = await readSamples(turnDirectory, directory, store)
-    if (settings.t_samples && samples.length === settings.t_samples && samples.every(s => s.latest?.tests?.all_passed && !s.latest.generation?.timed_out && !s.latest.generation?.error)
-        && /^advices\/[a-f0-9]+$/.test(metadata.advice ?? '')) {
+    const passed = !!(settings.t_samples && samples.length === settings.t_samples && samples.every(s => s.latest?.tests?.all_passed && !s.latest.generation?.timed_out && !s.latest.generation?.error))
+    if (/^advices\/[a-f0-9]+$/.test(metadata.advice ?? '')) {
       const advice = await json(join(directory, metadata.advice, 'advice.json'), true)
-      if (typeof advice?.score === 'number') {
-        if (best === null || advice.score < best) { best = advice.score; bestTarget = `windows/${window}/forks/${fork}/turns/${turn}` }
+      if (Number.isFinite(advice?.score)) {
         if (Number.isFinite(depth)) {
-          passing.push([depth, advice.score])
-          branch.passing.push([depth, advice.score])
+          scored.push([depth, advice.score, passed])
+          branch.scored.push([depth, advice.score, passed])
+        }
+        if (passed) {
+          if (best === null || advice.score < best) { best = advice.score; bestTarget = `windows/${window}/forks/${fork}/turns/${turn}` }
+          if (Number.isFinite(depth)) {
+            passing.push([depth, advice.score])
+            branch.passing.push([depth, advice.score])
+          }
         }
       }
     }
@@ -100,9 +106,10 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     started, ended, observed: new Date(latest).toISOString(), elapsed, turns, best, bestTarget,
     windows: windows.size,
     samples: settings.t_samples ?? null,
+    scored: scored.sort((a,b) => a[0] - b[0]),
     passing: passing.sort((a, b) => a[0] - b[0] || a[1] - b[1]),
     forks: [...forks.values()].sort((a,b) => a.window - b.window || a.id - b.id).map(fork => ({
-      ...fork, passing: fork.passing.sort((a,b) => a[0] - b[0]),
+      ...fork, scored: fork.scored.sort((a,b) => a[0] - b[0]), passing: fork.passing.sort((a,b) => a[0] - b[0]),
     })),
     uCost, tCost,
     modelCost: uCost !== null && tCost !== null ? uCost + tCost : null,

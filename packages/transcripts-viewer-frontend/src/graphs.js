@@ -15,6 +15,7 @@ const series = rows.map(row => {
     color: colors[problems.indexOf(row.problem) % colors.length],
     running: !row.ended, exit_code: row.exit, advice, improvements,
     passing: row.passing ?? [],
+    scored: row.scored ?? [],
     streak: advice.length ? [[Math.max(0, row.turns - 1), Math.max(0, row.turns - 1 - advice.at(-1)[0])]] : [],
   }
 })
@@ -44,5 +45,30 @@ export function createForkChartData(row) {
     series.label = `Window ${fork.window} · Fork ${fork.id}`
     series.color = index < colors.length ? colors[index] : `hsl(${Math.round(index * 137.508) % 360} 65% 40%)`
   })
+  return chart
+}
+
+// The run graph keeps one line per fork through successive windows.
+export function createRunChartData(row) {
+  const forks = new Map()
+  for (const fork of row.forks ?? []) {
+    if (!forks.has(fork.id)) forks.set(fork.id, {...row, id:fork.id, passing:[], scored:[]})
+    const series = forks.get(fork.id)
+    series.passing.push(...fork.passing)
+    series.scored.push(...fork.scored ?? [])
+  }
+  const rows = [...forks.values()].sort((a,b)=>a.id-b.id)
+  for (const fork of rows) {
+    fork.passing.sort((a,b)=>a[0]-b[0])
+    fork.scored.sort((a,b)=>a[0]-b[0])
+  }
+  const chart = createChartData(rows)
+  chart.series.forEach((series,index)=>{
+    series.label = `Fork ${rows[index].id}`
+    series.color = colors[index % colors.length]
+  })
+  for (const [key, surp] of [['advice',false],['surprisal',true]]) {
+    chart.domains[key].y = [0, Math.max(1,...chart.series.filter(s=>(s.strategy==='surprisal')===surp).flatMap(s=>s.scored.map(p=>p[1]))) * 1.05]
+  }
   return chart
 }

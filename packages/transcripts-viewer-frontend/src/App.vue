@@ -10,7 +10,7 @@ import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
 import {runDuration} from './composables/runDuration.js'
-import {createChartData, createForkChartData} from './graphs.js'
+import {createChartData, createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
 const now=ref(Date.now())
@@ -51,7 +51,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 const fileRoute = computed(() => parseFileRoute(route.value))
 const target = computed(() => runRoute(route.value))
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
-const runCharts = computed(() => createForkChartData(selected.value))
+const runCharts = computed(() => createRunChartData(selected.value))
 const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())

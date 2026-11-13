@@ -40,8 +40,8 @@ test('best score requires all samples, retries use latest test, forks share dept
   assert.equal(rows[0].best, 12)
   assert.deepEqual(rows[0].passing, [[42, 12]])
   assert.deepEqual(rows[0].forks, [
-    {window:1,id:0,turns:43,passing:[[42,12]]},
-    {window:1,id:1,turns:43,passing:[]},
+    {window:1,id:0,turns:43,passing:[[42,12]],scored:[[42,12,true]]},
+    {window:1,id:1,turns:43,passing:[],scored:[[42,3,false]]},
   ])
   assert.equal(rows[0].turns, 43)
   assert.equal(rows[0].windows, 1)
@@ -82,4 +82,20 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
   ]
   await put('windows/0/forks/0/u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
   assert.equal((await readExperiment(root)).rows[0].uCost,null)
+})
+
+ test('scored series includes failed T turns and spans no-advice gaps and windows', async t => {
+  const {root,put}=await fixture(t)
+  for(const [window,turn,score,passed] of [[0,38,8,true],[0,39,30,false],[1,1,6,true]]){
+    const dir=`windows/${window}/forks/0/turns/${turn}`,advice=`advices/a${window}${turn}`
+    await put(`${dir}/metadata.json`,{advice})
+    await put(`${advice}/advice.json`,{score})
+    for(const sample of [0,1])await put(`${dir}/ts/${sample}/attempts/0/tests.json`,{all_passed:passed})
+  }
+  await put('windows/1/forks/0/turns/0/metadata.json',{advice:null,error:'U failed'})
+  const {rows:[row]}=await readExperiment(root)
+  assert.deepEqual(row.scored,[[38,8,true],[39,30,false],[41,6,true]])
+  assert.deepEqual(row.passing,[[38,8],[41,6]])
+  assert.equal(row.best,6)
+  assert.deepEqual(row.forks.map(f=>f.scored),[[[38,8,true],[39,30,false]],[[41,6,true]]])
 })

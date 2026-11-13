@@ -34,7 +34,7 @@ const selected = computed(() => data.value.filter(s => s.strategy === selectedAr
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
-const points = s => props.allPoints && props.kind === 'advice' ? [...s.passing].sort((a,b)=>a[0]-b[0]) : s[props.kind]
+const points = s => props.allPoints && props.kind === 'advice' ? s.scored : s[props.kind]
 const domain = computed(() => domains.value[chartKey.value] || { x: [0, 250], y: [0, 54] })
 const yrange = computed(() => range.value || domain.value.y)
 const ymin = computed(() => yrange.value[0])
@@ -114,8 +114,8 @@ function path(s) {
         <line v-if="kind === 'improvements' && ymin <= 50 && ymax >= 50" x1="0" :x2="width" :y1="y(50)" :y2="y(50)" stroke="#777" stroke-dasharray="2 3" />
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem">
-          <circle v-for="(p, i) in (!dots ? [] : kind === 'advice' ? s.passing : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :cx="x(p[0])" :cy="y(p[1])" :r="kind === 'advice' ? 1.4 : 2" :fill="s.color" :opacity="kind === 'advice' ? .25 : 1" />
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
+          <circle v-for="(p, i) in (!dots ? [] : kind === 'advice' ? (allPoints ? s.scored : s.passing) : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
           <text v-if="endPoint(s)" :x="x(endPoint(s)[0]) + 2" :y="y(endPoint(s)[1]) + 2.5" :class="exitOf(s) === 0 ? 'exit-ok' : 'exit-fail'" :style="exitOf(s) === 0 ? null : { fill: s.color }">{{ statusMark(s) }}</text>
           <g v-for="(p,i) in (kind === 'improvements' ? s.streak : [])" :key="`streak-${i}`">
             <line :x1="x(p[0] - p[1])" :y1="y(0)" :x2="x(p[0])" :y2="y(p[1])"
@@ -128,8 +128,9 @@ function path(s) {
 
       </g>
     </svg>
+    <p v-if="allPoints" class="outcome-legend">● T passed · ○ T failed / incomplete</p>
     <ul class="chart-legend">
-      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.label ?? `${s.problem} ${s.cell.split('-').slice(2).join('-')}` }}{{ kind === 'advice' ? (points(s).length ? ` · ${endPoint(s)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : ' · no all-samples pass') : '' }} {{ statusMark(s) }}</li>
+      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.label ?? `${s.problem} ${s.cell.split('-').slice(2).join('-')}` }}{{ kind === 'advice' ? (points(s).length ? ` · ${endPoint(s)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : (allPoints ? ' · no scored advice' : ' · no all-samples pass')) : '' }} {{ statusMark(s) }}</li>
     </ul>
   </div>
 </template>
@@ -159,5 +160,6 @@ svg .legend .exit-ok, svg .legend .exit-fail { font-size:7px; }
 .full-width svg .exit-ok { font-size:10.4px; }
 .full-width svg .exit-fail { font-size:9.1px; }
 .full-width svg [data-cell] > path { stroke-width:0.75; }
+.outcome-legend { margin:0; font-size:14px; }
 .full-width .filters, .full-width .chart-legend { font-size:14px; }
 </style>
