@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, useId } from 'vue'
 
-const props = defineProps({ chartData:Object, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const armSel = ref(props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
@@ -17,7 +17,7 @@ const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => props.kind === 'advice' ? s.advice.at(-1) : s.streak[0]
 
-const width = 840
+const width = computed(() => props.plotWidth)
 const selected = computed(() => data.value.filter(s => s.strategy === selectedArm.value))
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
@@ -36,7 +36,7 @@ const yticks = computed(() => {
   return Array.from({length: Math.floor((ymax.value - first) / step) + 1}, (_, i) => first + i * step)
 })
 const xticks = computed(() => Array.from({length: Math.floor(domain.value.x[1] / 10) + 1}, (_, i) => i * 10))
-const x = v => (v-domain.value.x[0]) / (domain.value.x[1]-domain.value.x[0]) * width
+const x = v => (v-domain.value.x[0]) / (domain.value.x[1]-domain.value.x[0]) * width.value
 const scale = v => logarithmic.value ? Math.log1p(v) : v
 const y = v => 240 - (scale(v) - scale(ymin.value)) / (scale(ymax.value) - scale(ymin.value)) * 210
 const [d0, d1] = [() => domain.value.y[0], () => domain.value.y[1]]
@@ -78,7 +78,7 @@ function path(s) {
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
       <button v-if="controls && kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
-    <svg viewBox="0 0 960 285" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
+    <svg :viewBox="`0 0 ${width + 120} 285`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
       <defs>
         <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" height="222" /></clipPath>
       </defs>
