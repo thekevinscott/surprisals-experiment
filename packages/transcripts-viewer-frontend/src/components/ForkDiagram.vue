@@ -1,7 +1,7 @@
 <script setup>
 import {createForkChartData} from '../graphs.js'
 import {runStatus} from '../composables/runStatus.js'
-import { ref, watch, provide, nextTick } from 'vue'
+import { computed, ref, watch, provide, nextTick } from 'vue'
 import { fetchJson,watchData } from '../composables/api.js'
 import { runLink } from '../composables/runLinks.js'
 import { createDisclosureState } from '../composables/disclosureState.js'
@@ -19,7 +19,12 @@ provide('uTurnContext', source => {
   }
 })
 provide('sampleCount', () => props.run.samples)
-provide('forkChart', (window,id) => createForkChartData({...props.run,forks:(props.run.forks ?? []).filter(fork=>fork.window===window && fork.id===id)}))
+const sharedForkDomains = computed(() => createForkChartData(props.run).domains)
+provide('forkChart', (window,id) => {
+  const chart = createForkChartData({...props.run,forks:(props.run.forks ?? []).filter(fork=>fork.window===window && fork.id===id)})
+  for (const kind of ['advice','surprisal']) chart.domains[kind].y = sharedForkDomains.value[kind].y
+  return chart
+})
 const rawUrl = path => !path || path.includes(', ') ? undefined : apiUrl(path.startsWith('problem/') ? path : `files/${path}`)
 provide('rawSourceUrl', rawUrl)
 provide('sourceUrl', (path, line) => {
