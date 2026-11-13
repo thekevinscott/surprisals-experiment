@@ -1,6 +1,8 @@
 import json
 from functools import partial
 
+from surprisals_experiment.prompt import Prompt
+
 from ....advice import Advice
 from ....run import Run
 from ....turn import Turn
@@ -9,6 +11,9 @@ from ....utils.write import write
 from .prepare_flush import prepare_flush
 from .render_code import render_code
 from .turn_line import turn_line
+
+
+FAILED = Prompt("u/failed.txt")
 
 
 async def write_advice(run: Run, turn: Turn) -> None:
@@ -25,6 +30,8 @@ async def write_advice(run: Run, turn: Turn) -> None:
             content += "\n" + advice.measurement + "\n" + await render_code(
                 config, run.database, str(previous.attempt_dir.relative_to(config.output)),
             )
+        else:
+            content += "\n" + FAILED(error=metadata["error"])
     messages = [{"role": "user", "content": content}]
     try:
         text = await run.u_chat.prompt(
