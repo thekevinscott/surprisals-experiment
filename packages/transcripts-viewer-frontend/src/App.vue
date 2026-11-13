@@ -1,4 +1,5 @@
 <script setup>
+import {routeHash,useUrlState} from './composables/urlState.js'
 import { computed, ref, reactive, watch, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -44,30 +45,15 @@ function turnKey(event) {
 }
 window.addEventListener('keydown',turnKey)
 onUnmounted(()=>window.removeEventListener('keydown',turnKey))
-const route = ref(location.hash)
-function panelState(name) {
-  return computed({
-    get:()=>new URLSearchParams(route.value.split('?')[1]).get(name)!=='closed',
-    set:open=>{
-      const [path,query]=route.value.split('?'),params=new URLSearchParams(query)
-      if(open)params.delete(name);else params.set(name,'closed')
-      const hash=path+(params.size ? `?${params}` : '')
-      history.replaceState(null,'',hash)
-      route.value=hash
-    },
-  })
-}
-const graphsExpanded=panelState('graphs'),transcriptsExpanded=panelState('transcripts')
-
-const syncRoute = () => { route.value = location.hash }
-window.addEventListener('hashchange', syncRoute)
-onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
+const route=routeHash
+const routePath=computed(()=>route.value.split('?')[0])
+const graphsExpanded=ref(true),transcriptsExpanded=ref(true)
 const fileRoute = computed(() => parseFileRoute(route.value))
-const target = computed(() => runRoute(route.value))
+const target = computed(() => runRoute(routePath.value))
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
 const forkDiagram = ref(null)
 const runCharts = computed(() => createRunChartData(selected.value))
-const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
+const tab = computed(() => routePath.value === '#graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
 function refresh() {
@@ -157,10 +143,10 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
       <div class="run-body">
-        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" title="Graphs" aria-label="Run graphs">
+        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" title="Graphs" aria-label="Run graphs">
           <CellChart :key="selected.id" :chart-data="runCharts" clickable @open-turn="forkDiagram.openChartTurn($event)" full-width all-points kind="advice" :controls="false" />
         </ContentPanel>
-        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" title="Transcripts" aria-label="Run transcripts">
+        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" state-key="transcripts" title="Transcripts" aria-label="Run transcripts">
           <ForkDiagram ref="forkDiagram" :run="selected" :target="target" />
         </ContentPanel>
       </div>

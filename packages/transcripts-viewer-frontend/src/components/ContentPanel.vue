@@ -1,5 +1,6 @@
 <script setup>
 import { computed, inject, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue'
+import {useUrlState} from '../composables/urlState.js'
 import Panel from 'primevue/panel'
 import SourceActions from './SourceActions.vue'
 const props = defineProps({ title: String, href: String, local: Boolean, metadata: Object, source: String, sourceLine: Number, summary: String, stateKey: String, preview: Boolean, expandLabel: String, collapseLabel: String, collapsible: { type: Boolean, default: true } })
@@ -10,11 +11,9 @@ provide('localDisclosure', local)
 const parentPath = inject('disclosurePath', () => '')
 const path = computed(() => `${parentPath()}/${props.stateKey ?? props.title}`)
 provide('disclosurePath', () => path.value)
-const expanded = computed({
-  get: () => (local ? undefined : shared?.expanded.get(path.value)) ?? model.value,
-  set: value => { if (shared && !local) shared.expanded.set(path.value, value); model.value = value },
-})
-watch(expanded, value => { model.value = value })
+const defaultExpanded=model.value
+const expanded=useUrlState(()=>`panel:${path.value}`,defaultExpanded)
+watch(expanded, value => { model.value = value },{immediate:true})
 const content = ref(null)
 const inner = ref(null)
 const visible = computed(() => expanded.value || props.preview || !props.collapsible)
