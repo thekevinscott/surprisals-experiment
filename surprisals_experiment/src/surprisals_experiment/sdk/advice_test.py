@@ -48,9 +48,10 @@ async def test_identical_advice_has_one_row_and_two_turn_links(config):
 
 
 @pytest.mark.parametrize('measure,metadata,expected', [
-    ('characters', {'score': 17}, '<length>17 characters</length>'),
+    ('characters', {'score': 17}, '<advice_length>17 characters</advice_length>'),
     ('surprisal', {'score': 3.75, 'tokens': [['Use café.', 2.5], ['\nThen double.', 1.25]]},
-     '<bits>\nUse café.<2.5>\nThen double.<1.2>\n</bits>'),
+     '<advice_surprisal_bits>\n<total>3.75</total>\n<token bits="2.50">"Use café."</token>\n'
+     '<token bits="1.25">"\\nThen double."</token>\n</advice_surprisal_bits>'),
 ])
 def test_loaded_advice_renders_its_cached_measurement(config, measure, metadata, expected):
     from surprisals_experiment.config import Config

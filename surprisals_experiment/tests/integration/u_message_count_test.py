@@ -53,3 +53,12 @@ async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_p
         entries = [json.loads(line) for line in (fork / 'u/transcript.jsonl').read_text().splitlines()]
         assert [{key: entry[key] for key in ('role', 'content')}
                 for entry in entries[:metadata['u_messages']]] == request['messages']
+
+        assert entries[metadata['u_messages'] + 1] == {
+            'role': 'user', 'content': '<advice_length>6 characters</advice_length>',
+        }
+        if turn:
+            assert request['messages'][-2] == {
+                'role': 'user', 'content': '<advice_length>6 characters</advice_length>',
+            }
+            assert '<advice_length>' not in request['messages'][-1]['content']
