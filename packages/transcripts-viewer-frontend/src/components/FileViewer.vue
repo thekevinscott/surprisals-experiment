@@ -27,6 +27,7 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
     <p v-if="error" role="alert">{{ error }}</p>
     <p v-else-if="text===null">Loading file…</p>
     <AdviceDiff v-else-if="showDiff && comparisonText!=null" :text="text" :tokens="tokens" :previous="comparisonText" :previous-tokens="comparisonTokens" />
+    <AdviceDiff v-else-if="previousText!=null && !suppressFade" :key="highlightId" fading :text="text" :tokens="tokens" :previous="previousText" />
     <template v-else-if="tokens || previousText!=null">
       <p>{{ measurement }}</p>
       <pre class="raw-file"><TokenText :key="highlightId" :additions="additions" :text="text" :tokens="tokens" /></pre>
