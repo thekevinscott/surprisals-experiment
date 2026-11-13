@@ -45,6 +45,25 @@ async function costs(directory, pattern, select, warnings, db) {
   return count && !missing ? total : null
 }
 
+async function modelCosts(directory,warnings,database) {
+  const uCost=await costs(directory, 'windows/*/forks/*/u/transcript.jsonl', r => r.usage ?? (r.role === 'assistant' ? {} : null), warnings, database)
+  const tCost=await costs(directory, 'windows/*/forks/*/turns/*/ts/*/attempts/*/transcripts/*/*.jsonl', r => r.type === 'message' ? r.message?.usage : null, warnings, database)
+  return {uCost,tCost}
+}
+
+// Global cost totals do not need graph, advice, or per-turn artifacts.
+export async function experimentCosts(directory,database) {
+  const warnings=new Set(),rows=[]
+  for(const {path} of await database(directory).files('runs/*/run.json')) {
+    const root=join(directory,path,'..'),db=database(root)
+    const meta=await db.json(join(root,'run.json'))
+    const current=meta.invocations?.at(-1)??meta
+    rows.push({id:basename(root),...await modelCosts(root,warnings,db),
+      awsLaunched:await instanceLaunch(root,db),ended:current.ended??null})
+  }
+  return {rows,warnings:[...warnings]}
+}
+
 export async function runSummary(directory, warnings = new Set(), database, {includeCosts=true}={}) {
   if(!database)return withDatabase(directory,null,db=>runSummary(directory,warnings,db,{includeCosts}))
   const store=await artifacts(directory,database), json=store.json
@@ -93,8 +112,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
       }
     }
   }
-  const uCost = includeCosts ? await costs(directory, 'windows/*/forks/*/u/transcript.jsonl', r => r.usage ?? (r.role === 'assistant' ? {} : null), warnings, database) : null
-  const tCost = includeCosts ? await costs(directory, 'windows/*/forks/*/turns/*/ts/*/attempts/*/transcripts/*/*.jsonl', r => r.type === 'message' ? r.message?.usage : null, warnings, database) : null
+  const {uCost,tCost}=includeCosts ? await modelCosts(directory,warnings,database) : {uCost:null,tCost:null}
   const started = current.started ?? meta.created
   const ended = current.ended
   const end = ended ? Date.parse(ended) : latest
