@@ -48,25 +48,20 @@ export function createForkChartData(row) {
   return chart
 }
 
-// The run graph keeps one line per fork through successive windows.
+// Fork IDs are local to each window. Only the solo continuation connects
+// the previous window to the new set of branches.
 export function createRunChartData(row) {
-  const forks = new Map()
-  for (const fork of row.forks ?? []) {
-    if (!forks.has(fork.id)) forks.set(fork.id, {...row, id:fork.id, passing:[], scored:[]})
-    const series = forks.get(fork.id)
-    series.passing.push(...fork.passing)
-    series.scored.push(...fork.scored ?? [])
-  }
-  const rows = [...forks.values()].sort((a,b)=>a.id-b.id)
-  for (const fork of rows) {
-    fork.passing.sort((a,b)=>a[0]-b[0])
-    fork.scored.sort((a,b)=>a[0]-b[0])
-  }
-  const chart = createChartData(rows)
+  const chart = createForkChartData(row)
   chart.windowPositions = row.windowPositions ?? []
+  const forks = row.forks ?? []
   chart.series.forEach((series,index)=>{
-    series.label = `Fork ${rows[index].id}`
-    series.color = colors[index % colors.length]
+    series.scored = [...series.scored].sort((a,b)=>a[0]-b[0])
+    const previous = forks.filter(fork=>fork.window===forks[index].window-1)
+    const lastDepth = Math.max(...previous.map(fork=>fork.turns))
+    const continued = previous.filter(fork=>fork.turns===lastDepth)
+    if (continued.length===1) {
+      series.startPoint = [...(continued[0].scored ?? [])].sort((a,b)=>a[0]-b[0]).at(-1)
+    }
   })
   for (const [key, surp] of [['advice',false],['surprisal',true]]) {
     chart.domains[key].y = [0, Math.max(1,...chart.series.filter(s=>(s.strategy==='surprisal')===surp).flatMap(s=>s.scored.map(p=>p[1]))) * 1.05]

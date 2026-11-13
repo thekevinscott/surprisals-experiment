@@ -34,7 +34,7 @@ const selected = computed(() => data.value.filter(s => s.strategy === selectedAr
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
-const points = s => props.allPoints && props.kind === 'advice' ? s.scored : s[props.kind]
+const points = s => props.allPoints && props.kind === 'advice' ? (s.scored.length && s.startPoint ? [s.startPoint,...s.scored] : s.scored) : s[props.kind]
 const domain = computed(() => domains.value[chartKey.value] || { x: [0, 250], y: [0, 54] })
 const yrange = computed(() => range.value || domain.value.y)
 const ymin = computed(() => yrange.value[0])
