@@ -1,4 +1,5 @@
 <script setup>
+import {useContainerScroll} from '../composables/scrollPosition.js'
 import { computed, nextTick, ref, watch } from 'vue'
 import {useJsonQuery} from '../composables/queryState.js'
 import TranscriptRecord from './TranscriptRecord.vue'
@@ -7,6 +8,7 @@ const emit = defineEmits(['visible'])
 const selectedBlock = useJsonQuery(()=>`transcript:${props.source}:block`,null)
 const blocks = new Map()
 const navigation=ref(null),navigationHeight=ref(0)
+useContainerScroll('blocks',navigation)
 watch(navigation,(element,_,cleanup)=>{
   if(!element)return
   const observer=new ResizeObserver(()=>{navigationHeight.value=element.getBoundingClientRect().height})

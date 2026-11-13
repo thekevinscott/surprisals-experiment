@@ -1,9 +1,10 @@
 <script setup>
+import {useContainerScroll} from '../composables/scrollPosition.js'
 import { computed, inject, nextTick, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue'
 import {useJsonQuery} from '../composables/queryState.js'
 import Panel from 'primevue/panel'
 import SourceActions from './SourceActions.vue'
-const props = defineProps({ stickyHeader: Boolean, title: String, href: String, local: Boolean, metadata: Object, source: String, sourceLine: Number, summary: String, stateKey: String, preview: Boolean, expandLabel: String, collapseLabel: String, collapsible: { type: Boolean, default: true } })
+const props = defineProps({ scrollKey:String,stickyHeader: Boolean, title: String, href: String, local: Boolean, metadata: Object, source: String, sourceLine: Number, summary: String, stateKey: String, preview: Boolean, expandLabel: String, collapseLabel: String, collapsible: { type: Boolean, default: true } })
 const model = defineModel('expanded', { default: false })
 const shared = inject('disclosureState', null)
 const local = props.local || inject('localDisclosure', false)
@@ -18,6 +19,7 @@ const content = ref(null)
 const inner = ref(null)
 const visible = computed(() => expanded.value || props.preview || !props.collapsible)
 const panel = ref(null)
+if(props.scrollKey)useContainerScroll(props.scrollKey,computed(()=>panel.value?.$el.querySelector('.p-panel-content-container')))
 const toggle = async () => {
   const element=panel.value?.$el
   const stuck=props.stickyHeader && expanded.value && element.querySelector('.p-panel-header').getBoundingClientRect().top > element.getBoundingClientRect().top+1

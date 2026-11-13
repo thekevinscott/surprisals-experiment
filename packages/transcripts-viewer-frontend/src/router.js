@@ -1,7 +1,9 @@
 import {createRouter,createWebHashHistory,createMemoryHistory} from 'vue-router'
+import {scrollBehavior,pageReady,pageRestoring} from './composables/pageScroll.js'
 const component=typeof window==='undefined'?{render:()=>null}:()=>import('./App.vue')
 export const router=createRouter({
   history:typeof window==='undefined'?createMemoryHistory():createWebHashHistory(),
+  scrollBehavior,
   routes:[
     {path:'/',redirect:'/dashboard'},
     {path:'/dashboard',name:'dashboard',component},
@@ -10,6 +12,7 @@ export const router=createRouter({
     {path:'/files/:name(.*)',name:'file',component},
   ],
 })
+router.beforeEach((to,from)=>{if(to.path!==from.path){pageReady.value=false;pageRestoring.value=true}})
 export const fileLink=(src,name,line)=>router.resolve({name:'file',params:{name},query:{src,...(line?{line:String(line)}:{})}}).href
 export function resolveFile(url) {
   const route=router.resolve(new URL(url,location.href).hash.slice(1))

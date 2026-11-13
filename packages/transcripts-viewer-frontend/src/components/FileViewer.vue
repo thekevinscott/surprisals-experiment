@@ -1,6 +1,7 @@
 <script setup>
-import {fileLink} from '../router.js'
-import {computed,provide,ref,watch} from 'vue'
+import {pageReady} from '../composables/pageScroll.js'
+import {fileLink,router} from '../router.js'
+import {computed,provide,ref,watch,nextTick} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
 import {addedRanges} from '../composables/adviceDiff.js'
@@ -17,6 +18,7 @@ watch(()=>props.showDiff,()=>{suppressFade.value=true})
 watch(()=>props.highlightId,()=>{suppressFade.value=false})
 const additions=computed(()=>suppressFade.value||props.previousText==null?[]:addedRanges(props.previousText,text.value??''))
 const text=computed(()=>liveText.value ?? props.initialText ?? null)
+watch([text,error],async()=>{if(router.currentRoute.value.name==='file'&&(text.value!==null||error.value)){await nextTick();pageReady.value=true}},{immediate:true,flush:'post'})
 </script>
 <template>
   <section class="file-viewer" aria-label="File viewer">

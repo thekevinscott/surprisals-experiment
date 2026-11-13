@@ -1,4 +1,5 @@
 <script setup>
+import {useContainerScroll} from '../composables/scrollPosition.js'
 import {computed,inject,ref,watch,nextTick} from 'vue'
 import {useJsonQuery} from '../composables/queryState.js'
 import VueJsonPretty from 'vue-json-pretty'
@@ -8,6 +9,7 @@ const scope=inject('viewStateKey',()=> 'json'),testCase=inject('testCase',()=>nu
 const collapsed=useJsonQuery(()=>`json:${scope()}:collapsed`,[])
 const selected=useJsonQuery(()=>`json:${scope()}:selected`,()=>testCase()!=null?`root.cases[${testCase()}]`:'')
 const element=ref(null)
+useContainerScroll('json',element)
 function collapse(value,node) {
   const paths=new Set(collapsed.value)
   if(value)paths.add(node.path);else paths.delete(node.path)

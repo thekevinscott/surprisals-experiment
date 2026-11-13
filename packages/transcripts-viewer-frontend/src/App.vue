@@ -1,7 +1,8 @@
 <script setup>
-import {installScrollState} from './composables/scrollState.js'
+import {useContainerScroll,usePageScroll} from './composables/scrollPosition.js'
+import {pageReady} from './composables/pageScroll.js'
 import {useJsonQuery} from './composables/queryState.js'
-import { computed, ref, reactive, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, reactive, watch, nextTick, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ColumnGroup from 'primevue/columngroup'
@@ -37,9 +38,9 @@ import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
 restoreModals()
-let stopScroll
-onMounted(()=>{stopScroll=installScrollState()})
-onUnmounted(()=>stopScroll?.())
+usePageScroll()
+const modalBody=ref(null)
+useContainerScroll('modal',computed(()=>modalBody.value?.parentElement),()=>filePreview.value?.src??filePreview.value?.name)
 const showAdviceDiff=useJsonQuery('advice:diff',false)
 const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
 const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
@@ -78,6 +79,7 @@ watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
   if(value==='file'||value==='graphs'){refreshController?.abort();loading.value=false;error.value=''}
   else refresh()
 }, {immediate:true})
+watch([loading,()=>route.name],async()=>{if(route.name!=='file'&&!loading.value){await nextTick();pageReady.value=true}},{immediate:true,flush:'post'})
 const navigateTab = name => router.push({name})
 const openRun = row => router.push({name:'run',params:{id:row.id}})
 const strategyOptions = computed(() => [...new Set(data.rows.map(r => r.strategy))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === value).length} runs` })))
@@ -118,6 +120,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
     </template>
+    <div ref="modalBody">
     <nav v-if="uTurns.length" class="u-turn-navigation" :aria-label="filePreview?.kind==='advice'?'Advice turns':'U turns'">
       <button type="button" :aria-label="filePreview?.kind==='advice'?'Previous advice':'Previous U turn'" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
       <button type="button" :aria-label="filePreview?.kind==='advice'?'Next advice':'Next U turn'" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
@@ -126,6 +129,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <TranscriptViewer v-else-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
     <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-diff="showAdviceDiff" :show-name="false" />
+    </div>
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
   <main :class="{'run-page':selected && !fileRoute}">
@@ -153,10 +157,10 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="runLink(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
       <div class="run-body">
-        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" title="Graphs" aria-label="Run graphs">
+        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" scroll-key="graphs" title="Graphs" aria-label="Run graphs">
           <CellChart :key="selected.id" :chart-data="runCharts" clickable @open-turn="forkDiagram.openChartTurn($event)" full-width all-points kind="advice" :controls="false" />
         </ContentPanel>
-        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" state-key="transcripts" title="Transcripts" aria-label="Run transcripts">
+        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" state-key="transcripts" scroll-key="transcripts" title="Transcripts" aria-label="Run transcripts">
           <ForkDiagram ref="forkDiagram" :run="selected" :target="target" />
         </ContentPanel>
       </div>

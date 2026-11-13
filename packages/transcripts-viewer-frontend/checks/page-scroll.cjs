@@ -1,0 +1,20 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict')
+;(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH});try{
+ const page=await browser.newPage({viewport:{width:900,height:600}}),base=process.env.VIEWER_URL||'http://localhost:5173'
+ const url=`${base}/#/files/input_output.json?src=/api/runs/20261113-034702-still-bar/problem/input_output.json`
+ await page.goto(url);await page.locator('.vjs-tree').waitFor()
+ await page.evaluate(()=>window.scrollTo(0,500))
+ await page.waitForFunction(()=>new URLSearchParams(location.hash.split('?')[1]).get('scroll:page')==='[0,500]')
+ const saved=page.url();await page.reload();await page.waitForFunction(()=>Math.abs(window.scrollY-500)<2)
+ const tab=await browser.newPage({viewport:{width:900,height:600}});await tab.goto(saved);await tab.waitForFunction(()=>Math.abs(window.scrollY-500)<2);await tab.close()
+ await page.setViewportSize({width:480,height:700})
+ await page.goto(`${base}/#/run/20261113-034702-wild-recipe`)
+ await page.locator('.run-graphs .chart-point').last().press('Enter')
+ await page.locator('.p-dialog .text-section').first().waitFor()
+ await page.locator('.p-dialog-content').evaluate(e=>{e.scrollTop=200})
+ await page.waitForFunction(()=>new URLSearchParams(location.hash.split('?')[1]).get('scroll:modal')==='[0,200]')
+ const modalUrl=page.url()
+ await page.reload();await page.waitForFunction(()=>Math.abs((document.querySelector('.p-dialog-content')?.scrollTop??0)-200)<2)
+ const fresh=await browser.newPage({viewport:{width:480,height:700}});await fresh.goto(modalUrl);await fresh.waitForFunction(()=>Math.abs((document.querySelector('.p-dialog-content')?.scrollTop??0)-200)<2);await fresh.close()
+ console.log('Router page scroll and modal container scroll survive reload/fresh tab with async file loading.')
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1})
