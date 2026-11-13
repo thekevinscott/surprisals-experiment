@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps({ chartData:Object, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, xZoom:{type:Boolean,default:true}, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const emit = defineEmits(['open-turn'])
 const pointTurn = (series,point) => ({window:series.window,fork:series.fork,turn:point[0]-series.turnStart})
 function openPoint(series,point) { if(props.clickable)emit('open-turn',pointTurn(series,point)) }
@@ -12,6 +12,8 @@ const mode = ref('all')
 const data = computed(()=>props.chartData.series)
 const domains = computed(()=>props.chartData.domains)
 const range = defineModel('range', {default:null})
+const xRange = defineModel('xRange', {default:null})
+const xKnob = ref(null)
 const knob = ref(null)
 const clipId = useId()
 const dots = ref(true)
@@ -21,6 +23,7 @@ const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => points(s).at(-1)
 
+const svgHeight = computed(() => props.xZoom ? 305 : 285)
 const svgElement = ref(null)
 const measuredWidth = ref(null)
 let resizeObserver
@@ -28,7 +31,7 @@ onMounted(() => {
   if (!props.fullWidth) return
   resizeObserver = new ResizeObserver(([entry]) => {
     const {width, height} = entry.contentRect
-    if (width > 0 && height > 0) measuredWidth.value = width / height * 285 - 120
+    if (width > 0 && height > 0) measuredWidth.value = width / height * svgHeight.value - 120
   })
   resizeObserver.observe(svgElement.value)
 })
@@ -48,6 +51,7 @@ const legendWindows = computed(() => {
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
 const points = s => props.allPoints && props.kind === 'advice' ? (s.scored.length && s.startPoint ? [s.startPoint,...s.scored] : s.scored) : s[props.kind]
 const domain = computed(() => domains.value[chartKey.value] || { x: [0, 250], y: [0, 54] })
+const xrange = computed(() => xRange.value || domain.value.x)
 const yrange = computed(() => range.value || domain.value.y)
 const ymin = computed(() => yrange.value[0])
 const ymax = computed(() => yrange.value[1])
@@ -60,11 +64,24 @@ const yticks = computed(() => {
   return Array.from({length: Math.floor((ymax.value - first) / step) + 1}, (_, i) => first + i * step)
 })
 const xticks = computed(() => {
-  const [start,end]=domain.value.x, step=end-start<=20 ? 2 : 10
+  const [start,end]=xrange.value, step=end-start<=20 ? 2 : 10
   const first=Math.ceil(start/step)*step
   return Array.from({length:Math.floor((end-first)/step)+1},(_,i)=>first+i*step)
 })
-const x = v => (v-domain.value.x[0]) / (domain.value.x[1]-domain.value.x[0]) * width.value
+const x = v => (v-xrange.value[0]) / (xrange.value[1]-xrange.value[0]) * width.value
+const sliderX = v => (v-domain.value.x[0]) / (domain.value.x[1]-domain.value.x[0]) * width.value
+function grabX(which,event) {
+  event.currentTarget.setPointerCapture(event.pointerId)
+  xKnob.value=which
+}
+function slideX(event) {
+  if(!xKnob.value)return
+  const px=new DOMPoint(event.clientX,event.clientY).matrixTransform(event.currentTarget.ownerSVGElement.getScreenCTM().inverse()).x-95
+  const [start,end]=domain.value.x,gap=(end-start)/50
+  const value=Math.max(start,Math.min(end,start+px/width.value*(end-start)))
+  const [lo,hi]=xrange.value
+  xRange.value=xKnob.value==='lo' ? [Math.min(value,hi-gap),hi] : [lo,Math.max(value,lo+gap)]
+}
 const scale = v => logarithmic.value ? Math.log1p(v) : v
 const y = v => 240 - (scale(v) - scale(ymin.value)) / (scale(ymax.value) - scale(ymin.value)) * 210
 const [d0, d1] = [() => domain.value.y[0], () => domain.value.y[1]]
@@ -92,7 +109,7 @@ function path(s) {
     <div class="filters" @click.stop @keydown.stop>
       <template v-if="controls && chartData.arms.length > 1">
       <span>Strategy</span>
-      <button v-for="value in chartData.arms" :key="value" :aria-pressed="armSel === value" @click="armSel = value; mode = 'all'; range = null">{{ value }}</button>
+      <button v-for="value in chartData.arms" :key="value" :aria-pressed="armSel === value" @click="armSel = value; mode = 'all'; range = null; xRange = null">{{ value }}</button>
       </template>
       <template v-if="controls && modes.length > 2">
       <span style="margin-left:12px">Problem</span>
@@ -101,7 +118,7 @@ function path(s) {
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
       <button v-if="controls && kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
-    <svg ref="svgElement" :viewBox="`0 0 ${width + 120} 285`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
+    <svg ref="svgElement" :viewBox="`0 0 ${width + 120} ${svgHeight}`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
       <defs>
         <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" height="222" /></clipPath>
       </defs>
@@ -121,15 +138,22 @@ function path(s) {
         <g v-for="tick in xticks" :key="tick">
           <text :x="x(tick)" y="255" text-anchor="middle">{{ tick }}</text>
         </g>
-        <g v-for="window in chartData.windowPositions" :key="`window-${window.id}`" class="window-boundary" :data-window="window.id">
+        <g v-for="window in (chartData.windowPositions ?? []).filter(window=>window.depth>=xrange[0] && window.depth<=xrange[1])" :key="`window-${window.id}`" class="window-boundary" :data-window="window.id">
           <line :x1="x(window.depth)" :x2="x(window.depth)" y1="25" y2="240" vector-effect="non-scaling-stroke" />
           <text :x="x(window.depth) + 4" y="18">Window {{ window.id }}</text>
+        </g>
+        <g v-if="xZoom" class="x-slider">
+          <line x1="0" :x2="width" y1="289" y2="289" class="track" />
+          <line :x1="sliderX(xrange[0])" :x2="sliderX(xrange[1])" y1="289" y2="289" class="selected" />
+          <circle v-for="which in ['lo','hi']" :key="which" :cx="sliderX(which === 'lo' ? xrange[0] : xrange[1])" cy="289" r="6" class="knob"
+            :data-knob="which" @pointerdown.stop.prevent="grabX(which,$event)" @pointermove.stop="slideX"
+            @pointerup.stop="xKnob=null" @pointercancel.stop="xKnob=null" />
         </g>
         <text :x="width / 2" y="271" text-anchor="middle" class="axis-title">Turn (sequential depth)</text>
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem" :class="{'series-dimmed':highlightedSeries!==null && highlightedSeries!==s.cell,'series-highlighted':highlightedSeries===s.cell}">
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
-          <g v-for="(p, i) in (!dots ? [] : allPoints ? s.scored : s.passing).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
+          <g v-for="(p, i) in (!dots ? [] : allPoints ? s.scored : s.passing).filter(p => p[0] >= xrange[0] && p[0] <= xrange[1] && p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
             <title>{{ `${clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ` : ''}${p[1].toLocaleString(undefined,{maximumFractionDigits:3})} ${unit}` }}</title>
             <circle :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
             <circle v-if="clickable" :cx="x(p[0])" :cy="y(p[1])" r="7" fill="transparent" class="point-hit" />
@@ -160,9 +184,10 @@ button { border:1px solid #ccd3dd; border-radius:4px; padding:2px 7px; backgroun
 button[aria-pressed="true"] { background:#334155; color:white; }
 button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
 svg { width:100%; display:block; }
-.y-slider .track { stroke:#e4e3de; stroke-width:4; stroke-linecap:round; }
-.y-slider .selected { stroke:#94a3b8; stroke-width:4; stroke-linecap:round; }
-.y-slider .knob { fill:white; stroke:#334155; stroke-width:1.5; cursor:ns-resize; touch-action:none; }
+.y-slider .track, .x-slider .track { stroke:#e4e3de; stroke-width:4; stroke-linecap:round; }
+.y-slider .selected, .x-slider .selected { stroke:#94a3b8; stroke-width:4; stroke-linecap:round; }
+.y-slider .knob, .x-slider .knob { fill:white; stroke:#334155; stroke-width:1.5; cursor:ns-resize; touch-action:none; }
+.x-slider .knob { cursor:ew-resize; }
 .dots { margin-left:12px; }
 svg text { font:9px 'DejaVu Sans',sans-serif; fill:#596273; }
 svg .axis-title { font-size:10px; }
