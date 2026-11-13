@@ -671,7 +671,7 @@ def test_live_log_error_is_reported_once_and_readiness_continues(
     assert capsys.readouterr().err.count("Pod pod1 log stream failed:") == 1
 
 
-def test_cost_lifecycle_shared_experiments(fake_http, state, tmp_path):
+def test_cost_lifecycle_shared_experiments(fake_http, state, tmp_path, capsys):
     from runpod_scorer import costs
 
     fake_http.side_effect = [response(body=[]), response(body={
@@ -692,11 +692,13 @@ def test_cost_lifecycle_shared_experiments(fake_http, state, tmp_path):
     teardown.down()
     fake_http.assert_not_called()
     assert json.loads(path.read_text())['stop'] is None
+    assert 'Deleted pod' not in capsys.readouterr().err
     fake_http.side_effect = [response(204), response(404)]
     with users.locked():
         teardown.release('pod1', 'test-key', users.user_file('pod1', other))
     finished = json.loads(path.read_text())
     assert finished['stop'] is not None
+    assert 'Deleted pod pod1' in capsys.readouterr().err
     assert finished == json.loads((tmp_path / 'second/runpod-costs/pod1.json').read_text())
     assert 'test-key' not in costs.registry('pod1').read_text()
 
@@ -725,3 +727,42 @@ def test_reuse_records_api_rate_and_preserves_start(fake_http, tmp_path):
     assert record['gpu'] == 'H200'
     assert record['start'] == '2026-11-12T00:00:00Z'
     assert len(list(path.parent.glob('*.json'))) == 1
+
+
+def test_delete_records_stop_only_after_verified_absence(fake_http, tmp_path, monkeypatch, capsys):
+    from runpod_scorer import costs
+
+    start = '2026-11-13T00:00:00+00:00'
+    stop = '2026-11-13T02:00:00+00:00'
+    costs.record({'id': 'pod1', 'costPerHr': 2, 'lastStartedAt': start}, tmp_path, 'H100')
+    path = tmp_path / 'runpod-costs/pod1.json'
+    monkeypatch.setattr(costs, 'now', lambda: stop)
+    responses = iter([response(204), response(body={'id': 'pod1'}), response(404)])
+
+    def request(*args, **kwargs):
+        assert json.loads(path.read_text())['stop'] is None
+        assert 'Deleted pod' not in capsys.readouterr().err
+        return next(responses)
+
+    fake_http.side_effect = request
+    teardown.delete_pod('pod1', 'test-key')
+    record = json.loads(path.read_text())
+    assert record['start'] == start
+    assert record['stop'] == stop
+    assert (datetime.fromisoformat(stop) - datetime.fromisoformat(start)).total_seconds() == 7200
+    line = capsys.readouterr().err.strip()
+    prefix, message = line.split(' ', 1)
+    assert datetime.fromisoformat(prefix).tzinfo is not None
+    assert message == 'Deleted pod pod1'
+
+
+def test_delete_timeout_does_not_record_stop_or_success(fake_http, tmp_path, monkeypatch, capsys):
+    from runpod_scorer import costs
+
+    costs.record({'id': 'pod1', 'costPerHr': 2}, tmp_path, 'H100')
+    monkeypatch.setattr(teardown, 'DELETE_TIMEOUT', 0)
+    fake_http.return_value = response(204)
+    with pytest.raises(TimeoutError):
+        teardown.delete_pod('pod1', 'test-key')
+    assert json.loads((tmp_path / 'runpod-costs/pod1.json').read_text())['stop'] is None
+    assert 'Deleted pod' not in capsys.readouterr().err

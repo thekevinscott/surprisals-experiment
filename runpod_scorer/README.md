@@ -17,7 +17,8 @@ creates one if none exists, and registers this invocation. A different model,
 a stopped scorer, or multiple pre-existing scorers makes up fail instead of
 creating another pod. Up saves `pod_id` to labnotes state before releasing the
 lock. It then waits for readiness outside the lock and adds `base_url` to state.
-The pod ID is printed to stderr on creation or reuse.
+The pod ID is printed to stderr on creation or reuse. Verified deletion prints
+a timestamped `Deleted pod <id>` line and records the stop time inside `delete_pod`.
 While the pod is not ready, up also polls RunPod's pod record and prints, with
 a UTC timestamp, each change to `lastStatusChange`, `lastStartedAt`, and
 `portMappings`. If readiness takes over ten minutes or up fails, it saves the

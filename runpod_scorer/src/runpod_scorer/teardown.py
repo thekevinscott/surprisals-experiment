@@ -9,6 +9,7 @@ import labnotes
 from dotenv import load_dotenv
 
 from . import costs, users
+from .timestamp import timestamp
 
 API = "https://rest.runpod.io/v1"
 DELETE_TIMEOUT = 120
@@ -40,6 +41,8 @@ def delete_pod(pod_id, key):
     while time.monotonic() < deadline:
         result = request("GET", url, key)
         if result.status_code == 404:
+            timestamp(f"Deleted pod {pod_id}")
+            costs.stopped(pod_id)
             return
         result.raise_for_status()
         time.sleep(2)
@@ -56,7 +59,6 @@ def release(pod_id, key, own=None):
     """Caller holds scorer.lock through the ownership check and deletion."""
     if not users.remaining(pod_id, own):
         delete_pod(pod_id, key)
-        costs.stopped(pod_id)
 
 
 def down():
