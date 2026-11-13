@@ -74,12 +74,13 @@ export function openTranscript(preview,file=preview.files[0]) {
   }
   present({...preview,kind:'transcript',files:[file],source:file.source,rawFiles:[file]})
 }
-function advicePreview({sourceUrl,uNavigation,uTurnId}) {
+let adviceTransition=0
+function advicePreview({sourceUrl,uNavigation,uTurnId,previousText}) {
   const navigation=()=>{const context=uNavigation();return {...context,turns:context.turns.filter(turn=>turn.advice!=null)}}
   const context=navigation(),id=uTurnId??context.turn,turn=context.turns.find(turn=>turn.id===id)
   const route=fileRoute(new URL(sourceUrl(turn.adviceSource),location.href).hash)
   const src=route.get('src'),name=route.get('name')
-  return {kind:'advice',src,name,sourceUrl,uNavigation:navigation,uTurnId:id,
+  return {kind:'advice',src,name,sourceUrl,uNavigation:navigation,uTurnId:id,previousText,highlightId:++adviceTransition,
     title:`Window ${context.window} · Fork ${context.fork}${turn.solo?' continues':''} · Turn ${id} · Advice`,
     initialText:turn.advice,tokens:turn.tokens,measurement:turn.measurement==null?'Measurement unavailable':turnSummary(turn),
     rawFiles:[{url:src,source:name}]}
@@ -92,7 +93,7 @@ export function stepUTurn(direction) {
   const turn=context.turns[index+direction]
   if(index>=0 && turn){
     const next={...preview,uTurnId:turn.id}
-    if(preview.kind==='advice')openAdvice(next)
+    if(preview.kind==='advice')openAdvice({...next,previousText:preview.initialText})
     else openTranscript(next)
   }
 }

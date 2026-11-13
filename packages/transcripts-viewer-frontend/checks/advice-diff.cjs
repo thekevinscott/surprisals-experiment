@@ -1,0 +1,21 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict')
+;(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH});try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000}})
+ await page.goto(`${process.env.VIEWER_URL||'http://localhost:5173'}/#run/20261113-034702-still-bar`)
+ await page.locator('.run-window[data-window="2"] .fork-branch[data-fork="2"] .turn-block[data-turn="1"]').getByRole('button',{name:'Open advice',exact:true}).click()
+ assert.equal(await page.locator('.advice-added').count(),0)
+ for(const turn of [2,3]){
+  await page.getByRole('button',{name:'Next advice',exact:true}).click()
+  await page.getByText(`Window 2 · Fork 2 · Turn ${turn} · Advice`,{exact:true}).waitFor()
+  await page.locator('.advice-added').first().waitFor();await page.waitForTimeout(500)
+  assert.equal(await page.locator('.advice-added').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(187, 247, 208)')
+  await page.screenshot({path:`/tmp/claude/brief-viewer-lazy/advice-diff-${turn}-0.5s.png`})
+  await page.waitForTimeout(4500)
+  assert.equal(await page.locator('.advice-added').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)')
+  await page.screenshot({path:`/tmp/claude/brief-viewer-lazy/advice-diff-${turn}-5s.png`})
+ }
+ await page.keyboard.press('ArrowLeft');await page.waitForTimeout(150);await page.keyboard.press('ArrowRight')
+ assert.equal(await page.locator('.advice-added').first().evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(187, 247, 208)')
+ await page.reload();await page.locator('.file-viewer pre').waitFor();assert.equal(await page.locator('.advice-added').count(),0)
+ console.log('Fresh opens have no highlight; turns1→2→3 additions hold/fade, rapid stepping restarts, reload has no highlight.')
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1})

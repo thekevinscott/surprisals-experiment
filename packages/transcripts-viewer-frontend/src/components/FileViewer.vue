@@ -2,8 +2,9 @@
 import {computed,provide} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
+import {addedRanges} from '../composables/adviceDiff.js'
 import TokenText from './TokenText.vue'
-const props=defineProps({src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,testCase:Number,showName:{type:Boolean,default:true}})
+const props=defineProps({previousText:String,highlightId:Number,src:String,name:String,line:String,initialText:String,tokens:Array,measurement:String,testCase:Number,showName:{type:Boolean,default:true}})
 provide('viewStateKey',()=>props.src)
 provide('testCase',()=>props.testCase)
 provide('disclosurePath',()=>props.src)
@@ -13,6 +14,7 @@ provide('sourceUrl',(_path,line)=>{
   return viewer.href
 })
 const {data:liveText,error}=useLiveResource(()=>[props.src],(signal,[url])=>fetchText(url,signal))
+const additions=computed(()=>props.previousText==null?[]:addedRanges(props.previousText,text.value??''))
 const text=computed(()=>liveText.value ?? props.initialText ?? null)
 </script>
 <template>
@@ -20,9 +22,9 @@ const text=computed(()=>liveText.value ?? props.initialText ?? null)
     <header v-if="showName"><strong>{{ name }}</strong></header>
     <p v-if="error" role="alert">{{ error }}</p>
     <p v-else-if="text===null">Loading file…</p>
-    <template v-else-if="tokens">
+    <template v-else-if="tokens || previousText!=null">
       <p>{{ measurement }}</p>
-      <pre class="raw-file"><TokenText :text="text" :tokens="tokens" /></pre>
+      <pre class="raw-file"><TokenText :key="highlightId" :additions="additions" :text="text" :tokens="tokens" /></pre>
     </template>
     <FileContent v-else :name="name" :text="text" :line="line" />
   </section>
