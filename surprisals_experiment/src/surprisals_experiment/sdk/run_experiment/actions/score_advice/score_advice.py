@@ -36,3 +36,8 @@ async def score_advice(run: Run, turn: Turn) -> None:
         append(run.u_chat.transcript, json.dumps({
             "role": "user", "content": REJECTED,
         }, ensure_ascii=False) + "\n")
+    else:
+        if run.u_chat is not None and run.u_chat.entries()[-1]["role"] == "assistant":
+            append(run.u_chat.transcript, json.dumps({
+                "role": "user", "content": advice.measurement,
+            }, ensure_ascii=False) + "\n")

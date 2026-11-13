@@ -5,6 +5,7 @@ or the scored text for Score.
 """
 
 import shlex
+import json
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
@@ -13,7 +14,7 @@ from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
 def u_system(config):
     """The single, fixed system prompt at the start of a fork."""
     return Prompt('u/system.txt')(
-        measure_wording=Prompt('u/measure_surprisal.txt')() if config.cap_strategy == 'surprisal' else '',
+        measure_wording=Prompt(f'u/measure_{config.cap_strategy}.txt')(),
         implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples)
 
 
@@ -26,6 +27,16 @@ def u_user(config, turn, content='', best=None):
                         else (str(round(best)), str(round(target))))
         line += f'; best at window start: {best}; target: {target} (5%)'
     return line + ('\n' + content if content else '')
+
+
+def u_opening(config, question, best=None):
+    return [{'role': 'user', 'content': question},
+            {'role': 'user', 'content': u_user(config, 1, best=best)}]
+
+
+def u_followup(config, turn, feedback, best=None):
+    return [{'role': 'user', 'content': feedback},
+            {'role': 'user', 'content': u_user(config, turn, best=best)}]
 
 
 def t_sent(attempt, advice, *, model='t'):
@@ -84,3 +95,13 @@ class Score:
         self.bits = bits
         self.status = status
         self.message = message
+
+
+def measurement(text, tokens=None):
+    if tokens is None:
+        return f'<advice_length>{len(text)} characters</advice_length>'
+    lines = [f'<total>{sum(bits for _, bits in tokens):.2f}</total>']
+    for token, bits in tokens:
+        literal = json.dumps(token, ensure_ascii=False).replace('<', r'\u003c')
+        lines.append(f'<token bits="{bits:.2f}">{literal}</token>')
+    return '<advice_surprisal_bits>\n' + '\n'.join(lines) + '\n</advice_surprisal_bits>'

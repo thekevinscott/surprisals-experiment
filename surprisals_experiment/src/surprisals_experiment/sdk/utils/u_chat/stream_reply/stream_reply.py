@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime
+from hashlib import sha256
 
 from openai import LengthFinishReasonError
 
@@ -24,6 +25,12 @@ async def stream_reply(self, *, on_delta=None) -> str:
                 "provider": {"only": [self.provider], "allow_fallbacks": False},
             },
         ) as stream:
+            # The SDK retains the HTTP request, including the exact serialized body.
+            body = stream._response.request.content
+            request_metadata = {
+                "u_messages": len(json.loads(body)["messages"]),
+                "u_request_sha256": sha256(body).hexdigest(),
+            }
             async for event in stream:
                 snapshot = stream.current_completion_snapshot
                 if event.type == "chunk" and any(c.finish_reason == "error" for c in event.chunk.choices):
@@ -70,6 +77,7 @@ async def stream_reply(self, *, on_delta=None) -> str:
                     detail["format"] = reasoning_formats[detail["index"]]
             if complete:
                 append(self.transcript, json.dumps(message | {
+                    **request_metadata,
                     "timestamp": datetime.now(UTC).isoformat(),
                     "completion_id": snapshot.id,
                     "usage": usage.model_dump(exclude_unset=True) if usage is not None else None,

@@ -2,11 +2,12 @@
 
 import json
 from hashlib import sha256
+import pytest
 
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import T, U, t_sent, u_system, u_user
+from utils.world import u_followup, u_opening, T, U, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -23,8 +24,8 @@ def code(*samples):
 
 
 def prompt(index, advice, *samples):
-    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
-            f'<advice>\n{advice}\n</advice>\n<length>{len(advice)} characters</length>\n'
+    return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
+            f'<advice>\n{advice}\n</advice>\n<advice_length>{len(advice)} characters</advice_length>\n'
             f'{code(*samples)}\n</attempt>')
 
 
@@ -32,7 +33,7 @@ def exhausted(config, reply, error):
     """U's first try and all 8 retries fail with `error`."""
     sent = {'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
             'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
-            'messages': [{'role': 'system', 'content': u_system(config)}, {'role': 'user', 'content': u_user(config, 1, QUESTION)}]}
+            'messages': [{'role': 'system', 'content': u_system(config)}, *u_opening(config, QUESTION)]}
     u = 'windows/0/forks/0/turns/0/u'
     text = [(u, 'text', reply.text)] if reply.text else []
     first = {'settings.json': ..., 'windows/0/window.json': {}, 'windows/0/forks/0/fork.json': {},
@@ -51,10 +52,12 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     mutated = {'helper.py': 'VALUE = 42\n', 'main.py': MUTATING, 'nested/extra.py': 'EXTRA = 7\n'}
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     best = prompt(1, 'short', clean, clean)
-    first = [{'role': 'user', 'content': u_user(config, 1, QUESTION)}, {'role': 'assistant', 'content': 'long advice'},
-             {'role': 'user', 'content': u_user(config, 2, '<length>11 characters</length>\n' + code(mutated, clean))}]
-    second = [{'role': 'user', 'content': u_user(config, 1, best, 5)}, {'role': 'assistant', 'content': 'short'},
-              {'role': 'user', 'content': u_user(config, 2, '<length>5 characters</length>\n' + code(clean, clean), 5)}]
+    first = [*u_opening(config, QUESTION), {'role': 'assistant', 'content': 'long advice'},
+             {'role': 'user', 'content': '<advice_length>11 characters</advice_length>'},
+             *u_followup(config, 2, code(mutated, clean))]
+    second = [*u_opening(config, best, 5), {'role': 'assistant', 'content': 'short'},
+              {'role': 'user', 'content': '<advice_length>5 characters</advice_length>'},
+              *u_followup(config, 2, code(clean, clean), 5)]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -65,7 +68,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
                      sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                            'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                            'messages': [{'role': 'system', 'content': u_system(config)},
-                                        *(user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, number + 1, user, previous)}])]},
+                                        *(user if isinstance(user, list) else u_opening(config, user, previous))]},
                      logs=[(path, 'thinking', 'Think.'), (path, 'text', advice)], files=files)
 
     def t(window, number, sample, advice, code, files=None):
@@ -80,7 +83,7 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     def advised(window, number, advice, score=None):
         digest = f'advices/{sha256(advice.encode()).hexdigest()}'
         path = turn(window, number)
-        files = {f'{path}/metadata.json': {'advice': digest}}
+        files = {f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
         return files | ({f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}} if score else {})
 
     def evaluated(window, number):
@@ -114,15 +117,15 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
 
 async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     config.max_u_turns = 3
-    question = 'Read an integer and print its double.'
+    question = '<original_question>\nRead an integer and print its double.\n</original_question>'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-            '<attempt>\n<index>0</index>\n<advice>\ntiny\n</advice>\n<length>4 characters</length>\n'
+            '<attempt>\n<index>0</index>\n<advice>\ntiny\n</advice>\n<advice_length>4 characters</advice_length>\n'
             '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
                'longer advice': 'advices/6c5930dfdad8282d9030e1cd507d78acfc26231d4fc74758d85584199ee9f561'}
     system = {'role': 'system', 'content': u_system(config)}
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None, 'u_messages': ..., 'u_request_sha256': ...}
     tests = {'duration_seconds': 0.0, 'passed': 2, 'failed': 0, 'total': 2, 'all_passed': True, 'cases': [
         {'index': 0, 'passed': True, 'status': 'passed', 'stdout': '6\n', 'stderr': '', 'exit_code': 0},
         {'index': 1, 'passed': True, 'status': 'passed', 'stdout': '14\n', 'stderr': '', 'exit_code': 0},
@@ -132,17 +135,20 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
 
     def talk(opening, *said):
         previous = 4 if opening == best else None
-        return [{'role': 'user', 'content': u_user(config, 1, opening, previous)},
+        return [*u_opening(config, opening, previous),
                 *[message for turn, advice in enumerate(said, 2) for message in (
                     {'role': 'assistant', 'content': advice},
-                    {'role': 'user', 'content': u_user(config, turn, f'<length>{len(advice)} characters</length>\n' + code({'main.py': PASS}), previous)})]]
+                    {'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'},
+                    *u_followup(config, turn, code({'main.py': PASS}), previous))]]
 
     def chat(*turns):
         messages = [system]
         for attempt, (user, advice) in enumerate(turns):
+            messages.append(user[-2])
             messages.append(user[-1] | {'_attempt': attempt})
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
+                messages.append({'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'})
         return messages
 
     def transcripts(window):
@@ -171,7 +177,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             logs=[(f'{t}/ts/0', 'thinking', 'Write it.'), (f'{t}/ts/0', 'text', 'Done.')],
             files={
                 f'{transcripts(window)}/transcript.jsonl': messages,
-                f'{t}/metadata.json': {'advice': advices[advice]},
+                f'{t}/metadata.json': {'advice': advices[advice], 'u_messages': ..., 'u_request_sha256': ...},
                 f'{t}/ts/0/attempts/0/stdout.txt': stdout,
                 f'{t}/ts/0/attempts/0/src/main.py': PASS,
                 **(files or {}),
@@ -246,7 +252,8 @@ async def test_records_and_uses_a_reply_with_a_lone_surrogate(config, execute_ru
         pass
 
 
-async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execute_run_experiment):
+@pytest.mark.parametrize('request_metadata', [{}, {'u_messages': 2, 'u_request_sha256': 'a' * 64}])
+async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execute_run_experiment, request_metadata):
     config.max_u_turns = 1
     advice = 'double'
     world, pending = played([
@@ -254,7 +261,16 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
         [(flush(0, advice, length=6), advice, [PASS])],
     ], {advice: {'score': 6}}, config=config)
     transcript = 'windows/0/forks/0/u/transcript.jsonl'
-    saved = ''.join(json.dumps(entry) + '\n' for entry in world[1].files.pop(transcript))
+    entries = world[1].files.pop(transcript)
+    measurement_entry = entries.pop()
+    entries[-1].pop('u_messages')
+    entries[-1].pop('u_request_sha256')
+    entries[-1].update(request_metadata)
+    saved = ''.join(json.dumps(entry) + '\n' for entry in entries)
+    world[1].files['windows/0/forks/0/turns/0/metadata.json'] = {
+        'advice': world[1].files['windows/0/forks/0/turns/0/metadata.json']['advice'], **request_metadata,
+    }
+    world[1].files[transcript] = [*entries, measurement_entry]
     path = config.output / transcript
     path.parent.mkdir(parents=True)
     path.write_text(saved)
@@ -264,4 +280,6 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
     # Resume goes straight to T; the only U request is in the next window.
     async with execute_run_experiment(config, world[1:], u_layout=True):
         pass
-    assert path.read_text() == saved
+    assert path.read_text() == saved + json.dumps(measurement_entry) + '\n'
+    metadata = json.loads((path.parent.parent / 'turns/0/metadata.json').read_text())
+    assert {key: value for key, value in metadata.items() if key != 'advice'} == request_metadata

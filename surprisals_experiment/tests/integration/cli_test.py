@@ -30,7 +30,7 @@ def labnotes_run_state(tmp_path):
 
 def world(config, u_model, t_model, url, u_provider='xiaomi'):
     """Two windows of one turn, two T samples each, run one at a time; the run's own logs go to labnotes."""
-    best = flush(0, 'Double.', bits='Double.<7.0>', codes=(PASS, PASS))
+    best = flush(0, 'Double.', bits=[('Double.', 7.0)], codes=(PASS, PASS))
     states, pending = played([[(QUESTION, 'Double.', [PASS, PASS])], [(best, 'Double.', [PASS, PASS])]],
                              {'Double.': {'score': 7.0, 'tokens': [['Double.', 7.0]]}}, sequential=True,
                              bits={'Double.': [('Double.', 7.0)]}, config=config.model_copy(update={

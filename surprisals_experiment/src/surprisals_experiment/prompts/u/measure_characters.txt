@@ -1,0 +1,1 @@
+Advice is measured in characters: the length of your final message. Fewer is better. After each advice you receive <advice_length> with its length.

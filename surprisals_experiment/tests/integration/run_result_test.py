@@ -62,7 +62,7 @@ def describe_run_result():
     async def it_reads_shared_advice_scores(scoring_config, execute_run_experiment):
         config = scoring_config
         advice = 'Use café.'
-        best = flush(0, advice, bits=f'{advice}<3.2>')
+        best = flush(0, advice, bits=[(advice, 3.25)])
         states, pending = played([[(QUESTION, advice, [PASS])], [(best, advice, [PASS])]],
                                  {advice: {'score': 3.25, 'tokens': [[advice, 3.25]]}},
                                  bits={advice: [(advice, 3.25)]}, config=config)

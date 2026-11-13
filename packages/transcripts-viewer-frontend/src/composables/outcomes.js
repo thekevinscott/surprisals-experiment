@@ -6,6 +6,20 @@ export function attemptState(attempt) {
   return `${tests.all_passed ? 'Passed' : 'Failed'} · ${tests.passed}/${tests.total} tests passed`
 }
 export function turnSummary(turn) {
-  const passed = turn.samples.filter(sample => sample.latest?.tests?.all_passed && !sample.latest.generation?.timed_out && !sample.latest.generation?.error).length
-  return `${passed}/${turn.samples.length} samples passed · ${turn.measurement == null ? 'No score' : `${turn.measurement.toLocaleString(undefined, {maximumFractionDigits:2})} ${turn.unit}`}`
+  return turn.measurement == null ? 'No score' : `${turn.unit==='bits' ? Number(turn.measurement.toFixed(3)) : turn.measurement} ${turn.unit}`
+}
+
+export function attemptOutcome(attempt) {
+  if (attempt?.generation?.timed_out || attempt?.generation?.error) return 'failed'
+  if (attempt?.tests?.all_passed == null) return 'unknown'
+  return attempt.tests.all_passed ? 'passed' : 'failed'
+}
+export function testCaseBlocks(cases=[]) {
+  return cases.map((test, position) => ({status: test.status, index: test.index, position}))
+}
+
+export function transcriptFailure(attempt) {
+  const generation=attempt.generation
+  if (!generation?.timed_out) return null
+  return 'Generation timed out before this attempt completed.' + (generation.error ? `\n${typeof generation.error==='string' ? generation.error : JSON.stringify(generation.error)}` : '')
 }

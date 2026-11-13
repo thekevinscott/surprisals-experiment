@@ -17,7 +17,7 @@ export function useLiveResource(sources,load) {
   const data=ref(null),loading=ref(false),error=ref('')
   watch(()=>JSON.stringify(sources()),(key,_,cleanup)=>{
     const urls=JSON.parse(key),controller=new AbortController()
-    cleanup(()=>controller.abort())
+    cleanup(()=>{controller.abort();data.value=null})
     data.value=null;error.value='';loading.value=urls.length>0
     if(!urls.length)return
     watchData(urls,signal=>load(signal,urls),{

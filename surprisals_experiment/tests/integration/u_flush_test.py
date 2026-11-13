@@ -6,12 +6,12 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
-from utils.world import Score, T, U, t_sent, u_system, u_user
+from utils.world import u_followup, u_opening, Score, T, U, measurement, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
 FAIL = 'print(0)\n'
-QUESTION = 'Read an integer and print its double.'
+QUESTION = '<original_question>\nRead an integer and print its double.\n</original_question>'
 STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinking_delta", "delta": "Write main.py."}}\n'
           '{"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "delta": "Done."}}\n')
 
@@ -19,10 +19,10 @@ STDOUT = ('{"type": "message_update", "assistantMessageEvent": {"type": "thinkin
 def flush(index, advice, *, length=None, bits=None, codes=(PASS,)):
     code = '\n'.join(f'<T-{sample}>\n<file path="main.py">\n{source.rstrip()}\n</file>\n<results>2/2 test cases passed</results>\n</T-{sample}>'
                      for sample, source in enumerate(codes))
-    return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
+    return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
             + f'<advice>\n{advice}\n</advice>\n'
-            + (f'<length>{length} characters</length>\n' if length else '')
-            + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
+            + (f'<advice_length>{length} characters</advice_length>\n' if length else '')
+            + (measurement(advice, bits) + '\n' if bits else '')
             + f'<code>\n{code}\n</code>\n</attempt>')
 
 
@@ -33,17 +33,20 @@ def appended(*codes):
         f'</T-{sample}>\n' for sample, source in enumerate(codes)) + '</code>'
 
 
-def chat(window, *turns, config, best=None):
+def chat(window, *turns, config, best=None, bits=None, measured=True):
     """The window's U transcript after `turns` of (prompt, advice); advice None while U is still asked.
 
     A prompt is raw opening text, or a conversation whose user messages already include turn lines."""
-    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None}
+    usage = {'timestamp': '2026-01-01T00:00:00+00:00', 'completion_id': 'u', 'usage': None, 'u_messages': ..., 'u_request_sha256': ...}
     lines = [{'role': 'system', 'content': u_system(config)}]
     for attempt, (user, advice) in enumerate(turns):
-        conversation = user if isinstance(user, list) else [{'role': 'user', 'content': u_user(config, attempt + 1, user, best)}]
+        conversation = user if isinstance(user, list) else u_opening(config, user, best)
+        lines.append(conversation[-2])
         lines.append(conversation[-1] | {'_attempt': attempt})
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
+            if measured or attempt < len(turns) - 1:
+                lines.append({'role': 'user', 'content': measurement(advice, (bits or {}).get(advice))})
     transcripts = f'windows/{window}/forks/0/u'
     return {f'{transcripts}/transcript.jsonl': lines}
 
@@ -74,7 +77,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
         answered, conversation = [], []
         for index, (prompt, advice, codes) in enumerate(window_turns):
             assert (prompt is None) == (index > 0)
-            conversation = conversation or [{'role': 'user', 'content': u_user(config, 1, prompt, best)}]
+            conversation = conversation or u_opening(config, prompt, best)
             path = f'windows/{window}/forks/0/turns/{index}'
             states.append(State(
                 U(advice, thinking='Think.'),
@@ -82,24 +85,23 @@ def played(windows, scores, *, config, sequential=False, bits=None):
                       'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                       'messages': [{'role': 'system', 'content': u_system(config)}, *conversation]},
                 logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)],
-                files={**pending, **chat(window, *answered, (list(conversation), None), config=config, best=best)},
+                files={**pending, **chat(window, *answered, (list(conversation), None), config=config, best=best, bits=bits)},
             ))
             answered.append((list(conversation), advice))
-            measurement = (f'<bits>\n{"".join(f"{token}<{value:.1f}>" for token, value in bits[advice])}\n</bits>'
-                           if advice in bits else f'<length>{len(advice)} characters</length>')
             conversation += [{'role': 'assistant', 'content': advice},
-                             {'role': 'user', 'content': u_user(config, index + 2, measurement + '\n' + appended(*codes), best)}]
+                             {'role': 'user', 'content': measurement(advice, bits.get(advice))},
+                             *u_followup(config, index + 2, appended(*codes), best)]
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
-            pending = {**chat(window, *answered, config=config, best=best), f'{path}/metadata.json': {'advice': digest}}
+            pending = {**chat(window, *answered, config=config, best=best, bits=bits), f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
             if advice not in seen:
                 seen.add(advice)
                 pending[f'{digest}/advice.txt'] = advice
                 if advice in bits:
                     states.append(State(Score(bits[advice]), sent=advice,
-                                        files={**pending, f'{digest}/advice.json': {}}))
-                    pending = {}
+                                        files={**pending, **chat(window, *answered, config=config, best=best, bits=bits, measured=False), f'{digest}/advice.json': {}}))
+                    pending = chat(window, *answered, config=config, best=best, bits=bits)
                 pending[f'{digest}/advice.json'] = scores[advice]
             ran = {}
             for sample, code in enumerate(codes):
@@ -144,7 +146,7 @@ async def test_shows_only_best_all_pass_attempt(config, execute_run_experiment, 
     config.t_pool_size = 1
     config.max_u_turns = len(advices) + 1
     (config.problem_dir / 'question.txt').write_text((config.problem_dir / 'question.txt').read_text() + '\n')
-    question = (config.problem_dir / 'question.txt').read_text()
+    question = '<original_question>\n' + (config.problem_dir / 'question.txt').read_text().rstrip('\n') + '\n</original_question>'
     texts = [*advices, 'final']
     winner = min((index for index, ok in enumerate([*passed, True]) if ok), key=lambda index: len(texts[index]))
     first = [(question, texts[0], [PASS, OTHER_PASS if passed[0] else FAIL])]
@@ -178,7 +180,7 @@ async def test_selects_by_bits_and_shows_only_best_token_scores(config, execute_
         'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
         'max_u_turns': 3,
     }))
-    done = flush(2, 'done', bits='done<1.0>')
+    done = flush(2, 'done', bits=[('done', 1.0)])
     world, pending = played([
         [(QUESTION, 'Use a two-pointer', [PASS]), (None, 'Sweep.', [PASS]), (None, 'done', [PASS])],
         [(done, 'done', [PASS]), (None, 'done', [PASS]), (None, 'done', [PASS])],
@@ -202,7 +204,7 @@ async def test_shows_only_the_selected_measure_and_no_results(config, execute_ru
         scores = {'double': {'score': 6}, 'next': {'score': 4}}
         bits, scoring = {}, {}
     else:
-        best = flush(1, 'next', bits='next<1.0>', codes=(PASS, OTHER_PASS))
+        best = flush(1, 'next', bits=[('next', 1.0)], codes=(PASS, OTHER_PASS))
         bits = {'double': [('double', 2.5)], 'next': [('next', 1.0)]}
         scores = {advice: {'score': pairs[0][1], 'tokens': [list(pairs[0])]} for advice, pairs in bits.items()}
         scoring = {'best_measurement': 1.0, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
@@ -231,10 +233,11 @@ async def test_omits_large_files_from_the_flush(config, execute_run_experiment):
 
 
 @pytest.mark.parametrize('measure,measurement', [
-    ('characters', '<length>9 characters</length>'),
-    ('surprisal', '<bits>\ndouble<2.5> it<1.2>\n</bits>'),
+    ('characters', '<advice_length>9 characters</advice_length>'),
+    ('surprisal', '<advice_surprisal_bits>\n<total>3.75</total>\n<token bits="2.50">"double"</token>\n'
+     '<token bits="1.25">" it"</token>\n</advice_surprisal_bits>'),
 ])
-async def test_turn_two_contains_previous_advice_measurement(config, execute_run_experiment, measure, measurement):
+async def test_measurement_is_its_own_message_before_turn_two(config, execute_run_experiment, measure, measurement):
     config = Config(**(config.model_dump() | {
         'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 'max_u_turns': 2,
     }))
@@ -244,8 +247,8 @@ async def test_turn_two_contains_previous_advice_measurement(config, execute_run
     world, _ = played([[(QUESTION, 'double it', [PASS]), (None, 'next', [PASS])]],
                       scores, bits=bits, config=config)
     second = world[3 if bits else 2]
-    second.sent['messages'][-1]['content'] = u_user(config, 2, measurement + '\n' + appended(PASS))
-    second.files['windows/0/forks/0/u/transcript.jsonl'][-1]['content'] = u_user(config, 2, measurement + '\n' + appended(PASS))
+    assert second.sent['messages'][-3] == {'role': 'user', 'content': measurement}
+    assert second.sent['messages'][-2:] == u_followup(config, 2, appended(PASS))
     async with execute_run_experiment(config, world[:world.index(second) + 1], u_layout=True) as run:
         await run.reached(second)
         run.kill()

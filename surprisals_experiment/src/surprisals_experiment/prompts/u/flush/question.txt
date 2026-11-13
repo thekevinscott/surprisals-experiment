@@ -1,6 +1,6 @@
 <original_question>
 {{ question }}
-</original_question>
+</original_question>{% if attempt +%}
 
 <attempt>
 <index>{{ attempt.number }}</index>
@@ -9,4 +9,4 @@
 </advice>
 {{ measurement }}
 {{ attempt.code }}
-</attempt>
+</attempt>{% endif %}

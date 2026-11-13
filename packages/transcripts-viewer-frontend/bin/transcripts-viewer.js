@@ -16,7 +16,7 @@ try {
     const port=Number(values.port)
     if(!Number.isInteger(port)||port<1||port>65535)throw Error('Port must be between 1 and 65535')
     const directory=resolve(positionals[0]??process.cwd())
-    if(!(await stat(resolve(directory,'runs'))).isDirectory())throw Error('Expected a runs directory')
+    if(!(await stat(directory)).isDirectory())throw Error('Expected an experiment directory')
     const root=resolve(dirname(fileURLToPath(import.meta.url)),'..')
     api=createApi(directory)
     vite=await createServer({root,configFile:resolve(root,'vite.config.js'),server:{middlewareMode:true,ws:{server:api.server}}})

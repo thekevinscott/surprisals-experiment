@@ -16,7 +16,7 @@ from u_flush_test import (
     played,
     results,
 )
-from utils.world import T, U, t_sent, u_system, u_user
+from utils.world import u_opening, T, U, t_sent, u_system
 
 from surprisals_experiment.cli.main import main
 from surprisals_experiment.config import U_MODEL
@@ -29,7 +29,7 @@ def u_state(config, window, turn, prompt, advice, files, previous=None, *, u_lay
                  sent={'model': 'u', 'stream': True, 'reasoning': {'effort': 'high'},
                        'provider': {'only': ['xiaomi'], 'allow_fallbacks': False},
                        **({'messages': [{'role': 'system', 'content': u_system(config)},
-                                        *(prompt if isinstance(prompt, list) else [{'role': 'user', 'content': u_user(config, turn + 1, prompt, previous)}])]}
+                                        *(prompt if isinstance(prompt, list) else u_opening(config, prompt, previous))]}
                           if u_layout else {})},
                  logs=[(f'{path}/u', 'thinking', 'Think.'), (f'{path}/u', 'text', advice)], files=files)
 
@@ -54,7 +54,7 @@ def opened(window):
 def advised(window, turn, advice, score=None):
     digest = f'advices/{sha256(advice.encode()).hexdigest()}'
     path = f'windows/{window}/forks/0/turns/{turn}'
-    files = {f'{path}/metadata.json': {'advice': digest}}
+    files = {f'{path}/metadata.json': {'advice': digest, 'u_messages': ..., 'u_request_sha256': ...}}
     if score is not None:
         files |= {f'{digest}/advice.txt': advice, f'{digest}/advice.json': {'score': score}}
     return files

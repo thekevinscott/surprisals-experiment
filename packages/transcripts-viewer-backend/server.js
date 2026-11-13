@@ -2,15 +2,16 @@ import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
 import {join,resolve} from 'node:path'
-import {readExperiment,readRunIndex,runSummary,readRunDiagram,readTurnTranscript,readSample} from './lib/experiment.js'
+import {readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
 import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
 import {runFile,sourceBytes} from './lib/run-files.js'
+import {createTranscriptReader} from './lib/transcript-blocks.js'
 
 export function createApi(directory) {
   directory=resolve(directory)
-  const app=Fastify(), databases=new Map(), events=createEvents()
+  const app=Fastify(), databases=new Map(), events=createEvents(), readTranscript=createTranscriptReader()
   const database=(root,relations=true)=>{
     const key=`${root}:${relations}`
     if(!databases.has(key))databases.set(key,new ExperimentDatabase(root,{relations}))
@@ -32,17 +33,18 @@ export function createApi(directory) {
     if(wantsEvents(request))return events.stream(request,reply,()=>load(request))
     return load(request)
   })
-  app.get('/api/events',async(request,reply)=>{
-    const urls=JSON.parse(request.query.resources ?? '[]')
-    if(!Array.isArray(urls)||urls.length>256||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Error('Expected an array of API resource paths')
+  const streamResources=(reply,urls)=>{
+    if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Error('Expected an array of API resource paths')
     return events.multiplex(reply,[...new Set(urls)],async url=>{
       const response=await app.inject({method:'GET',url})
       if(response.statusCode>=400)throw Object.assign(Error(response.json().error),{statusCode:response.statusCode})
       return response.headers['content-type']?.startsWith('application/json') ? response.json() : response.body
     })
-  })
+  }
+  app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
+  app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
   endpoint('/api/runs',()=>readExperiment(directory,root=>database(root)))
-  endpoint('/api/runs/index',()=>readRunIndex(directory,database(join(directory,'runs'),false)))
+  endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{
     const warnings=new Set(),root=await rootFor(request.params.run)
     return {row:await runSummary(root,warnings,database(root),{includeCosts:false}),warnings:[...warnings]}
@@ -55,14 +57,17 @@ export function createApi(directory) {
     const root=await rootFor(request.params.run)
     return {diagram:await readRunDiagram(root,await settingsFor(root),database(root))}
   })
-  endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/transcript',async request=>{
-    const p=request.params,root=await rootFor(p.run)
-    await runFile(root,turnPath(p))
-    return {messages:await readTurnTranscript(root,p.window,p.fork,p.turn,database(root,false))}
-  })
   endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/ts/:sample',async request=>{
     const p=request.params,root=await rootFor(p.run)
     return readSample(await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`),root,database(root,false))
+  })
+  const transcriptFor=async request=>readTranscript(await runFile(await rootFor(request.params.run),request.params['*']))
+  endpoint('/api/runs/:run/transcripts/*',async request=>(await transcriptFor(request)).metadata)
+  endpoint('/api/runs/:run/transcript-blocks/:start/:end/*',async request=>{
+    const start=Number(request.params.start),end=Number(request.params.end)
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start)throw Error('Invalid block range')
+    const {lines}=await transcriptFor(request)
+    return {blocks:lines.slice(start,end).map((raw,offset)=>({index:start+offset,raw}))}
   })
   app.get('/api/runs/:run/files/*',async(request,reply)=>{
     const pathFor=async()=>runFile(await rootFor(request.params.run),request.params['*'])

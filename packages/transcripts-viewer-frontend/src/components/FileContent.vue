@@ -3,6 +3,7 @@ import {computed} from 'vue'
 import {matchFile} from '../composables/fileMatcher.js'
 import TranscriptView from './TranscriptView.vue'
 import {transcriptFile} from '../composables/transcriptFile.js'
+import PythonCode from './PythonCode.vue'
 import JsonContent from './JsonContent.vue'
 import JsonlContent from './JsonlContent.vue'
 import SolutionsContent from './SolutionsContent.vue'
@@ -15,6 +16,7 @@ const messages=computed(()=>kind.value==='transcript'?transcriptFile(props.text,
   <SolutionsContent v-else-if="kind==='solutions'" :text="text" />
   <JsonContent v-else-if="kind==='json'" :text="text" />
   <JsonlContent v-else-if="kind==='jsonl'" :text="text" :line="line" />
+  <PythonCode v-else-if="kind==='python'" :text="text" />
   <pre v-else>{{ text }}</pre>
 </template>
 <style scoped>
