@@ -14,7 +14,7 @@ from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
 def u_system(config):
     """The single, fixed system prompt at the start of a fork."""
     return Prompt('u/system.txt')(
-        measure_wording=Prompt('u/measure_surprisal.txt')() if config.cap_strategy == 'surprisal' else '',
+        measure_wording=Prompt(f'u/measure_{config.cap_strategy}.txt')(),
         implementation_access=Prompt('u/flush/context.txt')(), t_samples=config.t_samples)
 
 
