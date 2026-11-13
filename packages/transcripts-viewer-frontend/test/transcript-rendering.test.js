@@ -20,7 +20,8 @@ test('every real transcript line renders raw without dropping or rewriting any f
       const html=await renderToString(createSSRApp({render:()=>h(Record,{label:String(index+1),message:{raw:line,source:'u/transcript.jsonl',line:index+1},contentOnly:true})}))
       const body=decode(html.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/)?.[1]??'')
       assert.equal(body,line,`physical line ${index+1} remains verbatim`)
-      assert.ok(html.includes('data-source="u/transcript.jsonl"'))
+      assert.ok(!html.includes('data-source='),'records do not repeat a transcript file entry')
+      assert.ok(!html.includes('data-line='),'records do not expose a per-block source action')
       if(line.startsWith('{'))assert.deepEqual(JSON.parse(body),JSON.parse(line),'every source key remains visible')
     }
   }finally{await server.close()}
