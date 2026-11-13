@@ -5,22 +5,28 @@ const props = defineProps({ messages: Array, source: String, initialLine: String
 const emit = defineEmits(['visible'])
 const selectedBlock = ref(null)
 const blocks = new Map()
-watch(()=>props.messages, async (_messages,_,cleanup)=>{
-  if(!props.lazy)return
-  const observer=new IntersectionObserver(entries=>{
-    for(const entry of entries)emit('visible',Number(entry.target.dataset.block)-1,entry.isIntersecting)
-  })
-  let disposed=false
-  cleanup(()=>{disposed=true;observer.disconnect()})
-  await nextTick()
-  if(!disposed)for(const element of blocks.values())observer.observe(element)
-},{immediate:true,flush:'post'})
 const legend = computed(() => [...new Set(props.messages.map(message=>message.role))])
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${message.role}`,
   description: message.raw == null ? 'Load original record' : message.raw,
 })))
-const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })))
+const hiddenTypes=ref(new Set(['session','model_change','thinking_level_change']))
+function setTypeVisible(type,visible) {
+  if(visible)hiddenTypes.value.delete(type)
+  else hiddenTypes.value.add(type)
+}
+const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })).filter(({message})=>!hiddenTypes.value.has(message.role)))
+watch(visibleMessages, async (_messages,_,cleanup)=>{
+  if(!props.lazy)return
+  let disposed=false,observed=[]
+  const observer=new IntersectionObserver(entries=>{
+    if(disposed)return
+    for(const entry of entries)emit('visible',Number(entry.target.dataset.block)-1,entry.isIntersecting)
+  })
+  cleanup(()=>{disposed=true;observer.disconnect();for(const index of observed)emit('visible',index,false)})
+  await nextTick()
+  if(!disposed){observed=[...blocks.keys()];for(const element of blocks.values())observer.observe(element)}
+},{immediate:true,flush:'post'})
 async function jump(value) {
   selectedBlock.value = value
   const index = options.value.findIndex(option => option.value === value)
@@ -42,11 +48,11 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 </script>
 <template>
   <div class="transcript-view">
-    <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript role colors"><span v-for="role in legend" :key="role"><i :class="`role-${role}`" aria-hidden="true"></i>{{ role }}</span></div></div>
+    <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript types"><label v-for="role in legend" :key="role"><input type="checkbox" :checked="!hiddenTypes.has(role)" @change="setTypeVisible(role,$event.target.checked)"><i :class="`role-${role}`" aria-hidden="true"></i>{{ role }}</label></div></div>
     <p v-if="!messages.length">Transcript not recorded</p>
     <div class="transcript-layout">
     <nav v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
-      <button v-for="(option,index) in options" :key="index" class="block-jump" :class="[{active:selectedBlock===option.value}, `role-${messages[index].role}`]" :aria-current="selectedBlock===option.value?'true':undefined" :aria-label="`Jump to ${option.value}`" :title="option.description" @click="jump(option.value)"><b>{{ messages[index].line }}</b></button>
+      <button v-for="{message,index} in visibleMessages" :key="index" class="block-jump" :class="[{active:selectedBlock===options[index].value}, `role-${message.role}`]" :aria-current="selectedBlock===options[index].value?'true':undefined" :aria-label="`Jump to ${options[index].value}`" :title="options[index].description" @click="jump(options[index].value)"><b>{{ message.line }}</b></button>
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">
@@ -72,7 +78,8 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 .message-blocks { min-width:0; }
 .block-placeholder,.transcript-record { border-left:3px solid transparent; }
 .role-legend { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:4px 8px; }
-.role-legend span { display:inline-flex; align-items:center; gap:4px; }
+.role-legend label { cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+.role-legend input { margin:0; }
 .role-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; border:1px solid #bac9df; }
 .block-placeholder { min-height:120px;box-sizing:border-box;margin-top:4px;padding:8px;background:#f6f8fc;font-size:12px; }
 

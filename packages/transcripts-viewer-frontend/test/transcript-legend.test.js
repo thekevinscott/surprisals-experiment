@@ -14,6 +14,6 @@ test('transcript legend defaults hide only session/model/thinking changes and pr
   const inputs=[...html.matchAll(/<input\b[^>]*>/g)].map(m=>m[0]);assert.equal(inputs.length,roles.length)
   assert.deepEqual(inputs.map(input=>/\bchecked(?:\s|>|=)/.test(input)),roles.map((_,i)=>i>=3))
   assert.deepEqual([...html.matchAll(/data-block="(\d+)"/g)].map(m=>Number(m[1])),[4,5,6,7,8])
-  assert.equal([...html.matchAll(/class="block-jump/g)].length,5)
+  assert.equal([...html.matchAll(/aria-label="Jump to /g)].length,5)
  }finally{await server.close()}
 })
