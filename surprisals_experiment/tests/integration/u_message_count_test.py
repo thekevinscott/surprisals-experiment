@@ -8,7 +8,7 @@ import httpx2
 import pytest
 from state_machine.testing import State
 from u_flush_test import PASS, QUESTION, flush, outcome, played
-from utils.world import U
+from utils.world import U, u_user
 from surprisals_experiment.config import Config
 
 
@@ -59,6 +59,10 @@ async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_p
     for (window, turn), request_bytes in zip([(0, 0), (0, 1), (1, 0), (1, 1)],
                                        [u_requests[index] for index in (0, 2, 3, 4)], strict=True):
         request = json.loads(request_bytes)
+        assert request['messages'][1] == {'role': 'user', 'content': QUESTION if window == 0 else best}
+        assert request['messages'][2] == {
+            'role': 'user', 'content': u_user(config, 1, best=None if window == 0 else score['score']),
+        }
         fork = config.output / f'windows/{window}/forks/0'
         metadata = json.loads((fork / f'turns/{turn}/metadata.json').read_text())
         assert metadata['u_request_sha256'] == sha256(request_bytes).hexdigest()
