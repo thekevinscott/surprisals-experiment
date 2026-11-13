@@ -6,6 +6,8 @@ import {createSSRApp,h} from 'vue'
 import {renderToString} from 'vue/server-renderer'
 
 test('U modal renders only sent rows and its assistant reply, or sent rows and the recorded error',async()=>{
+  const observer=globalThis.IntersectionObserver
+  globalThis.IntersectionObserver=class {observe(){} disconnect(){}}
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[{
     name:'request-fixture',enforce:'pre',transform(code,id){
       if(id.endsWith('/composables/api.js'))return `import {ref,onServerPrefetch} from 'vue';
@@ -24,5 +26,5 @@ test('U modal renders only sent rows and its assistant reply, or sent rows and t
     assert.match(failed,/U failed: token limit/)
     assert.equal(count(await render({u_messages:0,error:'No request sent'})),0)
     assert.equal(count(await render({})),5,'legacy metadata retains the whole transcript')
-  }finally{await server.close()}
+  }finally{await server.close();globalThis.IntersectionObserver=observer}
 })

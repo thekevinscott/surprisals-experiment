@@ -3,14 +3,16 @@ import {computed,inject,ref} from 'vue'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import {openTranscript} from '../composables/filePreview.js'
-const props=defineProps({source:String,files:Array,modalTitle:String,label:{type:String,default:'Open transcript'}})
+const props=defineProps({source:String,files:Array,modalTitle:String,turnMetadata:Object,label:{type:String,default:'Open transcript'}})
 const rawUrl=inject('rawSourceUrl')
 const sourceUrl=inject('sourceUrl')
 const picker=ref(null)
 const files=computed(()=>(props.source?[{source:props.source}]:(props.files??[])).map(file=>({...file,url:rawUrl(file.source)})))
 function openFile(file) {
   picker.value?.hide()
-  openTranscript({name:props.modalTitle ?? (props.source?'U transcript':'Transcript'),files:files.value,sourceUrl},file)
+  const title=props.modalTitle ?? (props.source?'U transcript':'Transcript')
+  const hash=props.turnMetadata?.u_request_sha256
+  openTranscript({name:hash ? `${title} · u_request_sha256: ${hash}` : title,files:files.value,sourceUrl,turnMetadata:props.turnMetadata},file)
 }
 function open(event) {
   if(files.value.length===1)openFile(files.value[0])
