@@ -34,6 +34,6 @@ async def test_every_transcript_has_one_system_prompt_at_the_top(config, execute
     assert len(transcripts) == 4
     for path in transcripts:
         roles = [json.loads(line)['role'] for line in path.read_text().splitlines()]
-        assert roles.count('user') == 5, path
+        assert roles.count('user') == 6, path
         assert roles.count('system') == 1, (path, roles)
         assert roles[0] == 'system', (path, roles)

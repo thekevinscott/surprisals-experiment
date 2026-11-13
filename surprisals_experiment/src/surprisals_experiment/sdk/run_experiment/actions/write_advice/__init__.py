@@ -27,11 +27,12 @@ async def write_advice(run: Run, turn: Turn) -> None:
         previous = Turn(config, turn.position - 1, turn.window, turn.fork)
         metadata = json.loads((previous.attempt_dir / "metadata.json").read_text())
         if metadata["advice"] is not None:
-            content += "\n" + await render_code(
+            feedback = await render_code(
                 config, run.database, str(previous.attempt_dir.relative_to(config.output)),
             )
         else:
-            content += "\n" + FAILED(error=metadata["error"])
+            feedback = FAILED(error=metadata["error"])
+        messages.append({"role": "user", "content": feedback})
     messages.append({"role": "user", "content": content})
     try:
         text = await run.u_chat.prompt(

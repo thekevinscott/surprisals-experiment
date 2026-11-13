@@ -7,7 +7,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import WINDOW_SOLO_TURNS
 from u_flush_test import PASS, QUESTION, STDOUT, chat, flush, outcome, played, results
-from utils.world import u_opening, T, U, t_sent, u_system, u_user
+from utils.world import u_followup, u_opening, T, U, t_sent, u_system
 
 USAGE = {'prompt_tokens': 100, 'completion_tokens': 30, 'total_tokens': 130,
          'prompt_tokens_details': {'cached_tokens': 50, 'cache_write_tokens': 10},
@@ -54,10 +54,10 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     best = prompt(1, 'short', clean, clean)
     first = [*u_opening(config, QUESTION), {'role': 'assistant', 'content': 'long advice'},
              {'role': 'user', 'content': '<advice_length>11 characters</advice_length>'},
-             {'role': 'user', 'content': u_user(config, 2, code(mutated, clean))}]
+             *u_followup(config, 2, code(mutated, clean))]
     second = [*u_opening(config, best, 5), {'role': 'assistant', 'content': 'short'},
               {'role': 'user', 'content': '<advice_length>5 characters</advice_length>'},
-              {'role': 'user', 'content': u_user(config, 2, code(clean, clean), 5)}]
+              *u_followup(config, 2, code(clean, clean), 5)]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -139,13 +139,12 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
                 *[message for turn, advice in enumerate(said, 2) for message in (
                     {'role': 'assistant', 'content': advice},
                     {'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'},
-                    {'role': 'user', 'content': u_user(config, turn, code({'main.py': PASS}), previous)})]]
+                    *u_followup(config, turn, code({'main.py': PASS}), previous))]]
 
     def chat(*turns):
         messages = [system]
         for attempt, (user, advice) in enumerate(turns):
-            if attempt == 0:
-                messages.extend(user[:-1])
+            messages.append(user[-2])
             messages.append(user[-1] | {'_attempt': attempt})
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})

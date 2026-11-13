@@ -7,7 +7,7 @@ import pytest
 from state_machine.testing import Done, State
 from t_timeout_test import advised, attempt, evaluated, opened, solved, t_state, u_state
 from u_flush_test import PASS, QUESTION, appended, chat, flush, outcome, played
-from utils.world import u_opening, T, U, t_sent, u_user
+from utils.world import u_followup, u_opening, T, U, t_sent, u_user
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
@@ -90,20 +90,21 @@ async def test_output_limit_next_turn_reports_failure_without_failed_content(con
     best = flush(1, advice, length=10)
     second = [*u_opening(config, best, 10), {'role': 'assistant', 'content': advice},
               {'role': 'user', 'content': '<advice_length>10 characters</advice_length>'},
-              {'role': 'user', 'content': u_user(config, 2, appended(PASS), 10)}]
-    failure = ('turn 2 of 20\nYour previous reply failed: U hit its output token limit '
+              *u_followup(config, 2, appended(PASS), 10)]
+    failure = ('Your previous reply failed: U hit its output token limit '
                '(20 completion tokens, 19 reasoning tokens). No advice was produced.')
     asked = [*chat(0, (QUESTION, None), config=config)['windows/0/forks/0/u/transcript.jsonl'],
-             {'role': 'user', 'content': failure, '_attempt': 1}]
+             {'role': 'user', 'content': failure},
+             {'role': 'user', 'content': u_user(config, 2), '_attempt': 1}]
     answer = chat(0, (QUESTION, advice), config=config)['windows/0/forks/0/u/transcript.jsonl'][-2:]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
               logs=[(f'{TURN}/u', 'thinking', 'Cut off'), (f'{TURN}/u', 'text', 'partial')],
               files={'settings.json': ..., **opened(0), **chat(0, (QUESTION, None), config=config)}),
-        # The next turn reports only the recorded failure, in its single user message.
+        # The next turn reports only the recorded failure, before the separate turn message.
         u_state(config, 0, 1, [*u_opening(config, QUESTION),
-                               {'role': 'user', 'content': failure}], advice, {
+                               *u_followup(config, 2, failure)], advice, {
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
             'windows/0/forks/0/u/transcript.jsonl': asked}, u_layout=True),

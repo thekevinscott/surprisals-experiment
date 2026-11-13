@@ -59,7 +59,7 @@ async def test_user_progress_keeps_the_system_prompt_fixed(config, botbox_script
         run = Run(config, database, QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 13, window))
         messages = chat_provider[-1]['messages']
-        assert [message['role'] for message in messages] == ['system', 'user', 'user', 'assistant', 'user']
+        assert [message['role'] for message in messages] == ['system', 'user', 'user', 'assistant', 'user', 'user']
         assert messages[0]['content'] == system
         assert messages[-1]['content'].splitlines()[0] == expected.replace('turn 13', 'turn 14')
         assert sum(entry['role'] == 'system' for entry in chat.entries()) == 1
@@ -134,10 +134,12 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 5 (5%)'},
         {'role': 'assistant', 'content': 'Later.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
-        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)\n' + code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)'},
         {'role': 'assistant', 'content': 'Again.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
-        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)\n' + code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)'},
     ]
 
 

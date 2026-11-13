@@ -6,7 +6,7 @@ import pytest
 from state_machine.testing import Done, State
 from surprisals_experiment.config import Config
 from surprisals_experiment.prompt import PROMPTS
-from utils.world import u_opening, Score, T, U, measurement, t_sent, u_system, u_user
+from utils.world import u_followup, u_opening, Score, T, U, measurement, t_sent, u_system
 
 PASS = 'print(int(input()) * 2)\n'
 OTHER_PASS = 'n = int(input())\nprint(n + n)\n'
@@ -41,8 +41,7 @@ def chat(window, *turns, config, best=None, bits=None, measured=True):
     lines = [{'role': 'system', 'content': u_system(config)}]
     for attempt, (user, advice) in enumerate(turns):
         conversation = user if isinstance(user, list) else u_opening(config, user, best)
-        if attempt == 0:
-            lines.extend(conversation[:-1])
+        lines.append(conversation[-2])
         lines.append(conversation[-1] | {'_attempt': attempt})
         if advice is not None:
             lines.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
@@ -91,7 +90,7 @@ def played(windows, scores, *, config, sequential=False, bits=None):
             answered.append((list(conversation), advice))
             conversation += [{'role': 'assistant', 'content': advice},
                              {'role': 'user', 'content': measurement(advice, bits.get(advice))},
-                             {'role': 'user', 'content': u_user(config, index + 2, appended(*codes), best)}]
+                             *u_followup(config, index + 2, appended(*codes), best)]
             if codes and FAIL not in codes:
                 passed.append(getattr(scores[advice]['score'], 'expected', scores[advice]['score']))
             digest = f'advices/{sha256(advice.encode()).hexdigest()}'
@@ -248,8 +247,8 @@ async def test_measurement_is_its_own_message_before_turn_two(config, execute_ru
     world, _ = played([[(QUESTION, 'double it', [PASS]), (None, 'next', [PASS])]],
                       scores, bits=bits, config=config)
     second = world[3 if bits else 2]
-    assert second.sent['messages'][-2] == {'role': 'user', 'content': measurement}
-    assert second.sent['messages'][-1]['content'] == u_user(config, 2, appended(PASS))
+    assert second.sent['messages'][-3] == {'role': 'user', 'content': measurement}
+    assert second.sent['messages'][-2:] == u_followup(config, 2, appended(PASS))
     async with execute_run_experiment(config, world[:world.index(second) + 1], u_layout=True) as run:
         await run.reached(second)
         run.kill()

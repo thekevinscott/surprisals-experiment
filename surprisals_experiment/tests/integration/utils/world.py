@@ -34,6 +34,11 @@ def u_opening(config, question, best=None):
             {'role': 'user', 'content': u_user(config, 1, best=best)}]
 
 
+def u_followup(config, turn, feedback, best=None):
+    return [{'role': 'user', 'content': feedback},
+            {'role': 'user', 'content': u_user(config, turn, best=best)}]
+
+
 def t_sent(attempt, advice, *, model='t'):
     """What T is run with for `attempt` on `advice`."""
     return {
