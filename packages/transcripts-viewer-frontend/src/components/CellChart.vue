@@ -110,13 +110,16 @@ function path(s) {
         <g v-for="tick in xticks" :key="tick">
           <text :x="x(tick)" y="255" text-anchor="middle">{{ tick }}</text>
         </g>
+        <g v-for="window in chartData.windowPositions" :key="`window-${window.id}`" class="window-boundary" :data-window="window.id">
+          <line :x1="x(window.depth)" :x2="x(window.depth)" y1="25" y2="240" vector-effect="non-scaling-stroke" />
+          <text :x="x(window.depth) + 4" y="18">Window {{ window.id }}</text>
+        </g>
         <text :x="width / 2" y="271" text-anchor="middle" class="axis-title">Turn (sequential depth)</text>
         <line v-if="kind === 'improvements' && ymin <= 50 && ymax >= 50" x1="0" :x2="width" :y1="y(50)" :y2="y(50)" stroke="#777" stroke-dasharray="2 3" />
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem">
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
           <circle v-for="(p, i) in (!dots ? [] : kind === 'advice' ? (allPoints ? s.scored : s.passing) : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
-          <text v-if="endPoint(s)" :x="x(endPoint(s)[0]) + 2" :y="y(endPoint(s)[1]) + 2.5" :class="exitOf(s) === 0 ? 'exit-ok' : 'exit-fail'" :style="exitOf(s) === 0 ? null : { fill: s.color }">{{ statusMark(s) }}</text>
           <g v-for="(p,i) in (kind === 'improvements' ? s.streak : [])" :key="`streak-${i}`">
             <line :x1="x(p[0] - p[1])" :y1="y(0)" :x2="x(p[0])" :y2="y(p[1])"
               :stroke="s.color" :stroke-width="p[1] >= 50 ? 1 : 0.5" class="stop-rule-line" />
@@ -148,18 +151,14 @@ svg { width:100%; display:block; }
 .dots { margin-left:12px; }
 svg text { font:9px 'DejaVu Sans',sans-serif; fill:#596273; }
 svg .axis-title { font-size:10px; }
-svg .legend { font-size:8px; }
-svg .exit-ok { fill:#15803d; font-size:8px; font-weight:700; }
-svg .exit-fail { font-size:7px; }
-svg .legend .exit-ok, svg .legend .exit-fail { font-size:7px; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; padding: 0; margin: 8px 0; font-size: 11px; }
 .chart-legend li { display: flex; gap: 5px; align-items: center; }
 .chart-legend li span { width: 16px; height: 3px; flex-shrink: 0; }
 .full-width svg text { font-size:12px; }
 .full-width svg .axis-title { font-size:13px; }
-.full-width svg .exit-ok { font-size:10.4px; }
-.full-width svg .exit-fail { font-size:9.1px; }
 .full-width svg [data-cell] > path { stroke-width:0.75; }
+.window-boundary line { stroke:#334155; stroke-width:3; }
+.window-boundary text { fill:#334155; font-weight:700; }
 .outcome-legend { margin:0; font-size:14px; }
 .full-width .filters, .full-width .chart-legend { font-size:14px; }
 </style>

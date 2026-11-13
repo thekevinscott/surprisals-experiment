@@ -94,6 +94,7 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
   }
   await put('windows/1/forks/0/turns/0/metadata.json',{advice:null,error:'U failed'})
   const {rows:[row]}=await readExperiment(root)
+  assert.deepEqual(row.windowPositions,[{id:0,depth:0},{id:1,depth:40}])
   assert.deepEqual(row.scored,[[38,8,true],[39,30,false],[41,6,true]])
   assert.deepEqual(row.passing,[[38,8],[41,6]])
   assert.equal(row.best,6)

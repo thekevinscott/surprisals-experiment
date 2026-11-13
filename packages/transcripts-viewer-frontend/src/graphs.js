@@ -63,6 +63,7 @@ export function createRunChartData(row) {
     fork.scored.sort((a,b)=>a[0]-b[0])
   }
   const chart = createChartData(rows)
+  chart.windowPositions = row.windowPositions ?? []
   chart.series.forEach((series,index)=>{
     series.label = `Fork ${rows[index].id}`
     series.color = colors[index % colors.length]
