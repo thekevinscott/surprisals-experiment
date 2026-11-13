@@ -1,7 +1,7 @@
 import {computed,ref,toValue} from 'vue'
 
-export const routeHash=ref(typeof location==='undefined' ? '' : location.hash)
-if(typeof window!=='undefined')window.addEventListener('hashchange',()=>{routeHash.value=location.hash})
+import {router} from '../router.js'
+export const routeHash=computed(()=>`#${router.currentRoute.value.fullPath}`)
 export function readState(hash,key,fallback) {
   const raw=new URLSearchParams(hash.split('?')[1]).get(key)
   if(raw===null)return fallback
@@ -14,9 +14,8 @@ export function stateHash(hash,key,value,fallback) {
   return (path||'#dashboard')+(params.size?`?${params}`:'')
 }
 export function setUrlState(key,value,fallback=null) {
-  const hash=stateHash(location.hash,key,value,fallback)
-  if(hash!==location.hash)history.replaceState(null,'',hash)
-  routeHash.value=hash
+  const hash=stateHash(routeHash.value,key,value,fallback)
+  return router.replace(hash.slice(1))
 }
 export function useUrlState(key,fallback) {
   return computed({
@@ -26,8 +25,8 @@ export function useUrlState(key,fallback) {
 }
 
 export function clearUrlState(matches) {
-  const [path,query]=location.hash.split('?'),params=new URLSearchParams(query)
+  const [path,query]=routeHash.value.split('?'),params=new URLSearchParams(query)
   for(const key of [...params.keys()])if(matches(key))params.delete(key)
   const hash=path+(params.size?`?${params}`:'')
-  history.replaceState(null,'',hash);routeHash.value=hash
+  return router.replace(hash.slice(1))
 }

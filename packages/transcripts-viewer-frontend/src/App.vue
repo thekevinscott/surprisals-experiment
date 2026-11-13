@@ -1,6 +1,6 @@
 <script setup>
 import {installScrollState} from './composables/scrollState.js'
-import {routeHash,useUrlState} from './composables/urlState.js'
+import {useUrlState} from './composables/urlState.js'
 import { computed, ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -24,13 +24,13 @@ const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row
 import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
-import { runRoute, runLink } from './composables/runLinks.js'
+import { runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
 import TranscriptViewer from './components/TranscriptViewer.vue'
 import {filePreview,closeFile,stepUTurn,restoreModals} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
-import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
+import {useRoute,useRouter} from 'vue-router'
 import ForkDiagram from './components/ForkDiagram.vue'
 import ContentPanel from './components/ContentPanel.vue'
 import ProblemFiles from './components/ProblemFiles.vue'
@@ -52,15 +52,14 @@ function turnKey(event) {
 }
 window.addEventListener('keydown',turnKey)
 onUnmounted(()=>window.removeEventListener('keydown',turnKey))
-const route=routeHash
-const routePath=computed(()=>route.value.split('?')[0])
+const route=useRoute(),router=useRouter()
 const graphsExpanded=ref(true),transcriptsExpanded=ref(true)
-const fileRoute = computed(() => parseFileRoute(route.value))
-const target = computed(() => runRoute(routePath.value))
+const fileRoute=computed(()=>route.name==='file'?{name:route.params.name,...route.query}:null)
+const target=computed(()=>route.meta.run?route.params:null)
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
 const forkDiagram = ref(null)
 const runCharts = computed(() => createRunChartData(selected.value))
-const tab = computed(() => routePath.value === '#graphs' ? 'graphs' : 'dashboard')
+const tab = computed(() => route.name === 'graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
 function refresh() {
@@ -79,8 +78,8 @@ watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
   if(value==='file'||value==='graphs'){refreshController?.abort();loading.value=false;error.value=''}
   else refresh()
 }, {immediate:true})
-const navigateTab = value => { location.hash = value }
-const openRun = row => { location.hash = 'run/' + encodeURIComponent(row.id) }
+const navigateTab = name => router.push({name})
+const openRun = row => router.push({name:'run',params:{id:row.id}})
 const strategyOptions = computed(() => [...new Set(data.rows.map(r => r.strategy))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === value).length} runs` })))
 const problemOptions = computed(() => [...new Set(data.rows.filter(r => r.strategy === selected.value?.strategy).map(r => r.problem))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === value).length} runs · ${selected.value?.strategy}` })))
 const matchingRuns = computed(() => data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === selected.value?.problem))
@@ -130,12 +129,12 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
   <main :class="{'run-page':selected && !fileRoute}">
-    <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
+    <FileViewer v-if="fileRoute" :src="fileRoute.src" :name="fileRoute.name" :line="fileRoute.line" />
     <template v-else>
     <p v-if="error" role="alert">{{ error }}</p>
-    <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" href="#dashboard">Dashboard</Tab><Tab value="graphs" as="a" href="#graphs">Graphs</Tab></TabList></Tabs>
+    <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" :href="router.resolve({name:'dashboard'}).href">Dashboard</Tab><Tab value="graphs" as="a" :href="router.resolve({name:'graphs'}).href">Graphs</Tab></TabList></Tabs>
     <section v-if="selected" class="drilldown" aria-label="Run drilldown">
-      <a class="back-link" href="#dashboard">← Dashboard</a>
+      <a class="back-link" :href="router.resolve({name:'dashboard'}).href">← Dashboard</a>
       <header class="drilldown-header">
       <div class="run-summary">
       <dl class="metadata">
@@ -152,7 +151,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         <SearchSelect label="Problem" :model-value="selected.problem" :options="problemOptions" @update:model-value="changeProblem" />
       </div>
       </header>
-      <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
+      <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="runLink(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
       <div class="run-body">
         <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" title="Graphs" aria-label="Run graphs">
           <CellChart :key="selected.id" :chart-data="runCharts" clickable @open-turn="forkDiagram.openChartTurn($event)" full-width all-points kind="advice" :controls="false" />
