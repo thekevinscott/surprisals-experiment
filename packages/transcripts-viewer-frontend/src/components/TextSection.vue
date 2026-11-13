@@ -1,9 +1,9 @@
 <script setup>
 import ContentPanel from './ContentPanel.vue'
-defineProps({label:String,source:String,sourceLine:Number,text:String,stateKey:String})
+defineProps({label:String,text:String,stateKey:String})
 </script>
 <template>
-  <ContentPanel class="text-section" :title="label" :source="source" :source-line="sourceLine" :state-key="stateKey" :expanded="true">
+  <ContentPanel class="text-section" :title="label" :state-key="stateKey" :expanded="true">
     <p>{{ text }}</p>
   </ContentPanel>
 </template>
