@@ -19,7 +19,7 @@ const files=computed(()=>sampleFiles(data.value?.attempts ?? [],rawUrl))
 <template>
   <ContentPanel local :collapsible="false" class="t-sample" :data-sample="sample.id" :title="`T${sample.id}`">
     <template #title><span class="sample-label" :class="attemptOutcome(sample.latest)">T{{ sample.id }}</span></template>
-    <template #actions><Button class="icon-button" text size="small" label="📄" aria-label="Open files" title="Open files" :disabled="!files.length" @click="openFiles({name:`T${sample.id} files`,files})" /><TranscriptButton v-if="data?.attempts.length" :files="data.attempts.flatMap(attempt => attempt.transcriptFiles ?? [])" :modal-title="`T${sample.id} transcript`" label="💬" /></template>
+    <template #actions><Button class="icon-button" text size="small" aria-label="Open files" title="Open files" :disabled="!files.length" @click="openFiles({name:`T${sample.id} files`,files})"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 4-4 4 4 4m6-8 4 4-4 4M9.5 2l-3 12" /></svg></Button><TranscriptButton v-if="data?.attempts.length" :files="data.attempts.flatMap(attempt => attempt.transcriptFiles ?? [])" :modal-title="`T${sample.id} transcript`" label="💬" /></template>
     <div v-for="attempt in data?.attempts" :key="attempt.id" class="sample-attempt" :data-attempt="attempt.id">
       <a v-if="data.attempts.length > 1 && attempt.tests" class="attempt-label" :href="sourceUrl(attempt.testsSource)" @click.prevent="openFile(sourceUrl(attempt.testsSource))">Attempt {{ attempt.id }}</a>
       <span v-else-if="data.attempts.length > 1" class="attempt-label">Attempt {{ attempt.id }}</span>
