@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, useId } from 'vue'
 
-const props = defineProps({ chartData:Object, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, allPoints:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const armSel = ref(props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
@@ -15,14 +15,14 @@ const dots = ref(true)
 const logarithmic = ref(false)
 const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
-const endPoint = s => props.kind === 'advice' ? s.advice.at(-1) : s.streak[0]
+const endPoint = s => props.kind === 'advice' ? points(s).at(-1) : s.streak[0]
 
 const width = computed(() => props.plotWidth)
 const selected = computed(() => data.value.filter(s => s.strategy === selectedArm.value))
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
-const points = s => s[props.kind]
+const points = s => props.allPoints && props.kind === 'advice' ? [...s.passing].sort((a,b)=>a[0]-b[0]) : s[props.kind]
 const domain = computed(() => domains.value[chartKey.value] || { x: [0, 250], y: [0, 54] })
 const yrange = computed(() => range.value || domain.value.y)
 const ymin = computed(() => yrange.value[0])
@@ -60,7 +60,7 @@ function path(s) {
     if (!imp.length) return ''
     return `M${x(imp[0][0] - imp[0][1])},${y(0)}` + imp.map(([b, g]) => ` L${x(b)},${y(g)} L${x(b)},${y(0)}`).join('')
   }
-  return points(s).map((p, i) => `${i ? (props.kind === 'advice' ? 'H' + x(p[0]) + 'V' : 'L' + x(p[0]) + ',') : 'M' + x(p[0]) + ','}${y(p[1])}`).join(' ')
+  return points(s).map((p, i) => `${i ? (props.kind === 'advice' && !props.allPoints ? 'H' + x(p[0]) + 'V' : 'L' + x(p[0]) + ',') : 'M' + x(p[0]) + ','}${y(p[1])}`).join(' ')
 }
 </script>
 
@@ -117,7 +117,7 @@ function path(s) {
       </g>
     </svg>
     <ul class="chart-legend">
-      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.label ?? `${s.problem} ${s.cell.split('-').slice(2).join('-')}` }}{{ kind === 'advice' ? (s.advice.length ? ` · ${s.advice.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : ' · no all-samples pass') : '' }} {{ statusMark(s) }}</li>
+      <li v-for="s in visible" :key="s.cell"><span :style="{background:s.color}"></span>{{ s.label ?? `${s.problem} ${s.cell.split('-').slice(2).join('-')}` }}{{ kind === 'advice' ? (points(s).length ? ` · ${endPoint(s)[1].toLocaleString(undefined,{maximumFractionDigits:1})}` : ' · no all-samples pass') : '' }} {{ statusMark(s) }}</li>
     </ul>
   </div>
 </template>

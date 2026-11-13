@@ -126,7 +126,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
       <div class="run-body">
         <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" title="Graphs" aria-label="Run graphs">
-          <CellChart :key="selected.id" :chart-data="runCharts" kind="advice" :controls="false" />
+          <CellChart :key="selected.id" :chart-data="runCharts" all-points kind="advice" :controls="false" />
         </ContentPanel>
         <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" title="Transcripts" aria-label="Run transcripts">
           <ForkDiagram :run="selected" :target="target" />
