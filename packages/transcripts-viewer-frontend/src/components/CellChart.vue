@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref, useId } from 'vue'
+import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps({ chartData:Object, allPoints:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
+const props = defineProps({ chartData:Object, allPoints:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const armSel = ref(props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
@@ -17,7 +17,19 @@ const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => props.kind === 'advice' ? points(s).at(-1) : s.streak[0]
 
-const width = computed(() => props.plotWidth)
+const svgElement = ref(null)
+const measuredWidth = ref(null)
+let resizeObserver
+onMounted(() => {
+  if (!props.fullWidth) return
+  resizeObserver = new ResizeObserver(([entry]) => {
+    const {width, height} = entry.contentRect
+    if (width > 0 && height > 0) measuredWidth.value = width / height * 285 - 120
+  })
+  resizeObserver.observe(svgElement.value)
+})
+onUnmounted(() => resizeObserver?.disconnect())
+const width = computed(() => measuredWidth.value ?? props.plotWidth)
 const selected = computed(() => data.value.filter(s => s.strategy === selectedArm.value))
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
@@ -65,7 +77,7 @@ function path(s) {
 </script>
 
 <template>
-  <div class="cell-chart" :data-kind="kind" @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop @click.stop @dblclick.stop>
+  <div class="cell-chart" :class="{'full-width':fullWidth}" :data-kind="kind" @pointerdown.stop @pointermove.stop @pointerup.stop @pointercancel.stop @click.stop @dblclick.stop>
     <div class="filters" @click.stop @keydown.stop>
       <template v-if="controls && chartData.arms.length > 1">
       <span>Strategy</span>
@@ -78,7 +90,7 @@ function path(s) {
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
       <button v-if="controls && kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
-    <svg :viewBox="`0 0 ${width + 120} 285`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
+    <svg ref="svgElement" :viewBox="`0 0 ${width + 120} 285`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
       <defs>
         <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" height="222" /></clipPath>
       </defs>
@@ -142,4 +154,10 @@ svg .legend .exit-ok, svg .legend .exit-fail { font-size:7px; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; padding: 0; margin: 8px 0; font-size: 11px; }
 .chart-legend li { display: flex; gap: 5px; align-items: center; }
 .chart-legend li span { width: 16px; height: 3px; flex-shrink: 0; }
+.full-width svg text { font-size:12px; }
+.full-width svg .axis-title { font-size:13px; }
+.full-width svg .exit-ok { font-size:10.4px; }
+.full-width svg .exit-fail { font-size:9.1px; }
+.full-width svg [data-cell] > path { stroke-width:0.75; }
+.full-width .filters, .full-width .chart-legend { font-size:14px; }
 </style>
