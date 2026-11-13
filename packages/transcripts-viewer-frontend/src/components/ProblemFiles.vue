@@ -8,12 +8,13 @@ const viewer = name => `#files/${name}?${new URLSearchParams({src: url(name)})}`
 <template>
   <nav class="problem-files" aria-label="Problem files">
     <span class="section-label">Files</span>
-    <a v-for="name in files" :key="name" :href="viewer(name)" @click.prevent="openFile(viewer(name))">{{ name }}</a>
+    <div class="file-links"><a v-for="name in files" :key="name" :href="viewer(name)" @click.prevent="openFile(viewer(name))">{{ name }}</a></div>
   </nav>
 </template>
 <style scoped>
-.problem-files { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.problem-files { display: flex; flex-direction: column; gap: 4px; min-width:0; font-size: 12px; }
 .section-label { color: #657186; font-size: 10px; }
-.problem-files a { text-decoration: none; }
+.file-links { display:flex; flex-wrap:nowrap; gap:12px; max-width:100%; overflow-x:auto; }
+.problem-files a { flex:none; white-space:nowrap; text-decoration: none; }
 .problem-files a:hover { text-decoration: underline; }
 </style>
