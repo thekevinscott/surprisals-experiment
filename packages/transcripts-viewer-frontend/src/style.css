@@ -49,9 +49,6 @@ a { color: #214da3; }
 .run-page { height:100dvh;overflow:hidden;display:flex;flex-direction:column; }
 .run-page .drilldown { flex:1;min-height:0;margin:0;display:flex;flex-direction:column; }
 .related-runs a { display: inline-block; margin: 8px; font-size: 12px; }
-.graphs { max-width: 1400px; }
-.graphs article { padding: 20px; border: 1px solid #dae1ea; background: white; border-radius: 8px; margin: 24px 0; }
-.graphs p { color: #657186; font-size: 12px; }
 
 .drilldown-header { padding: 16px; background: white; border: 1px solid #dae1ea; border-radius: 8px; }
 .drilldown-header .metadata { padding: 0; border: 0; background: none; }

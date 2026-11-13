@@ -10,15 +10,15 @@ import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
 import {runDuration} from './composables/runDuration.js'
-import {createChartData, createRunChartData} from './graphs.js'
+import {awsCost,awsCostTooltip} from './composables/awsCost.js'
+import {createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
 const now=ref(Date.now())
 const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
-const chartData=computed(()=>createChartData(data.rows.filter(row=>row.status)))
+const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
 import CellChart from './components/CellChart.vue'
-import WaitChart from './components/WaitChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
 import { runRoute, runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
@@ -82,7 +82,7 @@ function refresh() {
   },{signal,onData:value=>{Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
 }
 watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
-  if(value==='file')refreshController?.abort()
+  if(value==='file'||value==='graphs'){refreshController?.abort();loading.value=false;error.value=''}
   else refresh()
 }, {immediate:true})
 const navigateTab = value => { location.hash = value }
@@ -108,6 +108,7 @@ const columns = [
   { key: 'uCost', label: 'U cost' },
   { key: 'tCost', label: 'T cost' },
   { key: 'modelCost', label: 'Recorded U + T' },
+  { key: 'awsCost', label: 'AWS estimate' },
 ]
 const number = value => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 const money = value => value == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
@@ -162,28 +163,19 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         </ContentPanel>
       </div>
     </section>
-    <section v-else-if="tab === 'graphs'" aria-label="Graphs" class="graphs">
-      <p>Graphs from the slides, using live experiment files. ✓ indicates exit 0; ? indicates an open run.</p>
-      <template v-if="chartData.series.length">
-        <article><h2>Best advice over turns</h2><CellChart :chart-data="chartData" kind="advice" /></article>
-        <article><h2>Turns between improvements</h2><CellChart :chart-data="chartData" kind="improvements" /></article>
-        <article><h2>Does improvement get harder as advice shrinks?</h2><WaitChart :chart-data="chartData" /></article>
-        <p>Passing scores require all configured T samples to pass. Parallel forks share a depth. Hollow markers show turns since the last best at the latest read or exit.</p>
-      </template>
-      <p v-else-if="!loading">No runs loaded.</p>
-    </section>
+    <section v-else-if="tab === 'graphs'" aria-label="Graphs"><p>Coming Soon</p></section>
     <template v-else>
     <p v-for="warning in data.warnings" :key="warning" class="warning">{{ warning }}</p>
     <p v-if="!loading && !error && !data.rows.length" class="empty">No runs loaded. Start <code>transcripts-viewer /path/to/experiment</code> with a directory containing <code>runs/*/run.json</code>.</p>
     <section v-if="!loading && data.rows.length" aria-label="Runs">
-      <DataTable :value="data.rows" data-key="id" sort-field="problem" :sort-order="1" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
-        <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-3)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="3" /></Row><Row><Column v-for="column in columns.slice(-3)" :key="column.key" :header="column.label" :field="column.key" sortable /></Row></ColumnGroup>
+      <DataTable :value="dashboardRows" data-key="id" sort-field="problem" :sort-order="1" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
+        <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-4)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="4" /></Row><Row><Column v-for="column in columns.slice(-4)" :key="column.key" :field="column.key" sortable><template #header><span :title="column.key==='awsCost' ? awsCostTooltip : undefined">{{ column.label }}</span></template></Column></Row></ColumnGroup>
         <Column v-for="column in columns" :key="column.key" :field="column.key" :header="column.label" sortable>
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
             <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
             <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row,now)) }}</span>
-            <span v-else-if="['uCost','tCost','modelCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
+            <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>
             <span v-else>{{ row[column.key] ?? '—' }}</span>

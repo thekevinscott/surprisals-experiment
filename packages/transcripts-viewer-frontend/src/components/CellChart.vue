@@ -19,7 +19,7 @@ const highlightedSeries = ref(null)
 const logarithmic = ref(false)
 const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
-const endPoint = s => props.kind === 'advice' ? points(s).at(-1) : s.streak[0]
+const endPoint = s => points(s).at(-1)
 
 const svgElement = ref(null)
 const measuredWidth = ref(null)
@@ -83,11 +83,6 @@ function slide(event) {
   range.value = knob.value === 'lo' ? [Math.min(v, hi - gap), hi] : [lo, Math.max(v, lo + gap)]
 }
 function path(s) {
-  if (props.kind === 'improvements') {
-    const imp = s.improvements
-    if (!imp.length) return ''
-    return `M${x(imp[0][0] - imp[0][1])},${y(0)}` + imp.map(([b, g]) => ` L${x(b)},${y(g)} L${x(b)},${y(0)}`).join('')
-  }
   return points(s).map((p, i) => `${i ? (props.kind === 'advice' && !props.allPoints ? 'H' + x(p[0]) + 'V' : 'L' + x(p[0]) + ',') : 'M' + x(p[0]) + ','}${y(p[1])}`).join(' ')
 }
 </script>
@@ -117,7 +112,7 @@ function path(s) {
           :data-knob="which" @pointerdown.stop.prevent="grab(which, $event)" @pointermove.stop="slide"
           @pointerup.stop="knob = null" @pointercancel.stop="knob = null" />
       </g>
-      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ kind === 'advice' ? (unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)') : 'Turns between improvements' }}</text>
+      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)' }}</text>
       <g transform="translate(95,0)" data-plot="shared">
         <g v-for="tick in yticks" :key="tick">
           <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="#e4e3de" />
@@ -131,21 +126,15 @@ function path(s) {
           <text :x="x(window.depth) + 4" y="18">Window {{ window.id }}</text>
         </g>
         <text :x="width / 2" y="271" text-anchor="middle" class="axis-title">Turn (sequential depth)</text>
-        <line v-if="kind === 'improvements' && ymin <= 50 && ymax >= 50" x1="0" :x2="width" :y1="y(50)" :y2="y(50)" stroke="#777" stroke-dasharray="2 3" />
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem" :class="{'series-dimmed':highlightedSeries!==null && highlightedSeries!==s.cell,'series-highlighted':highlightedSeries===s.cell}">
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
-          <g v-for="(p, i) in (!dots ? [] : kind === 'advice' ? (allPoints ? s.scored : s.passing) : s.improvements).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
+          <g v-for="(p, i) in (!dots ? [] : allPoints ? s.scored : s.passing).filter(p => p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
             <title>{{ `${clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ` : ''}${p[1].toLocaleString(undefined,{maximumFractionDigits:3})} ${unit}` }}</title>
             <circle :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
             <circle v-if="clickable" :cx="x(p[0])" :cy="y(p[1])" r="7" fill="transparent" class="point-hit" />
           </g>
-          <g v-for="(p,i) in (kind === 'improvements' ? s.streak : [])" :key="`streak-${i}`">
-            <line :x1="x(p[0] - p[1])" :y1="y(0)" :x2="x(p[0])" :y2="y(p[1])"
-              :stroke="s.color" :stroke-width="p[1] >= 50 ? 1 : 0.5" class="stop-rule-line" />
-            <circle :cx="x(p[0])" :cy="y(p[1])" :r="p[1] >= 50 ? 3 : 1.5"
-              :fill="p[1] >= 50 ? s.color : 'white'" :stroke="s.color" />
-          </g>
+
         </g>
         </g>
 

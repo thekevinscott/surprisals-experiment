@@ -1,5 +1,6 @@
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
+import {instanceLaunch} from './aws-launch.js'
 import {withDatabase} from './experiment-database.js'
 
 // Batched SQL queries gather structured artifacts without reading transcript bodies.
@@ -113,6 +114,7 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
     forks: [...forks.values()].sort((a,b) => a.window - b.window || a.id - b.id).map(fork => ({
       ...fork, scored: fork.scored.sort((a,b) => a[0] - b[0]), passing: fork.passing.sort((a,b) => a[0] - b[0]),
     })),
+    awsLaunched: await instanceLaunch(directory,database),
     uCost, tCost,
     modelCost: uCost !== null && tCost !== null ? uCost + tCost : null,
   }
