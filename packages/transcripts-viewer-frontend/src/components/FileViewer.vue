@@ -1,4 +1,5 @@
 <script setup>
+import {fileLink} from '../router.js'
 import {computed,provide,ref,watch} from 'vue'
 import {useLiveResource,fetchText} from '../composables/api.js'
 import FileContent from './FileContent.vue'
@@ -9,11 +10,7 @@ const props=defineProps({showDiff:Boolean,comparisonText:String,comparisonTokens
 provide('viewStateKey',()=>props.src)
 provide('testCase',()=>props.testCase)
 provide('disclosurePath',()=>props.src)
-provide('sourceUrl',(_path,line)=>{
-  const viewer=new URL(location.href)
-  viewer.hash=`files/${encodeURIComponent(props.name)}?${new URLSearchParams({src:props.src,...(line?{line:String(line)}:{})})}`
-  return viewer.href
-})
+provide('sourceUrl',(_path,line)=>fileLink(props.src,props.name,line))
 const {data:liveText,error}=useLiveResource(()=>[props.src],(signal,[url])=>fetchText(url,signal))
 const suppressFade=ref(false)
 watch(()=>props.showDiff,()=>{suppressFade.value=true})

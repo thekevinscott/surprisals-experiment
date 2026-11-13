@@ -1,5 +1,6 @@
 import {watch} from 'vue'
-import {routeHash,readState,setUrlState} from './urlState.js'
+import {useJsonQuery,currentRoute} from './queryState.js'
+import {router} from '../router.js'
 
 // Restore after async panels/files have enough content to reach the saved offset.
 export function installScrollState() {
@@ -8,6 +9,7 @@ export function installScrollState() {
     graphs:()=>document.querySelector('.run-graphs > .p-panel-content-container'),
     blocks:()=>document.querySelector('.p-dialog .block-navigation'),files:()=>document.querySelector('.files-viewer nav'),
     json:()=>document.querySelector('.p-dialog .json-content')}
+  const positions=Object.fromEntries(Object.keys(selectors).map(key=>[key,useJsonQuery(`scroll:${key}`,[0,0])]))
   let pending=new Map(),frame,timer
   const restore=()=>{
     cancelAnimationFrame(frame)
@@ -20,9 +22,9 @@ export function installScrollState() {
       }
     })
   }
-  const stop=watch(()=>[routeHash.value.split('?')[0],JSON.stringify(readState(routeHash.value,'modal',null))].join('|'),()=>{
+  const stop=watch(()=>[router.currentRoute.value.path,currentRoute.query.modal].join('|'),()=>{
     clearTimeout(timer)
-    pending=new Map(Object.keys(selectors).map(key=>[key,readState(routeHash.value,`scroll:${key}`,null)]).filter(([,value])=>value))
+    pending=new Map(Object.keys(selectors).map(key=>[key,positions[key].value]).filter(([,value])=>value.some(v=>v!==0)))
     restore()
   },{immediate:true})
   const observer=new MutationObserver(restore)
@@ -33,7 +35,7 @@ export function installScrollState() {
     const key=Object.keys(selectors).find(key=>selectors[key]()===target)
     if(!key||pending.has(key))return
     clearTimeout(timer)
-    timer=setTimeout(()=>setUrlState(`scroll:${key}`,[Math.round(target.scrollLeft),Math.round(target.scrollTop)],[0,0]),150)
+    timer=setTimeout(()=>{positions[key].value=[Math.round(target.scrollLeft),Math.round(target.scrollTop)]},150)
   }
   document.addEventListener('scroll',scroll,true)
   return ()=>{stop();observer.disconnect();resized.disconnect();cancelAnimationFrame(frame);clearTimeout(timer);document.removeEventListener('scroll',scroll,true)}

@@ -1,12 +1,12 @@
 <script setup>
 import { useId,ref,inject,onMounted,watch } from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import Select from 'primevue/select'
 const props=defineProps({ label: String, modelValue: String, options: Array, searchable:{type:Boolean,default:true} })
 const emit = defineEmits(['update:modelValue'])
 const id = useId(),select=ref(null),scope=inject('viewStateKey',()=> '')
-const opened=useUrlState(()=>`select:${scope()}:${props.label}:open`,false)
-const filter=useUrlState(()=>`select:${scope()}:${props.label}:filter`,'')
+const opened=useJsonQuery(()=>`select:${scope()}:${props.label}:open`,false)
+const filter=useJsonQuery(()=>`select:${scope()}:${props.label}:filter`,'')
 onMounted(()=>{if(opened.value)select.value.show();select.value.filterValue=filter.value})
 watch(filter,value=>{if(select.value)select.value.filterValue=value})
 </script>

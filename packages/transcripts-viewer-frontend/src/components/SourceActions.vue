@@ -1,6 +1,6 @@
 <script setup>
 import {inject,ref,onBeforeUnmount,watch,nextTick,provide} from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import JsonContent from './JsonContent.vue'
 import {openFile} from '../composables/filePreview.js'
 import Button from 'primevue/button'
@@ -8,7 +8,7 @@ import Popover from 'primevue/popover'
 const props=defineProps({stateKey:String,title:String,metadata:Object,source:String,sourceLine:Number})
 const sourceUrl=inject('sourceUrl',()=>undefined)
 const popup=ref(null),anchor=ref(null),mode=ref('source')
-const pinned=useUrlState(()=>`metadata:${props.stateKey}`,false)
+const pinned=useJsonQuery(()=>`metadata:${props.stateKey}`,false)
 provide('viewStateKey',()=>`metadata:${props.stateKey}`)
 watch(pinned,async value=>{await nextTick();if(value){mode.value='metadata';popup.value?.show({currentTarget:anchor.value?.$el,target:anchor.value?.$el},anchor.value?.$el)}else popup.value?.hide()},{immediate:true})
 let timer

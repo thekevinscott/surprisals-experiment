@@ -1,4 +1,5 @@
 <script setup>
+import {fileLink} from '../router.js'
 import {createForkPhaseChartData} from '../graphs.js'
 import {openTranscript} from '../composables/filePreview.js'
 import {runStatus} from '../composables/runStatus.js'
@@ -27,9 +28,7 @@ provide('rawSourceUrl', rawUrl)
 const sourceUrl = (path, line) => {
   const source = rawUrl(path)
   if (!source) return source
-  const viewer = new URL(location.href)
-  viewer.hash = `files/${encodeURIComponent(path)}?${new URLSearchParams({src:source,...(line ? {line:String(line)} : {})})}`
-  return viewer.href
+  return fileLink(source,path,line)
 }
 provide('sourceUrl',sourceUrl)
 async function openChartTurn({window,fork,turn}) {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, inject, watch, nextTick, onMounted } from 'vue'
-import {readState,routeHash} from '../composables/urlState.js'
+import {currentRoute as route} from '../composables/queryState.js'
 import ContentPanel from './ContentPanel.vue'
 import ForkBranch from './ForkBranch.vue'
 import ForkChart from './ForkChart.vue'
@@ -15,7 +15,7 @@ const turnIds = computed(() => [...new Set(props.window.forks.flatMap(f => f.par
 const columnWidth = computed(() => (sampleCount() || Math.max(1, ...props.window.forks.flatMap(f => [...f.parallel,...f.solo].map(t=>t.samples.length)))) * 72 + 16)
 async function reveal(target) {
   if (String(props.window.id) !== target?.window) return
-  if(readState(routeHash.value,`panel:${parentPath()}/Window ${props.window.id}`,null)!==null)return
+  if(route.query[`panel:${parentPath()}/Window ${props.window.id}`]!==undefined)return
   windowExpanded.value = true
   await nextTick()
   windowPanel.value?.setExpanded(true)

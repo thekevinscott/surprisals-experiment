@@ -1,10 +1,10 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import TranscriptRecord from './TranscriptRecord.vue'
 const props = defineProps({ messages: Array, source: String, initialLine: String, lazy: Boolean, uView: Boolean })
 const emit = defineEmits(['visible'])
-const selectedBlock = useUrlState(()=>`transcript:${props.source}:block`,null)
+const selectedBlock = useJsonQuery(()=>`transcript:${props.source}:block`,null)
 const blocks = new Map()
 const navigation=ref(null),navigationHeight=ref(0)
 watch(navigation,(element,_,cleanup)=>{
@@ -18,7 +18,7 @@ const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${message.role}`,
   description: message.raw == null ? 'Load original record' : message.raw,
 })))
-const hiddenRoles=useUrlState(()=>`transcript:${props.source}:hidden`,['model_change','session','thinking_level_change'])
+const hiddenRoles=useJsonQuery(()=>`transcript:${props.source}:hidden`,['model_change','session','thinking_level_change'])
 const hiddenTypes=computed(()=>new Set(hiddenRoles.value))
 function setTypeVisible(type,visible) {
   const hidden=new Set(hiddenRoles.value)

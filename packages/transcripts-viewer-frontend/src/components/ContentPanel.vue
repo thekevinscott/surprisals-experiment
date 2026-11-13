@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, nextTick, onMounted, onBeforeUnmount, provide, ref, watch } from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import Panel from 'primevue/panel'
 import SourceActions from './SourceActions.vue'
 const props = defineProps({ stickyHeader: Boolean, title: String, href: String, local: Boolean, metadata: Object, source: String, sourceLine: Number, summary: String, stateKey: String, preview: Boolean, expandLabel: String, collapseLabel: String, collapsible: { type: Boolean, default: true } })
@@ -12,7 +12,7 @@ const parentPath = inject('disclosurePath', () => '')
 const path = computed(() => `${parentPath()}/${props.stateKey ?? props.title}`)
 provide('disclosurePath', () => path.value)
 const defaultExpanded=model.value
-const expanded=useUrlState(()=>`panel:${path.value}`,defaultExpanded)
+const expanded=useJsonQuery(()=>`panel:${path.value}`,defaultExpanded)
 watch(expanded, value => { model.value = value },{immediate:true})
 const content = ref(null)
 const inner = ref(null)

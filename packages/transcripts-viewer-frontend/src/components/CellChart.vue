@@ -1,19 +1,19 @@
 <script setup>
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({ chartData:Object, stateKey:{type:String,default:'main'}, rangeKey:String, xZoom:{type:Boolean,default:true}, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const emit = defineEmits(['open-turn'])
 const pointTurn = (series,point) => ({window:series.window,fork:series.fork,turn:point[0]-series.turnStart})
 function openPoint(series,point) { if(props.clickable)emit('open-turn',pointTurn(series,point)) }
-const control=(name,value)=>useUrlState(()=>`chart:${props.stateKey}:${name}`,value)
+const control=(name,value)=>useJsonQuery(()=>`chart:${props.stateKey}:${name}`,value)
 const armSel = control('arm',()=>props.chartData.arms[0])
 const selectedArm = computed(() => props.controls ? armSel.value : props.chartData.arms[0])
 const unit = computed(() => selectedArm.value === 'surprisal' ? 'bits' : 'characters')
 const mode = control('mode','all')
 const data = computed(()=>props.chartData.series)
 const domains = computed(()=>props.chartData.domains)
-const range = useUrlState(()=>`chart:${props.rangeKey??props.stateKey}:y`,null)
+const range = useJsonQuery(()=>`chart:${props.rangeKey??props.stateKey}:y`,null)
 const xRange = control('x',null)
 const xKnob = ref(null)
 const knob = ref(null)

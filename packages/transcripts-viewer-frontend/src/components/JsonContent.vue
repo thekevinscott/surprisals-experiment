@@ -1,12 +1,12 @@
 <script setup>
 import {computed,inject,ref,watch,nextTick} from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import VueJsonPretty from 'vue-json-pretty'
 import 'vue-json-pretty/lib/styles.css'
 const props=defineProps({text:String})
 const scope=inject('viewStateKey',()=> 'json'),testCase=inject('testCase',()=>null)
-const collapsed=useUrlState(()=>`json:${scope()}:collapsed`,[])
-const selected=useUrlState(()=>`json:${scope()}:selected`,()=>testCase()!=null?`root.cases[${testCase()}]`:'')
+const collapsed=useJsonQuery(()=>`json:${scope()}:collapsed`,[])
+const selected=useJsonQuery(()=>`json:${scope()}:selected`,()=>testCase()!=null?`root.cases[${testCase()}]`:'')
 const element=ref(null)
 function collapse(value,node) {
   const paths=new Set(collapsed.value)

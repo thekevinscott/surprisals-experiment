@@ -1,29 +1,24 @@
 import {shallowRef,watch} from 'vue'
-import {readState,routeHash,setUrlState,clearUrlState} from './urlState.js'
+import {useJsonQuery,clearQueries} from './queryState.js'
 import {turnSummary} from './outcomes.js'
-import {fileRoute} from './fileMatcher.js'
+import {fileLink,resolveFile} from '../router.js'
 
 export const filePreview=shallowRef(null)
+const modal=useJsonQuery('modal',null)
 let currentDescriptor='',restoreSequence=0
 const descriptorFile=file=>Object.fromEntries(['source','url','name','path','error','timedOut'].filter(key=>file[key]!=null).map(key=>[key,file[key]]))
 function remember(preview) {
-  if(typeof location==='undefined')return
   const context=preview?.uNavigation?.()
   const descriptor=preview ? Object.fromEntries(['kind','src','name','title','line','uView','testCase','measurement'].filter(key=>preview[key]!=null).map(key=>[key,preview[key]])) : null
   if(preview?.files)descriptor.files=preview.files.map(descriptorFile)
   if(context)descriptor.turn={window:context.window,fork:context.fork,id:preview.uTurnId}
   currentDescriptor=JSON.stringify(descriptor)
   restoreSequence++
-  setUrlState('modal',descriptor)
+  modal.value=descriptor
 }
 function present(preview){filePreview.value=preview;remember(preview)}
-function sourceViewer(sourceUrl,name,line) {
-  const url=new URL(location.href)
-  url.hash=`files/${encodeURIComponent(name)}?${new URLSearchParams({src:sourceUrl,...(line?{line:String(line)}:{})})}`
-  return url.href
-}
 export function restoreModals() {
-  return watch(()=>JSON.stringify(readState(routeHash.value,'modal',null)),async encoded=>{
+  return watch(()=>JSON.stringify(modal.value),async encoded=>{
     if(encoded===currentDescriptor)return
     currentDescriptor=encoded
     const sequence=++restoreSequence,descriptor=JSON.parse(encoded)
@@ -32,7 +27,7 @@ export function restoreModals() {
     try{
       const file=preview.files?.[0],src=file?.url??preview.src
       const root=src?.match(/^(\/api\/runs\/[^/]+)/)?.[1]
-      preview.sourceUrl=(name,line)=>sourceViewer(`${root}/files/${name}`,name,line)
+      preview.sourceUrl=(name,line)=>fileLink(`${root}/files/${name}`,name,line)
       preview.rawFiles=preview.files?.slice(0,1)??[{url:preview.src,source:preview.name}]
       if(preview.kind==='transcript')preview.source=file.source
       if(preview.turn){
@@ -56,11 +51,11 @@ export function restoreModals() {
   },{immediate:true})
 }
 export function openFile(url, options={}) {
-  const route=fileRoute(new URL(url,location.href).hash)
+  const route=resolveFile(url)
   if(route){
-    const name=route.get('name'),src=route.get('src'),filename=name.split('/').at(-1)
+    const name=route.name,src=route.src,filename=name.split('/').at(-1)
     const title=filename==='advice.txt'?'Advice':filename==='tests.json'?'Test results':filename
-    present({src,name,title,line:route.get('line'),rawFiles:[{url:src,source:name}],...options})
+    present({src,name,title,line:route.line,rawFiles:[{url:src,source:name}],...options})
   }
 }
 export function openTranscript(preview,file=preview.files[0]) {
@@ -79,8 +74,8 @@ function advicePreview({sourceUrl,uNavigation,uTurnId,previousText}) {
   const navigation=()=>{const context=uNavigation();return {...context,turns:context.turns.filter(turn=>turn.advice!=null)}}
   const context=navigation(),id=uTurnId??context.turn,turn=context.turns.find(turn=>turn.id===id)
   const comparison=context.turns[context.turns.findIndex(t=>t.id===id)-1]
-  const route=fileRoute(new URL(sourceUrl(turn.adviceSource),location.href).hash)
-  const src=route.get('src'),name=route.get('name')
+  const route=resolveFile(sourceUrl(turn.adviceSource))
+  const src=route.src,name=route.name
   return {kind:'advice',src,name,sourceUrl,uNavigation:navigation,uTurnId:id,previousText,highlightId:++adviceTransition,
     title:`Window ${context.window} · Fork ${context.fork}${turn.solo?' continues':''} · Turn ${id} · Advice`,
     comparisonText:comparison?.advice,comparisonTokens:comparison?.tokens,
@@ -105,5 +100,5 @@ export function selectPreviewFile(file) {
 }
 export function closeFile() {
   present(null)
-  if(typeof location!=='undefined')clearUrlState(key=>/^(advice:|transcript:|file:|json:|scroll:(modal|blocks|files|json)$)/.test(key)||key.startsWith('panel:windows/')||key.startsWith('panel:/api/'))
+  clearQueries(key=>/^(advice:|transcript:|file:|json:|scroll:(modal|blocks|files|json)$)/.test(key)||key.startsWith('panel:windows/')||key.startsWith('panel:/api/'))
 }

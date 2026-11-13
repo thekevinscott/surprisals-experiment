@@ -1,6 +1,6 @@
 <script setup>
 import {installScrollState} from './composables/scrollState.js'
-import {useUrlState} from './composables/urlState.js'
+import {useJsonQuery} from './composables/queryState.js'
 import { computed, ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -19,7 +19,7 @@ const loading=ref(false),error=ref('')
 const now=ref(Date.now())
 const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
-const sortField=useUrlState('sort','problem'),sortOrder=useUrlState('order',1)
+const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
 const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
 import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
@@ -40,7 +40,7 @@ restoreModals()
 let stopScroll
 onMounted(()=>{stopScroll=installScrollState()})
 onUnmounted(()=>stopScroll?.())
-const showAdviceDiff=useUrlState('advice:diff',false)
+const showAdviceDiff=useJsonQuery('advice:diff',false)
 const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
 const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
 function turnKey(event) {

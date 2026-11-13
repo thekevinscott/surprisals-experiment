@@ -1,5 +1,5 @@
 import {createRouter,createWebHashHistory,createMemoryHistory} from 'vue-router'
-const component=()=>import('./App.vue')
+const component=typeof window==='undefined'?{render:()=>null}:()=>import('./App.vue')
 export const router=createRouter({
   history:typeof window==='undefined'?createMemoryHistory():createWebHashHistory(),
   routes:[

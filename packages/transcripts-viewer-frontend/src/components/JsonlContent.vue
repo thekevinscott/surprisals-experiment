@@ -1,6 +1,6 @@
 <script setup>
 import {computed,inject} from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import JsonContent from './JsonContent.vue'
 import {transcriptLines} from '../composables/transcriptFile.js'
 import SearchSelect from './SearchSelect.vue'
@@ -8,7 +8,7 @@ const props=defineProps({text:String,line:String})
 const lines=computed(()=>transcriptLines(props.text).map((raw,index)=>({raw,number:index+1})))
 const options=computed(()=>lines.value.map(line=>({value:`Line ${line.number}`,description:line.raw})))
 const scope=inject('viewStateKey',()=> 'jsonl')
-const selected=useUrlState(()=>`file:${scope()}:record`,()=>options.value.find(option=>option.value===`Line ${props.line}`)?.value??options.value[0]?.value??'')
+const selected=useJsonQuery(()=>`file:${scope()}:record`,()=>options.value.find(option=>option.value===`Line ${props.line}`)?.value??options.value[0]?.value??'')
 const active=computed(()=>lines.value[options.value.findIndex(option=>option.value===selected.value)])
 function step(offset){const index=options.value.findIndex(option=>option.value===selected.value);selected.value=options.value[index+offset]?.value??selected.value}
 </script>

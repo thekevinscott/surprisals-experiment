@@ -1,6 +1,6 @@
 <script setup>
 import {computed,inject,ref,watch,nextTick} from 'vue'
-import {useUrlState} from '../composables/urlState.js'
+import {useJsonQuery} from '../composables/queryState.js'
 import Button from 'primevue/button'
 import Popover from 'primevue/popover'
 import {openTranscript} from '../composables/filePreview.js'
@@ -10,7 +10,7 @@ const rawUrl=inject('rawSourceUrl')
 const sourceUrl=inject('sourceUrl')
 const picker=ref(null),anchor=ref(null)
 const files=computed(()=>(props.source?[{source:props.source}]:(props.files??[])).map(file=>({...file,url:rawUrl(file.source)})))
-const pickerOpen=useUrlState(()=>`picker:${files.value[0]?.source}`,false)
+const pickerOpen=useJsonQuery(()=>`picker:${files.value[0]?.source}`,false)
 watch(pickerOpen,async value=>{await nextTick();if(value)picker.value?.show({currentTarget:anchor.value?.$el,target:anchor.value?.$el},anchor.value?.$el);else picker.value?.hide()},{immediate:true})
 function openFile(file) {
   pickerOpen.value=false
