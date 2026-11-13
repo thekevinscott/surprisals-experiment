@@ -6,6 +6,13 @@ const props = defineProps({ messages: Array, source: String, initialLine: String
 const emit = defineEmits(['visible'])
 const selectedBlock = useUrlState(()=>`transcript:${props.source}:block`,null)
 const blocks = new Map()
+const navigation=ref(null),navigationHeight=ref(0)
+watch(navigation,(element,_,cleanup)=>{
+  if(!element)return
+  const observer=new ResizeObserver(()=>{navigationHeight.value=element.getBoundingClientRect().height})
+  observer.observe(element)
+  cleanup(()=>observer.disconnect())
+})
 const legend = computed(() => [...new Set(props.messages.map(message=>message.role))])
 const options = computed(() => props.messages.map((message, index) => ({
   value: `${index + 1} · ${message.role}`,
@@ -51,11 +58,11 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 },{immediate:true})
 </script>
 <template>
-  <div class="transcript-view">
+  <div class="transcript-view" :style="{'--transcript-nav-height':`${navigationHeight}px`}">
     <div class="transcript-controls"><span>{{ messages.length }} messages</span><div class="role-legend" aria-label="Transcript types"><label v-for="role in legend" :key="role"><input type="checkbox" :checked="!hiddenTypes.has(role)" @change="setTypeVisible(role,$event.target.checked)"><i :class="`role-${role}`" aria-hidden="true"></i>{{ role }}</label></div></div>
     <p v-if="!messages.length">Transcript not recorded</p>
     <div class="transcript-layout">
-    <nav v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
+    <nav ref="navigation" v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
       <button v-for="{message,index} in visibleMessages" :key="index" class="block-jump" :class="[{active:selectedBlock===options[index].value}, `role-${message.role}`]" :aria-current="selectedBlock===options[index].value?'true':undefined" :aria-label="`Jump to ${options[index].value}`" :title="options[index].description" @click="jump(options[index].value)"><b>{{ message.line }}</b></button>
     </nav>
     <div class="message-blocks">
@@ -70,7 +77,7 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
 <style scoped>
 .transcript-view { container-type:inline-size; }
 .transcript-layout { display:grid;grid-template-columns:minmax(0,1fr);gap:4px;align-items:start; }
-.block-navigation { position:sticky;top:0;z-index:1;display:flex;gap:4px;overflow-x:auto;min-width:0;padding:4px 2px;background:white; }
+.block-navigation { position:sticky;top:0;z-index:2;display:flex;gap:4px;overflow-x:auto;min-width:0;padding:4px 2px;background:white; }
 .block-jump { display:flex;align-items:center;gap:4px;flex-shrink:0;border:1px solid #bac9df;border-radius:6px;background:#f6f8fc;color:#254c7f;padding:4px 2px;cursor:pointer;font-size:10px; }
 .block-jump b { min-width:20px;text-align:center; }
 .block-jump:hover,.block-jump.active { outline:2px solid #4169bb;outline-offset:-2px; }
