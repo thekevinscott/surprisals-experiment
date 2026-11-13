@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from openai import BadRequestError
 from state_machine.testing import REMOVED, Done, State
-from utils.world import Score, T, U, t_sent
+from utils.world import Score, T, U, measurement, t_sent
 
 from surprisals_experiment.config import Config
 from surprisals_experiment.retry_policy.constants import DELAYS
@@ -35,8 +35,8 @@ def advice_path(text):
 def flush(index, advice, *, length=None, bits=None):
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
             + f'<advice>\n{advice}\n</advice>\n'
-            + (f'<length>{length} characters</length>\n' if length else '')
-            + (f'<bits>\n{bits}\n</bits>\n' if bits else '')
+            + (f'<advice_length>{length} characters</advice_length>\n' if length else '')
+            + (measurement(advice, bits) + '\n' if bits else '')
             + f'<code>\n<T-0>\n<file path="main.py">\n{PASS}\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
 
 
@@ -131,7 +131,7 @@ async def test_bits_drive_improvement_feedback_and_result(scoring_config, execut
     tiny, longer, equal = ("".join(token for token, _ in reply) for reply in pairs)
     first = [turn(0, index) for index in range(3)]
     second = [turn(1, index) for index in range(3)]
-    best = flush(1, longer, bits='much longer<3.0> but fewer bits<5.2>')
+    best = flush(1, longer, bits=[('much longer', 3.0), (' but fewer bits', 5.25)])
     window = [(QUESTION, tiny), (None, longer), (None, equal)]
     later = [(best, longer), (None, longer), (None, longer)]
     world = [
@@ -163,7 +163,7 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, execute_
     config.max_u_turns = 2
     first = [turn(0, index) for index in range(2)]
     second = [turn(1, index) for index in range(2)]
-    best = flush(0, 'good', bits='good<10.0>')
+    best = flush(0, 'good', bits=[('good', 10.0)])
     world = [
         u_state(config, first[0], QUESTION, 'good', {'settings.json': ..., **opened(0)}),
         score_state('good', {**unscored(first[0], 'good')}, bits=[('good', 10.0)]),
@@ -186,7 +186,7 @@ async def test_failed_lower_bits_do_not_replace_success(scoring_config, execute_
 async def test_scorer_failure_retries_with_advice_saved(scoring_config, execute_run_experiment):
     config = scoring_config
     first, second = turn(0, 0), turn(1, 0)
-    best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
+    best = flush(0, 'Use a loop', bits=[('Use a loop', 10.0)])
     retry = "Scorer 1/8 in 10s: Error code: 503 - {'error': {'message': 'scorer failed'}}\n"
     world = [
         u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0)}),
@@ -226,7 +226,7 @@ async def test_identical_advice_cannot_improve_from_score_jitter(scoring_config,
     same = 'same advice'
     first = [turn(0, index) for index in range(2)]
     second = [turn(1, index) for index in range(2)]
-    best = flush(0, same, bits='same<4.0> advice<6.0>')
+    best = flush(0, same, bits=[('same', 4.0), (' advice', 6.0)])
     world = [
         u_state(config, first[0], QUESTION, same, {'settings.json': ..., **opened(0)}),
         score_state(same, {**unscored(first[0], same)},
@@ -270,7 +270,7 @@ def rejected(path, index):
 async def test_advice_over_scorer_context_reruns_u(scoring_config, execute_run_experiment):
     config = scoring_config
     first, second = turn(0, 0), turn(1, 0)
-    best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
+    best = flush(0, 'Use a loop', bits=[('Use a loop', 10.0)])
     world = [
         u_state(config, first, QUESTION, 'too long 0', {'settings.json': ..., **opened(0)}),
         score_state('too long 0', {**unscored(first, 'too long 0')},
@@ -333,7 +333,7 @@ async def test_relaunch_after_overflow_keeps_counting_attempts(scoring_config, e
 async def test_non_finite_score_retries_like_a_scorer_failure(scoring_config, execute_run_experiment, bits):
     config = scoring_config
     first, second = turn(0, 0), turn(1, 0)
-    best = flush(0, 'Use a loop', bits='Use a loop<10.0>')
+    best = flush(0, 'Use a loop', bits=[('Use a loop', 10.0)])
     retry = f"Scorer 1/8 in 10s: Scorer returned non-finite surprisal: [('Use a loop', {bits})]\n"
     world = [
         u_state(config, first, QUESTION, 'Use a loop', {'settings.json': ..., **opened(0)}),

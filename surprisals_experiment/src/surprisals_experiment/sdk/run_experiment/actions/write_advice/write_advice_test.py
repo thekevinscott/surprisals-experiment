@@ -14,6 +14,7 @@ from surprisals_experiment.sdk.run_experiment.actions import (
     write_advice as write_advice_module,
 )
 from surprisals_experiment.sdk.run_experiment.actions.write_advice import write_advice
+from surprisals_experiment.sdk.run_experiment.actions.score_advice import score_advice
 from surprisals_experiment.sdk.run_experiment.run_experiment import actions
 from surprisals_experiment.sdk.turn import Turn
 from surprisals_experiment.sdk.utils.u_chat import open_u_chat
@@ -118,20 +119,24 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
     # Shorter and all-pass, but in this window and another fork: in neither the opening nor this fork's turns.
     seed_turn(config, 1, 1, 0, 'Ok.', ['print(7)\n', 'print(8)\n'])
     opening = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-               '<attempt>\n<index>0</index>\n<advice>\nBest.\n</advice>\n<length>5 characters</length>\n'
+               '<attempt>\n<index>0</index>\n<advice>\nBest.\n</advice>\n<advice_length>5 characters</advice_length>\n'
                + code('print(1)\n', 'print(2)\n') + '\n</attempt>')
     botbox_script.advice.extend(['Later.', 'Again.', 'Next.'])
     async with open_u_chat(config, transcript=config.fork_dir / "u/transcript.jsonl") as chat:
         run = Run(config, ExperimentDatabase(config.output), QuestionDatabase(config.problem_dir), actions, u_chat=chat)
         await write_advice(run, Turn(config, 0, 1, 0))
+        await score_advice(run, Turn(config, 0, 1, 0))
         await write_advice(run, Turn(config, 1, 1, 0))
+        await score_advice(run, Turn(config, 1, 1, 0))
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 5 (5%)\n' + opening},
         {'role': 'assistant', 'content': 'Later.'},
-        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(3)\n', 'print(4)\n', passed=0)},
+        {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
+        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)\n' + code('print(3)\n', 'print(4)\n', passed=0)},
         {'role': 'assistant', 'content': 'Again.'},
-        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)\n<length>6 characters</length>\n' + code('print(5)\n', 'print(6)\n', passed=0)},
+        {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
+        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)\n' + code('print(5)\n', 'print(6)\n', passed=0)},
     ]
 
 

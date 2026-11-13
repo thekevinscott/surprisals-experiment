@@ -51,11 +51,11 @@ async def test_selects_and_reads_best_from_run_folder_alone(config, measure):
     assert '<advice>\nadvice 2\n</advice>' in prompt
     assert prompt.count('<results>1/1 test cases passed</results>') == 2
     if measure == 'surprisal':
-        assert '<bits>\nadvice 2<5.0>\n</bits>' in prompt
-        assert '<length>' not in prompt
+        assert '<advice_surprisal_bits>\n<total>5.00</total>\n<token bits="5.00">"advice 2"</token>\n</advice_surprisal_bits>' in prompt
+        assert '<advice_length>' not in prompt
     else:
-        assert '<length>5 characters</length>' in prompt
-        assert '<bits>' not in prompt
+        assert '<advice_length>5 characters</advice_length>' in prompt
+        assert '<advice_surprisal_bits>' not in prompt
     for sample in range(2):
         assert f'<T-{sample}>' in prompt
         assert f'print({sample})' in prompt

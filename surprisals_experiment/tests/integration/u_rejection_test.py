@@ -25,7 +25,7 @@ async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_exp
     transcript = 'windows/0/forks/0/u/transcript.jsonl'
     retry = u_state(config, path, QUESTION, 'shorter', {
         **rejected(path, 0), transcript: [
-            *chat(0, (QUESTION, 'too long 0'), config=config)[transcript],
+            *chat(0, (QUESTION, 'too long 0'), config=config, measured=False)[transcript],
             {'role': 'user', 'content': feedback},
         ],
     })
@@ -37,7 +37,7 @@ async def test_scorer_rejection_is_appended_to_u_context(config, execute_run_exp
     ]
     world = [
         first,
-        score_state('too long 0', {**unscored(path, 'too long 0'), **chat(0, (QUESTION, 'too long 0'), config=config)},
+        score_state('too long 0', {**unscored(path, 'too long 0'), **chat(0, (QUESTION, 'too long 0'), config=config, measured=False)},
                     status=400, message=OVERFLOW),
         retry,
     ]

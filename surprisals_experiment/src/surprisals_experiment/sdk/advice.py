@@ -44,5 +44,6 @@ class Advice:
         tokens = self.metadata.get("tokens")
         return MEASUREMENT(
             unit=self.measure.unit, score=self.metadata["score"],
-            score_text="".join(f"{token}<{bits:.1f}>" for token, bits in tokens) if tokens is not None else None,
+            tokens=[(json.dumps(token, ensure_ascii=False).replace("<", r"\u003c"), bits)
+                    for token, bits in tokens] if tokens is not None else [],
         ).rstrip("\n")

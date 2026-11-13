@@ -5,6 +5,7 @@ or the scored text for Score.
 """
 
 import shlex
+import json
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
@@ -84,3 +85,13 @@ class Score:
         self.bits = bits
         self.status = status
         self.message = message
+
+
+def measurement(text, tokens=None):
+    if tokens is None:
+        return f'<advice_length>{len(text)} characters</advice_length>'
+    lines = [f'<total>{sum(bits for _, bits in tokens):.2f}</total>']
+    for token, bits in tokens:
+        literal = json.dumps(token, ensure_ascii=False).replace('<', r'\u003c')
+        lines.append(f'<token bits="{bits:.2f}">{literal}</token>')
+    return '<advice_surprisal_bits>\n' + '\n'.join(lines) + '\n</advice_surprisal_bits>'

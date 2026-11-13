@@ -25,7 +25,7 @@ def code(*samples):
 
 def prompt(index, advice, *samples):
     return (f'{QUESTION}\n\n<attempt>\n<index>{index}</index>\n'
-            f'<advice>\n{advice}\n</advice>\n<length>{len(advice)} characters</length>\n'
+            f'<advice>\n{advice}\n</advice>\n<advice_length>{len(advice)} characters</advice_length>\n'
             f'{code(*samples)}\n</attempt>')
 
 
@@ -53,9 +53,11 @@ async def test_feeds_every_t_source_of_the_best_attempt_back(config, execute_run
     clean = {'helper.py': 'VALUE = 42\n', 'main.py': PASS, 'nested/extra.py': 'EXTRA = 7\n'}
     best = prompt(1, 'short', clean, clean)
     first = [{'role': 'user', 'content': u_user(config, 1, QUESTION)}, {'role': 'assistant', 'content': 'long advice'},
-             {'role': 'user', 'content': u_user(config, 2, '<length>11 characters</length>\n' + code(mutated, clean))}]
+             {'role': 'user', 'content': '<advice_length>11 characters</advice_length>'},
+             {'role': 'user', 'content': u_user(config, 2, code(mutated, clean))}]
     second = [{'role': 'user', 'content': u_user(config, 1, best, 5)}, {'role': 'assistant', 'content': 'short'},
-              {'role': 'user', 'content': u_user(config, 2, '<length>5 characters</length>\n' + code(clean, clean), 5)}]
+              {'role': 'user', 'content': '<advice_length>5 characters</advice_length>'},
+              {'role': 'user', 'content': u_user(config, 2, code(clean, clean), 5)}]
 
     def turn(window, number):
         return f'windows/{window}/forks/0/turns/{number}'
@@ -117,7 +119,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
     config.max_u_turns = 3
     question = '<original_question>\nRead an integer and print its double.\n</original_question>'
     best = ('<original_question>\nRead an integer and print its double.\n</original_question>\n\n'
-            '<attempt>\n<index>0</index>\n<advice>\ntiny\n</advice>\n<length>4 characters</length>\n'
+            '<attempt>\n<index>0</index>\n<advice>\ntiny\n</advice>\n<advice_length>4 characters</advice_length>\n'
             '<code>\n<T-0>\n<file path="main.py">\nprint(int(input()) * 2)\n</file>\n<results>2/2 test cases passed</results>\n</T-0>\n</code>\n</attempt>')
     advices = {'tiny': 'advices/8950abfda7b727630760dd35bcf5c3daa7631aff223a90f7728c0d2521dde10c',
                'long advice': 'advices/9cca26ad57d22afe3fb910db6323538932cd68c68ca666f6c97b03ca76f188ab',
@@ -136,7 +138,8 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
         return [{'role': 'user', 'content': u_user(config, 1, opening, previous)},
                 *[message for turn, advice in enumerate(said, 2) for message in (
                     {'role': 'assistant', 'content': advice},
-                    {'role': 'user', 'content': u_user(config, turn, f'<length>{len(advice)} characters</length>\n' + code({'main.py': PASS}), previous)})]]
+                    {'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'},
+                    {'role': 'user', 'content': u_user(config, turn, code({'main.py': PASS}), previous)})]]
 
     def chat(*turns):
         messages = [system]
@@ -144,6 +147,7 @@ async def test_sends_and_records_exact_roles(config, execute_run_experiment):
             messages.append(user[-1] | {'_attempt': attempt})
             if advice:
                 messages.append({'role': 'assistant', 'content': advice, 'reasoning': 'Think.', **usage})
+                messages.append({'role': 'user', 'content': f'<advice_length>{len(advice)} characters</advice_length>'})
         return messages
 
     def transcripts(window):
@@ -257,6 +261,7 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
     ], {advice: {'score': 6}}, config=config)
     transcript = 'windows/0/forks/0/u/transcript.jsonl'
     entries = world[1].files.pop(transcript)
+    measurement_entry = entries.pop()
     entries[-1].pop('u_messages')
     entries[-1].pop('u_request_sha256')
     entries[-1].update(request_metadata)
@@ -264,6 +269,7 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
     world[1].files['windows/0/forks/0/turns/0/metadata.json'] = {
         'advice': world[1].files['windows/0/forks/0/turns/0/metadata.json']['advice'], **request_metadata,
     }
+    world[1].files[transcript] = [*entries, measurement_entry]
     path = config.output / transcript
     path.parent.mkdir(parents=True)
     path.write_text(saved)
@@ -273,6 +279,6 @@ async def test_resume_reuses_u_reply_written_before_turn_metadata(config, execut
     # Resume goes straight to T; the only U request is in the next window.
     async with execute_run_experiment(config, world[1:], u_layout=True):
         pass
-    assert path.read_text() == saved
+    assert path.read_text() == saved + json.dumps(measurement_entry) + '\n'
     metadata = json.loads((path.parent.parent / 'turns/0/metadata.json').read_text())
     assert {key: value for key, value in metadata.items() if key != 'advice'} == request_metadata

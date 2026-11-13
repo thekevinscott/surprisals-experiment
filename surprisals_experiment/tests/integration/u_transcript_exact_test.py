@@ -41,8 +41,10 @@ def lines(config, window):
 def assert_exact(file, requests):
     for request in requests:
         assert request == file[:len(request)]
-    assert len(file) == len(requests[-1]) + 1
-    assert file[-1]['role'] == 'assistant'
+    assert len(file) == len(requests[-1]) + 2
+    assert file[-2]['role'] == 'assistant'
+    assert file[-1]['role'] == 'user'
+    assert file[-1]['content'].startswith('<advice_length>')
 
 
 async def test_multi_turn_transcript_is_exactly_what_u_was_sent(config, run_and_record):

@@ -1,7 +1,10 @@
 {% if unit == "characters" %}
-<length>{{ score }} {{ unit }}</length>
+<advice_length>{{ score }} characters</advice_length>
 {% else %}
-<bits>
-{{ score_text }}
-</bits>
+<advice_surprisal_bits>
+<total>{{ "%.2f"|format(score) }}</total>
+{% for token, bits in tokens %}
+<token bits="{{ "%.2f"|format(bits) }}">{{ token }}</token>
+{% endfor %}
+</advice_surprisal_bits>
 {% endif %}

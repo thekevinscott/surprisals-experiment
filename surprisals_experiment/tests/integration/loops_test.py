@@ -25,7 +25,7 @@ def code(sources):
 
 def best(index, advice, sources):
     return (f'<original_question>\n{QUESTION}\n</original_question>\n\n<attempt>\n<index>{index}</index>\n'
-            f'<advice>\n{advice}\n</advice>\n<length>{len(advice)} characters</length>\n'
+            f'<advice>\n{advice}\n</advice>\n<advice_length>{len(advice)} characters</advice_length>\n'
             f'{code(sources)}\n</attempt>')
 
 

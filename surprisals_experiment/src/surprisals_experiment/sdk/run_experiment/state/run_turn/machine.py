@@ -13,6 +13,10 @@ async def state(run: Run, turn: Turn) -> str:
         STATE, **turn.params, samples=turn.config.t_samples,
         timeouts=turn.config.t_sample_retries + 1,
     )
+    # Cached scores (including a restart after scoring) still need their message.
+    if row["state"] in ("solutions_missing", "turn_done") and run.u_chat is not None:
+        if run.u_chat.entries()[-1]["role"] == "assistant":
+            return "unscored"
     return row["state"]
 
 

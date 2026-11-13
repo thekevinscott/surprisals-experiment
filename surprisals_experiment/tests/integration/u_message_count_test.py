@@ -9,6 +9,7 @@ import pytest
 from state_machine.testing import State
 from u_flush_test import PASS, QUESTION, flush, outcome, played
 from utils.world import U
+from surprisals_experiment.config import Config
 
 
 @pytest.fixture
@@ -17,26 +18,38 @@ def u_requests():
     requests = []
 
     async def recording(self, request):
-        requests.append(request.content)
+        if json.loads(request.content).get("model") == "u":
+            requests.append(request.content)
         return await handle(self, request)
 
     with patch.object(httpx2.MockTransport, 'handle_async_request', recording):
         yield requests
 
 
-async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_prefix(config, execute_run_experiment, u_requests):
-    config.max_u_turns = 2
+@pytest.mark.parametrize('measure', ['characters', 'surprisal'])
+async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_prefix(config, execute_run_experiment, u_requests, measure):
+    config = Config(**(config.model_dump() | {
+        'cap_strategy': measure, 'scorer_base_url': 'http://scorer/v1', 'max_u_turns': 2,
+    }))
+    tokens = [('dou', 1.125), ('ble', 2.625)]
+    bits = {'double': tokens} if measure == 'surprisal' else {}
+    score = {'score': 3.75, 'tokens': [list(pair) for pair in tokens]} if bits else {'score': 6}
+    expected = ('<advice_surprisal_bits>\n<total>3.75</total>\n<token bits="1.12">"dou"</token>\n'
+                '<token bits="2.62">"ble"</token>\n</advice_surprisal_bits>') if bits else '<advice_length>6 characters</advice_length>'
+    best = flush(0, 'double', bits=tokens) if bits else flush(0, 'double', length=6)
     world, pending = played([
         [(QUESTION, 'double', [PASS]), (None, 'double', [PASS])],
-        [(flush(0, 'double', length=6), 'double', [PASS]), (None, 'double', [PASS])],
-    ], {'double': {'score': 6}}, config=config)
-    retried = world[2]
+        [(best, 'double', [PASS]), (None, 'double', [PASS])],
+    ], {'double': score}, bits=bits, config=config)
+    retried = [state for state in world if isinstance(state.reply, U)][1]
     failed = State(U(status=400), sent=retried.sent, files=retried.files)
     retried.files = {}
     retried.logs.insert(0, ('windows/0/forks/0/turns/1/u', 'retry',
                            "1/8 in 10s: Error code: 400 - {'error': {'message': 'provider failed'}}\n"))
-    world.insert(2, failed)
-    world.append(outcome(config, 'windows/0/forks/0/turns/0', 4, pending))
+    world.insert(world.index(retried), failed)
+    scoring = {'best_measurement': 3.75, 'cap_strategy': 'surprisal', 'scorer_base_url': 'http://scorer/v1',
+               'scorer_model': 'openai/gpt-oss-120b'} if bits else {}
+    world.append(outcome(config, 'windows/0/forks/0/turns/0', 4, pending, **scoring))
     async with execute_run_experiment(config, world):
         pass
 
@@ -55,10 +68,10 @@ async def test_each_turn_records_the_sent_request_hash_message_count_and_exact_p
                 for entry in entries[:metadata['u_messages']]] == request['messages']
 
         assert entries[metadata['u_messages'] + 1] == {
-            'role': 'user', 'content': '<advice_length>6 characters</advice_length>',
+            'role': 'user', 'content': expected,
         }
         if turn:
             assert request['messages'][-2] == {
-                'role': 'user', 'content': '<advice_length>6 characters</advice_length>',
+                'role': 'user', 'content': expected,
             }
-            assert '<advice_length>' not in request['messages'][-1]['content']
+            assert '<advice_' not in request['messages'][-1]['content']

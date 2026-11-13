@@ -89,12 +89,13 @@ async def test_output_limit_next_turn_reports_failure_without_failed_content(con
     advice = 'Use a loop'
     best = flush(1, advice, length=10)
     second = [{'role': 'user', 'content': u_user(config, 1, best, 10)}, {'role': 'assistant', 'content': advice},
-              {'role': 'user', 'content': u_user(config, 2, '<length>10 characters</length>\n' + appended(PASS), 10)}]
+              {'role': 'user', 'content': '<advice_length>10 characters</advice_length>'},
+              {'role': 'user', 'content': u_user(config, 2, appended(PASS), 10)}]
     failure = ('turn 2 of 20\nYour previous reply failed: U hit its output token limit '
                '(20 completion tokens, 19 reasoning tokens). No advice was produced.')
     asked = [*chat(0, (QUESTION, None), config=config)['windows/0/forks/0/u/transcript.jsonl'],
              {'role': 'user', 'content': failure, '_attempt': 1}]
-    answer = chat(0, (QUESTION, advice), config=config)['windows/0/forks/0/u/transcript.jsonl'][-1]
+    answer = chat(0, (QUESTION, advice), config=config)['windows/0/forks/0/u/transcript.jsonl'][-2:]
     world = [
         State(U('partial', thinking='Cut off', finish='length', usage=USAGE),
               sent=u_state(config, 0, 0, QUESTION, advice, {}, u_layout=True).sent,
@@ -106,7 +107,7 @@ async def test_output_limit_next_turn_reports_failure_without_failed_content(con
             f'{TURN}/metadata.json': {
                 'advice': None, 'error': 'U hit its output token limit (20 completion tokens, 19 reasoning tokens)'},
             'windows/0/forks/0/u/transcript.jsonl': asked}, u_layout=True),
-        t_state(0, 1, 0, 0, advice, {'windows/0/forks/0/u/transcript.jsonl': [*asked, answer],
+        t_state(0, 1, 0, 0, advice, {'windows/0/forks/0/u/transcript.jsonl': [*asked, *answer],
                                      **advised(0, 1, advice, 10)}),
         u_state(config, 1, 0, best, advice, {**evaluated(attempt(0, 1, 0)), **opened(1), **chat(1, (best, None), config=config, best=10)},
                 previous=10, u_layout=True),
