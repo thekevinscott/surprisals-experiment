@@ -40,6 +40,7 @@ restoreModals()
 let stopScroll
 onMounted(()=>{stopScroll=installScrollState()})
 onUnmounted(()=>stopScroll?.())
+const showAdviceDiff=useUrlState('advice:diff',false)
 const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
 const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
 function turnKey(event) {
@@ -111,6 +112,9 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 <template>
   <RunpodCost :now="now" :show-total="!target && !fileRoute && tab === 'dashboard'" />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
+    <template v-if="filePreview?.kind==='advice'" #header>
+      <div class="advice-modal-heading"><span class="p-dialog-title">{{ filePreview.title }}</span><button type="button" :aria-pressed="showAdviceDiff" :disabled="filePreview.comparisonText==null" :title="filePreview.comparisonText==null?'No previous advice available for this fork':undefined" @click="showAdviceDiff=!showAdviceDiff">Show diff</button></div>
+    </template>
     <template #closebutton="{ closeCallback }">
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
@@ -122,7 +126,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <p v-if="filePreview?.restoreError" role="alert">{{ filePreview.restoreError }}</p>
     <TranscriptViewer v-else-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
-    <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
+    <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-diff="showAdviceDiff" :show-name="false" />
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
   <main :class="{'run-page':selected && !fileRoute}">

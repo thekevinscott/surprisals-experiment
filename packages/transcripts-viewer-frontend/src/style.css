@@ -99,3 +99,6 @@ button.icon-button, a.icon-button { display: inline-flex; align-items: center; j
 
 .metadata .duration-metadata { flex:0 0 13ch;width:13ch;font-size:12px;font-variant-numeric:tabular-nums; }
 .duration-metadata dd { white-space:nowrap; }
+
+.advice-modal-heading { display:flex;align-items:center;gap:12px; }
+.advice-modal-heading button[aria-pressed="true"] { background:#dcfce7; }

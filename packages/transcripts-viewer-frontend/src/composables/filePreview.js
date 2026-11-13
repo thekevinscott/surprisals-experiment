@@ -78,10 +78,12 @@ let adviceTransition=0
 function advicePreview({sourceUrl,uNavigation,uTurnId,previousText}) {
   const navigation=()=>{const context=uNavigation();return {...context,turns:context.turns.filter(turn=>turn.advice!=null)}}
   const context=navigation(),id=uTurnId??context.turn,turn=context.turns.find(turn=>turn.id===id)
+  const comparison=context.turns[context.turns.findIndex(t=>t.id===id)-1]
   const route=fileRoute(new URL(sourceUrl(turn.adviceSource),location.href).hash)
   const src=route.get('src'),name=route.get('name')
   return {kind:'advice',src,name,sourceUrl,uNavigation:navigation,uTurnId:id,previousText,highlightId:++adviceTransition,
     title:`Window ${context.window} · Fork ${context.fork}${turn.solo?' continues':''} · Turn ${id} · Advice`,
+    comparisonText:comparison?.advice,comparisonTokens:comparison?.tokens,
     initialText:turn.advice,tokens:turn.tokens,measurement:turn.measurement==null?'Measurement unavailable':turnSummary(turn),
     rawFiles:[{url:src,source:name}]}
 }
@@ -103,5 +105,5 @@ export function selectPreviewFile(file) {
 }
 export function closeFile() {
   present(null)
-  if(typeof location!=='undefined')clearUrlState(key=>/^(transcript:|file:|json:|scroll:(modal|blocks|files|json)$)/.test(key)||key.startsWith('panel:windows/')||key.startsWith('panel:/api/'))
+  if(typeof location!=='undefined')clearUrlState(key=>/^(advice:|transcript:|file:|json:|scroll:(modal|blocks|files|json)$)/.test(key)||key.startsWith('panel:windows/')||key.startsWith('panel:/api/'))
 }

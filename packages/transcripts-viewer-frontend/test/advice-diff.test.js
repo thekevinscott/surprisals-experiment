@@ -8,3 +8,8 @@ test('advice additions preserve exact text across token boundaries and exclude d
  assert.equal(pieces.filter(p=>p.added).map(p=>p.text).join('').replace(/\s/g,''),'thenew')
  assert.deepEqual(addedRanges('Keep old words.','Keep words.'),[])
 })
+
+test('split diff chunks retain source token scores',async()=>{
+ const {sliceTokens}=await import('../src/composables/adviceDiff.js')
+ assert.deepEqual(sliceTokens([['hello ',2],['world',4]],3,5),[['lo ',2],['wo',4]])
+})

@@ -14,3 +14,12 @@ export function highlightParts(text,ranges,offset=0) {
   const edges=[...ends].sort((a,b)=>a-b)
   return edges.slice(0,-1).map((start,i)=>({text:text.slice(start,edges[i+1]),added:ranges.some(([a,b])=>start+offset>=a&&start+offset<b)}))
 }
+
+export function sliceTokens(tokens,start,length) {
+  let offset=0
+  return (tokens??[]).flatMap(([text,bits])=>{
+    const from=Math.max(0,start-offset),to=Math.min(text.length,start+length-offset)
+    offset+=text.length
+    return to>from?[[text.slice(from,to),bits]]:[]
+  })
+}
