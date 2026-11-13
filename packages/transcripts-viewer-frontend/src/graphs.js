@@ -46,20 +46,12 @@ export function createForkChartData(row) {
   return chart
 }
 
-// Fork IDs are local to each window. Only the solo continuation connects
-// the previous window to the new set of branches.
+// Fork IDs are local to each window; lines contain only that fork’s turns.
 export function createRunChartData(row) {
   const chart = createForkChartData(row)
   chart.windowPositions = row.windowPositions ?? []
-  const forks = row.forks ?? []
-  chart.series.forEach((series,index)=>{
+  chart.series.forEach(series=>{
     series.scored = [...series.scored].sort((a,b)=>a[0]-b[0])
-    const previous = forks.filter(fork=>fork.window===forks[index].window-1)
-    const lastDepth = Math.max(...previous.map(fork=>fork.turns))
-    const continued = previous.filter(fork=>fork.turns===lastDepth)
-    if (continued.length===1) {
-      series.startPoint = [...(continued[0].scored ?? [])].sort((a,b)=>a[0]-b[0]).at(-1)
-    }
   })
   for (const [key, surp] of [['advice',false],['surprisal',true]]) {
     chart.domains[key].y = [0, Math.max(1,...chart.series.filter(s=>(s.strategy==='surprisal')===surp).flatMap(s=>s.scored.map(p=>p[1]))) * 1.05]

@@ -51,7 +51,7 @@ const legendWindows = computed(() => {
   return [...windows].sort((a,b)=>a[0]-b[0])
 })
 const chartKey = computed(() => props.kind === 'advice' && unit.value === 'bits' ? 'surprisal' : props.kind)
-const points = s => props.allPoints && props.kind === 'advice' ? (s.scored.length && s.startPoint ? [s.startPoint,...s.scored] : s.scored) : s[props.kind]
+const points = s => props.allPoints && props.kind === 'advice' ? s.scored : s[props.kind]
 const domain = computed(() => domains.value[chartKey.value] || { x: [0, 250], y: [0, 54] })
 const xrange = computed(() => xRange.value || domain.value.x)
 const yrange = computed(() => range.value || domain.value.y)
