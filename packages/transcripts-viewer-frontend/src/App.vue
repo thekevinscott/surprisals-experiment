@@ -115,9 +115,9 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
     </template>
-    <nav v-if="uTurns.length" class="u-turn-navigation" aria-label="U turns">
-      <button type="button" aria-label="Previous U turn" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
-      <button type="button" aria-label="Next U turn" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
+    <nav v-if="uTurns.length" class="u-turn-navigation" :aria-label="filePreview?.kind==='advice'?'Advice turns':'U turns'">
+      <button type="button" :aria-label="filePreview?.kind==='advice'?'Previous advice':'Previous U turn'" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
+      <button type="button" :aria-label="filePreview?.kind==='advice'?'Next advice':'Next U turn'" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
     </nav>
     <p v-if="filePreview?.restoreError" role="alert">{{ filePreview.restoreError }}</p>
     <TranscriptViewer v-else-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />

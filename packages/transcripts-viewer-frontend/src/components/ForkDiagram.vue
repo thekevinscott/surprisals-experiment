@@ -16,7 +16,7 @@ function uTurnContext(source) {
   for(const window of windows.value)for(const fork of window.forks){
     const turns=[...fork.parallel,...fork.solo].sort((a,b)=>a.id-b.id)
     const turn=turns.find(turn=>turn.source===source)
-    if(turn)return {window:window.id,fork:fork.id,turn:turn.id,turns:turns.map(({id,metadata})=>({id,metadata}))}
+    if(turn)return {window:window.id,fork:fork.id,turn:turn.id,turns:turns.map(turn=>({...turn,solo:fork.solo.includes(turn)}))}
   }
 }
 provide('uTurnContext',uTurnContext)

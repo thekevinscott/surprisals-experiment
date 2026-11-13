@@ -42,3 +42,29 @@ test('transcript preview shows one selected source file, preserving physical lin
  assert.deepEqual(filePreview.value.rawFiles,[files[1]])
  closeFile()
 })
+
+test('advice uses shared turn navigation, skips absent advice, and records source and turn in URL',async()=>{
+ const {openAdvice,stepUTurn}=await import('../src/composables/filePreview.js')
+ globalThis.location={href:'http://localhost/',hash:'#run/example'}
+ globalThis.history={replaceState:(_state,_title,hash)=>{location.hash=hash}}
+ try{
+  const turns=[{id:0,advice:'first',adviceSource:'advices/a/advice.txt',tokens:[],measurement:2,unit:'bits'},
+   {id:1,advice:null},{id:2,solo:true,advice:'last',adviceSource:'advices/b/advice.txt',tokens:[],measurement:1,unit:'bits'}]
+  const sourceUrl=name=>`http://localhost/#files/${encodeURIComponent(name)}?src=${encodeURIComponent('/api/runs/example/files/'+name)}`
+  openAdvice({sourceUrl,uNavigation:()=>({window:2,fork:2,turn:0,turns})})
+  assert.equal(filePreview.value.title,'Window 2 · Fork 2 · Turn 0 · Advice')
+  assert.deepEqual(filePreview.value.uNavigation().turns.map(t=>t.id),[0,2])
+  stepUTurn(-1);assert.equal(filePreview.value.uTurnId,0)
+  stepUTurn(1)
+  assert.equal(filePreview.value.title,'Window 2 · Fork 2 continues · Turn 2 · Advice')
+  assert.equal(filePreview.value.initialText,'last')
+  assert.equal(filePreview.value.measurement,'1 bits')
+  assert.equal(filePreview.value.rawFiles[0].source,'advices/b/advice.txt')
+  const modal=JSON.parse(new URLSearchParams(location.hash.split('?')[1]).get('modal'))
+  assert.equal(modal.kind,'advice');assert.deepEqual(modal.turn,{window:2,fork:2,id:2})
+  assert.equal(modal.initialText,undefined)
+  stepUTurn(1);assert.equal(filePreview.value.uTurnId,2)
+  stepUTurn(-1);assert.equal(filePreview.value.initialText,'first')
+  closeFile()
+ }finally{delete globalThis.location;delete globalThis.history}
+})

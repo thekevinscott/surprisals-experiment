@@ -4,12 +4,13 @@ import { inject } from 'vue'
 import TranscriptButton from './TranscriptButton.vue'
 import ContentPanel from './ContentPanel.vue'
 import Button from 'primevue/button'
-import {openFile} from '../composables/filePreview.js'
+import {openAdvice as showAdvice} from '../composables/filePreview.js'
 import TTranscripts from './TTranscripts.vue'
 const props=defineProps({ turn: Object })
 const sourceUrl=inject('sourceUrl')
+const uTurnContext=inject('uTurnContext')
 function openAdvice() {
-  openFile(sourceUrl(props.turn.adviceSource),{initialText:props.turn.advice,tokens:props.turn.tokens,measurement:props.turn.measurement==null?'Measurement unavailable':turnSummary(props.turn)})
+  showAdvice({sourceUrl,uNavigation:()=>uTurnContext(props.turn.source)})
 }
 const link = inject('runLink')
 </script>
