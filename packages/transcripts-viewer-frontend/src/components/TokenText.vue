@@ -1,5 +1,7 @@
 <script setup>
 import { computed } from 'vue'
+import Tooltip from 'primevue/tooltip'
+const vTooltip = Tooltip
 const props = defineProps({ text: String, tokens: Array })
 const parts = computed(() => {
   const text = props.text ?? ''
@@ -14,7 +16,7 @@ const color = bits => {
   return `rgb(${Math.round(255 - 31 * t)} ${Math.round(252 - 92 * t)} ${Math.round(230 - 230 * t)})`
 }
 </script>
-<template><template v-for="(part, index) in parts" :key="index"><span v-if="part.bits !== null" class="scored-token" :style="{ backgroundColor: color(part.bits) }" :title="`${Number(part.bits.toFixed(3))} bits`">{{ part.text }}</span><template v-else>{{ part.text }}</template></template></template>
+<template><template v-for="(part, index) in parts" :key="index"><span v-if="part.bits !== null" class="scored-token" :style="{ backgroundColor: color(part.bits) }" v-tooltip.top="`${Number(part.bits.toFixed(3))} bits`" :aria-label="`${Number(part.bits.toFixed(3))} bits`">{{ part.text }}</span><template v-else>{{ part.text }}</template></template></template>
 <style scoped>
 .scored-token { border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 </style>
