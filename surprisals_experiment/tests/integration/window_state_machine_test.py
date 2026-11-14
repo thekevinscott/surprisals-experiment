@@ -1,5 +1,6 @@
 """A window completes its fork and does not ask U again once finished."""
 
+import json
 from hashlib import sha256
 
 import pytest
@@ -90,7 +91,7 @@ async def test_finished_run_rerun_does_not_ask_u(config, execute_run_experiment)
 
 
 @pytest.mark.parametrize('passes', [True, False])
-@pytest.mark.parametrize('window_solo_turns', [0, 2])
+@pytest.mark.parametrize('window_solo_turns', [0, 2, 3])
 async def test_parallel_forks_then_winner_continues(config, execute_run_experiment, passes, window_solo_turns):
     config.window_forks = 4
     config.fork_turns = 2
@@ -111,6 +112,18 @@ async def test_parallel_forks_then_winner_continues(config, execute_run_experime
         scored['error.txt'] = f'No passing solution after {attempts} U turns\n'
     async with execute_run_experiment(config, [*world, Done(outcome=solution, files=scored)]):
         pass
+
+    for window, position, forks in rounds:
+        for fork in forks:
+            folder = config.output / f'windows/{window}/forks/{fork}'
+            metadata = json.loads((folder / f'turns/{position}/metadata.json').read_text())
+            transcript = [json.loads(line) for line in (folder / 'u/transcript.jsonl').read_text().splitlines()]
+            message = transcript[metadata['u_messages'] - 1]
+            cap = 2 if position < 2 else 2 + window_solo_turns
+            assert message['role'] == 'user'
+            assert message['content'].split(';')[0].split('\n')[0] == f'turn {position + 1} of {cap}'
+            note = f'Your fork was chosen to continue; you have {window_solo_turns} more turns.'
+            assert message['content'].splitlines()[1:] == ([note] if position == 2 else [])
 
     async with execute_run_experiment(config, [Done(outcome=solution)]):
         pass

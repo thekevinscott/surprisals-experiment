@@ -1,1 +1,2 @@
-turn {{ turn }}{% if turns is not none %} of {{ turns }}{% endif %}{% if best is not none %}; best at window start: {{ best }}; target: {{ target }} ({{ improvement }}){% endif %}
+turn {{ turn }}{% if turns is not none %} of {{ turns }}{% endif %}{% if best is not none %}; best at window start: {{ best }}; target: {{ target }} ({{ improvement }}){% endif %}{% if solo_turns is not none %}
+Your fork was chosen to continue; you have {{ solo_turns }} more turns.{% endif %}
