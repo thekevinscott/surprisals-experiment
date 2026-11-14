@@ -10,10 +10,12 @@
 </file>
 {% endif %}
 {% endfor %}
-{% if index in results and results[index].timed_out %}
+{% if index in results %}
+{% if results[index].timed_out %}
 T timed out after {{ results[index].attempts }} {{ "attempt" if results[index].attempts == 1 else "attempts" }}; no code was produced.
-{% elif index in results %}
+{% else %}
 <results>{{ results[index].passed }}/{{ results[index].cases }} test cases passed</results>
+{% endif %}
 {% endif %}
 </T-{{ index }}>
 {% endfor %}
