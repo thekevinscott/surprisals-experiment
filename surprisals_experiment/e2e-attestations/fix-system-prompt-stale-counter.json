@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/u_transcript_exact_test.py tests/integration/u_transcript_test.py tests/integration/measure_test.py -q",
+  "ran_at": 1794615923,
+  "exit_code": 0,
+  "commit": "960ac27ef19aa4ac323274641c2d3e1b9f343ebd",
+  "branch": "fix/system-prompt-stale-counter"
+}
