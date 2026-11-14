@@ -111,7 +111,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
-  <RunpodCost :now="now" :show-total="!target && !fileRoute && tab === 'dashboard'" />
+  <RunpodCost v-if="route.name === 'dashboard' && !filePreview" :now="now" show-total />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template v-if="filePreview?.kind==='advice'" #header>
       <div class="advice-modal-heading"><span class="p-dialog-title">{{ filePreview.title }}</span><button type="button" :aria-pressed="showAdviceDiff" :disabled="filePreview.comparisonText==null" :title="filePreview.comparisonText==null?'No previous advice available for this fork':undefined" @click="showAdviceDiff=!showAdviceDiff">Show diff</button></div>
