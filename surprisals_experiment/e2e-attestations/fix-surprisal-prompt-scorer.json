@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/u_transcript_exact_test.py tests/integration/u_transcript_test.py tests/integration/measure_test.py -q",
+  "ran_at": 1794615723,
+  "exit_code": 0,
+  "commit": "db30b74c998b2e0788016664e5ce8d0da875d345",
+  "branch": "fix/surprisal-prompt-scorer"
+}
