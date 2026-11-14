@@ -24,10 +24,7 @@ def u_user(config, turn, content='', best=None):
     line = f'turn {turn} of {config.fork_turns + config.window_solo_turns}'
     if best is not None:
         scale = 10 if config.cap_strategy == 'surprisal' else 1
-        units = floor(best * 0.95 * scale)
-        if best > 0 and (best - units / scale) / best < 0.05:
-            units -= 1
-        target = units / scale
+        target = floor(best * 0.95 * scale) / scale
         best, target = ((f'{best:.1f}', f'{target:.1f}') if config.cap_strategy == 'surprisal'
                         else (str(round(best)), str(round(target))))
         line += f'; best at window start: {best}; target: {target} (5%)'
