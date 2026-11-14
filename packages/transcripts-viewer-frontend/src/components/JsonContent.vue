@@ -1,17 +1,30 @@
 <script setup>
-import {computed} from 'vue'
+import {useContainerScroll} from '../composables/scrollPosition.js'
+import {computed,inject,ref,watch,nextTick} from 'vue'
+import {useJsonQuery} from '../composables/queryState.js'
 import VueJsonPretty from 'vue-json-pretty'
 import 'vue-json-pretty/lib/styles.css'
 const props=defineProps({text:String})
+const scope=inject('viewStateKey',()=> 'json'),testCase=inject('testCase',()=>null)
+const collapsed=useJsonQuery(()=>`json:${scope()}:collapsed`,[])
+const selected=useJsonQuery(()=>`json:${scope()}:selected`,()=>testCase()!=null?`root.cases[${testCase()}]`:'')
+const element=ref(null)
+useContainerScroll('json',element)
+function collapse(value,node) {
+  const paths=new Set(collapsed.value)
+  if(value)paths.add(node.path);else paths.delete(node.path)
+  collapsed.value=[...paths].sort()
+}
+watch(selected,async()=>{await nextTick();element.value?.querySelector('.is-highlight')?.scrollIntoView({block:'center'})},{immediate:true,flush:'post'})
 const parsed=computed(()=>{
   try{return {value:JSON.parse(props.text)}}
   catch(error){return {error:error.message}}
 })
 </script>
 <template>
-  <div class="json-content">
+  <div ref="element" class="json-content">
     <template v-if="parsed.error"><p role="alert">Invalid JSON: {{ parsed.error }}</p><pre>{{ text }}</pre></template>
-    <VueJsonPretty v-else :data="parsed.value" show-icon show-length show-line-number :editable="false" />
+    <VueJsonPretty v-else :key="JSON.stringify(collapsed)" :path-collapsible="node=>collapsed.includes(node.path)" @icon-click="collapse" @brackets-click="collapse" :selected-value="selected" @node-click="node=>selected=node.path" highlight-selected-node :data="parsed.value" show-icon show-length show-line-number :editable="false" />
   </div>
 </template>
 <style scoped>

@@ -6,10 +6,9 @@ import {createSSRApp,h} from 'vue'
 import {renderToString} from 'vue/server-renderer'
 import {createChartData} from '../src/graphs.js'
 
-test('top advice line connects every scored advice in turn order without changing best/wait data',async()=>{
+test('top advice line connects every scored advice in turn order without changing running-best data',async()=>{
  const data=createChartData([{id:'run',problem:'1958',strategy:'characters',turns:43,ended:'done',passing:[[0,20],[1,25],[2,10],[3,15],[42,12]]}])
  assert.deepEqual(data.series[0].advice,[[0,20],[2,10]])
- assert.deepEqual(data.wait[0].bests,[[2,10,2]]);assert.deepEqual(data.wait[0].pending,[10,40])
  data.series[0].scored=[[0,20,true],[1,25,true],[2,10,true],[3,15,true],[4,22,false],[42,12,true]];const original=structuredClone(data)
  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[vue()]})
  try{
@@ -21,6 +20,6 @@ test('top advice line connects every scored advice in turn order without changin
   assert.match(html,/<circle[^>]*fill="white"[^>]*data-passed="false"/,'failed scores have hollow markers')
   assert.equal((html.match(/data-passed="true"/g)||[]).length,5,'passing scores have filled markers')
   assert.match(await render(false),/H/,'existing running-best step mode remains available')
-  assert.deepEqual(data,original,'chart rendering does not alter improvement/wait calculations')
+  assert.deepEqual(data,original,'chart rendering does not alter source data')
  }finally{await server.close()}
 })

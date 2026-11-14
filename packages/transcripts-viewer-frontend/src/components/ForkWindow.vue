@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref, inject, watch, nextTick, onMounted } from 'vue'
+import {currentRoute as route} from '../composables/queryState.js'
 import ContentPanel from './ContentPanel.vue'
 import ForkBranch from './ForkBranch.vue'
 import ForkChart from './ForkChart.vue'
 import TurnBlock from './TurnBlock.vue'
 const props = defineProps({ window: Object, target: Object, hasNext: Boolean })
 const link = inject('runLink')
+const parentPath=inject('disclosurePath')
 const sampleCount = inject('sampleCount')
 const windowExpanded = ref(true)
 const windowPanel = ref(null)
@@ -13,6 +15,7 @@ const turnIds = computed(() => [...new Set(props.window.forks.flatMap(f => f.par
 const columnWidth = computed(() => (sampleCount() || Math.max(1, ...props.window.forks.flatMap(f => [...f.parallel,...f.solo].map(t=>t.samples.length)))) * 72 + 16)
 async function reveal(target) {
   if (String(props.window.id) !== target?.window) return
+  if(route.query[`panel:${parentPath()}/Window ${props.window.id}`]!==undefined)return
   windowExpanded.value = true
   await nextTick()
   windowPanel.value?.setExpanded(true)

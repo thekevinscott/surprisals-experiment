@@ -22,7 +22,7 @@ test('T renders every attempt tests in order with independent original-file targ
     const app=createSSRApp({render:()=>h(Sample,{sample:{id:0,source:'turns/0/ts/0',latest:attempts.at(-1)}})})
     app.provide('apiUrl',source=>`/api/${source}`)
     app.provide('rawSourceUrl',source=>`/api/files/${source}`)
-    app.provide('sourceUrl',source=>`#files/${source}?src=/api/files/${source}`)
+    app.provide('sourceUrl',source=>`#/files/${source}?src=/api/files/${source}`)
     const html=await renderToString(app)
     assert.deepEqual([...html.matchAll(/data-attempt="(\d+)"/g)].map(match=>Number(match[1])),[0,2,10])
     assert.ok(html.includes('/attempts/2/tests.json'),'empty test cases still link to their original tests file')

@@ -27,10 +27,12 @@ test('phase charts use configured ten-turn spans, split solo data, and share y b
  const row={id:'run',strategy:'characters',problem:'1',turns:40,forkTurns:10,soloTurns:10,forks:[
  {window:0,id:0,turns:20,passing:[[0,100],[9,50],[10,40],[19,30]]},
  {window:1,id:0,turns:40,passing:[[20,20],[29,10],[30,9],[39,8]]}]}
+ for(const fork of row.forks)fork.scored=fork.passing.map(([depth,score])=>[depth,score,true])
+ row.forks[0].scored.push([5,120,false])
  for(const window of [0,1])for(const solo of [false,true]){
   const start=window*20+(solo?10:0),chart=createForkPhaseChartData(row,window,0,solo)
   assert.deepEqual(chart.domains.advice.x,[start,start+10])
-  assert.deepEqual(chart.domains.advice.y,[0,105])
+  assert.deepEqual(chart.domains.advice.y,[0,126])
   assert.deepEqual(chart.series[0].passing.map(p=>p[0]),[start,start+9])
  }
 })

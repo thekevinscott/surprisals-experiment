@@ -1,5 +1,8 @@
 <script setup>
-import { computed, ref, reactive, watch, onUnmounted } from 'vue'
+import {useContainerScroll,usePageScroll} from './composables/scrollPosition.js'
+import {pageReady} from './composables/pageScroll.js'
+import {useJsonQuery} from './composables/queryState.js'
+import { computed, ref, reactive, watch, nextTick, onUnmounted } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ColumnGroup from 'primevue/columngroup'
@@ -10,28 +13,35 @@ import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
 import {runDuration} from './composables/runDuration.js'
-import {createChartData, createRunChartData} from './graphs.js'
+import {awsCost,awsCostTooltip} from './composables/awsCost.js'
+import {createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
 const now=ref(Date.now())
 const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
-const chartData=computed(()=>createChartData(data.rows.filter(row=>row.status)))
+const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
+const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
+import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
-import WaitChart from './components/WaitChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
-import { runRoute, runLink } from './composables/runLinks.js'
+import { runLink } from './composables/runLinks.js'
 import FileViewer from './components/FileViewer.vue'
 import Dialog from 'primevue/dialog'
 import TranscriptViewer from './components/TranscriptViewer.vue'
-import {filePreview,closeFile,stepUTurn} from './composables/filePreview.js'
+import {filePreview,closeFile,stepUTurn,restoreModals} from './composables/filePreview.js'
 import {connected} from './composables/liveUpdates.js'
-import { fileRoute as parseFileRoute } from './composables/fileMatcher.js'
+import {useRoute,useRouter} from 'vue-router'
 import ForkDiagram from './components/ForkDiagram.vue'
 import ContentPanel from './components/ContentPanel.vue'
 import ProblemFiles from './components/ProblemFiles.vue'
 import FilesViewer from './components/FilesViewer.vue'
 
+restoreModals()
+usePageScroll()
+const modalBody=ref(null)
+useContainerScroll('modal',computed(()=>modalBody.value?.parentElement),()=>filePreview.value?.src??filePreview.value?.name)
+const showAdviceDiff=useJsonQuery('advice:diff',false)
 const uTurns=computed(()=>filePreview.value?.uNavigation?.()?.turns ?? [])
 const uTurnIndex=computed(()=>uTurns.value.findIndex(turn=>turn.id===filePreview.value?.uTurnId))
 function turnKey(event) {
@@ -43,29 +53,14 @@ function turnKey(event) {
 }
 window.addEventListener('keydown',turnKey)
 onUnmounted(()=>window.removeEventListener('keydown',turnKey))
-const route = ref(location.hash)
-function panelState(name) {
-  return computed({
-    get:()=>new URLSearchParams(route.value.split('?')[1]).get(name)!=='closed',
-    set:open=>{
-      const [path,query]=route.value.split('?'),params=new URLSearchParams(query)
-      if(open)params.delete(name);else params.set(name,'closed')
-      const hash=path+(params.size ? `?${params}` : '')
-      history.replaceState(null,'',hash)
-      route.value=hash
-    },
-  })
-}
-const graphsExpanded=panelState('graphs'),transcriptsExpanded=panelState('transcripts')
-
-const syncRoute = () => { route.value = location.hash }
-window.addEventListener('hashchange', syncRoute)
-onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
-const fileRoute = computed(() => parseFileRoute(route.value))
-const target = computed(() => runRoute(route.value))
+const route=useRoute(),router=useRouter()
+const graphsExpanded=ref(true),transcriptsExpanded=ref(true)
+const fileRoute=computed(()=>route.name==='file'?{name:route.params.name,...route.query}:null)
+const target=computed(()=>route.meta.run?route.params:null)
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
+const forkDiagram = ref(null)
 const runCharts = computed(() => createRunChartData(selected.value))
-const tab = computed(() => route.value === '#graphs' ? 'graphs' : 'dashboard')
+const tab = computed(() => route.name === 'graphs' ? 'graphs' : 'dashboard')
 let refreshController
 onUnmounted(()=>refreshController?.abort())
 function refresh() {
@@ -81,11 +76,12 @@ function refresh() {
   },{signal,onData:value=>{Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
 }
 watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
-  if(value==='file')refreshController?.abort()
+  if(value==='file'||value==='graphs'){refreshController?.abort();loading.value=false;error.value=''}
   else refresh()
 }, {immediate:true})
-const navigateTab = value => { location.hash = value }
-const openRun = row => { location.hash = 'run/' + encodeURIComponent(row.id) }
+watch([loading,()=>route.name],async()=>{if(route.name!=='file'&&!loading.value){await nextTick();pageReady.value=true}},{immediate:true,flush:'post'})
+const navigateTab = name => router.push({name})
+const openRun = row => router.push({name:'run',params:{id:row.id}})
 const strategyOptions = computed(() => [...new Set(data.rows.map(r => r.strategy))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === value).length} runs` })))
 const problemOptions = computed(() => [...new Set(data.rows.filter(r => r.strategy === selected.value?.strategy).map(r => r.problem))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === value).length} runs · ${selected.value?.strategy}` })))
 const matchingRuns = computed(() => data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === selected.value?.problem))
@@ -107,6 +103,7 @@ const columns = [
   { key: 'uCost', label: 'U cost' },
   { key: 'tCost', label: 'T cost' },
   { key: 'modelCost', label: 'Recorded U + T' },
+  { key: 'awsCost', label: 'AWS estimate' },
 ]
 const number = value => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 const money = value => value == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
@@ -114,27 +111,34 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
+  <RunpodCost :now="now" :show-total="!target && !fileRoute && tab === 'dashboard'" />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
+    <template v-if="filePreview?.kind==='advice'" #header>
+      <div class="advice-modal-heading"><span class="p-dialog-title">{{ filePreview.title }}</span><button type="button" :aria-pressed="showAdviceDiff" :disabled="filePreview.comparisonText==null" :title="filePreview.comparisonText==null?'No previous advice available for this fork':undefined" @click="showAdviceDiff=!showAdviceDiff">Show diff</button></div>
+    </template>
     <template #closebutton="{ closeCallback }">
       <a v-for="file in (filePreview?.rawFiles ?? [{url:filePreview?.src,source:filePreview?.name}])" :key="file.url" :href="file.url" target="_blank" rel="noopener" class="modal-action" :aria-label="`Open raw file in new tab: ${file.source}`" :title="`Open raw file: ${file.source}`">↗</a>
       <button type="button" class="modal-action" aria-label="Close" @click="closeCallback">×</button>
     </template>
-    <nav v-if="uTurns.length" class="u-turn-navigation" aria-label="U turns">
-      <button type="button" aria-label="Previous U turn" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
-      <button type="button" aria-label="Next U turn" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
+    <div ref="modalBody">
+    <nav v-if="uTurns.length" class="u-turn-navigation" :aria-label="filePreview?.kind==='advice'?'Advice turns':'U turns'">
+      <button type="button" :aria-label="filePreview?.kind==='advice'?'Previous advice':'Previous U turn'" title="Previous turn (←)" :disabled="uTurnIndex<=0" @click="stepUTurn(-1)">←</button>
+      <button type="button" :aria-label="filePreview?.kind==='advice'?'Next advice':'Next U turn'" title="Next turn (→)" :disabled="uTurnIndex>=uTurns.length-1" @click="stepUTurn(1)">→</button>
     </nav>
-    <TranscriptViewer v-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
+    <p v-if="filePreview?.restoreError" role="alert">{{ filePreview.restoreError }}</p>
+    <TranscriptViewer v-else-if="filePreview?.kind==='transcript'" :key="filePreview.url??filePreview.name" v-bind="filePreview" />
     <FilesViewer v-else-if="filePreview?.kind==='files'" :key="filePreview.name" :files="filePreview.files" />
-    <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-name="false" />
+    <FileViewer v-else-if="filePreview" :key="filePreview.src" v-bind="filePreview" :show-diff="showAdviceDiff" :show-name="false" />
+    </div>
   </Dialog>
   <span v-if="!connected" class="live-dot" role="status" aria-label="Live connection lost; reconnecting" title="Live connection lost; reconnecting"></span>
   <main :class="{'run-page':selected && !fileRoute}">
-    <FileViewer v-if="fileRoute" :src="fileRoute.get('src')" :name="fileRoute.get('name')" :line="fileRoute.get('line')" />
+    <FileViewer v-if="fileRoute" :src="fileRoute.src" :name="fileRoute.name" :line="fileRoute.line" />
     <template v-else>
     <p v-if="error" role="alert">{{ error }}</p>
-    <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" href="#dashboard">Dashboard</Tab><Tab value="graphs" as="a" href="#graphs">Graphs</Tab></TabList></Tabs>
+    <Tabs v-if="!selected" :value="tab" @update:value="navigateTab" aria-label="Views"><TabList><Tab value="dashboard" as="a" :href="router.resolve({name:'dashboard'}).href">Dashboard</Tab><Tab value="graphs" as="a" :href="router.resolve({name:'graphs'}).href">Graphs</Tab></TabList></Tabs>
     <section v-if="selected" class="drilldown" aria-label="Run drilldown">
-      <a class="back-link" href="#dashboard">← Dashboard</a>
+      <a class="back-link" :href="router.resolve({name:'dashboard'}).href">← Dashboard</a>
       <header class="drilldown-header">
       <div class="run-summary">
       <dl class="metadata">
@@ -151,38 +155,29 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
         <SearchSelect label="Problem" :model-value="selected.problem" :options="problemOptions" @update:model-value="changeProblem" />
       </div>
       </header>
-      <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="'#run/' + encodeURIComponent(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
+      <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="runLink(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
       <div class="run-body">
-        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" title="Graphs" aria-label="Run graphs">
-          <CellChart :key="selected.id" :chart-data="runCharts" full-width all-points kind="advice" :controls="false" />
+        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" scroll-key="graphs" title="Graphs" aria-label="Run graphs">
+          <CellChart :key="selected.id" :chart-data="runCharts" clickable @open-turn="forkDiagram.openChartTurn($event)" full-width all-points kind="advice" :controls="false" />
         </ContentPanel>
-        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" title="Transcripts" aria-label="Run transcripts">
-          <ForkDiagram :run="selected" :target="target" />
+        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" state-key="transcripts" scroll-key="transcripts" title="Transcripts" aria-label="Run transcripts">
+          <ForkDiagram ref="forkDiagram" :run="selected" :target="target" />
         </ContentPanel>
       </div>
     </section>
-    <section v-else-if="tab === 'graphs'" aria-label="Graphs" class="graphs">
-      <p>Graphs from the slides, using live experiment files. ✓ indicates exit 0; ? indicates an open run.</p>
-      <template v-if="chartData.series.length">
-        <article><h2>Best advice over turns</h2><CellChart :chart-data="chartData" kind="advice" /></article>
-        <article><h2>Turns between improvements</h2><CellChart :chart-data="chartData" kind="improvements" /></article>
-        <article><h2>Does improvement get harder as advice shrinks?</h2><WaitChart :chart-data="chartData" /></article>
-        <p>Passing scores require all configured T samples to pass. Parallel forks share a depth. Hollow markers show turns since the last best at the latest read or exit.</p>
-      </template>
-      <p v-else-if="!loading">No runs loaded.</p>
-    </section>
+    <section v-else-if="tab === 'graphs'" aria-label="Graphs"><p>Coming Soon</p></section>
     <template v-else>
     <p v-for="warning in data.warnings" :key="warning" class="warning">{{ warning }}</p>
     <p v-if="!loading && !error && !data.rows.length" class="empty">No runs loaded. Start <code>transcripts-viewer /path/to/experiment</code> with a directory containing <code>runs/*/run.json</code>.</p>
     <section v-if="!loading && data.rows.length" aria-label="Runs">
-      <DataTable :value="data.rows" data-key="id" sort-field="problem" :sort-order="1" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
-        <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-3)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="3" /></Row><Row><Column v-for="column in columns.slice(-3)" :key="column.key" :header="column.label" :field="column.key" sortable /></Row></ColumnGroup>
+      <DataTable :value="dashboardRows" data-key="id" :sort-field="sortField" :sort-order="sortOrder" @sort="event=>{sortField=event.sortField;sortOrder=event.sortOrder}" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
+        <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-4)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="4" /></Row><Row><Column v-for="column in columns.slice(-4)" :key="column.key" :field="column.key" sortable><template #header><span :title="column.key==='awsCost' ? awsCostTooltip : undefined">{{ column.label }}</span></template></Column></Row></ColumnGroup>
         <Column v-for="column in columns" :key="column.key" :field="column.key" :header="column.label" sortable>
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
             <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
             <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row,now)) }}</span>
-            <span v-else-if="['uCost','tCost','modelCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
+            <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>
             <span v-else>{{ row[column.key] ?? '—' }}</span>

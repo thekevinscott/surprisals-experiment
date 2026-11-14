@@ -4,12 +4,12 @@ import ContentPanel from './ContentPanel.vue'
 import CellChart from './CellChart.vue'
 const props=defineProps({windowId:Number,forkId:Number,solo:Boolean})
 const chartFor=inject('forkChart')
-const range=inject('forkRange')
+const openChartTurn=inject('openChartTurn')
 const chart=computed(()=>chartFor(props.windowId,props.forkId,props.solo))
 const expanded=ref(true)
 </script>
 <template>
-  <ContentPanel local v-model:expanded="expanded" class="fork-chart" title="Advice" :state-key="`fork-chart-${windowId}-${forkId}-${solo ? 'solo' : 'parallel'}`"><CellChart v-model:range="range" :chart-data="chart" :plot-width="360" kind="advice" :controls="false" /></ContentPanel>
+  <ContentPanel local v-model:expanded="expanded" class="fork-chart" title="Advice" :state-key="solo ? `fork-chart-${windowId}-${forkId}-solo` : `fork-chart-${windowId}-parallel`"><CellChart :x-zoom="false" all-points clickable @open-turn="openChartTurn" :state-key="`fork-${windowId}-${forkId}-${solo ? 'solo' : 'parallel'}`" range-key="forks" :chart-data="chart" :plot-width="360" kind="advice" :controls="false" /></ContentPanel>
 </template>
 <style scoped>
 .fork-chart { align-self:start; }

@@ -17,7 +17,8 @@ creates one if none exists, and registers this invocation. A different model,
 a stopped scorer, or multiple pre-existing scorers makes up fail instead of
 creating another pod. Up saves `pod_id` to labnotes state before releasing the
 lock. It then waits for readiness outside the lock and adds `base_url` to state.
-The pod ID is printed to stderr on creation or reuse.
+The pod ID is printed to stderr on creation or reuse. Verified deletion prints
+a timestamped `Deleted pod <id>` line and records the stop time inside `delete_pod`.
 While the pod is not ready, up also polls RunPod's pod record and prints, with
 a UTC timestamp, each change to `lastStatusChange`, `lastStartedAt`, and
 `portMappings`. If readiness takes over ten minutes or up fails, it saves the
@@ -104,3 +105,15 @@ HTTP is mocked and the cell script uses fake commands on PATH. The concurrent
 up test uses two real processes and the real flock with a shared fake API; it
 also checks that readiness waiting does not hold the lock. No provider calls
 or costs are incurred by the tests.
+
+## Cost records
+
+Up writes `runpod-costs/<pod-id>.json` in `experiments/surprisal` (relative to
+the hook working directory); pass `up --experiment PATH` for another experiment.
+Records contain only pod ID, GPU, API `costPerHr`, start, and stop timestamps.
+Start is the API `lastStartedAt`, or the time up observed the pod when unavailable.
+Repeated joins preserve the original start and count the pod once. A local
+`~/.runpod/costs/` registry retains experiment destinations after users leave,
+so final release or reap records the verified deletion time in every destination.
+The viewer reads these files without RunPod credentials and estimates compute
+cost through stop time (or now while live). Existing unrecorded pods stay hidden.

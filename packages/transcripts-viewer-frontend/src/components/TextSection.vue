@@ -3,7 +3,7 @@ import ContentPanel from './ContentPanel.vue'
 defineProps({label:String,text:String,stateKey:String})
 </script>
 <template>
-  <ContentPanel class="text-section" :title="label" :state-key="stateKey" :expanded="true">
+  <ContentPanel sticky-header class="text-section" :title="label" :state-key="stateKey" :expanded="true">
     <p>{{ text }}</p>
   </ContentPanel>
 </template>

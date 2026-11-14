@@ -1,8 +1,9 @@
+import {readRunpodCosts} from './lib/runpod-costs.js'
 import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
 import {join,resolve} from 'node:path'
-import {readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
+import {experimentCosts,readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
 import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
@@ -43,6 +44,8 @@ export function createApi(directory) {
   }
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
+  endpoint('/api/runs/costs',()=>experimentCosts(directory,root=>database(root,false)))
+  endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory))
   endpoint('/api/runs',()=>readExperiment(directory,root=>database(root)))
   endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{

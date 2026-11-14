@@ -1,9 +1,10 @@
 <script setup>
+import {fileLink} from '../router.js'
 import { openFile } from '../composables/filePreview.js'
 const props = defineProps({ runId: String })
 const files = ['question.txt', 'input_output.json', 'solutions.json']
 const url = name => `/api/runs/${encodeURIComponent(props.runId)}/problem/${name}`
-const viewer = name => `#files/${name}?${new URLSearchParams({src: url(name)})}`
+const viewer = name => fileLink(url(name),name)
 </script>
 <template>
   <nav class="problem-files" aria-label="Problem files">

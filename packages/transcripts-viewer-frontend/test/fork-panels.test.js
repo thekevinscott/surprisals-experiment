@@ -22,6 +22,7 @@ test('every turn stays noncollapsible and parallel and solo phases get separate 
   const app=createSSRApp({render:()=>h(Window,{window})})
   app.provide('runLink',source=>'#'+source);app.provide('sampleCount',()=>5);app.provide('sourceUrl',source=>'#'+source)
   app.provide('forkRange',ref(null))
+  app.provide('openChartTurn',()=>{})
   app.provide('forkChart',(window,id,solo)=>createForkPhaseChartData(run,window,id,solo))
   const html=await renderToString(app)
   const turns=[...html.matchAll(/<section\b[^>]*class="turn-block"[^>]*>/g)].map(match=>match[0])

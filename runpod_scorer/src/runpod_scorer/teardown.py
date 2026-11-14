@@ -8,7 +8,8 @@ import httpx
 import labnotes
 from dotenv import load_dotenv
 
-from . import users
+from . import costs, users
+from .timestamp import timestamp
 
 API = "https://rest.runpod.io/v1"
 DELETE_TIMEOUT = 120
@@ -40,6 +41,8 @@ def delete_pod(pod_id, key):
     while time.monotonic() < deadline:
         result = request("GET", url, key)
         if result.status_code == 404:
+            timestamp(f"Deleted pod {pod_id}")
+            costs.stopped(pod_id)
             return
         result.raise_for_status()
         time.sleep(2)
