@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/window_state_machine_test.py tests/integration/u_transcript_exact_test.py tests/integration/u_transcript_test.py tests/integration/measure_test.py -q -p no:randomly",
+  "ran_at": 1794615937,
+  "exit_code": 0,
+  "commit": "39f4d8431cbb31819e4294b834330486d386b2d0",
+  "branch": "fix/target-rounding"
+}
