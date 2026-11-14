@@ -53,16 +53,16 @@ defineExpose({ toggle, setExpanded: value => { expanded.value = value } })
 <style scoped>
 .content-panel { margin:0; min-width:0; --p-panel-header-padding:4px; --p-panel-content-padding:0 4px 4px; --p-panel-border-radius:6px; }
 .sticky-header { scroll-margin-top:var(--transcript-nav-height, 0px); }
-.sticky-header :deep(> .p-panel-header) { position:sticky;top:var(--transcript-nav-height, 0px);z-index:1;background:var(--p-panel-background, white);border-radius:var(--p-panel-border-radius) var(--p-panel-border-radius) 0 0; }
+.sticky-header :deep(> .p-panel-header) { position:sticky;top:var(--transcript-nav-height, 0px);z-index:1;background:var(--p-panel-background, var(--viewer-surface));border-radius:var(--p-panel-border-radius) var(--p-panel-border-radius) 0 0; }
 .panel-label { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0; }
-.permalink { color:#697b94;text-decoration:none;font-size:12px; }
+.permalink { color:var(--viewer-muted);text-decoration:none;font-size:12px; }
 .panel-label strong { font-size:12px; }
-.panel-summary { display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:10px; color:#657186; }
+.panel-summary { display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:10px; color:var(--viewer-muted); }
 .content-panel :deep(.p-panel-header-actions) { display:flex; align-items:center; }
-.accordion-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:22px; height:22px; padding:0; border:0; background:none; color:#52657e; cursor:pointer; align-self:center; }
+.accordion-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:22px; height:22px; padding:0; border:0; background:none; color:var(--viewer-muted); cursor:pointer; align-self:center; }
 .accordion-toggle svg { width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:1.5; }
 .accordion-toggle svg.expanded { transform:rotate(90deg); }
-.accordion-toggle:focus-visible { outline:2px solid #254c7f; outline-offset:1px; border-radius:2px; }
+.accordion-toggle:focus-visible { outline:2px solid var(--viewer-link); outline-offset:1px; border-radius:2px; }
 
 .disclosure-body { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; }
 .box-content { min-width:0; }

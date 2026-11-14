@@ -14,6 +14,6 @@ defineEmits(['select'])
 .file-tree { list-style:none;padding:0;margin:0; }
 .file-tree .file-tree { padding-left:16px; }
 .directory { display:block;padding:4px 4px 2px;color:var(--viewer-muted);font-size:12px; }
-button { display:block;width:100%;border:0;border-radius:6px;background:none;color:#254c7f;text-align:left;padding:4px;font:inherit;font-size:12px;overflow-wrap:anywhere;cursor:pointer; }
-button:hover,button[aria-current] { background:#e8eef8; }
+button { display:block;width:100%;border:0;border-radius:6px;background:none;color:var(--viewer-link);text-align:left;padding:4px;font:inherit;font-size:12px;overflow-wrap:anywhere;cursor:pointer; }
+button:hover,button[aria-current] { background:var(--viewer-gray); }
 </style>

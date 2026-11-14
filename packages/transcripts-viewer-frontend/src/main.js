@@ -5,5 +5,5 @@ import './style.css'
 import {RouterView} from 'vue-router'
 import {router} from './router.js'
 
-const app=createApp({render:()=>h(RouterView)}).use(router).use(PrimeVue, { theme: { preset: Aura, options: { darkModeSelector: false } } })
+const app=createApp({render:()=>h(RouterView)}).use(router).use(PrimeVue, { theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } })
 router.isReady().then(()=>app.mount('#app'))

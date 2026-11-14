@@ -17,7 +17,7 @@ test('top advice line connects every scored advice in turn order without changin
   const html=await render(true),path=html.match(/<path[^>]* d="([^"]*)"/)?.[1]??html.match(/<path d="([^"]*)"/)?.[1]
   const expected=[[0,20],[1,25],[2,10],[3,15],[4,22],[42,12]].map(([x,y],i)=>`${i?'L':'M'}${x/45*840},${240-y/26.25*210}`).join(' ')
   assert.equal(path,expected,'rising, falling and later-window points remain at original depths')
-  assert.match(html,/<circle[^>]*fill="white"[^>]*data-passed="false"/,'failed scores have hollow markers')
+  assert.match(html,/<circle[^>]*fill="var\(--viewer-surface\)"[^>]*data-passed="false"/,'failed scores have hollow markers')
   assert.equal((html.match(/data-passed="true"/g)||[]).length,5,'passing scores have filled markers')
   assert.match(await render(false),/H/,'existing running-best step mode remains available')
   assert.deepEqual(data,original,'chart rendering does not alter source data')

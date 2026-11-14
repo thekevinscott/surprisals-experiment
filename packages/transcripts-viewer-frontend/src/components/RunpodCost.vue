@@ -25,6 +25,6 @@ const money=value=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD
 </template>
 <style scoped>
 .experiment-costs { position:fixed;top:8px;right:28px;z-index:999;display:flex;gap:8px; }
-.experiment-costs aside { padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#334155;font-size:12px;box-shadow:0 1px 4px #0001;font-variant-numeric:tabular-nums; }
-.experiment-costs small { margin-left:6px;color:#64748b; }
+.experiment-costs aside { padding:6px 10px;border:1px solid var(--viewer-border);border-radius:6px;background:var(--viewer-surface);color:var(--viewer-text);font-size:12px;box-shadow:0 1px 4px #0001;font-variant-numeric:tabular-nums; }
+.experiment-costs small { margin-left:6px;color:var(--viewer-muted); }
 </style>

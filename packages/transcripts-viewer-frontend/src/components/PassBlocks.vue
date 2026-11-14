@@ -21,7 +21,7 @@ function openCase(index) { openFile(target.value,{testCase:index}) }
 .pass-blocks { display: inline-flex; flex-wrap: nowrap; justify-content: center; width: 100%; gap: clamp(0px, calc((100% - var(--test-count) * 8px) / var(--gap-count)), 3px); max-width: 100%; min-width: 0; vertical-align: middle; }
 .pass-block { flex: 0 1 8px; width: 8px; min-width: 0; height: 8px; border-radius: 0; border: 0; padding: 0; }
 button.pass-block { cursor: pointer; }
-button.pass-block:focus-visible { outline: 2px solid #254c7f; outline-offset: 2px; }
+button.pass-block:focus-visible { outline: 2px solid var(--viewer-link); outline-offset: 2px; }
 .pass-block { background:var(--viewer-muted); }
 .pass-block[data-status="passed"] { background:var(--viewer-pass); }
 .pass-block[data-status]:not([data-status="passed"]) { background:var(--viewer-fail); }
