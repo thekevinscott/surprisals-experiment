@@ -45,7 +45,7 @@ async def test_scorer_connection_error_keeps_retry_schedule(
 @pytest.mark.parametrize(("measure", "wording"), [
     ("characters", "Advice is measured in characters: the length of your final message. "
      "Fewer is better. After each advice you receive <advice_length> with its length.\n"),
-    ("surprisal", "Advice is measured in bits of surprisal under T's model: the sum of -log2 "
+    ("surprisal", "Advice is measured in bits of surprisal: the sum of -log2 "
      "token probabilities, scoring the advice without the problem or conversation as context. "
      "Fewer is better. After each advice you receive <advice_surprisal_bits> with its <total> "
      "and the bits of each token.\n"),
