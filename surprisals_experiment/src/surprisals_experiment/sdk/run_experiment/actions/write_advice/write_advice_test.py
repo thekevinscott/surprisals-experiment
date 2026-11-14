@@ -24,7 +24,7 @@ from surprisals_experiment.sdk.utils.write import write
 @pytest.mark.parametrize('window,measure,best,expected', [
     (0, 'characters', 412, 'turn 13 of 20'),
     (1, 'characters', 412, 'turn 13 of 20; best at window start: 412; target: 391 (5%)'),
-    (1, 'surprisal', 41.25, 'turn 13 of 20; best at window start: 41.2; target: 39.2 (5%)'),
+    (1, 'surprisal', 41.25, 'turn 13 of 20; best at window start: 41.2; target: 39.1 (5%)'),
 ])
 async def test_user_progress_keeps_the_system_prompt_fixed(config, botbox_script, chat_provider, window, measure, best, expected):
     config = Config(**(config.model_dump() | {
@@ -131,15 +131,15 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},
-        {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 5 (5%)'},
+        {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 4 (5%)'},
         {'role': 'assistant', 'content': 'Later.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
         {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
-        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 5 (5%)'},
+        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 4 (5%)'},
         {'role': 'assistant', 'content': 'Again.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
         {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
-        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 5 (5%)'},
+        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 4 (5%)'},
     ]
 
 

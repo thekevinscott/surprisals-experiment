@@ -6,6 +6,7 @@ or the scored text for Score.
 
 import shlex
 import json
+from math import floor
 
 from surprisals_experiment.prompt import Prompt
 from surprisals_experiment.sdk.prompt_t import INSTRUCTIONS
@@ -22,7 +23,11 @@ def u_user(config, turn, content='', best=None):
     """Expected user text, specified independently of the production turn template."""
     line = f'turn {turn} of {config.fork_turns + config.window_solo_turns}'
     if best is not None:
-        target = best * 0.95
+        scale = 10 if config.cap_strategy == 'surprisal' else 1
+        units = floor(best * 0.95 * scale)
+        if best > 0 and (best - units / scale) / best < 0.05:
+            units -= 1
+        target = units / scale
         best, target = ((f'{best:.1f}', f'{target:.1f}') if config.cap_strategy == 'surprisal'
                         else (str(round(best)), str(round(target))))
         line += f'; best at window start: {best}; target: {target} (5%)'
