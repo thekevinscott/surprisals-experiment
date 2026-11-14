@@ -1,5 +1,6 @@
 """Hung T samples retry and real CLI SIGTERM cancels both model phases."""
 import asyncio
+import json
 import signal
 from contextlib import chdir
 from hashlib import sha256
@@ -11,6 +12,7 @@ from u_flush_test import (
     PASS,
     QUESTION,
     STDOUT,
+    appended,
     flush,
     outcome,
     played,
@@ -100,18 +102,19 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
     config.t_sample_timeout = .1
     config.t_sample_retries = 1
     long = 'Double the input.'
+    partial = {'partial.py': 'unfinished T implementation'}
     world = [
-        u_state(config, 0, 0, None, long, {'settings.json': ..., **opened(0)}),
-        t_state(0, 0, 0, 0, long, {**advised(0, 0, long, 17)}),
-        t_state(0, 0, 1, 0, long, {}),
-        t_state(0, 0, 2, 0, long, {}),
-        u_state(config, 0, 1, None, 'Double.', {**evaluated(*(attempt(0, 0, sample) for sample in range(3)))}),
-        t_state(0, 1, 0, 0, 'Double.', {**advised(0, 1, 'Double.', 7)}),
-        t_state(0, 1, 1, 0, 'Double.', {}),
-        t_state(0, 1, 2, 0, 'Double.', {}, hang=True),
-        t_state(0, 1, 2, 1, 'Double.', {**evaluated(attempt(0, 1, 0), attempt(0, 1, 1)), **timed_out(attempt(0, 1, 2))},
-                hang=True),
-        u_state(config, 1, 0, None, long, {**timed_out(attempt(0, 1, 2, 1)), **opened(1)}, previous=len(long)),
+        u_state(config, 0, 0, None, 'Double.', {'settings.json': ..., **opened(0)}),
+        t_state(0, 0, 0, 0, 'Double.', {**advised(0, 0, 'Double.', 7)}),
+        t_state(0, 0, 1, 0, 'Double.', {}),
+        t_state(0, 0, 2, 0, 'Double.', {}, code=partial, hang=True),
+        t_state(0, 0, 2, 1, 'Double.', {**evaluated(attempt(0, 0, 0), attempt(0, 0, 1)), **timed_out(attempt(0, 0, 2))},
+                code=partial, hang=True),
+        u_state(config, 0, 1, None, long, {**timed_out(attempt(0, 0, 2, 1))}),
+        t_state(0, 1, 0, 0, long, {**advised(0, 1, long, 17)}),
+        t_state(0, 1, 1, 0, long, {}),
+        t_state(0, 1, 2, 0, long, {}),
+        u_state(config, 1, 0, None, long, {**evaluated(*(attempt(0, 1, sample) for sample in range(3))), **opened(1)}, previous=len(long)),
         t_state(1, 0, 0, 0, long, {**advised(1, 0, long)}),
         t_state(1, 0, 1, 0, long, {}),
         t_state(1, 0, 2, 0, long, {}),
@@ -119,11 +122,25 @@ async def test_counts_a_sample_that_hangs_twice_as_failed_and_keeps_running(conf
         t_state(1, 1, 0, 0, long, {**advised(1, 1, long)}),
         t_state(1, 1, 1, 0, long, {}),
         t_state(1, 1, 2, 0, long, {}),
-        Done(outcome=config.output / attempt(0, 0, 0) / 'src', files={
-            **evaluated(*(attempt(1, 1, sample) for sample in range(3))), **solved(config, attempt(0, 0, 0), 4)}),
+        Done(outcome=config.output / attempt(0, 1, 0) / 'src', files={
+            **evaluated(*(attempt(1, 1, sample) for sample in range(3))), **solved(config, attempt(0, 1, 0), 4)}),
     ]
     async with execute_run_experiment(config, world):
         pass
+
+    transcript = (config.output / 'windows/0/forks/0/u/transcript.jsonl').read_text()
+    messages = [json.loads(line) for line in transcript.splitlines()]
+    feedback = appended(PASS, PASS).replace(
+        '</code>', '<T-2>\nT timed out after 2 attempts; no code was produced.\n</T-2>\n</code>')
+    assert messages[5] == {'role': 'user', 'content': feedback}
+    assert messages[6]['role'] == 'user'
+    assert messages[6]['content'].startswith('turn 2 of ')
+    assert messages[7]['role'] == 'assistant'
+    assert messages[7]['content'] == long
+    assert 'partial.py' not in transcript
+    assert partial['partial.py'] not in transcript
+    for number in range(2):
+        assert (config.output / attempt(0, 0, 2, number) / 'src/partial.py').read_text() == partial['partial.py']
 
 
 async def test_gives_queued_samples_their_own_full_budget(config, execute_run_experiment):
