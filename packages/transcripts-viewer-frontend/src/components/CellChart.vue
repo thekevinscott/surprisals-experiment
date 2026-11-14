@@ -1,4 +1,5 @@
 <script setup>
+import {chartViewport} from '../composables/chartViewport.js'
 import {useJsonQuery} from '../composables/queryState.js'
 import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
@@ -25,20 +26,26 @@ const exitOf = s => s.exit_code ?? undefined
 const statusMark = s => s.running ? '?' : exitOf(s) === 0 ? '✓' : '✕'
 const endPoint = s => points(s).at(-1)
 
-const svgHeight = computed(() => props.xZoom ? 305 : 285)
 const svgElement = ref(null)
-const measuredWidth = ref(null)
+const measuredSize = ref(null)
 let resizeObserver
 onMounted(() => {
   if (!props.fullWidth) return
   resizeObserver = new ResizeObserver(([entry]) => {
     const {width, height} = entry.contentRect
-    if (width > 0 && height > 0) measuredWidth.value = width / height * svgHeight.value - 120
+    if (width > 0 && height > 0) measuredSize.value = {width,height}
   })
   resizeObserver.observe(svgElement.value)
 })
 onUnmounted(() => resizeObserver?.disconnect())
-const width = computed(() => measuredWidth.value ?? props.plotWidth)
+const viewport = computed(() => chartViewport(
+  measuredSize.value?.width ?? props.plotWidth + 120,
+  measuredSize.value?.height ?? (props.xZoom ? 305 : 285),
+  props.xZoom,
+))
+const width = computed(() => viewport.value.plotWidth)
+const bottom = computed(() => viewport.value.bottom)
+const plotHeight = computed(() => bottom.value - 30)
 const selected = computed(() => data.value.filter(s => s.strategy === selectedArm.value))
 const modes = computed(() => ['all', ...new Set(selected.value.map(s => s.problem))])
 const visible = computed(() => selected.value.filter(s => mode.value === 'all' || s.problem === mode.value))
@@ -59,7 +66,7 @@ const ymin = computed(() => yrange.value[0])
 const ymax = computed(() => yrange.value[1])
 const yticks = computed(() => {
   if (logarithmic.value) return [0,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000].filter(v=>v>=ymin.value&&v<=ymax.value)
-  const target = (ymax.value - ymin.value) / 8
+  const target = (ymax.value - ymin.value) / (props.fullWidth ? Math.max(1,Math.floor(plotHeight.value/26)) : 8)
   const magnitude = 10 ** Math.floor(Math.log10(target))
   const step = [1, 2, 5, 10].find(n => n * magnitude >= target) * magnitude
   const first = Math.ceil(ymin.value / step) * step
@@ -85,10 +92,10 @@ function slideX(event) {
   xRange.value=xKnob.value==='lo' ? [Math.min(value,hi-gap),hi] : [lo,Math.max(value,lo+gap)]
 }
 const scale = v => logarithmic.value ? Math.log1p(v) : v
-const y = v => 240 - (scale(v) - scale(ymin.value)) / (scale(ymax.value) - scale(ymin.value)) * 210
+const y = v => bottom.value - (scale(v) - scale(ymin.value)) / (scale(ymax.value) - scale(ymin.value)) * plotHeight.value
 const [d0, d1] = [() => domain.value.y[0], () => domain.value.y[1]]
-const sliderY = v => 240 - (v - d0()) / (d1() - d0()) * 210
-const sliderValue = py => d0() + (240 - py) / 210 * (d1() - d0())
+const sliderY = v => bottom.value - (v - d0()) / (d1() - d0()) * plotHeight.value
+const sliderValue = py => d0() + (bottom.value - py) / plotHeight.value * (d1() - d0())
 function grab(which, event) {
   event.currentTarget.setPointerCapture(event.pointerId)
   knob.value = which
@@ -120,38 +127,38 @@ function path(s) {
       <button v-if="kind === 'advice'" :aria-pressed="logarithmic" @click="logarithmic = !logarithmic">Log (1 + score)</button>
       <button v-if="controls && kind === 'advice'" class="dots" :aria-pressed="dots" @click="dots = !dots">all passing turns</button>
     </div>
-    <svg ref="svgElement" :viewBox="`0 0 ${width + 120} ${svgHeight}`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
+    <svg ref="svgElement" :viewBox="`0 0 ${viewport.width} ${viewport.height}`" role="img" :aria-label="`${kind} by ${controls ? 'cell' : 'fork'}`">
       <defs>
-        <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" height="222" /></clipPath>
+        <clipPath :id="clipId"><rect x="-6" y="24" :width="width + 12" :height="plotHeight + 12" /></clipPath>
       </defs>
       <g class="y-slider">
-        <line x1="10" x2="10" y1="30" y2="240" class="track" />
+        <line x1="10" x2="10" y1="30" :y2="bottom" class="track" />
         <line x1="10" x2="10" :y1="sliderY(ymax)" :y2="sliderY(ymin)" class="selected" />
         <circle v-for="which in ['lo', 'hi']" :key="which" cx="10" :cy="sliderY(which === 'lo' ? ymin : ymax)" r="6" class="knob"
           :data-knob="which" @pointerdown.stop.prevent="grab(which, $event)" @pointermove.stop="slide"
           @pointerup.stop="knob = null" @pointercancel.stop="knob = null" />
       </g>
-      <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)' }}</text>
+      <text x="32" :y="(30 + bottom)/2" :transform="`rotate(-90 32 ${(30 + bottom)/2})`" text-anchor="middle" class="axis-title">{{ unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)' }}</text>
       <g transform="translate(95,0)" data-plot="shared">
         <g v-for="tick in yticks" :key="tick">
           <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="var(--viewer-border)" />
           <text x="-8" :y="y(tick) + 3" text-anchor="end">{{ tick.toLocaleString() }}</text>
         </g>
         <g v-for="tick in xticks" :key="tick">
-          <text :x="x(tick)" y="255" text-anchor="middle">{{ tick }}</text>
+          <text :x="x(tick)" :y="bottom + 15" text-anchor="middle">{{ tick }}</text>
         </g>
         <g v-for="window in (chartData.windowPositions ?? []).filter(window=>window.depth>=xrange[0] && window.depth<=xrange[1])" :key="`window-${window.id}`" class="window-boundary" :data-window="window.id">
-          <line :x1="x(window.depth)" :x2="x(window.depth)" y1="25" y2="240" vector-effect="non-scaling-stroke" />
+          <line :x1="x(window.depth)" :x2="x(window.depth)" y1="25" :y2="bottom" vector-effect="non-scaling-stroke" />
           <text :x="x(window.depth) + 4" y="18">Window {{ window.id }}</text>
         </g>
         <g v-if="xZoom" class="x-slider">
-          <line x1="0" :x2="width" y1="289" y2="289" class="track" />
-          <line :x1="sliderX(xrange[0])" :x2="sliderX(xrange[1])" y1="289" y2="289" class="selected" />
-          <circle v-for="which in ['lo','hi']" :key="which" :cx="sliderX(which === 'lo' ? xrange[0] : xrange[1])" cy="289" r="6" class="knob"
+          <line x1="0" :x2="width" :y1="bottom + 49" :y2="bottom + 49" class="track" />
+          <line :x1="sliderX(xrange[0])" :x2="sliderX(xrange[1])" :y1="bottom + 49" :y2="bottom + 49" class="selected" />
+          <circle v-for="which in ['lo','hi']" :key="which" :cx="sliderX(which === 'lo' ? xrange[0] : xrange[1])" :cy="bottom + 49" r="6" class="knob"
             :data-knob="which" @pointerdown.stop.prevent="grabX(which,$event)" @pointermove.stop="slideX"
             @pointerup.stop="xKnob=null" @pointercancel.stop="xKnob=null" />
         </g>
-        <text :x="width / 2" y="271" text-anchor="middle" class="axis-title">Turn (sequential depth)</text>
+        <text :x="width / 2" :y="bottom + 31" text-anchor="middle" class="axis-title">Turn (sequential depth)</text>
         <g :clip-path="`url(#${clipId})`">
         <g v-for="s in visible" :key="s.cell" :data-cell="s.cell" :data-mode="s.problem" :class="{'series-dimmed':highlightedSeries!==null && highlightedSeries!==s.cell,'series-highlighted':highlightedSeries===s.cell}">
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
