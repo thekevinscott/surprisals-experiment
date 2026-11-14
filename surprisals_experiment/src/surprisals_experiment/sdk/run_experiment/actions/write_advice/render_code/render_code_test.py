@@ -1,4 +1,4 @@
-"""Timeout feedback uses recorded attempts and preserves partial source files."""
+"""Timeout feedback uses recorded attempts and omits partial source files."""
 
 import json
 
@@ -23,11 +23,9 @@ async def test_exhausted_timeout_feedback(config, attempts, partial):
             write(attempt / 'src/partial.py', 'print(')
     config.t_sample_retries = 10
     feedback = await render_code(config, ExperimentDatabase(config.output), turn_id)
-    source = '<file path="partial.py">\nprint(\n</file>\n' if partial else ''
-    detail = 'partial code is shown above' if partial else 'no code was produced'
     assert feedback == (
-        f'<code>\n<T-0>\n{source}'
-        f'T timed out after {attempts} {"attempt" if attempts == 1 else "attempts"}; {detail}.\n'
+        '<code>\n<T-0>\n'
+        f'T timed out after {attempts} {"attempt" if attempts == 1 else "attempts"}; no code was produced.\n'
         '</T-0>\n</code>'
     )
 

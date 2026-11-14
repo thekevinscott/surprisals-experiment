@@ -15,5 +15,5 @@ async def render_code(config: Config, database: ExperimentDatabase, turn_id: str
     turn = config.output / turn_id
     samples = await database.query(SOURCES, turn_id=turn_id)
     return CODE(t_samples=config.t_samples, results={t["position"]: t for t in samples}, sources=read_sources({
-        t["position"]: turn / "ts" / str(t["position"]) / "attempts" / str(t["attempt"]) / "src" for t in samples
+        t["position"]: turn / "ts" / str(t["position"]) / "attempts" / str(t["attempt"]) / "src" for t in samples if not t["timed_out"]
     }))

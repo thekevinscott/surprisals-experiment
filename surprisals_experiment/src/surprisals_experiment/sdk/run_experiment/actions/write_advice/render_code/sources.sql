@@ -1,12 +1,11 @@
-WITH latest AS (
-  SELECT sample, max(position) AS attempt, count(*) AS attempts
-  FROM t_attempts WHERE turn_id = :turn_id GROUP BY sample
-)
-SELECT latest.sample AS position, latest.attempt, latest.attempts, t_attempts.timed_out,
+SELECT ts.position, t_attempts.position AS attempt, 0 AS attempts, 0 AS timed_out,
        coalesce(sum(test_results.passed), 0) AS passed, count(test_results.id) AS cases
-FROM latest JOIN t_attempts ON t_attempts.turn_id = :turn_id
-  AND t_attempts.sample = latest.sample AND t_attempts.position = latest.attempt
-LEFT JOIN ts ON ts.turn_id = :turn_id AND ts.position = latest.sample
+FROM ts JOIN t_attempts ON t_attempts.turn_id = ts.turn_id AND t_attempts.sample = ts.position AND t_attempts.exit_code != -1
 LEFT JOIN test_results ON test_results.t_id = ts.id
-WHERE t_attempts.exit_code != -1 OR t_attempts.timed_out
-GROUP BY latest.sample ORDER BY latest.sample
+WHERE ts.turn_id = :turn_id GROUP BY ts.id
+UNION ALL
+SELECT sample AS position, max(position) AS attempt, count(*) AS attempts, 1 AS timed_out,
+       0 AS passed, 0 AS cases
+FROM t_attempts WHERE turn_id = :turn_id
+GROUP BY sample HAVING min(timed_out) = 1
+ORDER BY position
