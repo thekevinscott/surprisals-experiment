@@ -3,10 +3,13 @@ import json
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 from aws_runner.cloud.setup import setup
 from aws_runner.config import CONFIG
 from aws_runner.run import run
+
+EC2_CONFIG = Config(retries={"mode": "adaptive", "max_attempts": 20})
 
 
 def main():
@@ -26,7 +29,7 @@ def main():
     job.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.action == "setup":
-        setup(boto3.client("ec2", region_name=args.region), args)
+        setup(boto3.client("ec2", region_name=args.region, config=EC2_CONFIG), args)
         return 0
     command = args.command
     if command[:1] == ["--"]:
@@ -42,7 +45,7 @@ def main():
             "run aws_runner setup --ami <ami> --region <region> first.\n",
         )
     return run(
-        boto3.client("ec2", region_name=config["region"]),
+        boto3.client("ec2", region_name=config["region"], config=EC2_CONFIG),
         config,
         args.directory.resolve(),
         command,
