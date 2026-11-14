@@ -22,6 +22,7 @@ const clock=setInterval(()=>{now.value=Date.now()},1000)
 onUnmounted(()=>clearInterval(clock))
 const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
 const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
+import ThemeSelect from './components/ThemeSelect.vue'
 import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
@@ -111,6 +112,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
+  <header class="viewer-toolbar"><ThemeSelect /></header>
   <RunpodCost :now="now" :show-total="!target && !fileRoute && tab === 'dashboard'" />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template v-if="filePreview?.kind==='advice'" #header>
@@ -194,5 +196,5 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 .live-dot { position:fixed; top:10px; right:10px; z-index:1000; width:10px; height:10px; border-radius:50%; background:#e6b800; animation:live-pulse 1.2s ease-in-out infinite; }
 @keyframes live-pulse { 50% { opacity:.3; transform:scale(.8); } }
 .modal-action { display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:12px;cursor:pointer; }
-.modal-action:hover { background:#eef2f7; }
+.modal-action:hover { background:var(--viewer-gray); }
 </style>

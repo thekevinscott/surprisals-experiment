@@ -134,7 +134,7 @@ function path(s) {
       <text x="32" y="135" transform="rotate(-90 32 135)" text-anchor="middle" class="axis-title">{{ unit === 'bits' ? 'Advice (bits)' : 'Advice (characters)' }}</text>
       <g transform="translate(95,0)" data-plot="shared">
         <g v-for="tick in yticks" :key="tick">
-          <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="#e4e3de" />
+          <line x1="0" :x2="width" :y1="y(tick)" :y2="y(tick)" stroke="var(--viewer-border)" />
           <text x="-8" :y="y(tick) + 3" text-anchor="end">{{ tick.toLocaleString() }}</text>
         </g>
         <g v-for="tick in xticks" :key="tick">
@@ -157,7 +157,7 @@ function path(s) {
           <path :d="path(s)" fill="none" :stroke="s.color" stroke-width="0.5" />
           <g v-for="(p, i) in (!dots ? [] : allPoints ? s.scored : s.passing).filter(p => p[0] >= xrange[0] && p[0] <= xrange[1] && p[1] >= ymin && p[1] <= ymax)" :key="`point-${i}`" :class="{'chart-point':clickable}" :data-turn="clickable ? pointTurn(s,p).turn : undefined" :role="clickable ? 'button' : undefined" :tabindex="clickable ? 0 : undefined" :aria-label="clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ${p[1]} ${unit}. Open U transcript` : undefined" @click.stop="openPoint(s,p)" @keydown.enter.stop.prevent="openPoint(s,p)" @keydown.space.stop.prevent="openPoint(s,p)">
             <title>{{ `${clickable ? `Window ${s.window} · Fork ${s.fork} · Turn ${pointTurn(s,p).turn}: ` : ''}${p[1].toLocaleString(undefined,{maximumFractionDigits:3})} ${unit}` }}</title>
-            <circle :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'white' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
+            <circle :cx="x(p[0])" :cy="y(p[1])" :r="allPoints ? 2.5 : kind === 'advice' ? 1.4 : 2" :fill="allPoints && !p[2] ? 'var(--viewer-surface)' : s.color" :stroke="allPoints ? s.color : undefined" :data-passed="allPoints ? p[2] : undefined" :opacity="allPoints ? 1 : kind === 'advice' ? .25 : 1" />
             <circle v-if="clickable" :cx="x(p[0])" :cy="y(p[1])" r="7" fill="transparent" class="point-hit" />
           </g>
 
@@ -170,7 +170,7 @@ function path(s) {
     <div v-if="allPoints && fullWidth" class="window-chart-legend" aria-label="Window and fork legend">
       <section v-for="[window,series] in legendWindows" :key="window" class="legend-window">
         <strong>Window {{ window }}</strong>
-        <div v-for="s in series" :key="s.cell" class="legend-fork" :class="{continues:s.continues}" :title="s.continues ? 'Continues into solo phase' : undefined" tabindex="0" @mouseenter="highlightedSeries=s.cell" @mouseleave="highlightedSeries=null" @focus="highlightedSeries=s.cell" @blur="highlightedSeries=null" :style="{borderColor:s.continues ? '#15803d' : s.color}"><span :style="{background:s.color}"></span>Fork {{ s.fork }}<b v-if="s.continues" class="continuation-label">Continues</b><small v-if="s.scored.length">{{ s.scored.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:3}) }}</small></div>
+        <div v-for="s in series" :key="s.cell" class="legend-fork" :class="{continues:s.continues}" :title="s.continues ? 'Continues into solo phase' : undefined" tabindex="0" @mouseenter="highlightedSeries=s.cell" @mouseleave="highlightedSeries=null" @focus="highlightedSeries=s.cell" @blur="highlightedSeries=null" :style="{borderColor:s.continues ? 'var(--viewer-pass)' : s.color}"><span :style="{background:s.color}"></span>Fork {{ s.fork }}<b v-if="s.continues" class="continuation-label">Continues</b><small v-if="s.scored.length">{{ s.scored.at(-1)[1].toLocaleString(undefined,{maximumFractionDigits:3}) }}</small></div>
       </section>
     </div>
     <ul v-else class="chart-legend">
@@ -182,16 +182,16 @@ function path(s) {
 <style scoped>
 .cell-chart { position:relative; width: 100%; margin: 4px 0; }
 .filters { display:flex; align-items:center; gap:5px; font-size:11px; min-height:30px; flex-wrap:wrap; }
-button { border:1px solid #ccd3dd; border-radius:4px; padding:2px 7px; background:white; color:#334155; }
-button[aria-pressed="true"] { background:#334155; color:white; }
-button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+button { border:1px solid var(--viewer-border); border-radius:4px; padding:2px 7px; background:var(--viewer-surface); color:var(--viewer-text); }
+button[aria-pressed="true"] { background:var(--viewer-text); color:var(--viewer-surface); }
+button:focus-visible { outline:2px solid var(--viewer-link); outline-offset:2px; }
 svg { width:100%; display:block; }
-.y-slider .track, .x-slider .track { stroke:#e4e3de; stroke-width:4; stroke-linecap:round; }
+.y-slider .track, .x-slider .track { stroke:var(--viewer-border); stroke-width:4; stroke-linecap:round; }
 .y-slider .selected, .x-slider .selected { stroke:#94a3b8; stroke-width:4; stroke-linecap:round; }
-.y-slider .knob, .x-slider .knob { fill:white; stroke:#334155; stroke-width:1.5; cursor:ns-resize; touch-action:none; }
+.y-slider .knob, .x-slider .knob { fill:var(--viewer-surface); stroke:var(--viewer-text); stroke-width:1.5; cursor:ns-resize; touch-action:none; }
 .x-slider .knob { cursor:ew-resize; }
 .dots { margin-left:12px; }
-svg text { font:9px 'DejaVu Sans',sans-serif; fill:#596273; }
+svg text { font:9px 'DejaVu Sans',sans-serif; fill:var(--viewer-muted); }
 svg .axis-title { font-size:10px; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; padding: 0; margin: 8px 0; font-size: 11px; }
 .chart-legend li { display: flex; gap: 5px; align-items: center; }
@@ -199,20 +199,20 @@ svg .axis-title { font-size:10px; }
 .full-width svg text { font-size:12px; }
 .full-width svg .axis-title { font-size:13px; }
 .full-width svg [data-cell] > path { stroke-width:0.75; }
-.window-boundary line { stroke:#334155; stroke-width:3; }
-.window-boundary text { fill:#334155; font-weight:700; }
+.window-boundary line { stroke:var(--viewer-text); stroke-width:3; }
+.window-boundary text { fill:var(--viewer-text); font-weight:700; }
 .chart-point { cursor:pointer; }
 .chart-point:focus { outline:none; }
-.chart-point:focus-visible .point-hit { stroke:#111827;stroke-width:1.5; }
+.chart-point:focus-visible .point-hit { stroke:var(--viewer-text);stroke-width:1.5; }
 .series-dimmed { opacity:.15; }
 .full-width svg .series-highlighted > path { stroke-width:2; }
-.legend-fork:hover,.legend-fork:focus-visible { background:#eef2f6;outline:1px solid currentColor; }
-.window-chart-legend { position:absolute;top:4px;right:4px;display:flex;gap:10px;max-width:calc(100% - 125px);overflow-x:auto;padding:6px;border-radius:6px;background:rgba(255,255,255,.94);font-size:12px; }
+.legend-fork:hover,.legend-fork:focus-visible { background:var(--viewer-gray);outline:1px solid currentColor; }
+.window-chart-legend { position:absolute;top:4px;right:4px;display:flex;gap:10px;max-width:calc(100% - 125px);overflow-x:auto;padding:6px;border-radius:6px;background:color-mix(in srgb, var(--viewer-surface) 94%, transparent);font-size:12px; }
 .legend-window { display:flex;flex-direction:column;gap:4px;min-width:100px; }
 .legend-window > strong { text-align:center; }
 .legend-fork { display:flex;align-items:center;gap:5px;border:1px solid;border-radius:4px;padding:3px 5px;white-space:nowrap; }
-.legend-fork.continues { border-width:2px;background:#f0fdf4; }
-.continuation-label { color:#15803d;font-size:9px; }
+.legend-fork.continues { border-width:2px;background:var(--viewer-green); }
+.continuation-label { color:var(--viewer-pass);font-size:9px; }
 .legend-fork > span { width:8px;height:8px;border-radius:2px; }
 .legend-fork > small { margin-left:auto;font-variant-numeric:tabular-nums; }
 .outcome-legend { margin:0; font-size:14px; }

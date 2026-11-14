@@ -22,11 +22,11 @@ const parts=computed(()=>{
 <style scoped>
 .advice-diff { white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px; }
 .advice-added { animation:added-fade 3s ease 1s forwards; }
-.advice-deleted { display:inline-block;vertical-align:bottom;white-space:pre;overflow:hidden;background:#fecaca;animation:deleted-fade 3s ease 1s forwards; }
+.advice-deleted { display:inline-block;vertical-align:bottom;white-space:pre;overflow:hidden;background:var(--viewer-removed);animation:deleted-fade 3s ease 1s forwards; }
 @keyframes added-fade { to { background-color:transparent; } }
 @keyframes deleted-fade { from { max-width:var(--deleted-width);opacity:1; } to { max-width:0;opacity:0; } }
-.diff-added { background:#bbf7d0; }
-.diff-removed { background:#fecaca;text-decoration:line-through; }
+.diff-added { background:var(--viewer-added); }
+.diff-removed { background:var(--viewer-removed);text-decoration:line-through; }
 .diff-added,.diff-removed { box-decoration-break:clone;-webkit-box-decoration-break:clone; }
 .diff-added :deep(.scored-token),.diff-removed :deep(.scored-token) { background:transparent !important; }
 </style>

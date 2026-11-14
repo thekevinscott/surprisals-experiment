@@ -1,9 +1,11 @@
 <script setup>
+import {useDark} from '@vueuse/core'
 import {useContainerScroll} from '../composables/scrollPosition.js'
 import {computed,inject,ref,watch,nextTick} from 'vue'
 import {useJsonQuery} from '../composables/queryState.js'
 import VueJsonPretty from 'vue-json-pretty'
 import 'vue-json-pretty/lib/styles.css'
+const dark=useDark({selector:'html',attribute:'class',valueDark:'app-dark',valueLight:'',storageKey:'viewer-color-scheme'})
 const props=defineProps({text:String})
 const scope=inject('viewStateKey',()=> 'json'),testCase=inject('testCase',()=>null)
 const collapsed=useJsonQuery(()=>`json:${scope()}:collapsed`,[])
@@ -24,7 +26,7 @@ const parsed=computed(()=>{
 <template>
   <div ref="element" class="json-content">
     <template v-if="parsed.error"><p role="alert">Invalid JSON: {{ parsed.error }}</p><pre>{{ text }}</pre></template>
-    <VueJsonPretty v-else :key="JSON.stringify(collapsed)" :path-collapsible="node=>collapsed.includes(node.path)" @icon-click="collapse" @brackets-click="collapse" :selected-value="selected" @node-click="node=>selected=node.path" highlight-selected-node :data="parsed.value" show-icon show-length show-line-number :editable="false" />
+    <VueJsonPretty :theme="dark ? 'dark' : 'light'" v-else :key="JSON.stringify(collapsed)" :path-collapsible="node=>collapsed.includes(node.path)" @icon-click="collapse" @brackets-click="collapse" :selected-value="selected" @node-click="node=>selected=node.path" highlight-selected-node :data="parsed.value" show-icon show-length show-line-number :editable="false" />
   </div>
 </template>
 <style scoped>

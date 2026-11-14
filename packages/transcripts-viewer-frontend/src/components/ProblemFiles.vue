@@ -14,7 +14,7 @@ const viewer = name => fileLink(url(name),name)
 </template>
 <style scoped>
 .problem-files { display: flex; flex-direction: column; gap: 4px; min-width:0; font-size: 12px; }
-.section-label { color: #657186; font-size: 10px; }
+.section-label { color: var(--viewer-muted); font-size: 10px; }
 .file-links { display:flex; flex-wrap:nowrap; gap:12px; max-width:100%; overflow-x:auto; }
 .problem-files a { flex:none; white-space:nowrap; text-decoration: none; }
 .problem-files a:hover { text-decoration: underline; }

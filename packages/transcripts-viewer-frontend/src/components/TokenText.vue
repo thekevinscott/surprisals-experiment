@@ -18,12 +18,12 @@ const highlighted=computed(()=>{
 })
 const color = bits => {
   const t = Math.min(1, Math.max(0, bits / 20))
-  return `rgb(${Math.round(255 - 31 * t)} ${Math.round(252 - 92 * t)} ${Math.round(230 - 230 * t)})`
+  return `color-mix(in srgb, var(--viewer-token-high) ${t * 100}%, var(--viewer-token-low))`
 }
 </script>
 <template><template v-for="(part, index) in highlighted" :key="index"><span :class="{'scored-token':part.bits!==null}" :style="part.bits!==null ? {backgroundColor:color(part.bits)} : undefined" v-tooltip.top="part.bits!==null ? `${Number(part.bits.toFixed(3))} bits` : null" :aria-label="part.bits!==null ? `${Number(part.bits.toFixed(3))} bits` : undefined"><span v-for="(piece,i) in part.pieces" :key="i" :class="{'advice-added':piece.added}">{{ piece.text }}</span></span></template></template>
 <style scoped>
-.advice-added { background-color:#bbf7d0;animation:advice-fade 3s ease 1s forwards;box-decoration-break:clone;-webkit-box-decoration-break:clone; }
+.advice-added { background-color:var(--viewer-added);animation:advice-fade 3s ease 1s forwards;box-decoration-break:clone;-webkit-box-decoration-break:clone; }
 @keyframes advice-fade { to { background-color:transparent; } }
 .scored-token { border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 </style>

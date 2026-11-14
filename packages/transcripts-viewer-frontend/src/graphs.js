@@ -1,4 +1,4 @@
-const colors = ['#2563a6', '#d57920', '#29834b', '#9a4fa0', '#c54646', '#238d98']
+const colors = ['light-dark(#2563a6, #60a5fa)', 'light-dark(#d57920, #fb923c)', 'light-dark(#29834b, #4ade80)', 'light-dark(#9a4fa0, #d8b4fe)', 'light-dark(#c54646, #f87171)', 'light-dark(#238d98, #67e8f9)']
 
 export function createChartData(rows) {
 const problems = [...new Set(rows.map(r => r.problem))]
@@ -41,7 +41,7 @@ export function createForkChartData(row) {
     series.fork = fork.id
     series.continues = fork.turns > fork.window * (row.forkTurns + row.soloTurns) + row.forkTurns
     series.label = `Window ${fork.window} · Fork ${fork.id}`
-    series.color = index < colors.length ? colors[index] : `hsl(${Math.round(index * 137.508) % 360} 65% 40%)`
+    series.color = index < colors.length ? colors[index] : `light-dark(hsl(${Math.round(index * 137.508) % 360} 65% 40%), hsl(${Math.round(index * 137.508) % 360} 65% 70%))`
   })
   return chart
 }

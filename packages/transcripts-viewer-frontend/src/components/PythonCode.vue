@@ -1,7 +1,7 @@
 <script setup>
 import {computed} from 'vue'
 import {highlightPython} from '../composables/pythonCode.js'
-import 'highlight.js/styles/github.css'
+import '../code-theme.css'
 const props=defineProps({text:String})
 const highlighted=computed(()=>highlightPython(props.text))
 </script>
