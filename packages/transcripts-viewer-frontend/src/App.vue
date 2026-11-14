@@ -7,6 +7,9 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ColumnGroup from 'primevue/columngroup'
 import Row from 'primevue/row'
+import Splitter from 'primevue/splitter'
+import SplitterPanel from 'primevue/splitterpanel'
+import {snapPanelSizes} from './composables/snapPanelSizes.js'
 import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
@@ -55,7 +58,15 @@ function turnKey(event) {
 window.addEventListener('keydown',turnKey)
 onUnmounted(()=>window.removeEventListener('keydown',turnKey))
 const route=useRoute(),router=useRouter()
-const graphsExpanded=ref(true),transcriptsExpanded=ref(true)
+const graphPanel=ref(null),transcriptPanel=ref(null),panelSizes=ref([50,50])
+function resizePanels({sizes}) {
+  panelSizes.value=snapPanelSizes(sizes)
+  if(panelSizes.value[0])graphPanel.value.setExpanded(true)
+  if(panelSizes.value[1])transcriptPanel.value.setExpanded(true)
+}
+function collapsePanel(index,expanded) {
+  if(!expanded)panelSizes.value=index===0?[0,100]:[100,0]
+}
 const fileRoute=computed(()=>route.name==='file'?{name:route.params.name,...route.query}:null)
 const target=computed(()=>route.meta.run?route.params:null)
 const selected = computed(() => data.rows.find(row => target.value?.id === row.id && row.status))
@@ -158,14 +169,18 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       </div>
       </header>
       <div v-if="matchingRuns.length > 1" class="related-runs">Runs for this selection: <a v-for="run in matchingRuns" :key="run.id" :href="runLink(run.id)" :aria-current="run.id === selected.id ? 'page' : undefined">{{ run.id }}</a></div>
-      <div class="run-body">
-        <ContentPanel v-model:expanded="graphsExpanded" class="run-section run-graphs" :class="{collapsed:!graphsExpanded}" state-key="graphs" scroll-key="graphs" title="Graphs" aria-label="Run graphs">
+      <Splitter class="run-body" layout="vertical" :gutter-size="8" @resize="resizePanels" @resizeend="resizePanels" :pt="{gutterHandle:{'aria-label':'Resize graph and transcripts'}}">
+        <SplitterPanel :size="panelSizes[0]" :min-size="0" :inert="panelSizes[0]===0" :style="{'--panel-share':panelSizes[0]/100}">
+        <ContentPanel ref="graphPanel" :expanded="true" @update:expanded="collapsePanel(0,$event)" class="run-section run-graphs" state-key="graphs" scroll-key="graphs" title="Graphs" aria-label="Run graphs">
           <CellChart :key="selected.id" :chart-data="runCharts" clickable @open-turn="forkDiagram.openChartTurn($event)" full-width all-points kind="advice" :controls="false" />
         </ContentPanel>
-        <ContentPanel v-model:expanded="transcriptsExpanded" class="run-section run-transcripts" :class="{collapsed:!transcriptsExpanded}" state-key="transcripts" scroll-key="transcripts" title="Transcripts" aria-label="Run transcripts">
+        </SplitterPanel>
+        <SplitterPanel :size="panelSizes[1]" :min-size="0" :inert="panelSizes[1]===0" :style="{'--panel-share':panelSizes[1]/100}">
+        <ContentPanel ref="transcriptPanel" :expanded="true" @update:expanded="collapsePanel(1,$event)" class="run-section run-transcripts" state-key="transcripts" scroll-key="transcripts" title="Transcripts" aria-label="Run transcripts">
           <ForkDiagram ref="forkDiagram" :run="selected" :target="target" />
         </ContentPanel>
-      </div>
+        </SplitterPanel>
+      </Splitter>
     </section>
     <section v-else-if="tab === 'graphs'" aria-label="Graphs"><p>Coming Soon</p></section>
     <template v-else>

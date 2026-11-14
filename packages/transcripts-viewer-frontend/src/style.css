@@ -103,9 +103,10 @@ a { color: var(--viewer-link); }
 button.icon-button, a.icon-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; min-width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1; color: var(--viewer-muted); }
 .icon-button svg { width: 12px; height: 12px; }
 
-.run-body { display:flex;flex-direction:column;flex:1;min-height:0;gap:8px;margin-top:8px; }
+.run-body { flex:1;min-height:0;margin-top:8px;border:0;background:none; }
+.run-body > .p-splitterpanel { display:flex;min-height:0;overflow:hidden;flex:0 0 calc((100% - 8px) * var(--panel-share)) !important; }
+.run-body > .p-splitter-gutter { flex:none; }
 .run-page .run-section.content-panel { display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow:hidden;--p-panel-border-radius:8px; }
-.run-page .run-section.content-panel.collapsed { flex:0 0 auto; }
 .run-section > .p-panel-header { flex:none; }
 .run-section > .p-panel-content-container { flex:1;min-height:0;overflow:auto;display:block; }
 .run-section > .p-panel-content-container > .p-panel-content-wrapper,
