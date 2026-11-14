@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/t_timeout_test.py -q",
+  "ran_at": 1794618389,
+  "exit_code": 0,
+  "commit": "0b3c7a257c2c51fa54c130fb4c437c34c0742dba",
+  "branch": "fix/t-timeout-feedback"
+}
