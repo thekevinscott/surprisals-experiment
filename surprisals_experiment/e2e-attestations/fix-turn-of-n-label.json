@@ -1,0 +1,7 @@
+{
+  "command": "uv run pytest tests/integration/window_state_machine_test.py tests/integration/u_transcript_exact_test.py tests/integration/u_transcript_test.py -q",
+  "ran_at": 1794615740,
+  "exit_code": 0,
+  "commit": "9c512d3a0335c322ff7c1368bddc9f8320fa3cf3",
+  "branch": "fix/turn-of-n-label"
+}
