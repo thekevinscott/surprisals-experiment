@@ -22,7 +22,9 @@ async def turn_line(run: Run, turn: Turn) -> str:
             best, target = f"{best:.1f}", f"{target:.1f}"
     return TURN(
         turn=turn.position + 1,
-        turns=turn.config.fork_turns + turn.config.window_solo_turns,
+        turns=(turn.config.fork_turns if turn.position < turn.config.fork_turns
+               else turn.config.fork_turns + turn.config.window_solo_turns),
+        solo_turns=turn.config.window_solo_turns if turn.position == turn.config.fork_turns else None,
         best=best,
         target=target,
         improvement=f"{IMPROVEMENT:.0%}",

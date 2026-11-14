@@ -131,15 +131,15 @@ async def test_appends_this_forks_earlier_turns_after_the_window_opening(config,
         await write_advice(run, Turn(config, 2, 1, 0))
     assert chat_provider[-1]['messages'][1:] == [
         {'role': 'user', 'content': opening},
-        {'role': 'user', 'content': 'turn 1 of 20; best at window start: 5; target: 4 (5%)'},
+        {'role': 'user', 'content': 'turn 1 of 10; best at window start: 5; target: 4 (5%)'},
         {'role': 'assistant', 'content': 'Later.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
         {'role': 'user', 'content': code('print(3)\n', 'print(4)\n', passed=0)},
-        {'role': 'user', 'content': 'turn 2 of 20; best at window start: 5; target: 4 (5%)'},
+        {'role': 'user', 'content': 'turn 2 of 10; best at window start: 5; target: 4 (5%)'},
         {'role': 'assistant', 'content': 'Again.'},
         {'role': 'user', 'content': '<advice_length>6 characters</advice_length>'},
         {'role': 'user', 'content': code('print(5)\n', 'print(6)\n', passed=0)},
-        {'role': 'user', 'content': 'turn 3 of 20; best at window start: 5; target: 4 (5%)'},
+        {'role': 'user', 'content': 'turn 3 of 10; best at window start: 5; target: 4 (5%)'},
     ]
 
 
@@ -156,5 +156,5 @@ async def test_window_zero_first_user_message_labels_original_question(
         await write_advice(run, Turn(config, 0))
     assert [message for message in chat_provider[0]['messages'] if message['role'] == 'user'] == [
         {'role': 'user', 'content': '<original_question>\nRead an integer and print its double.\n</original_question>'},
-        {'role': 'user', 'content': 'turn 1 of 20'},
+        {'role': 'user', 'content': 'turn 1 of 10'},
     ]

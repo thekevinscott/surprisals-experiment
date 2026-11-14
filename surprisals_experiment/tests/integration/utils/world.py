@@ -21,13 +21,16 @@ def u_system(config):
 
 def u_user(config, turn, content='', best=None):
     """Expected user text, specified independently of the production turn template."""
-    line = f'turn {turn} of {config.fork_turns + config.window_solo_turns}'
+    cap = config.fork_turns if turn <= config.fork_turns else config.fork_turns + config.window_solo_turns
+    line = f'turn {turn} of {cap}'
     if best is not None:
         scale = 10 if config.cap_strategy == 'surprisal' else 1
         target = floor(best * 0.95 * scale) / scale
         best, target = ((f'{best:.1f}', f'{target:.1f}') if config.cap_strategy == 'surprisal'
                         else (str(round(best)), str(round(target))))
         line += f'; best at window start: {best}; target: {target} (5%)'
+    if turn == config.fork_turns + 1:
+        line += f'\nYour fork was chosen to continue; you have {config.window_solo_turns} more turns.'
     return line + ('\n' + content if content else '')
 
 
