@@ -1,11 +1,11 @@
-WITH topology AS (SELECT value->>'path' AS path FROM json_each(:directories)),
+WITH topology AS (SELECT value->>'path' AS path,value->>'kind' AS kind,value->>'parent' AS parent,value->>'position' AS position FROM json_each(:directories)),
+latest_attempts AS (SELECT *,row_number() OVER (PARTITION BY parent ORDER BY position DESC) AS rank FROM topology WHERE kind='attempt'),
 samples AS (
  SELECT e.source,count(s.path) AS count,
  coalesce(min(coalesce(t.body->>'all_passed',0) AND NOT coalesce(g.body->>'timed_out',0) AND (g.body->>'error' IS NULL OR g.body->>'error' IN ('',0))),0) AS passed
  FROM evaluated_turns e
- LEFT JOIN topology s ON s.path GLOB e.source||'/ts/[0-9]*' AND instr(substr(s.path,length(e.source)+5),'/')=0
- LEFT JOIN topology a ON a.path=(SELECT path FROM topology WHERE path GLOB s.path||'/attempts/[0-9]*'
-   AND instr(substr(path,length(s.path)+11),'/')=0 ORDER BY cast(substr(path,length(s.path)+11) AS INTEGER) DESC LIMIT 1)
+ LEFT JOIN topology s ON s.parent=e.source AND s.kind='sample'
+ LEFT JOIN latest_attempts a ON a.parent=s.path AND a.rank=1
  LEFT JOIN documents t ON t.path=a.path||'/tests.json'
  LEFT JOIN documents g ON g.path=a.path||'/generation.json'
  GROUP BY e.source

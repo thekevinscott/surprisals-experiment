@@ -8,8 +8,12 @@ import {createForkPhaseChartData} from '../src/graphs.js'
 
 test('every turn stays noncollapsible and parallel and solo phases get separate charts',async()=>{
  const turn=id=>({id,source:`turns/${id}`,samples:[]})
- const window={id:0,continuedForks:[1],forks:[{id:0,parallel:[turn(0),turn(1),turn(2)],solo:[]},{id:1,parallel:[turn(0),turn(1),turn(2)],solo:[turn(3),turn(4)]}]}
- const run={id:'run',strategy:'characters',problem:'p',forkTurns:3,soloTurns:2,forks:[{window:0,id:0,turns:3,passing:[[0,20],[2,18]]},{window:0,id:1,turns:5,passing:[[0,19],[2,17],[4,12]]}]}
+ const window={id:0,turnIds:[0,1,2],sampleColumns:5,continuedForks:[1],forks:[{id:0,parallel:[turn(0),turn(1),turn(2)],solo:[]},{id:1,parallel:[turn(0),turn(1),turn(2)],solo:[turn(3),turn(4)]}]}
+ const run={charts:{
+  '0/0/parallel':{series:[{label:'Window 0 · Fork 0',colorIndex:0,passing:[[0,20],[2,18]]}]},
+  '0/1/parallel':{series:[{label:'Window 0 · Fork 1',colorIndex:1,passing:[[0,19],[2,17]]}]},
+  '0/1/solo':{series:[{label:'Window 0 · Fork 1',colorIndex:1,passing:[[4,12]]}]},
+ }}
  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[{
   name:'fork-panel-stubs',enforce:'pre',transform(code,id){
    if(id.endsWith('/ContentPanel.vue'))return '<script setup>defineProps({title:String,collapsible:{type:Boolean,default:true},expanded:Boolean})</script><template><section :data-collapsible="collapsible" :data-expanded="expanded"><slot /></section></template>'

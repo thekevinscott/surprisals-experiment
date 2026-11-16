@@ -10,7 +10,10 @@ test('experiment costs cover every run, refresh usage, and skip graph artifacts'
   t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
   const put=async(path,value)=>{const full=join(root,path);await mkdir(dirname(full),{recursive:true});await writeFile(full,typeof value==='string'?value:JSON.stringify(value))}
   const get=async()=>{const r=await app.inject('/api/runs/costs');assert.equal(r.statusCode,200,r.body);return r.json()}
-  assert.deepEqual(await get(),{rows:[],warnings:[]})
+  const empty=await get()
+  assert.deepEqual(empty.rows,[])
+  assert.deepEqual(empty.warnings,[])
+  assert.equal(empty.breakdown.total,0)
   for(const id of ['one','two']) {
     await put(`runs/${id}/run.json`,{created:'2026-11-13T00:00:00Z',invocations:[{ended:'2026-11-13T01:00:00Z'}]})
     await put(`runs/${id}/stderr-0.txt`,'2026-11-13T00:00:00Z instance launched\n')

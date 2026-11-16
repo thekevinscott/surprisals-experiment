@@ -1,7 +1,7 @@
 WITH input AS (SELECT json(:row) AS row),
 forks AS (
  SELECT value AS fork, value->>'window' AS window,value->>'id' AS id,
- (value->>'window')*((row->>'forkTurns')+(row->>'soloTurns')) AS start,
+ CASE WHEN value->>'window'=0 THEN 0 ELSE (value->>'window')*((row->>'forkTurns')+(row->>'soloTurns')) END AS start,
  row->>'forkTurns' AS parallel,row->>'soloTurns' AS solo,
  row_number() OVER (ORDER BY value->>'window',value->>'id')-1 AS colorIndex
  FROM input,json_each(row,'$.forks')
@@ -36,6 +36,6 @@ forks AS (
  'domains',json_object(
  'advice',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN 1.05 ELSE max(1,coalesce((SELECT max(score) FROM points),1))*1.05 END)),
  'surprisal',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN max(1,coalesce((SELECT max(score) FROM points),1))*1.05 ELSE 1.05 END))
- ) AS payload FROM scopes s CROSS JOIN input
+ )) AS payload FROM scopes s CROSS JOIN input
 )
 SELECT json_group_object(key,json(payload)) AS payload FROM charts;
