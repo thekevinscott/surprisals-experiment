@@ -17,3 +17,20 @@ test('HTTP requests time out while worker work remains unfinished, without dupli
   sent[0].worker.emit('message',{id:sent[0].id,response:{status:200,type:'application/json',body:'{"rows":[]}'}})
   assert.equal((await second).statusCode,200)
 })
+
+
+test('cost work cannot block a run detail response',async t=>{
+  const sent=[]
+  t.mock.method(Worker.prototype,'postMessage',function(message){sent.push({worker:this,...message})})
+  const api=createWorkerApi('/tmp')
+  t.after(()=>api.close())
+  const costs=api.inject('/api/runs/costs')
+  const details=api.inject('/api/runs/one/details')
+  await new Promise(resolve=>setImmediate(resolve))
+  assert.equal(sent.length,2)
+  assert.notEqual(sent[0].worker,sent[1].worker)
+  const detail=sent.find(request=>request.url.endsWith('/details'))
+  detail.worker.emit('message',{id:detail.id,response:{status:200,type:'application/json',body:'{"row":{"elapsed":42}}'}})
+  assert.equal((await details).json().row.elapsed,42)
+  assert.equal((await costs).statusCode,504)
+})

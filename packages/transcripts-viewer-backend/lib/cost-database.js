@@ -50,7 +50,7 @@ export class CostDatabase {
     return result
   }
   async snapshot(now=Date.now()) {
-    const [{payload}]=await this.query(`WITH priced AS (
+    const [{payload}]=await this.query(`WITH priced AS MATERIALIZED (
       SELECT *,max(0,(coalesce(unixepoch(ended,'subsec'),:now/1000.0)-unixepoch(awsLaunched,'subsec')))/3600*0.1008 AS awsCost FROM cost_rows
     ), totals AS (
       SELECT coalesce(sum(uCost),0) AS u,coalesce(sum(tCost),0) AS t,coalesce(sum(awsCost),0) AS aws,

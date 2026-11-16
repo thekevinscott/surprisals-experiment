@@ -13,10 +13,11 @@ FROM usage_ranked WHERE occurrence=1 GROUP BY run,kind;
 CREATE VIEW cost_rows AS
 WITH invocation AS (
   SELECT id,coalesce(meta->'$.invocations[#-1]',meta) AS current FROM cost_runs
-)
-SELECT id,
- (SELECT cost FROM model_costs WHERE run=id AND kind='u') AS uCost,
- (SELECT cost FROM model_costs WHERE run=id AND kind='t') AS tCost,
- (SELECT min(launched) FROM launches WHERE run=id) AS awsLaunched,
+), models AS MATERIALIZED (SELECT * FROM model_costs),
+ launch_times AS (SELECT run,min(launched) AS launched FROM launches GROUP BY run)
+SELECT id,u.cost AS uCost,t.cost AS tCost,l.launched AS awsLaunched,
  current->>'ended' AS ended
-FROM invocation;
+FROM invocation
+LEFT JOIN models u ON u.run=id AND u.kind='u'
+LEFT JOIN models t ON t.run=id AND t.kind='t'
+LEFT JOIN launch_times l ON l.run=id;

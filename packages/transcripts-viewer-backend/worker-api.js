@@ -7,31 +7,40 @@ const timeout=url=>Object.assign(Error(`Query exceeded ${budget} ms: ${url}`),{s
 
 // Keep synchronous indexing and SQLite work off the HTTP event loop so the
 // deadline can fire even while a query blocks. Reuse unfinished reads instead
-// of queuing another copy on every stream refresh after a timeout.
+// of queuing another copy on every stream refresh after a timeout. Costs use
+// a separate worker so experiment-wide transcript ingestion cannot block an
+// individual run or transcript request.
 export function createWorkerApi(directory){
   const app=Fastify(),events=createEvents(),pending=new Map(),inflight=new Map()
-  const worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
-  let sequence=0,failure
-  worker.on('message',({id,response,error})=>{
-    const request=pending.get(id)
-    if(!request)return
-    pending.delete(id)
-    if(error)request.reject(Error(error));else request.resolve(response)
-  })
-  function fail(error){
-    failure=error
-    for(const request of pending.values())request.reject(error)
-    pending.clear()
+  const workers=new Map()
+  let sequence=0
+  function workerFor(url){
+    const group=url==='/api/runs'||url==='/api/runs/costs'||url.endsWith('/summary')?'costs':'details'
+    if(workers.has(group))return workers.get(group)
+    const worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
+    workers.set(group,worker)
+    worker.on('message',({id,response,error})=>{
+      const request=pending.get(id)
+      if(!request)return
+      pending.delete(id)
+      if(error)request.reject(Error(error));else request.resolve(response)
+    })
+    function fail(error){
+      worker.failure=error
+      for(const [id,request] of pending)if(request.worker===worker){request.reject(error);pending.delete(id)}
+    }
+    worker.on('error',fail)
+    worker.on('exit',()=>fail(Error('Query worker stopped')))
+    return worker
   }
-  worker.on('error',fail)
-  worker.on('exit',()=>fail(Error('Query worker stopped')))
   async function query(url){
-    if(failure)throw failure
+    const worker=workerFor(url)
+    if(worker.failure)throw worker.failure
     let work=inflight.get(url)
     if(!work){
       const id=++sequence
       work=new Promise((resolve,reject)=>{
-        pending.set(id,{resolve,reject})
+        pending.set(id,{resolve,reject,worker})
         worker.postMessage({id,url,expires:Date.now()+budget})
       }).finally(()=>inflight.delete(url))
       inflight.set(url,work)
@@ -56,7 +65,7 @@ export function createWorkerApi(directory){
   app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??500).send({error:error.message}))
   app.addHook('preClose',async()=>events.close())
-  app.addHook('onClose',async()=>{await worker.terminate()})
+  app.addHook('onClose',async()=>{await Promise.all([...workers.values()].map(worker=>worker.terminate()))})
   function stream(reply,urls){
     if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Object.assign(Error('Expected an array of API resource paths'),{statusCode:400})
     return events.multiplex(reply,[...new Set(urls)],value)
