@@ -32,6 +32,7 @@ async function stream(base,path,t) {
 }
 
 test('every data endpoint streams snapshots, live changes, missing files and recovery', {timeout:20000}, async t=>{
+  t.mock.method(Date,'now',()=>Date.parse('2026-11-16T12:00:00Z'))
   const root=await mkdtemp(join(tmpdir(),'viewer-events-')),problem=await mkdtemp(join(tmpdir(),'viewer-problem-'))
   const put=async(path,value)=>{await mkdir(dirname(path),{recursive:true});await writeFile(path,typeof value==='string'?value:JSON.stringify(value))}
   const run=join(root,'runs/one'),turn='windows/0/forks/0/turns/0',attempt=turn+'/ts/0/attempts/0'
@@ -62,7 +63,16 @@ test('every data endpoint streams snapshots, live changes, missing files and rec
   await put(join(run,attempt,'tests.json'),{passed:0,total:1,all_passed:false})
   await put(join(run,'run.json'),{created:'2026-01-01',params:{'cap-strategy':'changed'}})
   await put(join(problem,'question.txt'),'new question')
-  const updates=await Promise.all(streams.map(s=>s.next()))
+  const changed=[value=>value.rows[0].strategy==='changed',value=>value.rows[0].strategy==='changed',
+    value=>value.row.best===null,value=>value.diagram[0].forks[0].parallel[0].advice==='new',
+    value=>value.blocks[0].raw.includes('new'),value=>value.attempts[0].tests.all_passed===false,
+    value=>value==='new',value=>value==='new question']
+  // Writes are separate filesystem events; intermediate snapshots are valid.
+  const updates=await Promise.all(streams.map(async(s,index)=>{
+    let value=await s.next()
+    while(!changed[index](value))value=await s.next()
+    return value
+  }))
   assert.equal(updates[0].rows[0].strategy,'changed')
   assert.equal(updates[1].rows[0].strategy,'changed')
   assert.equal(updates[2].row.best,null)

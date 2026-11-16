@@ -146,7 +146,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <dl class="metadata">
         <div><dt>Run</dt><dd>{{ selected.id }}</dd></div>
         <div><dt>Status</dt><dd>{{ runStatus(selected) }}</dd></div>
-        <div class="duration-metadata"><dt>Duration</dt><dd>{{ time(runDuration(selected,now)) }}</dd></div>
+        <div class="duration-metadata"><dt>Duration</dt><dd>{{ time(runDuration(selected)) }}</dd></div>
         <div><dt>Windows</dt><dd>{{ number(selected.windows) }}</dd></div>
         <div><dt>Best advice</dt><dd><a v-if="selected.bestTarget" :href="runLink(selected.id, selected.bestTarget)">{{ number(selected.best) }}</a><template v-else>{{ number(selected.best) }}</template> {{ selected.strategy === 'surprisal' ? 'bits' : 'chars' }}</dd></div>
       </dl>
@@ -178,7 +178,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
             <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
-            <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row,now)) }}</span>
+            <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row)) }}</span>
             <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>

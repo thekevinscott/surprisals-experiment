@@ -1,5 +1,6 @@
 import { readdir, stat } from 'node:fs/promises'
 import { basename, join, relative, resolve } from 'node:path'
+import {runRuntime} from './runtime.js'
 import {instanceLaunch} from './aws-launch.js'
 import {withDatabase} from './experiment-database.js'
 
@@ -115,14 +116,13 @@ export async function runSummary(directory, warnings = new Set(), database, {inc
   const {uCost,tCost}=includeCosts ? await modelCosts(directory,warnings,database) : {uCost:null,tCost:null}
   const started = current.started ?? meta.created
   const ended = current.ended
-  const end = ended ? Date.parse(ended) : latest
-  const elapsed = started && Number.isFinite(end) ? Math.max(0, (end - Date.parse(started)) / 1000) : null
+  const runtime = await runRuntime(directory,meta,database)
   return {
     ...runIdentity(directory, meta, settings),
     exit: current.exit_code ?? null,
     status: ended ? (current.exit_code === 0 ? 'Complete' : 'Stopped / failed') : 'Open',
     cause: current.error ?? (current.exit_code === 0 ? null : current.ended_by) ?? null,
-    started, ended, observed: new Date(latest).toISOString(), elapsed, turns, best, bestTarget,
+    started, ended, observed: new Date(latest).toISOString(), ...runtime, turns, best, bestTarget,
     windows: windows.size,
     windowPositions: [...windows].map(Number).sort((a,b)=>a-b).map(id=>({id,depth:id===0 ? 0 : id*stride})).filter(window=>Number.isFinite(window.depth)),
     samples: settings.t_samples ?? null,
