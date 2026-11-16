@@ -59,44 +59,46 @@ def create_pod(model, gpu, key):
     return result.json()
 
 
-def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU, experiment="experiments/surprisal"):
+def up(model=DEFAULT_MODEL, gpu=DEFAULT_GPU, experiment="experiments/surprisal", pod_id=None):
     folder = users.state_directory()
     pid = users.daemon_pid()
     key = teardown.api_key()
-    pod_id = None
+    pod = None
     started = None
     try:
         with users.locked():
-            pods = teardown.scorer_pods(key)
-            if len(pods) > 1:
-                raise RuntimeError(
-                    "Multiple surprisal-scorer-24k pods already exist: "
-                    + ", ".join(p["id"] for p in pods)
-                )
-            if pods:
-                pod = pods[0]
-                command = pod.get("dockerStartCmd", [])
-                existing_model = (
-                    command[command.index("--model") + 1]
-                    if "--model" in command
-                    else None
-                )
-                if existing_model != model:
+            if pod_id is None:
+                pods = teardown.scorer_pods(key)
+                if len(pods) > 1:
                     raise RuntimeError(
-                        f"Scorer {pod['id']} serves {existing_model!r}, requested {model!r}; refusing a second pod"
+                        "Multiple surprisal-scorer-24k pods already exist: "
+                        + ", ".join(p["id"] for p in pods)
                     )
-                if pod["desiredStatus"] != "RUNNING":
-                    raise RuntimeError(
-                        f"Scorer {pod['id']} is {pod['desiredStatus']}; resume or delete it before up"
+                if pods:
+                    pod = pods[0]
+                    command = pod.get("dockerStartCmd", [])
+                    existing_model = (
+                        command[command.index("--model") + 1]
+                        if "--model" in command
+                        else None
                     )
-                pod_id = pod["id"]
-                timestamp(f"Reusing pod {pod_id}")
-            else:
-                pod = create_pod(model, gpu, key)
-                pod_id = pod["id"]
+                    if existing_model != model:
+                        raise RuntimeError(
+                            f"Scorer {pod['id']} serves {existing_model!r}, requested {model!r}; refusing a second pod"
+                        )
+                    if pod["desiredStatus"] != "RUNNING":
+                        raise RuntimeError(
+                            f"Scorer {pod['id']} is {pod['desiredStatus']}; resume or delete it before up"
+                        )
+                    pod_id = pod["id"]
+                    timestamp(f"Reusing pod {pod_id}")
+                else:
+                    pod = create_pod(model, gpu, key)
+                    pod_id = pod["id"]
             users.register(pod_id, folder, pid)
             labnotes.set_state({"pod_id": pod_id})
-            costs.record(pod, experiment, gpu)
+            if pod is not None:
+                costs.record(pod, experiment, gpu)
         base_url = f"https://{pod_id}-8000.proxy.runpod.net/v1"
         started = time.monotonic()
         deadline = started + READY_TIMEOUT

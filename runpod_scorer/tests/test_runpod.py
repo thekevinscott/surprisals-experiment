@@ -399,6 +399,22 @@ def test_up_outside_setup_does_not_create_pod(fake_http, monkeypatch):
     fake_http.assert_not_called()
 
 
+def test_up_with_pod_id_skips_rest_api(fake_http, state, monkeypatch):
+    from runpod_scorer import costs
+    for name, module in [("scorer_pods", teardown), ("create_pod", setup), ("record", costs)]:
+        monkeypatch.setattr(module, name, Mock(side_effect=AssertionError(name)))
+    fake_http.side_effect = [
+        httpx.ConnectError("not listening yet"),
+        httpx.ConnectError("[Errno -2] Name or service not known"),
+        response(),
+    ]
+    main(["up", "--pod-id", "pod1"])
+    assert read(state) == {
+        "pod_id": "pod1",
+        "base_url": "https://pod1-8000.proxy.runpod.net/v1",
+    }
+
+
 def scorer(model=setup.DEFAULT_MODEL, pod_id="pod1", status="RUNNING"):
     return {
         "id": pod_id,

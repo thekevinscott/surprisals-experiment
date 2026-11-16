@@ -12,13 +12,14 @@ def main(argv=None):
     up.add_argument("--model", default=setup.DEFAULT_MODEL)
     up.add_argument("--gpu", default=setup.DEFAULT_GPU)
     up.add_argument("--experiment", default="experiments/surprisal", help="Experiment folder for pod cost records")
+    up.add_argument("--pod-id", help="Reuse this running pod without the RunPod REST API")
     commands.add_parser(
         "down", help="Release this invocation; delete the last user's scorer"
     )
     commands.add_parser("reap", help="Remove dead users and delete unused scorers")
     args = parser.parse_args(argv)
     if args.command == "up":
-        setup.up(args.model, args.gpu, args.experiment)
+        setup.up(args.model, args.gpu, args.experiment, args.pod_id)
     elif args.command == "down":
         teardown.down()
     else:
