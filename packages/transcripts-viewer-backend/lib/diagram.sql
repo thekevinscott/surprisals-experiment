@@ -1,4 +1,4 @@
-WITH topology AS (
+WITH topology AS MATERIALIZED (
  SELECT value->>'path' AS path,value->>'parent' AS parent,value->>'kind' AS kind,
  value->>'position' AS position,value->>'window' AS window,value->>'fork' AS fork FROM json_each(:directories)
 ), attempts AS (
@@ -6,14 +6,14 @@ WITH topology AS (
  row_number() OVER (PARTITION BY a.parent ORDER BY a.position DESC) AS rank
  FROM topology a LEFT JOIN documents t ON t.path=a.path||'/tests.json'
  LEFT JOIN documents g ON g.path=a.path||'/generation.json' WHERE a.kind='attempt'
-), samples AS (
+), samples AS MATERIALIZED (
  SELECT s.*,json_object('id',s.position,'source',s.path,'latest',json(CASE WHEN a.path IS NULL THEN NULL ELSE
  json_object('id',a.position,
  'outcome',CASE WHEN coalesce(generation->>'timed_out',0) OR (generation->>'error' IS NOT NULL AND generation->>'error' NOT IN ('',0)) THEN 'failed' WHEN tests->>'all_passed' IS NULL THEN 'unknown' WHEN tests->>'all_passed' THEN 'passed' ELSE 'failed' END,
  'tests',json(CASE WHEN tests IS NULL THEN NULL ELSE json_object('all_passed',json(tests->'all_passed'),'passed',tests->>'passed','total',tests->>'total') END),
  'generation',json(CASE WHEN generation IS NULL THEN NULL ELSE json_object('timed_out',json(generation->'timed_out'),'error',generation->>'error','exit_code',generation->>'exit_code') END)) END)) AS payload
  FROM topology s LEFT JOIN attempts a ON a.parent=s.path AND a.rank=1 WHERE s.kind='sample'
-), turns_data AS (
+), turns_data AS MATERIALIZED (
  SELECT t.*,json_object('id',t.position,'source',t.path,
  'transcriptPath','windows/'||t.window||'/forks/'||t.fork||'/u/transcript.jsonl',
  'error',d.body->>'error','metadata',json(d.body),
@@ -29,9 +29,9 @@ WITH topology AS (
  LEFT JOIN advice_text txt ON txt.path=(d.body->>'advice')||'/advice.txt' WHERE t.kind='turn'
 ), advice_order AS (
  SELECT path,lag(json_object('advice',payload->>'advice','tokens',json(payload->'tokens'))) OVER (PARTITION BY parent ORDER BY position) AS previous FROM turns_data WHERE payload->>'advice' IS NOT NULL
-), advice_navigation AS (
+), advice_navigation AS MATERIALIZED (
  SELECT t.*,json_set(t.payload,'$.previousAdvice',json(a.previous)) AS navigation FROM turns_data t JOIN advice_order a USING(path)
-), fork_rows AS (
+), fork_rows AS MATERIALIZED (
  SELECT f.*,json_object('id',f.position,'source',f.path,'transcriptPath',f.path||'/u/transcript.jsonl',
  'parallel',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path AND (:forkTurns IS NULL OR t.position<:forkTurns) ORDER BY position))),
  'solo',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path AND :forkTurns IS NOT NULL AND t.position>=:forkTurns ORDER BY position))),

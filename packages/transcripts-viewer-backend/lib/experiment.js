@@ -56,7 +56,7 @@ export async function readExperiment(directory, getDatabase) {
   }
   const warnings = new Set()
   const rows = []
-  const index=await readRunIndex(directory)
+  const index=await readRunIndex(directory,getDatabase?.(directory))
   const costs=await experimentCosts(directory,getDatabase)
   for(const warning of costs.warnings)warnings.add(warning)
   for (const {id} of index.rows) {
