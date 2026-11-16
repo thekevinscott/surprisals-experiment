@@ -1,19 +1,19 @@
 <script setup>
 import {computed} from 'vue'
 import {fetchJson,useLiveResource} from '../composables/api.js'
-import {experimentCost,costTooltip} from '../composables/experimentCost.js'
-import {runpodCost,runpodTooltip} from '../composables/runpodCost.js'
-const props=defineProps({now:Number,showTotal:Boolean})
-const {data:pods,error}=useLiveResource(()=>['/api/runs/runpod-costs'],(signal,urls)=>fetchJson(urls[0],signal))
-const {data:runs,error:costError}=useLiveResource(()=>props.showTotal ? ['/api/runs/costs'] : [],(signal,urls)=>fetchJson(urls[0],signal))
-const breakdown=computed(()=>experimentCost(runs.value?.rows??[],pods.value??[],props.now))
-const total=computed(()=>runpodCost(pods.value??[],props.now))
+import {costTooltip} from '../composables/experimentCost.js'
+import {runpodTooltip} from '../composables/runpodCost.js'
+const props=defineProps({showTotal:Boolean})
+const {data:runs,error}=useLiveResource(()=>['/api/runs/costs'],(signal,urls)=>fetchJson(urls[0],signal))
+const pods=computed(()=>runs.value?.pods)
+const breakdown=computed(()=>runs.value?.breakdown)
+const total=computed(()=>breakdown.value?.runpod)
 const money=value=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value)
 </script>
 <template>
   <div class="experiment-costs">
-  <aside v-if="showTotal" class="total-cost" :title="costError || error || (runs && pods ? costTooltip(breakdown,pods,runs.warnings) : undefined)">
-    <template v-if="costError || error">Total cost unavailable</template>
+  <aside v-if="showTotal" class="total-cost" :title="error || (runs && pods ? costTooltip(breakdown,pods,runs.warnings) : undefined)">
+    <template v-if="error">Total cost unavailable</template>
     <template v-else-if="!runs || !pods">Total cost loading…</template>
     <template v-else>Total cost {{ money(breakdown.total) }} <small>estimate</small></template>
   </aside>

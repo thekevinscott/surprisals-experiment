@@ -18,7 +18,10 @@ test('REST reads stay live, separate lazy payloads, and reject file escapes',asy
   await put(base+turn+'/ts/0/attempts/0/tests.json',{passed:1,total:1,all_passed:true,cases:[{index:0,stdout:'large output',passed:true}]})
   const app=createApi(root);t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})
   const get=async url=>{const r=await app.inject(url);assert.equal(r.statusCode,200,r.body);return r.json()}
-  assert.equal((await get('/api/runs')).rows[0].best,6)
+  const dashboard=await get('/api/runs')
+  assert.equal(dashboard.rows[0].best,6)
+  assert.deepEqual(dashboard.rows[0].charts.run.series[0].targets['0'],{window:0,fork:0,turn:0})
+  assert.equal(dashboard.rows[0].duration>0,true)
   assert.equal((await get('/api/runs/index')).rows[0].id,'one')
   assert.equal((await get('/api/runs/one/summary')).row.best,6)
   assert.equal((await get('/api/runs/one/details')).row.best,6)

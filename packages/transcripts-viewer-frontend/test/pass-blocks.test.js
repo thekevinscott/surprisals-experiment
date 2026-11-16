@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import {attemptOutcome, turnSummary} from '../src/composables/outcomes.js'
 
 test('sample labels distinguish recorded outcomes, generation failures, and unknown results', () => {
-  assert.equal(attemptOutcome({tests: {all_passed: true}}), 'passed')
-  assert.equal(attemptOutcome({tests: {all_passed: false}}), 'failed')
-  assert.equal(attemptOutcome({generation: {timed_out: true}, tests: {all_passed: true}}), 'failed')
-  assert.equal(attemptOutcome({generation: {error: 'provider failed'}}), 'failed')
+  assert.equal(attemptOutcome({outcome:'passed',tests: {all_passed: true}}), 'passed')
+  assert.equal(attemptOutcome({outcome:'failed',tests: {all_passed: false}}), 'failed')
+  assert.equal(attemptOutcome({outcome:'failed',generation: {timed_out: true}, tests: {all_passed: true}}), 'failed')
+  assert.equal(attemptOutcome({outcome:'failed',generation: {error: 'provider failed'}}), 'failed')
   assert.equal(attemptOutcome({}), 'unknown')
   assert.equal(attemptOutcome(null), 'unknown')
   const turn = {samples: [{latest: {tests: {all_passed: true}}}, {latest: {tests: {all_passed: false}}}, {}], measurement: 12, unit: 'bits'}

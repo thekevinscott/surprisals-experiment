@@ -19,7 +19,7 @@ const link = inject('runLink')
     <template #summary><span>{{ turnSummary(turn) }}</span></template>
     <template #actions><Button class="icon-button" v-if="turn.advice != null" text size="small" label="💡" aria-label="Open advice" title="Open advice" @click="openAdvice" /><TranscriptButton :source="turn.transcriptPath" :turn-source="turn.source" :turn-metadata="turn.metadata" label="💬" /></template>
     <p v-if="turn.error" class="turn-error" role="status">U failed: {{ turn.error }}</p>
-    <TTranscripts :samples="turn.samples ?? []" />
+    <TTranscripts :samples="turn.samples ?? []" :columns="turn.sampleColumns" />
   </ContentPanel>
 </template>
 <style scoped>

@@ -12,16 +12,12 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
-import {runDuration} from './composables/runDuration.js'
-import {awsCost,awsCostTooltip} from './composables/awsCost.js'
+import {awsCostTooltip} from './composables/awsCost.js'
 import {createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
-const now=ref(Date.now())
-const clock=setInterval(()=>{now.value=Date.now()},1000)
-onUnmounted(()=>clearInterval(clock))
 const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
-const dashboardRows=computed(()=>data.rows.map(row=>({...row,awsCost:awsCost(row,now.value)})))
+const dashboardRows=computed(()=>data.rows)
 import ThemeSelect from './components/ThemeSelect.vue'
 import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
@@ -73,7 +69,7 @@ function refresh() {
   watchData(urls,async signal=>{
     if(!id)return fetchJson(urls[0],signal)
     const [index,summary]=await Promise.all(urls.map(url=>fetchJson(url,signal)))
-    return {rows:index.rows.map(row=>row.id===id?summary.row:row),warnings:summary.warnings}
+    return {...index,rows:index.rows.map(row=>row.id===id?{...row,...summary.row}:row),warnings:summary.warnings}
   },{signal,onData:value=>{Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
 }
 watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
@@ -83,9 +79,9 @@ watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
 watch([loading,()=>route.name],async()=>{if(route.name!=='file'&&!loading.value){await nextTick();pageReady.value=true}},{immediate:true,flush:'post'})
 const navigateTab = name => router.push({name})
 const openRun = row => router.push({name:'run',params:{id:row.id}})
-const strategyOptions = computed(() => [...new Set(data.rows.map(r => r.strategy))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === value).length} runs` })))
-const problemOptions = computed(() => [...new Set(data.rows.filter(r => r.strategy === selected.value?.strategy).map(r => r.problem))].map(value => ({ value, description: `${data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === value).length} runs · ${selected.value?.strategy}` })))
-const matchingRuns = computed(() => data.rows.filter(r => r.strategy === selected.value?.strategy && r.problem === selected.value?.problem))
+const strategyOptions = computed(() => data.strategyOptions??[])
+const problemOptions = computed(() => selected.value?.problemOptions??[])
+const matchingRuns = computed(() => selected.value?.relatedRuns??[])
 function changeStrategy(value) {
   const options = data.rows.filter(r => r.strategy === value)
   openRun(options.find(r => r.problem === selected.value.problem) ?? options[0])
@@ -113,7 +109,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 
 <template>
   <header class="viewer-toolbar"><ThemeSelect /></header>
-  <RunpodCost :now="now" :show-total="!target && !fileRoute && tab === 'dashboard'" />
+  <RunpodCost v-if="route.name === 'dashboard' && !filePreview" show-total />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template v-if="filePreview?.kind==='advice'" #header>
       <div class="advice-modal-heading"><span class="p-dialog-title">{{ filePreview.title }}</span><button type="button" :aria-pressed="showAdviceDiff" :disabled="filePreview.comparisonText==null" :title="filePreview.comparisonText==null?'No previous advice available for this fork':undefined" @click="showAdviceDiff=!showAdviceDiff">Show diff</button></div>
@@ -146,7 +142,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
       <dl class="metadata">
         <div><dt>Run</dt><dd>{{ selected.id }}</dd></div>
         <div><dt>Status</dt><dd>{{ runStatus(selected) }}</dd></div>
-        <div class="duration-metadata"><dt>Duration</dt><dd>{{ time(runDuration(selected)) }}</dd></div>
+        <div class="duration-metadata"><dt>Duration</dt><dd>{{ time(selected.duration) }}</dd></div>
         <div><dt>Windows</dt><dd>{{ number(selected.windows) }}</dd></div>
         <div><dt>Best advice</dt><dd><a v-if="selected.bestTarget" :href="runLink(selected.id, selected.bestTarget)">{{ number(selected.best) }}</a><template v-else>{{ number(selected.best) }}</template> {{ selected.strategy === 'surprisal' ? 'bits' : 'chars' }}</dd></div>
       </dl>
@@ -178,7 +174,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
             <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
-            <span v-else-if="column.key === 'elapsed'">{{ time(runDuration(row)) }}</span>
+            <span v-else-if="column.key === 'elapsed'">{{ time(row.duration) }}</span>
             <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>

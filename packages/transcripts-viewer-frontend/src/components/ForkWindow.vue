@@ -11,8 +11,8 @@ const parentPath=inject('disclosurePath')
 const sampleCount = inject('sampleCount')
 const windowExpanded = ref(true)
 const windowPanel = ref(null)
-const turnIds = computed(() => [...new Set(props.window.forks.flatMap(f => f.parallel.map(t => t.id)))].sort((a,b) => a-b))
-const columnWidth = computed(() => (sampleCount() || Math.max(1, ...props.window.forks.flatMap(f => [...f.parallel,...f.solo].map(t=>t.samples.length)))) * 72 + 16)
+const turnIds = computed(() => props.window.turnIds)
+const columnWidth = computed(() => props.window.sampleColumns * 72 + 16)
 async function reveal(target) {
   if (String(props.window.id) !== target?.window) return
   if(route.query[`panel:${parentPath()}/Window ${props.window.id}`]!==undefined)return

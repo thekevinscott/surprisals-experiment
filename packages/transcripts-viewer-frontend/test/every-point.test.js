@@ -4,11 +4,9 @@ import {createServer} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import {createSSRApp,h} from 'vue'
 import {renderToString} from 'vue/server-renderer'
-import {createChartData} from '../src/graphs.js'
 
 test('top advice line connects every scored advice in turn order without changing running-best data',async()=>{
- const data=createChartData([{id:'run',problem:'1958',strategy:'characters',turns:43,ended:'done',passing:[[0,20],[1,25],[2,10],[3,15],[42,12]]}])
- assert.deepEqual(data.series[0].advice,[[0,20],[2,10]])
+ const data={arms:['characters'],series:[{strategy:'characters',problem:'1958',cell:'run',running:false,exit_code:0,color:'blue',advice:[[0,20],[2,10]],passing:[[0,20],[1,25],[2,10],[3,15],[42,12]]}],domains:{advice:{x:[0,45],y:[0,26.25]}}}
  data.series[0].scored=[[0,20,true],[1,25,true],[2,10,true],[3,15,true],[4,22,false],[42,12,true]];const original=structuredClone(data)
  const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[vue()]})
  try{
