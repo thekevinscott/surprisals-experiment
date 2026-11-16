@@ -4,6 +4,7 @@ import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join,dirname} from 'node:path'
 import {createApi} from '../server.js'
+import {eventually} from './support/eventually.js'
 
 test('experiment costs cover every run, refresh usage, and skip graph artifacts',async t=>{
   const root=await mkdtemp(join(tmpdir(),'experiment-costs-')),app=createApi(root)
@@ -22,10 +23,11 @@ test('experiment costs cover every run, refresh usage, and skip graph artifacts'
     // These must not be parsed by this cost-only endpoint.
     await put(`runs/${id}/windows/0/forks/0/turns/0/metadata.json`,'invalid graph metadata')
   }
+  await eventually(async()=>assert.deepEqual((await get()).rows.map(r=>[r.id,r.uCost,r.tCost]),[['one',1,2],['two',1,2]]))
   const data=await get()
   assert.deepEqual(data.rows.map(r=>[r.id,r.uCost,r.tCost]),[['one',1,2],['two',1,2]])
   assert.equal(data.rows[0].awsLaunched,'2026-11-13T00:00:00.000Z')
   assert.equal(data.rows[0].ended,'2026-11-13T01:00:00Z')
   await put('runs/one/windows/0/forks/0/u/transcript.jsonl',JSON.stringify({role:'assistant',usage:{cost:4}})+'\n')
-  assert.equal((await get()).rows[0].uCost,4)
+  await eventually(async()=>assert.equal((await get()).rows[0].uCost,4))
 })

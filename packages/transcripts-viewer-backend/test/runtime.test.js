@@ -4,6 +4,7 @@ import {mkdtemp,mkdir,writeFile,utimes,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {createApi} from '../server.js'
+import {eventually} from './support/eventually.js'
 
 test('API runtime sums invocations, excludes gaps, uses the lost invocation stderr and advances live',async t=>{
  const root=await mkdtemp(join(tmpdir(),'viewer-runtime-')),run=join(root,'runs/one')
@@ -30,7 +31,7 @@ test('API runtime sums invocations, excludes gaps, uses the lost invocation stde
  meta.invocations[3].ended='2026-11-01T14:00:00Z'
  await writeFile(join(run,'run.json'),JSON.stringify(meta))
  now+=3600000
- assert.equal((await get()).elapsed,13800,'completed runs stop ticking')
+ await eventually(async()=>assert.equal((await get()).elapsed,13800,'completed runs stop ticking'))
  await rm(join(run,'stderr-lost.txt'))
  assert.equal((await get()).elapsed,null,'missing lost-invocation evidence must not count the delayed relaunch timestamp')
 })

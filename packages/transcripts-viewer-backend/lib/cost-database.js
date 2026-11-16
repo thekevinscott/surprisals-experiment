@@ -38,7 +38,7 @@ export class CostDatabase {
         return [{id,gpu,costPerHr,start,stop}]
       }],
     }
-    this.db=new DirSQL({root,noIgnore:true,tables:schema.split(';').filter(s=>s.trim()).map(ddl=>{
+    this.db=new DirSQL({root,noIgnore:true,ignore:['**/src/**','**/advices/**'],tables:schema.split(';').filter(s=>s.trim()).map(ddl=>{
       const name=ddl.match(/CREATE (?:TABLE|VIEW) (\w+)/)[1], [glob,onFile]=sources[name]??['',()=>[]]
       return {name,ddl,glob,onFile}
     })})

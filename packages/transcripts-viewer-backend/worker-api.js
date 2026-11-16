@@ -19,6 +19,10 @@ export function createWorkerApi(directory){
     if(workers.has(group))return workers.get(group)
     const worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
     workers.set(group,worker)
+    worker.ready=new Promise((resolve,reject)=>{
+      worker.once('error',reject)
+      worker.on('message',message=>{if(message.ready)resolve()})
+    })
     worker.on('message',({id,response,error})=>{
       const request=pending.get(id)
       if(!request)return
@@ -62,10 +66,14 @@ export function createWorkerApi(directory){
     }
     return response.type?.startsWith('application/json')?JSON.parse(body):body
   }
+  app.addHook('onReady',async()=>{await Promise.all([workerFor('/api/runs').ready,workerFor('/api/runs/index').ready])})
   app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??500).send({error:error.message}))
   app.addHook('preClose',async()=>events.close())
-  app.addHook('onClose',async()=>{await Promise.all([...workers.values()].map(worker=>worker.terminate()))})
+  app.addHook('onClose',async()=>{await Promise.all([...workers.values()].map(worker=>{
+    if(worker.threadId===-1)return
+    return new Promise(resolve=>{worker.once('exit',resolve);worker.postMessage({close:true})})
+  }))})
   function stream(reply,urls){
     if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Object.assign(Error('Expected an array of API resource paths'),{statusCode:400})
     return events.multiplex(reply,[...new Set(urls)],value)

@@ -4,10 +4,11 @@ import {Worker} from 'node:worker_threads'
 import {createWorkerApi} from '../worker-api.js'
 
 test('HTTP requests time out while worker work remains unfinished, without duplicate reads',async t=>{
-  const sent=[]
-  t.mock.method(Worker.prototype,'postMessage',function(message){sent.push({worker:this,...message})})
+  const sent=[],postMessage=Worker.prototype.postMessage
+  t.mock.method(Worker.prototype,'postMessage',function(message){if(message.close)return postMessage.call(this,message);sent.push({worker:this,...message})})
   const api=createWorkerApi('/tmp')
   t.after(()=>api.close())
+  await api.ready()
   const first=await api.inject('/api/runs/index')
   assert.equal(first.statusCode,504)
   assert.match(first.json().error,/exceeded 500 ms/)
@@ -20,10 +21,11 @@ test('HTTP requests time out while worker work remains unfinished, without dupli
 
 
 test('cost work cannot block a run detail response',async t=>{
-  const sent=[]
-  t.mock.method(Worker.prototype,'postMessage',function(message){sent.push({worker:this,...message})})
+  const sent=[],postMessage=Worker.prototype.postMessage
+  t.mock.method(Worker.prototype,'postMessage',function(message){if(message.close)return postMessage.call(this,message);sent.push({worker:this,...message})})
   const api=createWorkerApi('/tmp')
   t.after(()=>api.close())
+  await api.ready()
   const costs=api.inject('/api/runs/costs')
   const details=api.inject('/api/runs/one/details')
   await new Promise(resolve=>setImmediate(resolve))

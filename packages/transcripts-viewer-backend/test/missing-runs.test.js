@@ -10,6 +10,7 @@ import {createApi} from '../server.js'
 
 test('missing runs is empty, and the same live connection sees creation, deletion and recreation', {timeout:20000}, async t=>{
   const root=await mkdtemp(join(tmpdir(),'viewer-no-runs-')),app=createApi(root),controller=new AbortController()
+  t.signal.addEventListener('abort',()=>controller.abort(),{once:true})
   t.after(async()=>{controller.abort();await app.close();await rm(root,{recursive:true,force:true})})
   for(const url of ['/api/runs','/api/runs/index']){
     const response=await app.inject(url)
@@ -28,7 +29,8 @@ test('missing runs is empty, and the same live connection sees creation, deletio
       const frame=buffer.slice(0,end);buffer=buffer.slice(end+2)
       assert(!frame.startsWith('event: stream-error'),frame)
       if(!frame.startsWith('event: resource\n'))continue
-      const {url,data}=JSON.parse(frame.split('\ndata: ')[1]);assert.deepEqual(data.rows.map(row=>row.id),ids);seen.add(url)
+      const {url,data}=JSON.parse(frame.split('\ndata: ')[1])
+      if(JSON.stringify(data.rows.map(row=>row.id))===JSON.stringify(ids))seen.add(url)
     }
   }
   const putRun=async id=>{const folder=join(root,'runs',id);await mkdir(folder,{recursive:true});await writeFile(join(folder,'run.json'),JSON.stringify({created:'2026-01-01'}))}

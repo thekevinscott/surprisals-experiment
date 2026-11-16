@@ -44,7 +44,7 @@ export class ExperimentDatabase {
       const [glob,onFile]=sources[name] ?? ['',()=>[]]
       return {name,ddl,glob,onFile}
     })
-    this.db = new DirSQL({root:this.root,noIgnore:true,tables})
+    this.db = new DirSQL({root:this.root,noIgnore:true,tables,ignore:relations?[]:['**/windows/**','**/advices/**']})
     this.pending = Promise.resolve()
   }
   // The native connection is shared; serialize statements as in Database.py.
