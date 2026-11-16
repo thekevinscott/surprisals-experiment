@@ -3,10 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "node scripts/install-dirsql.mjs"
   },
   "dependencies": {
-    "dirsql": "^0.4.171",
+    "dirsql": "link:.dirsql-source/packages/ts",
     "fastify": "^5.12.8"
+  },
+  "dirsqlSource": {
+    "repository": "https://github.com/thekevinscott/dirsql.git",
+    "commit": "d89cedbc7ae5ade080974d56763b494763b9dac2"
   }
 }
