@@ -1,0 +1,73 @@
+import Fastify from 'fastify'
+import {Worker} from 'node:worker_threads'
+import {createEvents} from './lib/events.js'
+
+const budget=500
+const timeout=url=>Object.assign(Error(`Query exceeded ${budget} ms: ${url}`),{statusCode:504})
+
+// Keep synchronous indexing and SQLite work off the HTTP event loop so the
+// deadline can fire even while a query blocks. Reuse unfinished reads instead
+// of queuing another copy on every stream refresh after a timeout.
+export function createWorkerApi(directory){
+  const app=Fastify(),events=createEvents(),pending=new Map(),inflight=new Map()
+  const worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
+  let sequence=0,failure
+  worker.on('message',({id,response,error})=>{
+    const request=pending.get(id)
+    if(!request)return
+    pending.delete(id)
+    if(error)request.reject(Error(error));else request.resolve(response)
+  })
+  function fail(error){
+    failure=error
+    for(const request of pending.values())request.reject(error)
+    pending.clear()
+  }
+  worker.on('error',fail)
+  worker.on('exit',()=>fail(Error('Query worker stopped')))
+  async function query(url){
+    if(failure)throw failure
+    let work=inflight.get(url)
+    if(!work){
+      const id=++sequence
+      work=new Promise((resolve,reject)=>{
+        pending.set(id,{resolve,reject})
+        worker.postMessage({id,url,expires:Date.now()+budget})
+      }).finally(()=>inflight.delete(url))
+      inflight.set(url,work)
+    }
+    let timer
+    const start=performance.now()
+    try{
+      const result=await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(timeout(url)),budget)})])
+      if(performance.now()-start>=budget)throw timeout(url)
+      return result
+    }finally{clearTimeout(timer)}
+  }
+  async function value(url){
+    const response=await query(url),body=Buffer.from(response.body).toString('utf8')
+    if(response.status>=400){
+      let message=body
+      try{message=JSON.parse(body).error??body}catch{}
+      throw Object.assign(Error(message),{statusCode:response.status})
+    }
+    return response.type?.startsWith('application/json')?JSON.parse(body):body
+  }
+  app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
+  app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??500).send({error:error.message}))
+  app.addHook('preClose',async()=>events.close())
+  app.addHook('onClose',async()=>{await worker.terminate()})
+  function stream(reply,urls){
+    if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Object.assign(Error('Expected an array of API resource paths'),{statusCode:400})
+    return events.multiplex(reply,[...new Set(urls)],value)
+  }
+  app.get('/api/events',async(request,reply)=>stream(reply,JSON.parse(request.query.resources??'[]')))
+  app.post('/api/events',async(request,reply)=>stream(reply,request.body?.resources))
+  app.get('/api/*',async(request,reply)=>{
+    if(request.headers.accept?.includes('text/event-stream'))return events.stream(request,reply,()=>value(request.url))
+    const response=await query(request.url)
+    if(response.type)reply.type(response.type)
+    return reply.code(response.status).send(Buffer.from(response.body))
+  })
+  return app
+}

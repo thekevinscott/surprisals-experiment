@@ -4,7 +4,7 @@ import {dirname,resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {stat} from 'node:fs/promises'
 import {createServer} from 'vite'
-import {createApi} from '../../transcripts-viewer-backend/server.js'
+import {createWorkerApi} from '../../transcripts-viewer-backend/worker-api.js'
 
 let api,vite
 try {
@@ -18,7 +18,7 @@ try {
     const directory=resolve(positionals[0]??process.cwd())
     if(!(await stat(directory)).isDirectory())throw Error('Expected an experiment directory')
     const root=resolve(dirname(fileURLToPath(import.meta.url)),'..')
-    api=createApi(directory)
+    api=createWorkerApi(directory)
     vite=await createServer({root,configFile:resolve(root,'vite.config.js'),server:{middlewareMode:true,ws:{server:api.server}}})
     api.setNotFoundHandler((request,reply)=>{
       if(request.url.startsWith('/api/'))return reply.code(404).send({error:'Endpoint not found'})

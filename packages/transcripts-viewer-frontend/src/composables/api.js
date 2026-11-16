@@ -1,17 +1,14 @@
+import {request,readResponse} from './request.js'
 import {ref,watch} from 'vue'
 import {watchData,hasLiveSnapshot,liveSnapshot} from './liveUpdates.js'
 export {watchData}
 export async function fetchJson(url,signal) {
   if(hasLiveSnapshot(url))return liveSnapshot(url)
-  const response=await fetch(url,{signal})
-  if(!response.ok)throw Error(`HTTP ${response.status}: ${await response.text()}`)
-  return response.json()
+  return request(url,{signal},response=>readResponse(response,'json'))
 }
 export async function fetchText(url,signal) {
   if(hasLiveSnapshot(url))return liveSnapshot(url)
-  const response=await fetch(url,{signal})
-  if(!response.ok)throw Error(`HTTP ${response.status}: ${await response.text()}`)
-  return response.text()
+  return request(url,{signal},response=>readResponse(response,'text'))
 }
 export function useLiveResource(sources,load) {
   const data=ref(null),loading=ref(false),error=ref('')

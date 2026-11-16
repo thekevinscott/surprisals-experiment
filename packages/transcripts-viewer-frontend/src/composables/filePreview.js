@@ -1,3 +1,4 @@
+import {request,readResponse} from './request.js'
 import {shallowRef,watch} from 'vue'
 import {useJsonQuery,clearQueries} from './queryState.js'
 import {turnSummary} from './outcomes.js'
@@ -31,9 +32,7 @@ export function restoreModals() {
       preview.rawFiles=preview.files?.slice(0,1)??[{url:preview.src,source:preview.name}]
       if(preview.kind==='transcript')preview.source=file.source
       if(preview.turn){
-        const response=await fetch(root)
-        if(!response.ok)throw Error(`Cannot restore turn: HTTP ${response.status}`)
-        const {diagram}=await response.json(),target=preview.turn
+        const {diagram}=await request(root,{},response=>readResponse(response,'json')),target=preview.turn
         const fork=diagram.find(w=>w.id===target.window)?.forks.find(f=>f.id===target.fork)
         const turns=preview.kind==='advice'?fork.adviceNavigation:fork.navigation
         const turn=turns.find(t=>t.id===target.id)
@@ -42,8 +41,8 @@ export function restoreModals() {
         preview.uNavigation=()=>({window:target.window,fork:target.fork,turn:turn.id,turns,adviceTurns:fork.adviceNavigation})
         if(preview.kind==='advice')Object.assign(preview,advicePreview(preview))
       } else if(preview.src?.endsWith('/advice.txt')) {
-        const response=await fetch(preview.src.replace(/advice\.txt$/,'advice.json'))
-        if(response.ok)preview.tokens=(await response.json()).tokens
+        const metadata=await request(preview.src.replace(/advice\.txt$/,'advice.json'),{},response=>response.ok?response.json():null)
+        if(metadata)preview.tokens=metadata.tokens
       }
       if(sequence===restoreSequence)filePreview.value=preview
     }catch(error){if(sequence===restoreSequence)filePreview.value={...preview,restoreError:error.message}}
