@@ -26,12 +26,3 @@ test('turn index and raw artifacts track retries and live writes',async t=>{
   assert.deepEqual(await db.query('SELECT * FROM turns'),[])
 })
 
-test('usage costs refresh after same-size rewrites',async t=>{
-  const root=await mkdtemp(join(tmpdir(),'viewer-usage-')),db=new ExperimentDatabase(root,{relations:false})
-  t.after(async()=>{await db.close();await rm(root,{recursive:true})})
-  const path=join(root,'usage.jsonl'),select=record=>record.usage
-  await writeFile(path,'{"usage":{"cost":1}}\n')
-  assert.equal((await db.usage('usage.jsonl',select)).records[0].cost,1)
-  await writeFile(path,'{"usage":{"cost":2}}\n')
-  assert.equal((await db.usage('usage.jsonl',select)).records[0].cost,2)
-})

@@ -1,6 +1,6 @@
 export function sampleFiles(attempts, rawUrl) {
   return attempts.flatMap(attempt=>attempt.files.map(file=>({
-    ...file,url:rawUrl(file.source),path:attempts.length>1?`Attempt ${attempt.id}/${file.name}`:file.name,
+    ...file,url:rawUrl(file.source),path:file.path,
   })))
 }
 
@@ -19,4 +19,3 @@ export function fileTree(files) {
   return roots
 }
 
-export const sampleColumnCount = (configured, recorded) => Math.max(configured ?? 0, recorded)

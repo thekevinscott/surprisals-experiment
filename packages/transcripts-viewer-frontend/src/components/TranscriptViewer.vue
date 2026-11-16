@@ -1,25 +1,23 @@
 <script setup>
-import {computed,provide,watch} from 'vue'
+import {computed,provide,watch,ref} from 'vue'
 import {fetchJson,useLiveResource,watchData} from '../composables/api.js'
 import {transcriptMetadataUrl,transcriptBlocks,observeTranscriptBlocks} from '../composables/lazyTranscript.js'
 import TranscriptView from './TranscriptView.vue'
 const props=defineProps({source:String,files:Array,sourceUrl:Function,turnMetadata:Object,uView:Boolean})
 provide('sourceUrl',props.sourceUrl)
 provide('disclosurePath',()=>props.files[0].source)
+const hasReply=ref(false)
 const {data,loading,error}=useLiveResource(
-  ()=>[transcriptMetadataUrl(props.files[0].url)],
+  ()=>[props.turnMetadata?.u_messages==null?transcriptMetadataUrl(props.files[0].url):props.files[0].url.replace('/files/',`/transcript-context/${props.turnMetadata.u_messages}/`)],
   async(signal,urls)=>{
     const metadata=await fetchJson(urls[0],signal)
-    const count=props.turnMetadata?.u_messages
-    const requestMetadata=count == null ? metadata : {...metadata,blocks:metadata.blocks.slice(0,count+(metadata.blocks[count]?.type==='assistant' ? 1 : 0))}
-    return transcriptBlocks(requestMetadata,props.files[0].source,props.files[0].url,data.value ?? [])
+    hasReply.value=metadata.hasReply??false
+    return transcriptBlocks(metadata,props.files[0].source,props.files[0].url,data.value ?? [])
   },
 )
 const turnError=computed(()=>{
   if(props.files[0].error)return props.files[0].error
-  const count=props.turnMetadata?.u_messages
-  const hasReply=count != null && data.value?.some(message=>message.index===count && message.role==='assistant')
-  return hasReply ? null : props.turnMetadata?.error
+  return hasReply.value ? null : props.turnMetadata?.error
 })
 let blocks
 watch(data,(messages,_,cleanup)=>{

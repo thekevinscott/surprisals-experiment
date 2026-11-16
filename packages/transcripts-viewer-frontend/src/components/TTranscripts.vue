@@ -1,13 +1,10 @@
 <script setup>
-import {inject} from 'vue'
-import {sampleColumnCount} from '../composables/sampleFiles.js'
 import TSample from './TSample.vue'
-defineProps({ samples: Array })
-const configuredCount=inject('sampleCount',()=>null)
+defineProps({ samples: Array, columns: Number })
 </script>
 <template>
   <div v-if="samples.length" class="t-transcripts">
-    <div class="sample-columns" :style="{ '--sample-count': sampleColumnCount(configuredCount(),samples.length) }">
+    <div class="sample-columns" :style="{ '--sample-count': columns }">
       <TSample v-for="sample in samples" :key="sample.id" :sample="sample" />
     </div>
   </div>

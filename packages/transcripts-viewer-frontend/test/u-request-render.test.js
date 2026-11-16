@@ -11,7 +11,7 @@ test('U modal renders only sent rows and its assistant reply, or sent rows and t
   const server=await createServer({configFile:false,optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,ws:false},plugins:[{
     name:'request-fixture',enforce:'pre',transform(code,id){
       if(id.endsWith('/composables/api.js'))return `import {ref,onServerPrefetch} from 'vue';
-        export const fetchJson=async()=>({blocks:['system','user','assistant','user','assistant'].map((type,index)=>({type,index}))});
+        export const fetchJson=async url=>{const count=url.includes('/transcript-context/')?Number(url.split('/transcript-context/')[1].split('/')[0]):null;return ({hasReply:count===2,blocks:({2:['system','user','assistant'],3:['system','user','assistant'],0:[]}[count]??['system','user','assistant','user','assistant']).map((type,index)=>({type,index}))})};
         export const watchData=()=>{};
         export function useLiveResource(sources,load){const data=ref(null);onServerPrefetch(async()=>{data.value=await load(new AbortController().signal,sources())});return {data,loading:ref(false),error:ref('')}};`
     },

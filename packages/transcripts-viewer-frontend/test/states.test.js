@@ -11,7 +11,7 @@ test('timeout, failed tests, missing tests, and success have distinct labels',()
 
 test('transcript timeout messages preserve recorded details and do not label successful attempts',async()=>{
  const {transcriptFailure}=await import('../src/composables/outcomes.js')
- assert.equal(transcriptFailure({generation:{timed_out:true}}),'Generation timed out before this attempt completed.')
- assert.equal(transcriptFailure({generation:{timed_out:true,error:'Deadline exceeded after 120s'}}),'Generation timed out before this attempt completed.\nDeadline exceeded after 120s')
- assert.equal(transcriptFailure({generation:{timed_out:false}}),null)
+ assert.equal(transcriptFailure({failure:'Generation timed out before this attempt completed.'}),'Generation timed out before this attempt completed.')
+ assert.equal(transcriptFailure({failure:'Generation timed out before this attempt completed.\nDeadline exceeded after 120s'}),'Generation timed out before this attempt completed.\nDeadline exceeded after 120s')
+ assert.equal(transcriptFailure({failure:null}),null)
 })
