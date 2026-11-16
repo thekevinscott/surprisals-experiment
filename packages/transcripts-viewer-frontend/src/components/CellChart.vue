@@ -5,7 +5,7 @@ import { computed, ref, useId, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({ chartData:Object, stateKey:{type:String,default:'main'}, rangeKey:String, xZoom:{type:Boolean,default:true}, allPoints:Boolean, clickable:Boolean, fullWidth:Boolean, plotWidth:{type:Number,default:840}, kind: { type: String, required: true }, controls:{type:Boolean,default:true} })
 const emit = defineEmits(['open-turn'])
-const pointTurn = (series,point) => ({window:series.window,fork:series.fork,turn:point[0]-series.turnStart})
+const pointTurn = (series,point) => series.targets[point[0]]
 function openPoint(series,point) { if(props.clickable)emit('open-turn',pointTurn(series,point)) }
 const control=(name,value)=>useJsonQuery(()=>`chart:${props.stateKey}:${name}`,value)
 const armSel = control('arm',()=>props.chartData.arms[0])

@@ -1,0 +1,28 @@
+name: viewer backend
+on:
+  pull_request:
+    paths:
+      - 'packages/transcripts-viewer-backend/**'
+      - '.github/workflows/viewer-backend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/transcripts-viewer-backend/**'
+      - '.github/workflows/viewer-backend.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+        working-directory: packages/transcripts-viewer-backend
+      - run: pnpm install --frozen-lockfile
+        working-directory: packages/transcripts-viewer-frontend
+      - run: pnpm test
+        working-directory: packages/transcripts-viewer-backend

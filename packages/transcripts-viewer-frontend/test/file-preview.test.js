@@ -52,7 +52,7 @@ test('advice uses shared turn navigation, skips absent advice, and records sourc
   const turns=[{id:0,advice:'first',adviceSource:'advices/a/advice.txt',tokens:[],measurement:2,unit:'bits'},
    {id:1,advice:null},{id:2,solo:true,advice:'last',adviceSource:'advices/b/advice.txt',tokens:[],measurement:1,unit:'bits'}]
   const sourceUrl=name=>`http://localhost/#/files/${encodeURIComponent(name)}?src=${encodeURIComponent('/api/runs/example/files/'+name)}`
-  openAdvice({sourceUrl,uNavigation:()=>({window:2,fork:2,turn:0,turns})})
+  openAdvice({sourceUrl,uNavigation:()=>({window:2,fork:2,turn:0,turns,adviceTurns:[turns[0],turns[2]]})})
   assert.equal(filePreview.value.title,'Window 2 · Fork 2 · Turn 0 · Advice')
   assert.deepEqual(filePreview.value.uNavigation().turns.map(t=>t.id),[0,2])
   stepUTurn(-1);assert.equal(filePreview.value.uTurnId,0)

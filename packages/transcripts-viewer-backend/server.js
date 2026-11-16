@@ -1,4 +1,5 @@
 import {readRunpodCosts} from './lib/runpod-costs.js'
+import {CostDatabase} from './lib/cost-database.js'
 import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
@@ -20,8 +21,9 @@ export function createApi(directory) {
   }
   app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
   app.addHook('preClose',async()=>{await events.close()})
-  app.addHook('onClose',async()=>{for(const db of databases.values())await db.close()})
+  app.addHook('onClose',async()=>{await readTranscript.close();for(const db of databases.values())await db.close()})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??(error.code==='ENOENT'?404:400)).send({error:error.message}))
+  const costs=()=>{const db=database(directory,false);return db.costs??=new CostDatabase(directory,{experiment:true})}
   const segment=value=>{
     if(!value||value==='.'||value==='..'||/[/\\\0]/.test(value))throw Error('Invalid path segment')
     return value
@@ -44,9 +46,9 @@ export function createApi(directory) {
   }
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
-  endpoint('/api/runs/costs',()=>experimentCosts(directory,root=>database(root,false)))
+  endpoint('/api/runs/costs',()=>costs().snapshot())
   endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory))
-  endpoint('/api/runs',()=>readExperiment(directory,root=>database(root)))
+  endpoint('/api/runs',()=>{costs();return readExperiment(directory,root=>database(root,root!==directory))})
   endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{
     const warnings=new Set(),root=await rootFor(request.params.run)
@@ -62,15 +64,14 @@ export function createApi(directory) {
   })
   endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/ts/:sample',async request=>{
     const p=request.params,root=await rootFor(p.run)
-    return readSample(await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`),root,database(root,false))
+    return readSample(await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`),root,database(root))
   })
-  const transcriptFor=async request=>readTranscript(await runFile(await rootFor(request.params.run),request.params['*']))
-  endpoint('/api/runs/:run/transcripts/*',async request=>(await transcriptFor(request)).metadata)
+  const transcriptFor=async request=>runFile(await rootFor(request.params.run),request.params['*'])
+  endpoint('/api/runs/:run/transcripts/*',async request=>readTranscript.metadata(await transcriptFor(request)))
   endpoint('/api/runs/:run/transcript-blocks/:start/:end/*',async request=>{
     const start=Number(request.params.start),end=Number(request.params.end)
     if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start)throw Error('Invalid block range')
-    const {lines}=await transcriptFor(request)
-    return {blocks:lines.slice(start,end).map((raw,offset)=>({index:start+offset,raw}))}
+    return readTranscript.blocks(await transcriptFor(request),start,end)
   })
   app.get('/api/runs/:run/files/*',async(request,reply)=>{
     const pathFor=async()=>runFile(await rootFor(request.params.run),request.params['*'])

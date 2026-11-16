@@ -35,12 +35,11 @@ export function restoreModals() {
         if(!response.ok)throw Error(`Cannot restore turn: HTTP ${response.status}`)
         const {diagram}=await response.json(),target=preview.turn
         const fork=diagram.find(w=>w.id===target.window)?.forks.find(f=>f.id===target.fork)
-        let turns=[...(fork?.parallel??[]),...(fork?.solo??[])].map(turn=>({...turn,solo:fork.solo.includes(turn)})).sort((a,b)=>a.id-b.id)
-        if(preview.kind==='advice')turns=turns.filter(turn=>turn.advice!=null)
+        const turns=preview.kind==='advice'?fork.adviceNavigation:fork.navigation
         const turn=turns.find(t=>t.id===target.id)
         if(!turn)throw Error('Turn no longer available')
         preview.uTurnId=turn.id;preview.turnMetadata=turn.metadata
-        preview.uNavigation=()=>({window:target.window,fork:target.fork,turn:turn.id,turns})
+        preview.uNavigation=()=>({window:target.window,fork:target.fork,turn:turn.id,turns,adviceTurns:fork.adviceNavigation})
         if(preview.kind==='advice')Object.assign(preview,advicePreview(preview))
       } else if(preview.src?.endsWith('/advice.txt')) {
         const response=await fetch(preview.src.replace(/advice\.txt$/,'advice.json'))
@@ -71,7 +70,7 @@ export function openTranscript(preview,file=preview.files[0]) {
 }
 let adviceTransition=0
 function advicePreview({sourceUrl,uNavigation,uTurnId,previousText}) {
-  const navigation=()=>{const context=uNavigation();return {...context,turns:context.turns.filter(turn=>turn.advice!=null)}}
+  const navigation=()=>{const context=uNavigation();return {...context,turns:context.adviceTurns}}
   const context=navigation(),id=uTurnId??context.turn,turn=context.turns.find(turn=>turn.id===id)
   const comparison=context.turns[context.turns.findIndex(t=>t.id===id)-1]
   const route=resolveFile(sourceUrl(turn.adviceSource))

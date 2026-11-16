@@ -23,26 +23,12 @@ test('finished transcript reads do not retain any per-file contents',()=>{
     for(let i=0;i<20;i++){
       const path=join(root,String(i))
       await writeFile(path,JSON.stringify({role:'user',content:String(i)+'x'.repeat(100000)}))
-      references.push(new WeakRef(await read(path)))
+      references.push(new WeakRef(await read.blocks(path,0,1)))
     }
     await new Promise(setImmediate);global.gc()
     assert(references.every(ref=>ref.deref()===undefined),'reader retains completed file payloads')
-    assert.equal((await read(join(root,'0'))).metadata.total,1)
-  `)
-})
-test('finished usage scans do not retain per-file records',()=>{
-  collected(`
-    const {ExperimentDatabase}=await import(${JSON.stringify(new URL('../lib/experiment-database.js',import.meta.url).href)})
-    const db=new ExperimentDatabase(root,{relations:false}),references=[]
-    try{
-      for(let i=0;i<20;i++){
-        await writeFile(join(root,String(i)),JSON.stringify({completion_id:String(i),usage:{cost:i}}))
-        references.push(new WeakRef(await db.usage(String(i),record=>record.usage)))
-      }
-      await new Promise(setImmediate);global.gc()
-      assert(references.every(ref=>ref.deref()===undefined),'usage scan retains completed record arrays')
-      assert.equal((await db.usage('0',record=>record.usage)).records[0].cost,0)
-    }finally{await db.close()}
+    assert.equal((await read.metadata(join(root,'0'))).total,1)
+    await read.close()
   `)
 })
 test('database serialization tail does not hold the last query result',async()=>{

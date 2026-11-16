@@ -9,17 +9,9 @@ export function turnSummary(turn) {
   return turn.measurement == null ? 'No score' : `${turn.unit==='bits' ? Number(turn.measurement.toFixed(3)) : turn.measurement} ${turn.unit}`
 }
 
-export function attemptOutcome(attempt) {
-  if (attempt?.generation?.timed_out || attempt?.generation?.error) return 'failed'
-  if (attempt?.tests?.all_passed == null) return 'unknown'
-  return attempt.tests.all_passed ? 'passed' : 'failed'
-}
+export const attemptOutcome = attempt => attempt?.outcome??'unknown'
 export function testCaseBlocks(cases=[]) {
   return cases.map((test, position) => ({status: test.status, index: test.index, position}))
 }
 
-export function transcriptFailure(attempt) {
-  const generation=attempt.generation
-  if (!generation?.timed_out) return null
-  return 'Generation timed out before this attempt completed.' + (generation.error ? `\n${typeof generation.error==='string' ? generation.error : JSON.stringify(generation.error)}` : '')
-}
+export const transcriptFailure = attempt => attempt.failure
