@@ -12,6 +12,7 @@ def mirror(config, instance, directory, timeout=None):
         [
             "rsync",
             "-az",
+            "--inplace",
             "--exclude=/stdout.log",
             "--exclude=/stderr.log",
             "--exclude=/run.json",
