@@ -1,3 +1,4 @@
+CREATE TABLE pod_records (path TEXT PRIMARY KEY, id TEXT, gpu TEXT, costPerHr REAL, start TEXT, stop TEXT);
 CREATE TABLE launch_events (path TEXT, launched TEXT);
 CREATE TABLE identities (id TEXT, path TEXT PRIMARY KEY, kind TEXT, problem TEXT, body TEXT);
 CREATE TABLE documents (

@@ -29,8 +29,10 @@ export function createTranscriptReader() {
     return indexes.get(path)
   }
   return {
-    async metadata(path){
-      const [{payload}]=await index(path).query(`SELECT json_object('total',count(*),'blocks',json_group_array(json_object('index',position,'type',type))) AS payload FROM (SELECT position,type FROM lines ORDER BY position)`)
+    async metadata(path,count=null){
+      const [{payload}]=await index(path).query(`WITH reply AS (SELECT EXISTS(SELECT 1 FROM lines WHERE position=:count AND type='assistant') AS present),
+      result AS (SELECT json_object('total',(SELECT count(*) FROM lines),'blocks',json_group_array(json_object('index',position,'type',type))) AS payload FROM (SELECT position,type FROM lines WHERE :count IS NULL OR position<:count+(SELECT present FROM reply) ORDER BY position))
+      SELECT CASE WHEN :count IS NULL THEN payload ELSE json_set(payload,'$.hasReply',json(CASE WHEN present THEN 'true' ELSE 'false' END)) END AS payload FROM result CROSS JOIN reply`,{count})
       return JSON.parse(payload)
     },
     async blocks(path,start,end){

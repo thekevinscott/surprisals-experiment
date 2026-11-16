@@ -1,6 +1,6 @@
 import {DirSQL} from 'dirsql'
 import {readFileSync} from 'node:fs'
-import {relative,join,basename} from 'node:path'
+import {relative,basename} from 'node:path'
 
 const schema=readFileSync(new URL('./costs.sql',import.meta.url),'utf8')
 export class CostDatabase {

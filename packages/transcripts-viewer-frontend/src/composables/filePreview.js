@@ -72,7 +72,7 @@ let adviceTransition=0
 function advicePreview({sourceUrl,uNavigation,uTurnId,previousText}) {
   const navigation=()=>{const context=uNavigation();return {...context,turns:context.adviceTurns}}
   const context=navigation(),id=uTurnId??context.turn,turn=context.turns.find(turn=>turn.id===id)
-  const comparison=context.turns[context.turns.findIndex(t=>t.id===id)-1]
+  const comparison=turn.previousAdvice
   const route=resolveFile(sourceUrl(turn.adviceSource))
   const src=route.src,name=route.name
   return {kind:'advice',src,name,sourceUrl,uNavigation:navigation,uTurnId:id,previousText,highlightId:++adviceTransition,

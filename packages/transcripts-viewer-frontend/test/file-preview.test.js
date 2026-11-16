@@ -4,7 +4,6 @@ const flush=async()=>{await nextTick();await new Promise(resolve=>setImmediate(r
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {filePreview,openFile,openFiles,selectPreviewFile,closeFile} from '../src/composables/filePreview.js'
-import {sampleColumnCount} from '../src/composables/sampleFiles.js'
 
 test('file modal has one raw link that follows selected file',()=>{
  const files=[{name:'a.py',source:'attempt0/a.py',url:'/raw/a'},{name:'b.py',source:'attempt1/b.py',url:'/raw/b'}]
@@ -26,13 +25,6 @@ test('short file titles retain renderer filename and original source link',async
  assert.equal(filePreview.value.title,'Advice')
  await flush();assert.ok(router.currentRoute.value.query.modal)
  closeFile();await flush();assert.equal(router.currentRoute.value.query.modal,undefined);delete globalThis.location
-})
-
-test('in-progress samples reserve configured columns without hiding extra recorded samples',()=>{
- assert.equal(sampleColumnCount(5,3),5)
- assert.equal(sampleColumnCount(5,5),5)
- assert.equal(sampleColumnCount(2,3),3)
- assert.equal(sampleColumnCount(null,3),3)
 })
 
 test('transcript preview shows one selected source file, preserving physical line scope',async()=>{

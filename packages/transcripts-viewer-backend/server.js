@@ -47,7 +47,7 @@ export function createApi(directory) {
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
   endpoint('/api/runs/costs',()=>costs().snapshot())
-  endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory))
+  endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory,database(directory,false)))
   endpoint('/api/runs',()=>{costs();return readExperiment(directory,root=>database(root,root!==directory))})
   endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{
@@ -68,6 +68,11 @@ export function createApi(directory) {
   })
   const transcriptFor=async request=>runFile(await rootFor(request.params.run),request.params['*'])
   endpoint('/api/runs/:run/transcripts/*',async request=>readTranscript.metadata(await transcriptFor(request)))
+  endpoint('/api/runs/:run/transcript-context/:count/*',async request=>{
+    const count=Number(request.params.count)
+    if(!Number.isSafeInteger(count)||count<0)throw Error('Invalid transcript context length')
+    return readTranscript.metadata(await transcriptFor(request),count)
+  })
   endpoint('/api/runs/:run/transcript-blocks/:start/:end/*',async request=>{
     const start=Number(request.params.start),end=Number(request.params.end)
     if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start)throw Error('Invalid block range')

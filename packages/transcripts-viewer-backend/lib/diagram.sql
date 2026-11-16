@@ -21,17 +21,22 @@ WITH topology AS (
  'measurement',a.body->>'score','tokens',json(a.body->'tokens'),'adviceMetadata',json(a.body),
  'unit',CASE :strategy WHEN 'surprisal' THEN 'bits' WHEN 'characters' THEN 'chars' ELSE 'score' END,
  'solo',json(CASE WHEN :forkTurns IS NOT NULL AND t.position>=:forkTurns THEN 'true' ELSE 'false' END),
+ 'sampleColumns',max(coalesce(:samples,0),(SELECT count(*) FROM samples s WHERE s.parent=t.path)),
  'samples',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM samples s WHERE s.parent=t.path ORDER BY position)))
  ) AS payload
  FROM topology t LEFT JOIN documents d ON d.path=t.path||'/metadata.json'
  LEFT JOIN documents a ON a.path=(d.body->>'advice')||'/advice.json'
  LEFT JOIN advice_text txt ON txt.path=(d.body->>'advice')||'/advice.txt' WHERE t.kind='turn'
+), advice_order AS (
+ SELECT path,lag(json_object('advice',payload->>'advice','tokens',json(payload->'tokens'))) OVER (PARTITION BY parent ORDER BY position) AS previous FROM turns_data WHERE payload->>'advice' IS NOT NULL
+), advice_navigation AS (
+ SELECT t.*,json_set(t.payload,'$.previousAdvice',json(a.previous)) AS navigation FROM turns_data t JOIN advice_order a USING(path)
 ), fork_rows AS (
  SELECT f.*,json_object('id',f.position,'source',f.path,'transcriptPath',f.path||'/u/transcript.jsonl',
  'parallel',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path AND (:forkTurns IS NULL OR t.position<:forkTurns) ORDER BY position))),
  'solo',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path AND :forkTurns IS NOT NULL AND t.position>=:forkTurns ORDER BY position))),
- 'navigation',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path ORDER BY position))),
- 'adviceNavigation',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM turns_data t WHERE t.parent=f.path AND payload->>'advice' IS NOT NULL ORDER BY position)))
+ 'navigation',json((SELECT json_group_array(json(payload)) FROM (SELECT json_remove(payload,'$.samples','$.adviceMetadata') AS payload FROM turns_data t WHERE t.parent=f.path ORDER BY position))),
+ 'adviceNavigation',json((SELECT json_group_array(json(payload)) FROM (SELECT navigation AS payload FROM advice_navigation t WHERE t.parent=f.path ORDER BY position)))
  ) AS payload FROM topology f WHERE f.kind='fork'
 ), window_rows AS (
  SELECT w.position,json_object('id',w.position,

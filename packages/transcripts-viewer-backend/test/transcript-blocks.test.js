@@ -16,6 +16,9 @@ test('transcript metadata omits contents and ranges preserve every original phys
   const get=async url=>{const response=await app.inject(url);assert.equal(response.statusCode,200,response.body);return response.json()}
   const metadata='/api/runs/one/transcripts/'+source
   assert.deepEqual(await get(metadata),{total:6,blocks:['system','','system','assistant','provider_error',''].map((type,index)=>({index,type}))})
+  assert.equal((await get('/api/runs/one/transcript-context/3/'+source)).hasReply,true)
+  assert.equal((await get('/api/runs/one/transcript-context/3/'+source)).blocks.length,4)
+  assert.equal((await get('/api/runs/one/transcript-context/0/'+source)).blocks.length,0)
   const blocks=[]
   for(const [start,end] of [[0,2],[2,5],[5,6]]){
     const result=await get(`/api/runs/one/transcript-blocks/${start}/${end}/${source}`)

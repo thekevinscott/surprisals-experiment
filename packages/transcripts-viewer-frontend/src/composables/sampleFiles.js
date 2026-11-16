@@ -19,4 +19,3 @@ export function fileTree(files) {
   return roots
 }
 
-export const sampleColumnCount = (configured, recorded) => Math.max(configured ?? 0, recorded)

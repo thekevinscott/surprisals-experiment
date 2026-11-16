@@ -1,6 +1,6 @@
 import {DirSQL} from 'dirsql'
 import {readFileSync,statSync} from 'node:fs'
-import {dirname, basename, relative, resolve, join} from 'node:path'
+import {dirname, basename, relative, resolve} from 'node:path'
 
 const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
 const quote = value => `'${value.replaceAll("'", "''")}'`
@@ -9,6 +9,10 @@ export class ExperimentDatabase {
   constructor(root, {relations = true} = {}) {
     this.root = resolve(root)
     const sources = {
+      pod_records:['runpod-costs/*.json',path=>{
+        const {id,gpu,costPerHr,start,stop}=JSON.parse(readFileSync(path,'utf8'))
+        return [{path:relative(this.root,path),id,gpu,costPerHr,start,stop}]
+      }],
       launch_events:['stderr-*.txt',path=>{
         for(const line of readFileSync(path,'utf8').split('\n')){
           const match=line.match(/^(\S+) instance launched\s*$/)
@@ -35,7 +39,7 @@ export class ExperimentDatabase {
       advice_text:['advices/*/advice.txt',path=>[{path:relative(this.root,path),body:readFileSync(path,'utf8')}]],
     }
     sources.documents[0]='{run.json,settings.json,windows/*/forks/*/turns/*/metadata.json,advices/*/advice.json,windows/*/forks/*/turns/*/ts/*/attempts/*/{tests,generation}.json}'
-    const tables = schema.split(';').filter(s=>s.trim()).filter(ddl=>relations||/CREATE TABLE identities/.test(ddl)).map(ddl=>{
+    const tables = schema.split(';').filter(s=>s.trim()).filter(ddl=>relations||/CREATE TABLE (identities|pod_records)/.test(ddl)).map(ddl=>{
       const name=ddl.match(/CREATE (?:TABLE|VIEW) (\w+)/i)[1]
       const [glob,onFile]=sources[name] ?? ['',()=>[]]
       return {name,ddl,glob,onFile}
