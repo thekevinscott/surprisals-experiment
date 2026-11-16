@@ -13,7 +13,7 @@ test('U renders exact reasoning before exact content, and system/user content wi
   const content='  Reply <exact> & unchanged\n\n',reasoning='Reasoning\n  with spacing\n'
   const html=await render({role:'assistant',content,reasoning,reasoning_details:[{text:reasoning}],usage:{cost:42}})
   assert.deepEqual([...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map(m=>decode(m[1])),[reasoning,content])
-  assert.match(html,/reasoning<\/h3>/);assert(!html.includes('usage'))
+  assert.match(html,/3a · reasoning<\/h3>/);assert.match(html,/3b · assistant<\/h3>/);assert(!html.includes('usage'))
   for(const role of ['system','user'])assert.deepEqual([...((await render({role,content})).matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g))].map(m=>decode(m[1])),[content])
  }finally{await server.close()}
 })

@@ -27,6 +27,10 @@ function setTypeVisible(type,visible) {
   if(visible)hidden.delete(type);else hidden.add(type)
   hiddenRoles.value=[...hidden].sort()
 }
+function parts(message) {
+  if(!props.uView||message.raw==null)return ['']
+  try{const record=JSON.parse(message.raw);return record.role==='assistant'&&record.reasoning?['a','b']:['']}catch{return ['']}
+}
 const visibleMessages = computed(() => props.messages.map((message, index) => ({ message, index })).filter(({message})=>!hiddenTypes.value.has(message.role)))
 watch(visibleMessages, async (_messages,_,cleanup)=>{
   if(!props.lazy)return
@@ -39,7 +43,7 @@ watch(visibleMessages, async (_messages,_,cleanup)=>{
   await nextTick()
   if(!disposed){observed=[...blocks.keys()];for(const element of blocks.values())observer.observe(element)}
 },{immediate:true,flush:'post'})
-async function jump(value) {
+async function jump(value, part = '') {
   selectedBlock.value = value
   const index = options.value.findIndex(option => option.value === value)
   if (index < 0) return
@@ -48,7 +52,8 @@ async function jump(value) {
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   const block = blocks.get(index)
   block?.focus({ preventScroll: true })
-  block?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  const target = part ? block?.querySelector(`[data-part="${part==='a'?'reasoning':'content'}"]`) ?? block : block
+  target?.scrollIntoView({ block: 'start', behavior: 'instant' })
 }
 watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
   if(selectedBlock.value){await jump(selectedBlock.value);return}
@@ -65,7 +70,7 @@ watch([()=>props.initialLine,()=>props.messages.length>0],async()=>{
     <p v-if="!messages.length">Transcript not recorded</p>
     <div class="transcript-layout">
     <nav ref="navigation" v-if="messages.length" class="block-navigation" aria-label="Transcript blocks">
-      <button v-for="{message,index} in visibleMessages" :key="index" class="block-jump" :class="[{active:selectedBlock===options[index].value}, `role-${message.role}`]" :aria-current="selectedBlock===options[index].value?'true':undefined" :aria-label="`Jump to ${options[index].value}`" :title="options[index].description" @click="jump(options[index].value)"><b>{{ message.line }}</b></button>
+      <template v-for="{message,index} in visibleMessages" :key="index"><button v-for="part in parts(message)" :key="part" class="block-jump" :class="[{active:selectedBlock===options[index].value}, `role-${message.role}`]" :aria-current="selectedBlock===options[index].value?'true':undefined" :aria-label="`Jump to ${message.line}${part} · ${part==='a'?'reasoning':message.role}`" :title="options[index].description" @click="jump(options[index].value, part)"><b>{{ message.line }}{{ part }}</b></button></template>
     </nav>
     <div class="message-blocks">
     <template v-for="{ message, index } in visibleMessages" :key="index">

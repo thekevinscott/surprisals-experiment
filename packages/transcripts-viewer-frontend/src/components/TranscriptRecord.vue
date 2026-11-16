@@ -9,8 +9,8 @@ const record=computed(()=>{
 </script>
 <template>
   <div v-if="record">
-    <TextSection v-if="record.role==='assistant' && record.reasoning" data-part="reasoning" :label="`${label} · reasoning`" :state-key="`${stateKey}/reasoning`" :text="record.reasoning" />
-    <TextSection data-part="content" :label="`${label} · ${record.role}`" :state-key="stateKey" :text="record.content" />
+    <TextSection v-if="record.role==='assistant' && record.reasoning" data-part="reasoning" :label="`${label}a · reasoning`" :state-key="`${stateKey}/reasoning`" :text="record.reasoning" />
+    <TextSection data-part="content" :label="`${label}${record.role==='assistant' && record.reasoning ? 'b' : ''} · ${record.role}`" :state-key="stateKey" :text="record.content" />
   </div>
   <TextSection v-else :label="label" :state-key="stateKey" :text="message.raw" />
 </template>
