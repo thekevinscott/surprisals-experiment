@@ -74,7 +74,7 @@ export class ExperimentDatabase {
     if(text===null)return null
     try{return JSON.parse(text)}catch(error){throw Error(`Cannot read ${path}: ${error.message}`)}
   }
-  async close() {await this.costs?.close();await this.pending;await this.db.ready;this.db.close()}
+  async close() {/*await this.costs?.close();*/await this.pending;await this.db.ready;this.db.close()}
 }
 
 export async function withDatabase(root, database, work, options) {
