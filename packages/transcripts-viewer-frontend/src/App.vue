@@ -11,11 +11,11 @@ import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
-import {runStatus} from './composables/runStatus.js'
+import {runStatus,runCounts} from './composables/runStatus.js'
 // import {awsCostTooltip} from './composables/awsCost.js'
 import {createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
-const loading=ref(false),error=ref('')
+const loading=ref(false),error=ref(''),runCountText=ref('')
 const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
 const dashboardRows=computed(()=>data.rows)
 import ThemeSelect from './components/ThemeSelect.vue'
@@ -70,7 +70,7 @@ function refresh() {
     if(!id)return fetchJson(urls[0],signal)
     const [index,summary]=await Promise.all(urls.map(url=>fetchJson(url,signal)))
     return {...index,rows:index.rows.map(row=>row.id===id?{...row,...summary.row}:row),warnings:summary.warnings}
-  },{signal,onData:value=>{Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
+  },{signal,onData:value=>{if(!id)runCountText.value=runCounts(value.rows);Object.assign(data,value);loading.value=false;error.value=''},onError:e=>{error.value=e.message;loading.value=false}})
 }
 watch(()=>fileRoute.value ? 'file' : target.value?.id ?? tab.value, value=>{
   if(value==='file'||value==='graphs'){refreshController?.abort();loading.value=false;error.value=''}
@@ -108,7 +108,7 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 </script>
 
 <template>
-  <header class="viewer-toolbar"><ThemeSelect /></header>
+  <header class="viewer-toolbar"><ThemeSelect /><small v-if="runCountText" class="run-counts">{{ runCountText }}</small></header>
   <!-- <RunpodCost v-if="route.name === 'dashboard' && !filePreview" show-total /> -->
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template v-if="filePreview?.kind==='advice'" #header>
@@ -192,5 +192,6 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
 .live-dot { position:fixed; top:10px; right:10px; z-index:1000; width:10px; height:10px; border-radius:50%; background:#e6b800; animation:live-pulse 1.2s ease-in-out infinite; }
 @keyframes live-pulse { 50% { opacity:.3; transform:scale(.8); } }
 .modal-action { display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:inherit;text-decoration:none;font-size:12px;cursor:pointer; }
+.run-counts { margin-left:8px; font-size:12px; opacity:.7; }
 .modal-action:hover { background:var(--viewer-gray); }
 </style>
