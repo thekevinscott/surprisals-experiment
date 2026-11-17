@@ -1,10 +1,10 @@
-// import {readRunpodCosts} from './lib/runpod-costs.js'
-// import {CostDatabase} from './lib/cost-database.js'
+import {readRunpodCosts} from './lib/runpod-costs.js'
+import {CostDatabase} from './lib/cost-database.js'
 import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
 import {join,resolve} from 'node:path'
-import {/*experimentCosts,*/readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
+import {experimentCosts,readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
 import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
@@ -23,7 +23,7 @@ export function createApi(directory) {
   app.addHook('preClose',async()=>{await events.close()})
   app.addHook('onClose',async()=>{await readTranscript.close();for(const db of databases.values())await db.close()})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??(error.code==='ENOENT'?404:400)).send({error:error.message}))
-  // const costs=()=>{const db=database(directory,false);return db.costs??=new CostDatabase(directory,{experiment:true})}
+  const costs=()=>{const db=database(directory,false);return db.costs??=new CostDatabase(directory,{experiment:true})}
   const segment=value=>{
     if(!value||value==='.'||value==='..'||/[/\\\0]/.test(value))throw Error('Invalid path segment')
     return value
@@ -46,9 +46,9 @@ export function createApi(directory) {
   }
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
-  // endpoint('/api/runs/costs',()=>costs().snapshot())
-  // endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory,database(directory,false)))
-  endpoint('/api/runs',()=>{/*costs();*/return readExperiment(directory,root=>database(root,root!==directory))})
+  endpoint('/api/runs/costs',()=>costs().snapshot())
+  endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory,database(directory,false)))
+  endpoint('/api/runs',()=>{costs();return readExperiment(directory,root=>database(root,root!==directory))})
   endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
   endpoint('/api/runs/:run/details',async request=>{
     const warnings=new Set(),root=await rootFor(request.params.run)

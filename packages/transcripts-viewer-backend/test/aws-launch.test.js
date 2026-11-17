@@ -4,7 +4,6 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {runSummary} from '../lib/experiment.js'
-/*
 test('run summary reads earliest valid launch from stderr and leaves missing launches unknown',async t=>{
  const root=await mkdtemp(join(tmpdir(),'viewer-aws-'))
  t.after(()=>rm(root,{recursive:true,force:true}))
@@ -14,4 +13,3 @@ test('run summary reads earliest valid launch from stderr and leaves missing lau
  await writeFile(join(root,'stderr-b.txt'),'2026-11-13T00:02:03+00:00 instance launched\n')
  assert.equal((await runSummary(root)).awsLaunched,'2026-11-13T00:02:03.000Z')
 })
-*/

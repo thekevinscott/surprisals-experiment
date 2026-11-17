@@ -12,14 +12,14 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import {fetchJson,watchData} from './composables/api.js'
 import {runStatus} from './composables/runStatus.js'
-// import {awsCostTooltip} from './composables/awsCost.js'
+import {awsCostTooltip} from './composables/awsCost.js'
 import {createRunChartData} from './graphs.js'
 const data=reactive({rows:[],warnings:[]})
 const loading=ref(false),error=ref('')
 const sortField=useJsonQuery('sort','problem'),sortOrder=useJsonQuery('order',1)
 const dashboardRows=computed(()=>data.rows)
 import ThemeSelect from './components/ThemeSelect.vue'
-// import RunpodCost from './components/RunpodCost.vue'
+import RunpodCost from './components/RunpodCost.vue'
 import CellChart from './components/CellChart.vue'
 import SearchSelect from './components/SearchSelect.vue'
 import { runLink } from './composables/runLinks.js'
@@ -97,19 +97,19 @@ const columns = [
   { key: 'elapsed', label: 'Time' },
   { key: 'turns', label: 'Turns' },
   { key: 'best', label: 'Best advice' },
-  // { key: 'uCost', label: 'U cost' },
-  // { key: 'tCost', label: 'T cost' },
-  // { key: 'modelCost', label: 'Recorded U + T' },
-  // { key: 'awsCost', label: 'AWS estimate' },
+  { key: 'uCost', label: 'U cost' },
+  { key: 'tCost', label: 'T cost' },
+  { key: 'modelCost', label: 'Recorded U + T' },
+  { key: 'awsCost', label: 'AWS estimate' },
 ]
 const number = value => value == null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
-// const money = value => value == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+const money = value => value == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
 const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${Math.floor(seconds % 60)}s`
 </script>
 
 <template>
   <header class="viewer-toolbar"><ThemeSelect /></header>
-  <!-- <RunpodCost v-if="route.name === 'dashboard' && !filePreview" show-total /> -->
+  <RunpodCost v-if="route.name === 'dashboard' && !filePreview" show-total />
   <Dialog :pt="{transition:{css:false}}" :visible="!!filePreview" @update:visible="value=>{if(!value)closeFile()}" modal :header="filePreview?.title ?? filePreview?.name" class="file-modal" :style="{width:'calc(100vw - 32px)',height:'calc(100dvh - 32px)',maxHeight:'calc(100dvh - 32px)',margin:'16px'}" :draggable="false" :dismissable-mask="false">
     <template v-if="filePreview?.kind==='advice'" #header>
       <div class="advice-modal-heading"><span class="p-dialog-title">{{ filePreview.title }}</span><button type="button" :aria-pressed="showAdviceDiff" :disabled="filePreview.comparisonText==null" :title="filePreview.comparisonText==null?'No previous advice available for this fork':undefined" @click="showAdviceDiff=!showAdviceDiff">Show diff</button></div>
@@ -169,13 +169,13 @@ const time = seconds => seconds == null ? '—' : `${Math.floor(seconds / 3600)}
     <p v-if="!loading && !error && !data.rows.length" class="empty">No runs loaded. Start <code>transcripts-viewer /path/to/experiment</code> with a directory containing <code>runs/*/run.json</code>.</p>
     <section v-if="!loading && data.rows.length" aria-label="Runs">
       <DataTable :value="dashboardRows" data-key="id" :sort-field="sortField" :sort-order="sortOrder" @sort="event=>{sortField=event.sortField;sortOrder=event.sortOrder}" :null-sort-order="1" size="small" striped-rows @row-click="openRun($event.data)" class="run-table">
-        <!-- <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-4)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="4" /></Row><Row><Column v-for="column in columns.slice(-4)" :key="column.key" :field="column.key" sortable><template #header><span :title="column.key==='awsCost' ? awsCostTooltip : undefined">{{ column.label }}</span></template></Column></Row></ColumnGroup> -->
+        <ColumnGroup type="header"><Row><Column v-for="column in columns.slice(0,-4)" :key="column.key" :header="column.label" :field="column.key" sortable :rowspan="2" /><Column header="Cost" :colspan="4" /></Row><Row><Column v-for="column in columns.slice(-4)" :key="column.key" :field="column.key" sortable><template #header><span :title="column.key==='awsCost' ? awsCostTooltip : undefined">{{ column.label }}</span></template></Column></Row></ColumnGroup>
         <Column v-for="column in columns" :key="column.key" :field="column.key" :header="column.label" sortable>
           <template #body="{data:row}">
             <a v-if="column.key === 'problem'" :href="runLink(row.id)" @click.stop>{{ row.problem }}</a>
             <span v-else-if="column.key === 'status'" class="status" :class="{success:row.exit===0,failed:row.exit!=null&&row.exit!==0}">{{ runStatus(row) }}</span>
             <span v-else-if="column.key === 'elapsed'">{{ time(row.duration) }}</span>
-            <!-- <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span> -->
+            <span :title="column.key==='awsCost' ? awsCostTooltip : undefined" v-else-if="['uCost','tCost','modelCost','awsCost'].includes(column.key)">{{ money(row[column.key]) }}</span>
             <a v-else-if="column.key === 'best' && row.bestTarget" :href="runLink(row.id,row.bestTarget)" @click.stop>{{ number(row.best) }} {{ row.strategy==='surprisal'?'bits':'chars' }}</a>
             <span v-else-if="column.key === 'best'">{{ number(row.best) }}</span>
             <span v-else>{{ row[column.key] ?? '—' }}</span>

@@ -46,9 +46,9 @@ test('best score requires all samples, retries use latest test, forks share dept
   assert.equal(rows[0].turns, 43)
   assert.equal(rows[0].windows, 1)
   assert.equal(rows[0].elapsed, 9000)
-  // assert.equal(rows[0].uCost, 3)
-  // assert.equal(rows[0].tCost, 4)
-  // assert.equal(rows[0].modelCost, 7)
+  assert.equal(rows[0].uCost, 3)
+  assert.equal(rows[0].tCost, 4)
+  assert.equal(rows[0].modelCost, 7)
   assert.equal(rows[0].status, 'Complete')
 })
 
@@ -58,12 +58,11 @@ test('missing prices stay unknown, incomplete usage is flagged, unfinished folde
   await put('windows/0/forks/0/u/transcript.jsonl', '{"usage":{"cost":0}}\n{"usage":{}}\n{"truncated":')
   await mkdir(join(root, 'runs/arriving'))
   const data = await readExperiment(root)
-  // assert.equal(data.rows[0].uCost, null)
-  // assert.equal(data.rows[0].tCost, null)
-  // assert.equal(data.rows[0].modelCost, null)
+  assert.equal(data.rows[0].uCost, null)
+  assert.equal(data.rows[0].tCost, null)
+  assert.equal(data.rows[0].modelCost, null)
   assert.equal(data.rows[0].status, 'Open')
-  // assert.equal(data.warnings.length, 2)
-  assert.equal(data.warnings.length, 1)
+  assert.equal(data.warnings.length, 2)
 })
 
 test('rejects a missing experiment and malformed metadata with its file path', async t => {
@@ -73,7 +72,6 @@ test('rejects a missing experiment and malformed metadata with its file path', a
   await assert.rejects(readExperiment(root), /Cannot read .*run.json/)
 })
 
-/*
 test('single U transcript keeps cost unknown when an assistant reply has null usage', async t => {
   const {root,put}=await fixture(t)
   const records=[
@@ -85,7 +83,6 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
   await put('windows/0/forks/0/u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
   assert.equal((await readExperiment(root)).rows[0].uCost,null)
 })
-*/
 
  test('scored series includes failed T turns and spans no-advice gaps and windows', async t => {
   const {root,put}=await fixture(t)

@@ -5,7 +5,6 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {createApi} from '../server.js'
 import {eventually} from '../test/support/eventually.js'
-/*
 test('pod costs are experiment-wide, disk-only, and absent until recorded',async()=>{
   const root=await mkdtemp(join(tmpdir(),'runpod-costs-')),app=createApi(root)
   try {
@@ -19,4 +18,3 @@ test('pod costs are experiment-wide, disk-only, and absent until recorded',async
     await eventually(async()=>assert.deepEqual((await app.inject('/api/runs/runpod-costs')).json(),[pod]))
   } finally {await app.close();await rm(root,{recursive:true,force:true})}
 })
-*/
