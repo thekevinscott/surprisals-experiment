@@ -2,7 +2,11 @@ WITH topology AS MATERIALIZED (
  SELECT CAST(value->>'run' AS TEXT) AS run,CAST(value->>'kind' AS TEXT) AS kind,CAST(value->>'window' AS INTEGER) AS window,CAST(value->>'fork' AS INTEGER) AS fork,
  CAST(value->>'turn' AS INTEGER) AS turn,CAST(value->>'sample' AS INTEGER) AS sample,CAST(value->>'attempt' AS INTEGER) AS attempt FROM json_each(:directories)
 ), info AS MATERIALIZED (SELECT * FROM run_info WHERE :run IS NULL OR run=:run),
-turns AS MATERIALIZED (SELECT * FROM evaluated_turns WHERE :run IS NULL OR run=:run),
+-- Materialized dashboard rows need scores and positions, not advice bodies.
+turns AS MATERIALIZED (
+ SELECT run,source,window,fork,turn,depth,score,metadata->>'advice' AS adviceRef
+ FROM evaluated_turns WHERE :run IS NULL OR run=:run
+),
 latest_attempts AS MATERIALIZED (SELECT run,window,fork,turn,sample,max(attempt) AS attempt FROM topology WHERE kind='attempt' GROUP BY run,window,fork,turn,sample),
 sample_results AS MATERIALIZED (
  SELECT s.run,s.window,s.fork,s.turn,count(*) AS count,
@@ -19,8 +23,8 @@ sample_results AS MATERIALIZED (
  SELECT e.*,coalesce(samples.count=(i.settings->>'t_samples') AND (i.settings->>'t_samples')>0 AND samples.passed,0) AS passed
  FROM turns e JOIN samples USING(run,window,fork,turn) JOIN info i USING(run)
 ), scored AS MATERIALIZED (
- SELECT * FROM evaluated WHERE score IS NOT NULL AND metadata->>'advice' GLOB 'advices/*'
- AND substr(metadata->>'advice',9) NOT GLOB '*[^a-f0-9]*'
+ SELECT * FROM evaluated WHERE score IS NOT NULL AND adviceRef GLOB 'advices/*'
+ AND substr(adviceRef,9) NOT GLOB '*[^a-f0-9]*'
 ), last_observed AS (
  SELECT run,max(mtime) AS mtime FROM documents WHERE kind IN ('run.json','metadata.json','tests.json','generation.json') AND (:run IS NULL OR run=:run) GROUP BY run
 ), windows AS MATERIALIZED (SELECT DISTINCT run,window FROM evaluated),

@@ -1,4 +1,4 @@
-WITH input AS (SELECT key AS k,value AS row FROM json_each(:rows)),
+WITH input AS MATERIALIZED (SELECT key AS k,value AS row FROM json_each(:rows)),
 forks AS MATERIALIZED (
  SELECT k,value AS fork, value->>'window' AS window,value->>'id' AS id,
  CASE WHEN value->>'window'=0 THEN 0 ELSE (value->>'window')*((row->>'forkTurns')+(row->>'soloTurns')) END AS start,
@@ -11,6 +11,8 @@ forks AS MATERIALIZED (
  UNION ALL SELECT k,window||'/'||id||'/solo',window,id,start+parallel,start+parallel+solo FROM forks
 ), points AS MATERIALIZED (
  SELECT f.k,f.window,f.id,p.value AS point,p.value->>0 AS depth,p.value->>1 AS score,p.value->>2 AS passed FROM forks f,json_each(f.fork,'$.scored') p
+), score_bounds AS MATERIALIZED (
+ SELECT k,max(score) AS maximum FROM points GROUP BY k
 ), passing AS MATERIALIZED (
  SELECT f.k,f.window,f.id,p.value->>0 AS depth,p.value->>1 AS score FROM forks f,json_each(f.fork,'$.passing') p
 ), scoped_passing AS MATERIALIZED (
@@ -34,8 +36,8 @@ forks AS MATERIALIZED (
  'series',json((SELECT json_group_array(json(payload)) FROM series x WHERE x.k=s.k AND x.key=s.key)),
  'windowPositions',json(coalesce(row->'windowPositions','[]')),
  'domains',json_object(
- 'advice',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN 1.05 ELSE max(1,coalesce((SELECT max(score) FROM points p WHERE p.k=s.k),1))*1.05 END)),
- 'surprisal',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN max(1,coalesce((SELECT max(score) FROM points p WHERE p.k=s.k),1))*1.05 ELSE 1.05 END))
- )) AS payload FROM scopes s JOIN input i ON i.k=s.k
+ 'advice',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN 1.05 ELSE max(1,coalesce(b.maximum,1))*1.05 END)),
+ 'surprisal',json_object('x',json_array(coalesce(s.start,0),coalesce(s.end,max(10,coalesce(row->>'turns',0))+2)),'y',json_array(0,CASE WHEN row->>'strategy'='surprisal' THEN max(1,coalesce(b.maximum,1))*1.05 ELSE 1.05 END))
+ )) AS payload FROM scopes s JOIN input i ON i.k=s.k LEFT JOIN score_bounds b ON b.k=s.k
 )
 SELECT json_group_array(json(payload)) AS payload FROM (SELECT k,json_group_object(key,json(payload)) AS payload FROM charts GROUP BY k ORDER BY k);
