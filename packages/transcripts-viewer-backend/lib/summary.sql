@@ -3,16 +3,18 @@ WITH topology AS MATERIALIZED (
  value->>'turn' AS turn,value->>'sample' AS sample,value->>'attempt' AS attempt FROM json_each(:directories)
 ), info AS MATERIALIZED (SELECT * FROM run_info WHERE :run IS NULL OR run=:run),
 turns AS MATERIALIZED (SELECT * FROM evaluated_turns WHERE :run IS NULL OR run=:run),
-latest_attempts AS (SELECT *,row_number() OVER (PARTITION BY run,window,fork,turn,sample ORDER BY attempt DESC) AS rank FROM topology WHERE kind='attempt'),
-samples AS (
- SELECT e.run,e.window,e.fork,e.turn,count(s.sample) AS count,
- coalesce(min(coalesce(t.body->>'all_passed',0) AND NOT coalesce(g.body->>'timed_out',0) AND (g.body->>'error' IS NULL OR g.body->>'error' IN ('',0))),0) AS passed
- FROM turns e
- LEFT JOIN topology s ON s.kind='sample' AND s.run=e.run AND s.window=e.window AND s.fork=e.fork AND s.turn=e.turn
- LEFT JOIN latest_attempts a ON a.rank=1 AND a.run=s.run AND a.window=s.window AND a.fork=s.fork AND a.turn=s.turn AND a.sample=s.sample
+latest_attempts AS MATERIALIZED (SELECT run,window,fork,turn,sample,max(attempt) AS attempt FROM topology WHERE kind='attempt' GROUP BY run,window,fork,turn,sample),
+sample_results AS MATERIALIZED (
+ SELECT s.run,s.window,s.fork,s.turn,count(*) AS count,
+ min(coalesce(t.body->>'all_passed',0) AND NOT coalesce(g.body->>'timed_out',0) AND (g.body->>'error' IS NULL OR g.body->>'error' IN ('',0))) AS passed
+ FROM topology s
+ LEFT JOIN latest_attempts a USING(run,window,fork,turn,sample)
  LEFT JOIN documents t ON t.run=a.run AND t.kind='tests.json' AND t.window=a.window AND t.fork=a.fork AND t.turn=a.turn AND t.sample=a.sample AND t.attempt=a.attempt
  LEFT JOIN documents g ON g.run=a.run AND g.kind='generation.json' AND g.window=a.window AND g.fork=a.fork AND g.turn=a.turn AND g.sample=a.sample AND g.attempt=a.attempt
- GROUP BY e.run,e.window,e.fork,e.turn
+ WHERE s.kind='sample' GROUP BY s.run,s.window,s.fork,s.turn
+), samples AS (
+ SELECT e.run,e.window,e.fork,e.turn,coalesce(r.count,0) AS count,coalesce(r.passed,0) AS passed
+ FROM turns e LEFT JOIN sample_results r USING(run,window,fork,turn)
 ), evaluated AS MATERIALIZED (
  SELECT e.*,coalesce(samples.count=(i.settings->>'t_samples') AND (i.settings->>'t_samples')>0 AND samples.passed,0) AS passed
  FROM turns e JOIN samples USING(run,window,fork,turn) JOIN info i USING(run)
@@ -21,9 +23,9 @@ samples AS (
  AND substr(metadata->>'advice',9) NOT GLOB '*[^a-f0-9]*'
 ), last_observed AS (
  SELECT run,max(mtime) AS mtime FROM documents WHERE kind IN ('run.json','metadata.json','tests.json','generation.json') AND (:run IS NULL OR run=:run) GROUP BY run
-), windows AS (SELECT DISTINCT run,window FROM evaluated),
+), windows AS MATERIALIZED (SELECT DISTINCT run,window FROM evaluated),
 fork_keys AS (SELECT DISTINCT run,window,fork FROM evaluated),
-fork_rows AS (
+fork_rows AS MATERIALIZED (
  SELECT run,window,fork,json_object('window',window,'id',fork,
  'turns',coalesce((SELECT max(depth+1) FROM evaluated e WHERE e.run=f.run AND e.window=f.window AND e.fork=f.fork),0),
  'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored s WHERE s.run=f.run AND s.window=f.window AND s.fork=f.fork AND depth IS NOT NULL ORDER BY depth,source))),

@@ -1,22 +1,22 @@
 WITH input AS (SELECT key AS k,value AS row FROM json_each(:rows)),
-forks AS (
+forks AS MATERIALIZED (
  SELECT k,value AS fork, value->>'window' AS window,value->>'id' AS id,
  CASE WHEN value->>'window'=0 THEN 0 ELSE (value->>'window')*((row->>'forkTurns')+(row->>'soloTurns')) END AS start,
  row->>'forkTurns' AS parallel,row->>'soloTurns' AS solo,
  row_number() OVER (PARTITION BY k ORDER BY value->>'window',value->>'id')-1 AS colorIndex
  FROM input,json_each(row,'$.forks')
-), scopes AS (
+), scopes AS MATERIALIZED (
  SELECT k,'run' AS key,NULL AS window,NULL AS fork,NULL AS start,NULL AS end FROM input
  UNION ALL SELECT k,window||'/'||id||'/parallel',window,id,start,start+parallel FROM forks
  UNION ALL SELECT k,window||'/'||id||'/solo',window,id,start+parallel,start+parallel+solo FROM forks
-), points AS (
+), points AS MATERIALIZED (
  SELECT f.k,f.window,f.id,p.value AS point,p.value->>0 AS depth,p.value->>1 AS score,p.value->>2 AS passed FROM forks f,json_each(f.fork,'$.scored') p
-), passing AS (
+), passing AS MATERIALIZED (
  SELECT f.k,f.window,f.id,p.value->>0 AS depth,p.value->>1 AS score FROM forks f,json_each(f.fork,'$.passing') p
-), scoped_passing AS (
+), scoped_passing AS MATERIALIZED (
  SELECT s.key,p.*,min(score) OVER (PARTITION BY p.k,s.key,p.window,p.id ORDER BY depth,score ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS previous
  FROM scopes s JOIN passing p ON p.k=s.k AND (s.key='run' OR (p.window=s.window AND p.id=s.fork AND p.depth>=s.start AND p.depth<s.end))
-), series AS (
+), series AS MATERIALIZED (
  SELECT s.k,s.key,f.window,f.id,json_object(
  'strategy',row->>'strategy','problem',row->>'problem','cell',(row->>'id')||'/windows/'||f.window||'/forks/'||f.id,
  'colorIndex',f.colorIndex,'running',json(CASE WHEN row->>'ended' IS NULL THEN 'true' ELSE 'false' END),'exit_code',row->>'exit',
