@@ -79,3 +79,14 @@
 - Before declaring a transcript viewer fix complete, compare its displayed text
   with the original file. Verify repeated system prompts, incomplete records,
   and blank lines remain present; keep a regression test for this comparison.
+
+## Viewer database boundary
+
+- Use one DirSQL instance for the viewer. All experiment-data reads and derived
+  results must be SQL queries through that instance; do not add direct filesystem
+  reads, JavaScript aggregations, alternate databases, or caches to bypass it.
+- Diagnose viewer latency with query plans and measured SQL timings on representative
+  data. Fix the queries/schema or reproduce and fix the problem in DirSQL.
+  Functional tests and deadline behavior are not evidence that queries are fast.
+- If DirSQL cannot expose a required source fact, report that database limitation
+  explicitly instead of adding a filesystem workaround in the viewer.
