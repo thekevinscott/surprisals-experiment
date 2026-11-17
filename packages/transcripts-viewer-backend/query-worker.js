@@ -4,12 +4,8 @@ import {createApi} from './server.js'
 const api=createApi(workerData.directory)
 await api.ready()
 parentPort.postMessage({ready:true})
-parentPort.on('message',async({id,url,expires,close})=>{
+parentPort.on('message',async({id,url,close})=>{
   if(close){await api.close();parentPort.close();return}
-  if(Date.now()>=expires){
-    parentPort.postMessage({id,response:{status:504,type:'application/json',body:JSON.stringify({error:`Query exceeded 500 ms: ${url}`})}})
-    return
-  }
   try{
     const response=await api.inject({method:'GET',url})
     parentPort.postMessage({id,response:{status:response.statusCode,type:response.headers['content-type'],body:response.rawPayload}})

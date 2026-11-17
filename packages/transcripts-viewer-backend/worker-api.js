@@ -2,13 +2,8 @@ import Fastify from 'fastify'
 import {Worker} from 'node:worker_threads'
 import {createEvents} from './lib/events.js'
 
-const budget=500
-const timeout=url=>Object.assign(Error(`Query exceeded ${budget} ms: ${url}`),{statusCode:504})
-
-// Keep synchronous indexing and SQLite work off the HTTP event loop so the
-// deadline can fire even while a query blocks. Reuse unfinished reads instead
-// of queuing another copy on every stream refresh after a timeout. One worker
-// holds the single DirSQL instance for the experiment.
+// One worker holds the single DirSQL instance for the experiment, off the HTTP
+// event loop. Reuse unfinished reads instead of queuing another copy.
 export function createWorkerApi(directory){
   const app=Fastify(),events=createEvents(),pending=new Map(),inflight=new Map()
   let sequence=0,worker
@@ -41,17 +36,11 @@ export function createWorkerApi(directory){
       const id=++sequence
       work=new Promise((resolve,reject)=>{
         pending.set(id,{resolve,reject,worker})
-        worker.postMessage({id,url,expires:Date.now()+budget})
+        worker.postMessage({id,url})
       }).finally(()=>inflight.delete(url))
       inflight.set(url,work)
     }
-    let timer
-    const start=performance.now()
-    try{
-      const result=await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(timeout(url)),budget)})])
-      if(performance.now()-start>=budget)throw timeout(url)
-      return result
-    }finally{clearTimeout(timer)}
+    return work
   }
   async function value(url){
     const response=await query(url),body=Buffer.from(response.body).toString('utf8')

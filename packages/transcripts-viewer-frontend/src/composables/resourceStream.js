@@ -1,4 +1,4 @@
-import {request,queryTimeout} from './request.js'
+import {request} from './request.js'
 // A single POST SSE connection avoids URL-size and browser connection limits
 // as a live run accumulates samples and visible transcript blocks.
 export class ResourceStream {
@@ -14,17 +14,11 @@ export class ResourceStream {
     this.closed=true
     this.controller.abort()
     clearTimeout(this.timer)
-    this.clearDeadlines?.()
     this.resume?.()
   }
   async connect() {
     while(!this.closed){
       try {
-        const deadlines=new Map(this.resources.map(url=>[url,setTimeout(()=>{
-          deadlines.delete(url)
-          this.listeners.get('stream-error')?.({data:JSON.stringify({url,error:queryTimeout(url).message,status:504})})
-        },500)]))
-        this.clearDeadlines=()=>{for(const timer of deadlines.values())clearTimeout(timer);deadlines.clear()}
         const response=await request('/api/events',{
           method:'POST',headers:{'Content-Type':'application/json',Accept:'text/event-stream'},
           body:JSON.stringify({resources:this.resources}),signal:this.controller.signal,
@@ -43,17 +37,13 @@ export class ResourceStream {
             const frame=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2)
             const lines=frame.split('\n'),type=lines.find(line=>line.startsWith('event:'))?.slice(6).trim()
             const data=lines.filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n')
-            if(type==='resource'||type==='stream-error'){
-              const {url}=JSON.parse(data)
-              clearTimeout(deadlines.get(url));deadlines.delete(url)
-            }
             if(type)this.listeners.get(type)?.({data})
           }
         }
       } catch(error) {
         if(this.closed)return
         this.onerror?.(error)
-      } finally {this.clearDeadlines?.()}
+      }
       await new Promise(resolve=>{this.resume=resolve;this.timer=setTimeout(resolve,1000)})
     }
   }
