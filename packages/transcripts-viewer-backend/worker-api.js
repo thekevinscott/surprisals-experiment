@@ -7,18 +7,14 @@ const timeout=url=>Object.assign(Error(`Query exceeded ${budget} ms: ${url}`),{s
 
 // Keep synchronous indexing and SQLite work off the HTTP event loop so the
 // deadline can fire even while a query blocks. Reuse unfinished reads instead
-// of queuing another copy on every stream refresh after a timeout. Costs use
-// a separate worker so experiment-wide transcript ingestion cannot block an
-// individual run or transcript request.
+// of queuing another copy on every stream refresh after a timeout. One worker
+// holds the single DirSQL instance for the experiment.
 export function createWorkerApi(directory){
   const app=Fastify(),events=createEvents(),pending=new Map(),inflight=new Map()
-  const workers=new Map()
-  let sequence=0
-  function workerFor(url){
-    const group=url==='/api/runs'||url==='/api/runs/costs'||url.endsWith('/summary')?'costs':'details'
-    if(workers.has(group))return workers.get(group)
-    const worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
-    workers.set(group,worker)
+  let sequence=0,worker
+  function workerFor(){
+    if(worker)return worker
+    worker=new Worker(new URL('./query-worker.js',import.meta.url),{workerData:{directory}})
     worker.ready=new Promise((resolve,reject)=>{
       worker.once('error',reject)
       worker.on('message',message=>{if(message.ready)resolve()})
@@ -38,7 +34,7 @@ export function createWorkerApi(directory){
     return worker
   }
   async function query(url){
-    const worker=workerFor(url)
+    const worker=workerFor()
     if(worker.failure)throw worker.failure
     let work=inflight.get(url)
     if(!work){
@@ -66,14 +62,14 @@ export function createWorkerApi(directory){
     }
     return response.type?.startsWith('application/json')?JSON.parse(body):body
   }
-  app.addHook('onReady',async()=>{await Promise.all([workerFor('/api/runs').ready,workerFor('/api/runs/index').ready])})
+  app.addHook('onReady',async()=>{await workerFor().ready})
   app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??500).send({error:error.message}))
   app.addHook('preClose',async()=>events.close())
-  app.addHook('onClose',async()=>{await Promise.all([...workers.values()].map(worker=>{
-    if(worker.threadId===-1)return
-    return new Promise(resolve=>{worker.once('exit',resolve);worker.postMessage({close:true})})
-  }))})
+  app.addHook('onClose',async()=>{
+    if(!worker||worker.threadId===-1)return
+    await new Promise(resolve=>{worker.once('exit',resolve);worker.postMessage({close:true})})
+  })
   function stream(reply,urls){
     if(!Array.isArray(urls)||urls.some(url=>typeof url!=='string'||!/^\/api\/runs(?:\/|$)/.test(url)||/[?#\r\n]/.test(url)))throw Object.assign(Error('Expected an array of API resource paths'),{statusCode:400})
     return events.multiplex(reply,[...new Set(urls)],value)

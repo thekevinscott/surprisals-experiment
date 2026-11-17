@@ -7,8 +7,8 @@ import {createApi} from '../server.js'
 
 test('transcript metadata omits contents and ranges preserve every original physical line',async t=>{
   const root=await mkdtemp(join(tmpdir(),'viewer-transcript-blocks-'))
-  const run=join(root,'runs','one'),source='u/transcript.jsonl'
-  await mkdir(join(run,'u'),{recursive:true})
+  const run=join(root,'runs','one'),source='windows/0/forks/0/u/transcript.jsonl'
+  await mkdir(join(run,'windows/0/forks/0/u'),{recursive:true})
   const lines=['{"role":"system","content":"first"}\r','  ','{"role":"system","content":"first","_reset":true}','{"message":{"role":"assistant","content":"partial"},"_complete":false}','{"type":"provider_error","error":"failure"}','{"role":','']
   await writeFile(join(run,source),lines.join('\n'))
   const app=createApi(root)

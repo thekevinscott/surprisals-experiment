@@ -3,11 +3,12 @@ import assert from 'node:assert/strict'
 import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join,dirname} from 'node:path'
-import {CostDatabase} from '../lib/cost-database.js'
+import {ExperimentDatabase} from '../lib/experiment-database.js'
+import {costSnapshot} from '../lib/costs.js'
 import {eventually} from './support/eventually.js'
 
 async function fixture(t){
- const root=await mkdtemp(join(tmpdir(),'viewer-sql-cost-')),db=new CostDatabase(root,{experiment:true})
+ const root=await mkdtemp(join(tmpdir(),'viewer-sql-cost-')),db=new ExperimentDatabase(root)
  t.after(async()=>{await db.close();await rm(root,{recursive:true,force:true})})
  const put=async(path,data)=>{const target=join(root,path);await mkdir(dirname(target),{recursive:true});await writeFile(target,typeof data==='string'?data:JSON.stringify(data))}
  return {db,put}
@@ -23,20 +24,20 @@ test('SQL costs deduplicate per run and kind, retain anonymous records and repor
   ].map(JSON.stringify).join('\n'))
   await put(`runs/${id}/windows/0/forks/0/turns/0/ts/0/attempts/0/transcripts/session/t.jsonl`,JSON.stringify({type:'message',completion_id:'shared',message:{usage:{cost:{total:4}}}}))
  }
- await eventually(async()=>assert.deepEqual((await db.snapshot()).rows.map(row=>[row.uCost,row.tCost]),[[6,4],[6,4]]))
- let data=await db.snapshot()
+ await eventually(async()=>assert.deepEqual((await costSnapshot(db)).rows.map(row=>[row.uCost,row.tCost]),[[6,4],[6,4]]))
+ let data=await costSnapshot(db)
  assert.deepEqual(data.rows.map(row=>[row.uCost,row.tCost]),[[6,4],[6,4]])
  assert.equal(data.breakdown.total,20)
  await put('runs/one/windows/0/forks/0/u/transcript.jsonl','{"role":"assistant","usage":null}\n{"partial":')
- await eventually(async()=>assert.equal((await db.snapshot()).rows[0].uCost,null))
- data=await db.snapshot()
+ await eventually(async()=>assert.equal((await costSnapshot(db)).rows[0].uCost,null))
+ data=await costSnapshot(db)
  assert.equal(data.rows[0].uCost,null)
  assert.equal(data.breakdown.missing.u,1)
  assert.equal(data.warnings.length,1)
  await put('runs/one/windows/0/forks/0/u/transcript.jsonl','{"usage":{"cost":1}}\n')
- await eventually(async()=>assert.equal((await db.snapshot()).rows[0].uCost,1))
+ await eventually(async()=>assert.equal((await costSnapshot(db)).rows[0].uCost,1))
  await put('runs/one/windows/0/forks/0/u/transcript.jsonl','{"usage":{"cost":2}}\n')
- await eventually(async()=>assert.equal((await db.snapshot()).rows[0].uCost,2,'same-size live rewrite'))
+ await eventually(async()=>assert.equal((await costSnapshot(db)).rows[0].uCost,2,'same-size live rewrite'))
 })
 test('SQL estimates use launch times, freeze ended runs, include shared pods once and share a clock',async t=>{
  const {db,put}=await fixture(t)
@@ -46,14 +47,14 @@ test('SQL estimates use launch times, freeze ended runs, include shared pods onc
  }
  await put('runpod-costs/pod.json',{id:'pod',gpu:'H100',costPerHr:2,start:'2026-11-13T00:00:00Z'})
  const now=Date.parse('2026-11-13T02:00:00Z')
- await eventually(async()=>assert.equal((await db.snapshot(now)).breakdown.total,4.3024))
- const data=await db.snapshot(now)
+ await eventually(async()=>assert.equal((await costSnapshot(db,now)).breakdown.total,4.3024))
+ const data=await costSnapshot(db,now)
  assert.equal(data.asOf,now)
  assert.equal(data.rows[0].awsCost,0.1008)
  assert.equal(data.rows[1].awsCost,0.2016)
  assert.equal(data.breakdown.aws,0.3024)
  assert.equal(data.breakdown.runpod,4)
  assert.equal(data.breakdown.total,4.3024)
- assert.equal((await db.snapshot(now+3600000)).breakdown.runpod,6)
- assert.equal((await db.snapshot(0)).breakdown.runpod,0)
+ assert.equal((await costSnapshot(db,now+3600000)).breakdown.runpod,6)
+ assert.equal((await costSnapshot(db,0)).breakdown.runpod,0)
 })

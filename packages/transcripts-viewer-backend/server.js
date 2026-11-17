@@ -1,10 +1,9 @@
-import {readRunpodCosts} from './lib/runpod-costs.js'
-import {CostDatabase} from './lib/cost-database.js'
+import {costSnapshot} from './lib/costs.js'
 import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
-import {stat} from 'node:fs/promises'
-import {join,resolve} from 'node:path'
-import {experimentCosts,readExperiment,readRunIndex,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
+import {realpath,stat} from 'node:fs/promises'
+import {join,relative,resolve} from 'node:path'
+import {readExperiment,readRunIndex,runSettings,runSummary,readRunDiagram,readSample} from './lib/experiment.js'
 import {ExperimentDatabase} from './lib/experiment-database.js'
 import {createEvents} from './lib/events.js'
 import {readProblem} from './lib/problem.js'
@@ -13,23 +12,16 @@ import {createTranscriptReader} from './lib/transcript-blocks.js'
 
 export function createApi(directory) {
   directory=resolve(directory)
-  const app=Fastify(), databases=new Map(), events=createEvents(), readTranscript=createTranscriptReader()
-  const database=(root,relations=true)=>{
-    const key=`${root}:${relations}`
-    if(!databases.has(key))databases.set(key,new ExperimentDatabase(root,{relations}))
-    return databases.get(key)
-  }
+  const app=Fastify(), db=new ExperimentDatabase(directory), events=createEvents(), readTranscript=createTranscriptReader(db)
   app.addHook('onRequest',async(_request,reply)=>{reply.header('Cache-Control','no-store')})
   app.addHook('preClose',async()=>{await events.close()})
-  app.addHook('onClose',async()=>{await readTranscript.close();for(const db of databases.values())await db.close()})
+  app.addHook('onClose',async()=>{await db.close()})
   app.setErrorHandler((error,_request,reply)=>reply.code(error.statusCode??(error.code==='ENOENT'?404:400)).send({error:error.message}))
-  const costs=()=>{const db=database(directory,false);return db.costs??=new CostDatabase(directory,{experiment:true})}
   const segment=value=>{
     if(!value||value==='.'||value==='..'||/[/\\\0]/.test(value))throw Error('Invalid path segment')
     return value
   }
   const rootFor=async id=>runFile(join(directory,'runs'),segment(id))
-  const settingsFor=root=>database(root,false).json(join(root,'settings.json'),true).then(value=>value??{})
   const turnPath=p=>`windows/${segment(p.window)}/forks/${segment(p.fork)}/turns/${segment(p.turn)}`
   const wantsEvents=request=>request.headers.accept?.split(',').some(type=>type.trim().startsWith('text/event-stream'))
   const endpoint=(path,load)=>app.get(path,async(request,reply)=>{
@@ -46,27 +38,29 @@ export function createApi(directory) {
   }
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
-  endpoint('/api/runs/costs',()=>costs().snapshot())
-  endpoint('/api/runs/runpod-costs',()=>readRunpodCosts(directory,database(directory,false)))
-  endpoint('/api/runs',()=>{costs();return readExperiment(directory,root=>database(root,root!==directory))})
-  endpoint('/api/runs/index',()=>readRunIndex(directory,database(directory,false)))
+  endpoint('/api/runs/costs',()=>costSnapshot(db))
+  endpoint('/api/runs/runpod-costs',()=>db.query('SELECT id,gpu,costPerHr,start,stop FROM pod_records ORDER BY path'))
+  endpoint('/api/runs',()=>readExperiment(db))
+  endpoint('/api/runs/index',()=>readRunIndex(db))
   endpoint('/api/runs/:run/details',async request=>{
-    const warnings=new Set(),root=await rootFor(request.params.run)
-    return {row:await runSummary(root,warnings,database(root),{includeCosts:false}),warnings:[...warnings]}
+    await rootFor(request.params.run)
+    return {row:await runSummary(db,request.params.run),warnings:[]}
   })
   endpoint('/api/runs/:run/summary',async request=>{
-    const warnings=new Set(),root=await rootFor(request.params.run)
-    return {row:await runSummary(root,warnings,database(root)),warnings:[...warnings]}
+    const warnings=new Set()
+    await rootFor(request.params.run)
+    return {row:await runSummary(db,request.params.run,warnings),warnings:[...warnings]}
   })
   endpoint('/api/runs/:run',async request=>{
-    const root=await rootFor(request.params.run)
-    return {diagram:await readRunDiagram(root,await settingsFor(root),database(root))}
+    await rootFor(request.params.run)
+    return {diagram:await readRunDiagram(db,request.params.run)}
   })
   endpoint('/api/runs/:run/windows/:window/forks/:fork/turns/:turn/ts/:sample',async request=>{
     const p=request.params,root=await rootFor(p.run)
-    return readSample(await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`),root,database(root))
+    await runFile(root,`${turnPath(p)}/ts/${segment(p.sample)}`)
+    return readSample(db,p.run,p)
   })
-  const transcriptFor=async request=>runFile(await rootFor(request.params.run),request.params['*'])
+  const transcriptFor=async request=>relative(await realpath(directory),await runFile(await rootFor(request.params.run),request.params['*']))
   endpoint('/api/runs/:run/transcripts/*',async request=>readTranscript.metadata(await transcriptFor(request)))
   endpoint('/api/runs/:run/transcript-context/:count/*',async request=>{
     const count=Number(request.params.count)
@@ -87,8 +81,9 @@ export function createApi(directory) {
   })
   app.get('/api/runs/:run/problem/:file',async(request,reply)=>{
     const load=async()=>{
-      const root=await rootFor(request.params.run),settings=await settingsFor(root)
-      const file=(await readProblem(directory,settings.problem_dir)).find(f=>f.name===request.params.file)
+      await rootFor(request.params.run)
+      const settings=await runSettings(db,request.params.run)
+      const file=(await readProblem(db,directory,settings.problem_dir)).find(f=>f.name===request.params.file)
       if(file?.text==null)throw Object.assign(Error('Problem file not recorded'),{statusCode:404})
       return file.text
     }

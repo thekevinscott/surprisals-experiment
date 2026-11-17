@@ -4,11 +4,12 @@ import {mkdtemp, mkdir, readFile, writeFile, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
 import {readRunDiagram} from '../lib/experiment.js'
+import {database} from './support/database.js'
 import {transcriptFile} from '../../transcripts-viewer-frontend/src/composables/transcriptFile.js'
 
 test('fork zero links shared advice and retains rejected turns and exact transcript text', async t => {
-  const root=await mkdtemp(join(tmpdir(),'viewer-layout-'))
-  t.after(()=>rm(root,{recursive:true,force:true}))
+  const experiment=await mkdtemp(join(tmpdir(),'viewer-layout-')),root=join(experiment,'runs/r')
+  t.after(()=>rm(experiment,{recursive:true,force:true}))
   const put=async(path,value)=>{await mkdir(dirname(join(root,path)),{recursive:true});await writeFile(join(root,path),typeof value==='string'?value:JSON.stringify(value))}
   const rejected=await readFile(new URL('../../../surprisals_experiment/src/surprisals_experiment/prompts/u/rejected.txt',import.meta.url),'utf8')
   const fork='windows/0/forks/0', source=fork+'/u/transcript.jsonl'
@@ -27,7 +28,8 @@ test('fork zero links shared advice and retains rejected turns and exact transcr
   await put(fork+'/turns/2/metadata.json',{advice:null,error:'output limit'})
   await put('advices/abc/advice.txt','accepted\r\n')
   await put('advices/abc/advice.json',{score:9,tokens:[['accepted',9]]})
-  const [window]=await readRunDiagram(root,{cap_strategy:'surprisal'})
+  await put('settings.json',{cap_strategy:'surprisal'})
+  const [window]=await readRunDiagram(database(t,experiment),'r')
   const [first,second,third]=window.forks[0].parallel
   assert.equal(window.forks[0].transcriptPath,source)
   assert.equal(first.advice,'accepted\r\n')

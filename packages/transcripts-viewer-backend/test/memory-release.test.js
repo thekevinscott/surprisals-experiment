@@ -19,16 +19,19 @@ function collected(script){
 test('finished transcript reads do not retain any per-file contents',()=>{
   collected(`
     const {createTranscriptReader}=await import(${JSON.stringify(new URL('../lib/transcript-blocks.js',import.meta.url).href)})
-    const read=createTranscriptReader(),references=[]
+    const {ExperimentDatabase}=await import(${JSON.stringify(new URL('../lib/experiment-database.js',import.meta.url).href)})
+    const {mkdir}=await import('node:fs/promises')
+    const path=i=>'runs/r/windows/0/forks/'+i+'/u/transcript.jsonl'
     for(let i=0;i<20;i++){
-      const path=join(root,String(i))
-      await writeFile(path,JSON.stringify({role:'user',content:String(i)+'x'.repeat(100000)}))
-      references.push(new WeakRef(await read.blocks(path,0,1)))
+      await mkdir(join(root,path(i),'..'),{recursive:true})
+      await writeFile(join(root,path(i)),JSON.stringify({role:'user',content:String(i)+'x'.repeat(100000)}))
     }
+    const db=new ExperimentDatabase(root),read=createTranscriptReader(db),references=[]
+    for(let i=0;i<20;i++)references.push(new WeakRef(await read.blocks(path(i),0,1)))
     await new Promise(setImmediate);global.gc()
     assert(references.every(ref=>ref.deref()===undefined),'reader retains completed file payloads')
-    assert.equal((await read.metadata(join(root,'0'))).total,1)
-    await read.close()
+    assert.equal((await read.metadata(path(0))).total,1)
+    await db.close()
   `)
 })
 test('database serialization tail does not hold the last query result',async()=>{

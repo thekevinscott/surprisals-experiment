@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { readExperiment } from '../lib/experiment.js'
+import { database } from './support/database.js'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'transcripts-viewer-'))
@@ -34,7 +35,7 @@ test('best score requires all samples, retries use latest test, forks share dept
   await put('windows/0/forks/0/u/transcript.jsonl', '{"role":"system","content":"instructions"}\n{"role":"user","content":"question"}\n{"role":"assistant","content":"reply","completion_id":"one","usage":{"cost":1}}\n')
   await put('windows/1/forks/0/u/transcript.jsonl', '{"role":"assistant","content":"reply","completion_id":"one","usage":{"cost":1}}\n{"role":"assistant","content":"partial","_complete":false,"completion_id":"two","usage":{"cost":2}}\n')
   await put('windows/1/forks/0/turns/2/ts/0/attempts/0/transcripts/session/one.jsonl', '{"type":"message","message":{"usage":{"cost":{"total":4}}}}\n')
-  const { rows } = await readExperiment(root)
+  const { rows } = await readExperiment(database(t, root))
   assert.equal(rows.length, 1)
   assert.equal(rows[0].problem, '0054')
   assert.equal(rows[0].best, 12)
@@ -57,7 +58,7 @@ test('missing prices stay unknown, incomplete usage is flagged, unfinished folde
   await put('run.json', { created: '2026-11-01T00:00:00Z', invocations: [{ started: '2026-11-01T00:00:00Z' }] })
   await put('windows/0/forks/0/u/transcript.jsonl', '{"usage":{"cost":0}}\n{"usage":{}}\n{"truncated":')
   await mkdir(join(root, 'runs/arriving'))
-  const data = await readExperiment(root)
+  const data = await readExperiment(database(t, root))
   assert.equal(data.rows[0].uCost, null)
   assert.equal(data.rows[0].tCost, null)
   assert.equal(data.rows[0].modelCost, null)
@@ -67,9 +68,9 @@ test('missing prices stay unknown, incomplete usage is flagged, unfinished folde
 
 test('rejects a missing experiment and malformed metadata with its file path', async t => {
   const { root, put } = await fixture(t)
-  await assert.rejects(readExperiment(join(root, 'absent')), /ENOENT/)
+  await assert.rejects(readExperiment(database(t, join(root, 'absent'))), /ENOENT/)
   await put('run.json', '{broken')
-  await assert.rejects(readExperiment(root), /Cannot read .*run.json/)
+  await assert.rejects(readExperiment(database(t, root)), /Cannot read .*run.json/)
 })
 
 test('single U transcript keeps cost unknown when an assistant reply has null usage', async t => {
@@ -81,7 +82,7 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
     {role:'assistant',content:'Partial',reasoning:'Partial reasoning',timestamp:'2026-11-12T12:01:00Z',completion_id:'unpriced',usage:null,_complete:false},
   ]
   await put('windows/0/forks/0/u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
-  assert.equal((await readExperiment(root)).rows[0].uCost,null)
+  assert.equal((await readExperiment(database(t,root))).rows[0].uCost,null)
 })
 
  test('scored series includes failed T turns and spans no-advice gaps and windows', async t => {
@@ -93,7 +94,7 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
     for(const sample of [0,1])await put(`${dir}/ts/${sample}/attempts/0/tests.json`,{all_passed:passed})
   }
   await put('windows/1/forks/0/turns/0/metadata.json',{advice:null,error:'U failed'})
-  const {rows:[row]}=await readExperiment(root)
+  const {rows:[row]}=await readExperiment(database(t,root))
   assert.deepEqual(row.windowPositions,[{id:0,depth:0},{id:1,depth:40}])
   assert.deepEqual(row.scored,[[38,8,true],[39,30,false],[41,6,true]])
   assert.deepEqual(row.passing,[[38,8],[41,6]])

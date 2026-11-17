@@ -4,13 +4,14 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { readRunDiagram, readSample } from '../lib/experiment.js'
+import { database, position } from './support/database.js'
 
 test('actual fork IDs, solo continuation, per-fork transcripts and shared advice', async t => {
   const root = await mkdtemp(join(tmpdir(), 'run-diagram-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const put = async (path, value) => {
-    await mkdir(dirname(join(root, path)), { recursive: true })
-    await writeFile(join(root, path), value)
+    await mkdir(dirname(join(root, 'runs/r', path)), { recursive: true })
+    await writeFile(join(root, 'runs/r', path), value)
   }
   const reply = (content, reasoning) => JSON.stringify({ role: 'assistant', content, reasoning, _complete: true })
   await put('windows/0/forks/0/u/transcript.jsonl', [JSON.stringify({ role: 'system', content: 'System rules' }), JSON.stringify({ role: 'user', content: 'Question', _reset: true }), reply('root', 'root thinking')].join('\n'))
@@ -33,7 +34,9 @@ test('actual fork IDs, solo continuation, per-fork transcripts and shared advice
   await put('windows/0/forks/0/turns/0/ts/2/attempts/1/transcripts/session/new.jsonl', [JSON.stringify(message), JSON.stringify(message)].join('\n'))
   await put('windows/0/forks/0/turns/0/ts/2/attempts/1/src/main.py', 'print(42)')
   await put('windows/0/forks/0/turns/0/ts/2/attempts/1/tests.json', JSON.stringify({ passed: 1, total: 1, all_passed: true }))
-  const windows = await readRunDiagram(root, { fork_turns: 2, cap_strategy: 'surprisal' })
+  await put('settings.json', JSON.stringify({ fork_turns: 2, cap_strategy: 'surprisal' }))
+  const db = database(t, root)
+  const windows = await readRunDiagram(db, 'r')
   assert.deepEqual(windows.map(w => w.forks.map(f => f.id)), [[0, 2], [5]])
   assert.deepEqual(windows.map(w => w.continuedForks), [[2], []])
   const firstFork = windows[0].forks[0]
@@ -41,7 +44,7 @@ test('actual fork IDs, solo continuation, per-fork transcripts and shared advice
   assert.equal(windows[0].forks[0].parallel[0].measurement, 17.5)
   assert.equal(windows[0].forks[0].parallel[0].unit, 'bits')
   assert.deepEqual(windows[0].forks[0].parallel[0].tokens, [['root', 17.5]])
-  const sample = await readSample(join(root, firstFork.parallel[0].samples[0].source),root)
+  const sample = await readSample(db, 'r', position(firstFork.parallel[0].samples[0].source))
   assert.equal(sample.attempts.length, 2)
   assert.equal('messages' in sample.attempts[0], false)
   assert.equal(sample.attempts[1].transcriptFiles.length, 1)

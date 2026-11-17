@@ -1,47 +1,67 @@
-WITH topology AS (SELECT value->>'path' AS path,value->>'kind' AS kind,value->>'parent' AS parent,value->>'position' AS position FROM json_each(:directories)),
-latest_attempts AS (SELECT *,row_number() OVER (PARTITION BY parent ORDER BY position DESC) AS rank FROM topology WHERE kind='attempt'),
+WITH topology AS MATERIALIZED (
+ SELECT value->>'run' AS run,value->>'kind' AS kind,value->>'window' AS window,value->>'fork' AS fork,
+ value->>'turn' AS turn,value->>'sample' AS sample,value->>'attempt' AS attempt FROM json_each(:directories)
+), info AS MATERIALIZED (SELECT * FROM run_info WHERE :run IS NULL OR run=:run),
+turns AS MATERIALIZED (SELECT * FROM evaluated_turns WHERE :run IS NULL OR run=:run),
+latest_attempts AS (SELECT *,row_number() OVER (PARTITION BY run,window,fork,turn,sample ORDER BY attempt DESC) AS rank FROM topology WHERE kind='attempt'),
 samples AS (
- SELECT e.source,count(s.path) AS count,
+ SELECT e.run,e.window,e.fork,e.turn,count(s.sample) AS count,
  coalesce(min(coalesce(t.body->>'all_passed',0) AND NOT coalesce(g.body->>'timed_out',0) AND (g.body->>'error' IS NULL OR g.body->>'error' IN ('',0))),0) AS passed
- FROM evaluated_turns e
- LEFT JOIN topology s ON s.parent=e.source AND s.kind='sample'
- LEFT JOIN latest_attempts a ON a.parent=s.path AND a.rank=1
- LEFT JOIN documents t ON t.path=a.path||'/tests.json'
- LEFT JOIN documents g ON g.path=a.path||'/generation.json'
- GROUP BY e.source
-), evaluated AS (
- SELECT e.*,coalesce(samples.count=(SELECT settings->>'t_samples' FROM run_info)
- AND (SELECT settings->>'t_samples' FROM run_info)>0 AND samples.passed,0) AS passed
- FROM evaluated_turns e JOIN samples USING(source)
-), scored AS (
+ FROM turns e
+ LEFT JOIN topology s ON s.kind='sample' AND s.run=e.run AND s.window=e.window AND s.fork=e.fork AND s.turn=e.turn
+ LEFT JOIN latest_attempts a ON a.rank=1 AND a.run=s.run AND a.window=s.window AND a.fork=s.fork AND a.turn=s.turn AND a.sample=s.sample
+ LEFT JOIN documents t ON t.run=a.run AND t.kind='tests.json' AND t.window=a.window AND t.fork=a.fork AND t.turn=a.turn AND t.sample=a.sample AND t.attempt=a.attempt
+ LEFT JOIN documents g ON g.run=a.run AND g.kind='generation.json' AND g.window=a.window AND g.fork=a.fork AND g.turn=a.turn AND g.sample=a.sample AND g.attempt=a.attempt
+ GROUP BY e.run,e.window,e.fork,e.turn
+), evaluated AS MATERIALIZED (
+ SELECT e.*,coalesce(samples.count=(i.settings->>'t_samples') AND (i.settings->>'t_samples')>0 AND samples.passed,0) AS passed
+ FROM turns e JOIN samples USING(run,window,fork,turn) JOIN info i USING(run)
+), scored AS MATERIALIZED (
  SELECT * FROM evaluated WHERE score IS NOT NULL AND metadata->>'advice' GLOB 'advices/*'
  AND substr(metadata->>'advice',9) NOT GLOB '*[^a-f0-9]*'
 ), last_observed AS (
- SELECT max(mtime) AS mtime FROM documents WHERE kind IN ('run.json','metadata.json','tests.json','generation.json')
-), windows AS (SELECT DISTINCT window FROM evaluated ORDER BY window),
-fork_keys AS (SELECT DISTINCT window,fork FROM evaluated ORDER BY window,fork),
+ SELECT run,max(mtime) AS mtime FROM documents WHERE kind IN ('run.json','metadata.json','tests.json','generation.json') AND (:run IS NULL OR run=:run) GROUP BY run
+), windows AS (SELECT DISTINCT run,window FROM evaluated),
+fork_keys AS (SELECT DISTINCT run,window,fork FROM evaluated),
 fork_rows AS (
- SELECT window,fork,json_object('window',window,'id',fork,
- 'turns',coalesce((SELECT max(depth+1) FROM evaluated e WHERE e.window=f.window AND e.fork=f.fork),0),
- 'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored s WHERE s.window=f.window AND s.fork=f.fork AND depth IS NOT NULL ORDER BY depth,source))),
- 'passing',json((SELECT json_group_array(json_array(depth,score)) FROM (SELECT * FROM scored s WHERE s.window=f.window AND s.fork=f.fork AND passed AND depth IS NOT NULL ORDER BY depth,source)))) AS payload
+ SELECT run,window,fork,json_object('window',window,'id',fork,
+ 'turns',coalesce((SELECT max(depth+1) FROM evaluated e WHERE e.run=f.run AND e.window=f.window AND e.fork=f.fork),0),
+ 'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored s WHERE s.run=f.run AND s.window=f.window AND s.fork=f.fork AND depth IS NOT NULL ORDER BY depth,source))),
+ 'passing',json((SELECT json_group_array(json_array(depth,score)) FROM (SELECT * FROM scored s WHERE s.run=f.run AND s.window=f.window AND s.fork=f.fork AND passed AND depth IS NOT NULL ORDER BY depth,source)))) AS payload
  FROM fork_keys f
-)
-SELECT json_object('id',:id,'problem',:problem,'strategy',:strategy,
+), invocations AS (
+ SELECT i.run,i.meta,v.value FROM info i,json_each(CASE WHEN json_array_length(i.meta,'$.invocations')>0 THEN i.meta->'$.invocations' ELSE json_array(json(i.meta)) END) v
+), runtimes AS (
+ SELECT run,CASE WHEN count(seconds)=count(*) THEN sum(seconds) END AS elapsed FROM (
+  SELECT run,max(0,
+   CASE WHEN value->>'ended_by'='lost'
+    THEN (SELECT mtime FROM stderr_files f WHERE f.run=v.run AND f.file=value->>'stderr')/1000.0
+    ELSE coalesce(unixepoch(value->>'ended','subsec'),:now/1000.0) END
+   -unixepoch(coalesce(value->>'started',meta->>'created'),'subsec')) AS seconds FROM invocations v
+ ) GROUP BY run
+), costs AS (
+ SELECT *,max(0,(coalesce(unixepoch(ended,'subsec'),:now/1000.0)-unixepoch(awsLaunched,'subsec')))/3600*0.1008 AS awsCost
+ FROM cost_rows WHERE :run IS NULL OR id=:run
+), rows AS (
+ SELECT r.strategy,r.problem,r.id,json_object('id',r.id,'problem',r.problem,'strategy',r.strategy,
  'exit',current->>'exit_code',
  'status',CASE WHEN current->>'ended' IS NULL THEN 'Open' WHEN current->>'exit_code'=0 THEN 'Complete' ELSE 'Stopped / failed' END,
  'outcome',CASE WHEN current->>'ended' IS NULL AND current->>'exit_code' IS NULL THEN 'open' WHEN current->>'exit_code'=0 THEN 'passed' ELSE 'failed' END,
  'cause',coalesce(current->>'error',CASE WHEN current->>'exit_code'!=0 OR current->>'exit_code' IS NULL THEN current->>'ended_by' END),
  'started',coalesce(current->>'started',meta->>'created'),'ended',current->>'ended',
- 'observed',strftime('%Y-%m-%dT%H:%M:%fZ',(SELECT mtime FROM last_observed)/1000,'unixepoch'),
- 'elapsed',max(0,coalesce(unixepoch(current->>'ended','subsec'),(SELECT mtime FROM last_observed)/1000)-unixepoch(coalesce(current->>'started',meta->>'created'),'subsec')),
- 'duration',max(0,coalesce(unixepoch(current->>'ended','subsec'),:now/1000.0)-unixepoch(coalesce(current->>'started',meta->>'created'),'subsec')),
- 'turns',coalesce((SELECT max(depth+1) FROM evaluated),0),'windows',(SELECT count(*) FROM windows),
- 'best',(SELECT min(score) FROM scored WHERE passed),
- 'bestTarget',(SELECT source FROM scored WHERE passed ORDER BY score,source LIMIT 1),
+ 'observed',strftime('%Y-%m-%dT%H:%M:%fZ',o.mtime/1000,'unixepoch'),
+ 'elapsed',rt.elapsed,'duration',rt.elapsed,'runtimeAsOf',:now,
+ 'turns',coalesce((SELECT max(depth+1) FROM evaluated e WHERE e.run=i.run),0),'windows',(SELECT count(*) FROM windows w WHERE w.run=i.run),
+ 'best',(SELECT min(score) FROM scored s WHERE s.run=i.run AND passed),
+ 'bestTarget',(SELECT source FROM scored s WHERE s.run=i.run AND passed ORDER BY score,source LIMIT 1),
  'samples',settings->>'t_samples','forkTurns',settings->>'fork_turns','soloTurns',settings->>'window_solo_turns',
- 'windowPositions',json((SELECT json_group_array(json_object('id',window,'depth',CASE WHEN window=0 THEN 0 ELSE window*((settings->>'fork_turns')+(settings->>'window_solo_turns')) END)) FROM windows WHERE window=0 OR (settings->>'fork_turns')+(settings->>'window_solo_turns') IS NOT NULL)),
- 'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored WHERE depth IS NOT NULL ORDER BY depth,source))),
- 'passing',json((SELECT json_group_array(json_array(depth,score)) FROM (SELECT * FROM scored WHERE passed AND depth IS NOT NULL ORDER BY depth,score,source))),
- 'forks',json((SELECT json_group_array(json(payload)) FROM fork_rows))
-) AS payload FROM run_info;
+ 'windowPositions',json((SELECT json_group_array(json_object('id',window,'depth',CASE WHEN window=0 THEN 0 ELSE window*((settings->>'fork_turns')+(settings->>'window_solo_turns')) END)) FROM (SELECT window FROM windows w WHERE w.run=i.run AND (window=0 OR (settings->>'fork_turns')+(settings->>'window_solo_turns') IS NOT NULL) ORDER BY window))),
+ 'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored s WHERE s.run=i.run AND depth IS NOT NULL ORDER BY depth,source))),
+ 'passing',json((SELECT json_group_array(json_array(depth,score)) FROM (SELECT * FROM scored s WHERE s.run=i.run AND passed AND depth IS NOT NULL ORDER BY depth,score,source))),
+ 'forks',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM fork_rows f WHERE f.run=i.run ORDER BY window,fork))),
+ 'uCost',c.uCost,'tCost',c.tCost,'modelCost',c.uCost+c.tCost,'awsLaunched',c.awsLaunched,'awsCost',c.awsCost
+ ) AS payload
+ FROM info i JOIN run_identity r ON r.id=i.run
+ LEFT JOIN last_observed o ON o.run=i.run LEFT JOIN runtimes rt ON rt.run=i.run LEFT JOIN costs c ON c.id=i.run
+)
+SELECT json_group_array(json(payload)) AS payload FROM (SELECT payload FROM rows ORDER BY strategy,problem,id);

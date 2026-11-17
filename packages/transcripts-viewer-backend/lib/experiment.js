@@ -1,97 +1,86 @@
-import { readdir, stat } from 'node:fs/promises'
+import {readdir,stat} from 'node:fs/promises'
 import {readFileSync} from 'node:fs'
-import {CostDatabase} from './cost-database.js'
 import {directories} from './topology.js'
-import { basename, join, relative, resolve } from 'node:path'
-import {runRuntime} from './runtime.js'
-import {instanceLaunch} from './aws-launch.js'
-import {withDatabase} from './experiment-database.js'
+import {join} from 'node:path'
+import {quote} from './experiment-database.js'
 
 const summarySql=readFileSync(new URL('./summary.sql',import.meta.url),'utf8')
 const chartsSql=readFileSync(new URL('./charts.sql',import.meta.url),'utf8')
+const indexSql=readFileSync(new URL('./index.sql',import.meta.url),'utf8')
+const diagramSql=readFileSync(new URL('./diagram.sql',import.meta.url),'utf8')
+const sampleSql=readFileSync(new URL('./sample.sql',import.meta.url),'utf8')
+const incomplete='Incomplete usage records were skipped; costs may be partial.'
 
-export async function experimentCosts(directory,database) {
-  const db=database?.(directory)
-  if(db?.costs)return db.costs.snapshot()
-  const costs=new CostDatabase(directory,{experiment:true})
-  try{return await costs.snapshot()}finally{await costs.close()}
+async function readable(db,table,run=null) {
+  const [row]=await db.query(`SELECT error FROM ${table} WHERE error IS NOT NULL AND (:run IS NULL OR run=:run) ORDER BY path LIMIT 1`,{run})
+  if(row)throw Error(row.error)
 }
 
-export async function runSummary(directory,warnings=new Set(),database,{includeCosts=true,costRow}={}) {
-  if(!database)return withDatabase(directory,null,db=>runSummary(directory,warnings,db,{includeCosts,costRow}))
-  const index=await readRunIndex(directory,database)
-  const identity=index.rows.find(row=>row.id===basename(directory))
-  if(!identity)throw Object.assign(Error(`Cannot read ${join(directory,'run.json')}: ENOENT`),{code:'ENOENT'})
-  const [{payload}]=await database.query(summarySql,{id:identity.id,problem:identity.problem,strategy:identity.strategy,now:Date.now(),directories:JSON.stringify(await directories(directory))})
-  const row=JSON.parse(payload)
-  const [{meta}]=await database.query('SELECT meta FROM run_info')
-  const runtime=await runRuntime(directory,JSON.parse(meta),database)
-  Object.assign(row,runtime,{duration:runtime.elapsed})
-  if(includeCosts&&!costRow){
-    const costs=new CostDatabase(directory)
-    try{const snapshot=await costs.snapshot();costRow=snapshot.rows[0];for(const warning of snapshot.warnings)warnings.add(warning)}finally{await costs.close()}
-  }
-  Object.assign(row,costRow??{uCost:null,tCost:null,modelCost:null,awsLaunched:await instanceLaunch(directory,database)})
-  const [charts]=await database.query(chartsSql,{row:JSON.stringify(row)})
-  row.charts=JSON.parse(charts.payload)
+async function summaries(db,runs,run=null) {
+  await readable(db,'documents',run)
+  const topology=[]
+  for(const id of runs)for(const entry of await directories(join(db.root,'runs',id)))topology.push({...entry,run:id})
+  const [{payload}]=await db.query(summarySql,{run,now:Date.now(),directories:JSON.stringify(topology)})
+  const rows=JSON.parse(payload)
+  const [charts]=await db.query(chartsSql,{rows:payload})
+  JSON.parse(charts.payload).forEach((chart,index)=>{rows[index].charts=chart})
+  return rows
+}
+
+export async function runSummary(db,run,warnings) {
+  const [row]=await summaries(db,[run],run)
+  if(!row)throw Object.assign(Error(`Cannot read ${join(db.root,'runs',run,'run.json')}: ENOENT`),{code:'ENOENT'})
+  if(warnings&&(await db.query('SELECT 1 FROM transcript_lines WHERE run=? AND incomplete LIMIT 1',[run])).length)warnings.add(incomplete)
   return row
 }
 
-const indexSql=readFileSync(new URL('./index.sql',import.meta.url),'utf8')
-export async function readRunIndex(directory,database) {
-  if(!database)return withDatabase(directory,null,db=>readRunIndex(directory,db),{relations:false})
-  const [{payload}]=await database.query(indexSql)
+export async function readRunIndex(db) {
+  await readable(db,'identities')
+  const [{payload}]=await db.query(indexSql)
   return JSON.parse(payload)
 }
 
-export async function readExperiment(directory, getDatabase) {
-  directory = resolve(directory)
-  const runsDirectory = join(directory, 'runs')
+export async function readExperiment(db) {
   let entries
-  try { entries = await readdir(runsDirectory, {withFileTypes:true}) }
+  try { entries = await readdir(join(db.root,'runs'), {withFileTypes:true}) }
   catch (error) {
     if (error.code !== 'ENOENT') throw error
-    await stat(directory) // Only a missing runs/ is empty; a missing experiment is an error.
+    await stat(db.root) // Only a missing runs/ is empty; a missing experiment is an error.
     return {rows:[],warnings:[]}
   }
-  const warnings = new Set()
-  const rows = []
-  const index=await readRunIndex(directory,getDatabase?.(directory))
-  const costs=await experimentCosts(directory,getDatabase)
-  for(const warning of costs.warnings)warnings.add(warning)
-  for (const {id} of index.rows) {
-    const root=join(runsDirectory,id)
-    rows.push(await runSummary(root,warnings,getDatabase?.(root),{costRow:costs.rows.find(row=>row.id===id)}))
-  }
-  const finish=async db=>{
-    const [{payload}]=await db.query(`WITH rows AS (SELECT value FROM json_each(:rows)),
-    missing AS (SELECT count(*)-(SELECT count(*) FROM rows) AS n FROM json_each(:folders) WHERE value->>'directory')
-    SELECT json_object('rows',json((SELECT json_group_array(json(value)) FROM (SELECT value FROM rows ORDER BY value->>'strategy',value->>'problem',value->>'id'))),
-    'warnings',json((SELECT json_group_array(value) FROM (SELECT value FROM json_each(:warnings) UNION ALL SELECT n||' run folders have no run.json yet and are omitted from the run list.' FROM missing WHERE n>0))),
-    'strategyOptions',json(:options)) AS payload`,{rows:JSON.stringify(rows),folders:JSON.stringify(entries.map(entry=>({directory:entry.isDirectory()}))),warnings:JSON.stringify([...warnings]),options:JSON.stringify(index.strategyOptions)})
-    return JSON.parse(payload)
-  }
-  return getDatabase?finish(getDatabase(directory)):withDatabase(directory,null,finish,{relations:false})
-}
-
-const diagramSql=readFileSync(new URL('./diagram.sql',import.meta.url),'utf8')
-const sampleSql=readFileSync(new URL('./sample.sql',import.meta.url),'utf8')
-
-export async function readRunDiagram(directory,settings,database) {
-  if(!database)return withDatabase(directory,null,db=>readRunDiagram(directory,settings,db))
-  const [{payload}]=await database.query(diagramSql,{directories:JSON.stringify(await directories(directory)),forkTurns:settings.fork_turns??null,strategy:settings.cap_strategy??null,samples:settings.t_samples??null})
+  const index=await readRunIndex(db)
+  const rows=await summaries(db,index.rows.map(row=>row.id))
+  const [{payload}]=await db.query(`WITH missing AS (SELECT count(*)-json_array_length(:rows) AS n FROM json_each(:folders) WHERE value)
+  SELECT json_object('rows',json(:rows),
+  'warnings',json((SELECT json_group_array(value) FROM (SELECT :incomplete AS value WHERE EXISTS(SELECT 1 FROM transcript_lines WHERE incomplete)
+   UNION ALL SELECT n||' run folders have no run.json yet and are omitted from the run list.' FROM missing WHERE n>0))),
+  'strategyOptions',json(:options)) AS payload`,{rows:JSON.stringify(rows),folders:JSON.stringify(entries.map(entry=>entry.isDirectory())),incomplete,options:JSON.stringify(index.strategyOptions)})
   return JSON.parse(payload)
 }
 
-export async function readSample(directory,sourceRoot,database) {
-  if(!database)return withDatabase(sourceRoot,null,db=>readSample(directory,sourceRoot,db))
-  const sample=relative(sourceRoot,directory)
-  const files=await database.files(`${sample}/attempts/*/{src/**/*,transcripts/*/*.jsonl}`)
-  const [{payload}]=await database.query(sampleSql,{sample,directories:JSON.stringify(await directories(sourceRoot)),files:JSON.stringify(files)})
-  return {attempts:JSON.parse(payload)}
+export async function runSettings(db,run) {
+  const [row]=await db.query(`SELECT body FROM documents WHERE run=? AND kind='settings.json'`,[run])
+  return row?JSON.parse(row.body):{}
 }
 
-export async function readAttempt(directory,id,sourceRoot,database) {
-  const sample=await readSample(join(directory,'../..'),sourceRoot,database)
-  return sample.attempts.find(attempt=>attempt.id===id)
+export async function readRunDiagram(db,run) {
+  await readable(db,'documents',run)
+  const settings=await runSettings(db,run)
+  const [{payload}]=await db.query(diagramSql,{run,directories:JSON.stringify(await directories(join(db.root,'runs',run))),forkTurns:settings.fork_turns??null,strategy:settings.cap_strategy??null,samples:settings.t_samples??null})
+  return JSON.parse(payload)
+}
+
+export async function readSample(db,run,{window,fork,turn,sample}) {
+  await readable(db,'documents',run)
+  const position={window:Number(window),fork:Number(fork),turn:Number(turn),sample:Number(sample)}
+  const topology=await directories(join(db.root,'runs',run))
+  const prefix=`runs/${run}/`,base=`${prefix}windows/${window}/forks/${fork}/turns/${turn}/ts/${sample}/attempts/`
+  const attempts=topology.filter(entry=>entry.kind==='attempt'&&['window','fork','turn','sample'].every(key=>entry[key]===position[key])).map(entry=>entry.attempt)
+  const files=attempts.length?await db.query(attempts.flatMap(attempt=>[
+    `SELECT ${attempt} AS attempt,'src' AS kind,path,size FROM ${quote(`./${base}${attempt}/src/**/*`)}`,
+    `SELECT ${attempt} AS attempt,'transcript' AS kind,path,size FROM ${quote(`./${base}${attempt}/transcripts/*/*.jsonl`)}`,
+  ]).join(' UNION ALL ')):[]
+  for(const file of files)file.path=file.path.slice(prefix.length)
+  const [{payload}]=await db.query(sampleSql,{run,...position,directories:JSON.stringify(topology),files:JSON.stringify(files)})
+  return {attempts:JSON.parse(payload)}
 }
