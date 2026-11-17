@@ -1,4 +1,4 @@
-import {costSnapshot} from './lib/costs.js'
+// import {costSnapshot} from './lib/costs.js'
 import Fastify from 'fastify'
 import {createReadStream} from 'node:fs'
 import {realpath,stat} from 'node:fs/promises'
@@ -38,8 +38,8 @@ export function createApi(directory) {
   }
   app.get('/api/events',async(request,reply)=>streamResources(reply,JSON.parse(request.query.resources ?? '[]')))
   app.post('/api/events',async(request,reply)=>streamResources(reply,request.body?.resources))
-  endpoint('/api/runs/costs',()=>costSnapshot(db))
-  endpoint('/api/runs/runpod-costs',()=>db.query('SELECT id,gpu,costPerHr,start,stop FROM pod_records ORDER BY path'))
+  // endpoint('/api/runs/costs',()=>costSnapshot(db))
+  // endpoint('/api/runs/runpod-costs',()=>db.query('SELECT id,gpu,costPerHr,start,stop FROM pod_records ORDER BY path'))
   endpoint('/api/runs',()=>readExperiment(db))
   endpoint('/api/runs/index',()=>readRunIndex(db))
   endpoint('/api/runs/:run/details',async request=>{

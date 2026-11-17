@@ -22,7 +22,7 @@ async function fixture(t) {
   return { root, put }
 }
 
-test('best score requires all samples, retries use latest test, forks share depth; costs include all U contexts', async t => {
+test('best score requires all samples, retries use latest test, forks share depth', async t => {
   const { root, put } = await fixture(t)
   for (const [fork, score] of [[0, 12], [1, 3]]) {
     const turn = `windows/1/forks/${fork}/turns/2`
@@ -47,23 +47,23 @@ test('best score requires all samples, retries use latest test, forks share dept
   assert.equal(rows[0].turns, 43)
   assert.equal(rows[0].windows, 1)
   assert.equal(rows[0].elapsed, 9000)
-  assert.equal(rows[0].uCost, 3)
-  assert.equal(rows[0].tCost, 4)
-  assert.equal(rows[0].modelCost, 7)
+  assert.equal(rows[0].uCost, undefined)
+  assert.equal(rows[0].tCost, undefined)
+  assert.equal(rows[0].modelCost, undefined)
   assert.equal(rows[0].status, 'Complete')
 })
 
-test('missing prices stay unknown, incomplete usage is flagged, unfinished folders are reported', async t => {
+test('unfinished folders are reported with costs disabled', async t => {
   const { root, put } = await fixture(t)
   await put('run.json', { created: '2026-11-01T00:00:00Z', invocations: [{ started: '2026-11-01T00:00:00Z' }] })
   await put('windows/0/forks/0/u/transcript.jsonl', '{"usage":{"cost":0}}\n{"usage":{}}\n{"truncated":')
   await mkdir(join(root, 'runs/arriving'))
   const data = await readExperiment(database(t, root))
-  assert.equal(data.rows[0].uCost, null)
-  assert.equal(data.rows[0].tCost, null)
-  assert.equal(data.rows[0].modelCost, null)
+  assert.equal(data.rows[0].uCost, undefined)
+  assert.equal(data.rows[0].tCost, undefined)
+  assert.equal(data.rows[0].modelCost, undefined)
   assert.equal(data.rows[0].status, 'Open')
-  assert.equal(data.warnings.length, 2)
+  assert.equal(data.warnings.length, 1)
 })
 
 test('rejects a missing experiment and malformed metadata with its file path', async t => {
@@ -73,7 +73,7 @@ test('rejects a missing experiment and malformed metadata with its file path', a
   await assert.rejects(readExperiment(database(t, root)), /Cannot read .*run.json/)
 })
 
-test('single U transcript keeps cost unknown when an assistant reply has null usage', async t => {
+test('transcripts with missing usage do not add costs to summaries', async t => {
   const {root,put}=await fixture(t)
   const records=[
     {role:'system',content:'Instructions'},
@@ -82,7 +82,7 @@ test('single U transcript keeps cost unknown when an assistant reply has null us
     {role:'assistant',content:'Partial',reasoning:'Partial reasoning',timestamp:'2026-11-12T12:01:00Z',completion_id:'unpriced',usage:null,_complete:false},
   ]
   await put('windows/0/forks/0/u/transcript.jsonl',records.map(JSON.stringify).join('\n')+'\n')
-  assert.equal((await readExperiment(database(t,root))).rows[0].uCost,null)
+  assert.equal((await readExperiment(database(t,root))).rows[0].uCost, undefined)
 })
 
  test('scored series includes failed T turns and spans no-advice gaps and windows', async t => {

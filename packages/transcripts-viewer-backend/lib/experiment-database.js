@@ -15,17 +15,19 @@ export class ExperimentDatabase {
     }
     const located=path=>{const rel=relative(this.root,path),parts=rel.split('/');return {rel,run:parts[1],parts:parts.slice(2)}}
     const sources = {
-      pod_records:['runpod-costs/*.json',path=>{
-        const {id,gpu,costPerHr,start,stop}=JSON.parse(readFileSync(path,'utf8'))
-        return [{path:relative(this.root,path),id,gpu,costPerHr,start,stop}]
-      }],
+      // pod_records:['runpod-costs/*.json',path=>{
+      //   const {id,gpu,costPerHr,start,stop}=JSON.parse(readFileSync(path,'utf8'))
+      //   return [{path:relative(this.root,path),id,gpu,costPerHr,start,stop}]
+      // }],
       stderr_files:['runs/*/stderr-*.txt',path=>{
         const {rel,run}=located(path)
         let launched=null
+        /* Cost launch-time extraction disabled for now.
         for(const line of readFileSync(path,'utf8').split('\n')){
           const match=line.match(/^(\S+) instance launched\s*$/)
           if(match&&Number.isFinite(Date.parse(match[1]))){launched=new Date(match[1]).toISOString();break}
         }
+        */
         return [{run,path:rel,file:basename(path),launched,mtime:statSync(path).mtimeMs}]
       }],
       identities:['runs/*/{run.json,settings.json}',path=>{
@@ -55,9 +57,9 @@ export class ExperimentDatabase {
             try{record=JSON.parse(text)}catch{row.incomplete=1}
             if(record!==undefined){
               row.type=record?.message?.role??record?.role??record?.type??''
-              const value=kind==='u' ? record?.usage??(record?.role==='assistant'?{}:null) : record?.type==='message'?record.message?.usage:null
-              const cost=typeof value?.cost==='object'?value.cost?.total:value?.cost
-              Object.assign(row,{completion_id:record?.completion_id?String(record.completion_id):null,cost:typeof cost==='number'?cost:null,billable:value?1:0})
+              // const value=kind==='u' ? record?.usage??(record?.role==='assistant'?{}:null) : record?.type==='message'?record.message?.usage:null
+              // const cost=typeof value?.cost==='object'?value.cost?.total:value?.cost
+              // Object.assign(row,{completion_id:record?.completion_id?String(record.completion_id):null,cost:typeof cost==='number'?cost:null,billable:value?1:0})
             }
           }
           rows.push(row)

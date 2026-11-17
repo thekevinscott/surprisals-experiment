@@ -9,7 +9,7 @@ const chartsSql=readFileSync(new URL('./charts.sql',import.meta.url),'utf8')
 const indexSql=readFileSync(new URL('./index.sql',import.meta.url),'utf8')
 const diagramSql=readFileSync(new URL('./diagram.sql',import.meta.url),'utf8')
 const sampleSql=readFileSync(new URL('./sample.sql',import.meta.url),'utf8')
-const incomplete='Incomplete usage records were skipped; costs may be partial.'
+// const incomplete='Incomplete usage records were skipped; costs may be partial.'
 
 async function readable(db,table,run=null) {
   const [row]=await db.query(`SELECT error FROM ${table} WHERE error IS NOT NULL AND (:run IS NULL OR run=:run) ORDER BY path LIMIT 1`,{run})
@@ -30,7 +30,7 @@ async function summaries(db,runs,run=null) {
 export async function runSummary(db,run,warnings) {
   const [row]=await summaries(db,[run],run)
   if(!row)throw Object.assign(Error(`Cannot read ${join(db.root,'runs',run,'run.json')}: ENOENT`),{code:'ENOENT'})
-  if(warnings&&(await db.query('SELECT 1 FROM transcript_lines WHERE run=? AND incomplete LIMIT 1',[run])).length)warnings.add(incomplete)
+  // if(warnings&&(await db.query('SELECT 1 FROM transcript_lines WHERE run=? AND incomplete LIMIT 1',[run])).length)warnings.add(incomplete)
   return row
 }
 
@@ -52,9 +52,10 @@ export async function readExperiment(db) {
   const rows=await summaries(db,index.rows.map(row=>row.id))
   const [{payload}]=await db.query(`WITH missing AS (SELECT count(*)-json_array_length(:rows) AS n FROM json_each(:folders) WHERE value)
   SELECT json_object('rows',json(:rows),
-  'warnings',json((SELECT json_group_array(value) FROM (SELECT :incomplete AS value WHERE EXISTS(SELECT 1 FROM transcript_lines WHERE incomplete)
-   UNION ALL SELECT n||' run folders have no run.json yet and are omitted from the run list.' FROM missing WHERE n>0))),
-  'strategyOptions',json(:options)) AS payload`,{rows:JSON.stringify(rows),folders:JSON.stringify(entries.map(entry=>entry.isDirectory())),incomplete,options:JSON.stringify(index.strategyOptions)})
+  'warnings',json((SELECT json_group_array(value) FROM (
+   -- SELECT :incomplete AS value WHERE EXISTS(SELECT 1 FROM transcript_lines WHERE incomplete) UNION ALL
+   SELECT n||' run folders have no run.json yet and are omitted from the run list.' AS value FROM missing WHERE n>0))),
+  'strategyOptions',json(:options)) AS payload`,{rows:JSON.stringify(rows),folders:JSON.stringify(entries.map(entry=>entry.isDirectory())),options:JSON.stringify(index.strategyOptions)})
   return JSON.parse(payload)
 }
 

@@ -1,6 +1,6 @@
 WITH topology AS MATERIALIZED (
- SELECT value->>'run' AS run,value->>'kind' AS kind,value->>'window' AS window,value->>'fork' AS fork,
- value->>'turn' AS turn,value->>'sample' AS sample,value->>'attempt' AS attempt FROM json_each(:directories)
+ SELECT CAST(value->>'run' AS TEXT) AS run,CAST(value->>'kind' AS TEXT) AS kind,CAST(value->>'window' AS INTEGER) AS window,CAST(value->>'fork' AS INTEGER) AS fork,
+ CAST(value->>'turn' AS INTEGER) AS turn,CAST(value->>'sample' AS INTEGER) AS sample,CAST(value->>'attempt' AS INTEGER) AS attempt FROM json_each(:directories)
 ), info AS MATERIALIZED (SELECT * FROM run_info WHERE :run IS NULL OR run=:run),
 turns AS MATERIALIZED (SELECT * FROM evaluated_turns WHERE :run IS NULL OR run=:run),
 latest_attempts AS MATERIALIZED (SELECT run,window,fork,turn,sample,max(attempt) AS attempt FROM topology WHERE kind='attempt' GROUP BY run,window,fork,turn,sample),
@@ -41,9 +41,11 @@ fork_rows AS MATERIALIZED (
     ELSE coalesce(unixepoch(value->>'ended','subsec'),:now/1000.0) END
    -unixepoch(coalesce(value->>'started',meta->>'created'),'subsec')) AS seconds FROM invocations v
  ) GROUP BY run
+/* Costs disabled for now.
 ), costs AS (
  SELECT *,max(0,(coalesce(unixepoch(ended,'subsec'),:now/1000.0)-unixepoch(awsLaunched,'subsec')))/3600*0.1008 AS awsCost
  FROM cost_rows WHERE :run IS NULL OR id=:run
+*/
 ), rows AS (
  SELECT r.strategy,r.problem,r.id,json_object('id',r.id,'problem',r.problem,'strategy',r.strategy,
  'exit',current->>'exit_code',
@@ -60,10 +62,10 @@ fork_rows AS MATERIALIZED (
  'windowPositions',json((SELECT json_group_array(json_object('id',window,'depth',CASE WHEN window=0 THEN 0 ELSE window*((settings->>'fork_turns')+(settings->>'window_solo_turns')) END)) FROM (SELECT window FROM windows w WHERE w.run=i.run AND (window=0 OR (settings->>'fork_turns')+(settings->>'window_solo_turns') IS NOT NULL) ORDER BY window))),
  'scored',json((SELECT json_group_array(json_array(depth,score,json(CASE WHEN passed THEN 'true' ELSE 'false' END))) FROM (SELECT * FROM scored s WHERE s.run=i.run AND depth IS NOT NULL ORDER BY depth,source))),
  'passing',json((SELECT json_group_array(json_array(depth,score)) FROM (SELECT * FROM scored s WHERE s.run=i.run AND passed AND depth IS NOT NULL ORDER BY depth,score,source))),
- 'forks',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM fork_rows f WHERE f.run=i.run ORDER BY window,fork))),
- 'uCost',c.uCost,'tCost',c.tCost,'modelCost',c.uCost+c.tCost,'awsLaunched',c.awsLaunched,'awsCost',c.awsCost
+ 'forks',json((SELECT json_group_array(json(payload)) FROM (SELECT payload FROM fork_rows f WHERE f.run=i.run ORDER BY window,fork)))
+ /*, 'uCost',c.uCost,'tCost',c.tCost,'modelCost',c.uCost+c.tCost,'awsLaunched',c.awsLaunched,'awsCost',c.awsCost */
  ) AS payload
  FROM info i JOIN run_identity r ON r.id=i.run
- LEFT JOIN last_observed o ON o.run=i.run LEFT JOIN runtimes rt ON rt.run=i.run LEFT JOIN costs c ON c.id=i.run
+ LEFT JOIN last_observed o ON o.run=i.run LEFT JOIN runtimes rt ON rt.run=i.run /* LEFT JOIN costs c ON c.id=i.run */
 )
 SELECT json_group_array(json(payload)) AS payload FROM (SELECT payload FROM rows ORDER BY strategy,problem,id);
