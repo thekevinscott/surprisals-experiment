@@ -9,7 +9,7 @@ test('transcript metadata omits contents and ranges preserve every original phys
   const root=await mkdtemp(join(tmpdir(),'viewer-transcript-blocks-'))
   const run=join(root,'runs','one'),source='windows/0/forks/0/u/transcript.jsonl'
   await mkdir(join(run,'windows/0/forks/0/u'),{recursive:true})
-  const lines=['{"role":"system","content":"first"}\r','  ','{"role":"system","content":"first","_reset":true}','{"message":{"role":"assistant","content":"partial"},"_complete":false}','{"type":"provider_error","error":"failure"}','{"role":','']
+  const lines=['{"role":"system","content":"first 🐈 café"}\r','  ','{"role":"system","content":"first 🐈 café","_reset":true}','{"message":{"role":"assistant","content":"partial"},"_complete":false}','{"type":"provider_error","error":"failure"}','{"role":','']
   await writeFile(join(run,source),lines.join('\n'))
   const app=createApi(root)
   t.after(async()=>{await app.close();await rm(root,{recursive:true,force:true})})

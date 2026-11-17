@@ -29,7 +29,7 @@ forks AS MATERIALIZED (
  'targets',json((SELECT json_group_object(depth,json_object('window',f.window,'fork',f.id,'turn',depth-f.start)) FROM points p WHERE p.k=f.k AND p.window=f.window AND p.id=f.id))
  ) AS payload
  FROM scopes s JOIN forks f ON f.k=s.k AND (s.key='run' OR (s.window=f.window AND s.fork=f.id)) JOIN input i ON i.k=s.k
-), charts AS (
+), charts AS MATERIALIZED (
  SELECT s.k,s.key,json_object('arms',json_array(row->>'strategy'),
  'series',json((SELECT json_group_array(json(payload)) FROM series x WHERE x.k=s.k AND x.key=s.key)),
  'windowPositions',json(coalesce(row->'windowPositions','[]')),

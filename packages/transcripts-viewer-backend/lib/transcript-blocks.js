@@ -1,5 +1,4 @@
-import {open} from 'node:fs/promises'
-import {join} from 'node:path'
+import {quote} from './experiment-database.js'
 
 export function createTranscriptReader(db) {
   return {
@@ -11,17 +10,15 @@ export function createTranscriptReader(db) {
       return JSON.parse(payload)
     },
     async blocks(path,start,end){
-      const rows=await db.query('SELECT line,offset,length FROM transcript_lines WHERE run=? AND path=? AND line>=? AND line<? ORDER BY line',[path.split('/')[1],path,start,end])
-      const file=await open(join(db.root,path),'r')
-      try{
-        const blocks=[]
-        for(const row of rows){
-          const buffer=Buffer.alloc(row.length)
-          const {bytesRead}=await file.read(buffer,0,row.length,row.offset)
-          blocks.push({index:row.line,raw:buffer.subarray(0,bytesRead).toString('utf8')})
-        }
-        return {blocks}
-      }finally{await file.close()}
+      const [{payload}]=await db.query(`WITH source AS MATERIALIZED (
+        SELECT CAST(content AS BLOB) AS bytes FROM ${quote('./'+path)}
+      ), blocks AS (
+        SELECT line AS position,CAST(substr(bytes,offset+1,length) AS TEXT) AS raw
+        FROM transcript_lines CROSS JOIN source
+        WHERE run=:run AND path=:path AND line>=:start AND line<:end ORDER BY line
+      ) SELECT json_object('blocks',json_group_array(json_object('index',position,'raw',raw))) AS payload FROM blocks`,
+      {run:path.split('/')[1],path,start,end})
+      return JSON.parse(payload)
     },
   }
 }

@@ -15,3 +15,11 @@ test('summary uses an indexed sample-results join and does not aggregate costs',
   assert(!steps.some(step=>/SCAN r LEFT-JOIN/.test(step)),'sample results must not be scanned once per turn')
   assert(!steps.some(step=>/transcript_lines|cost_rows|model_costs|usage_ranked/.test(step)),'summary must not execute disabled cost queries')
 })
+
+test('chart assembly uses an indexed lookup of its materialized series',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'viewer-chart-plan-'))
+  t.after(()=>rm(root,{recursive:true,force:true}))
+  const db=database(t,root),sql=await readFile(new URL('../lib/charts.sql',import.meta.url),'utf8')
+  const plan=await db.query('EXPLAIN QUERY PLAN '+sql,{rows:'[]'})
+  assert(plan.some(row=>/SEARCH x USING AUTOMATIC.*INDEX.*k=.*key=/.test(row.detail)),plan.map(row=>row.detail).join('\n'))
+})
